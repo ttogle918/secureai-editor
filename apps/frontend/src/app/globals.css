@@ -1,0 +1,175 @@
+/* ────────────────────────────────────────────
+   SecureAI — VSCode Dark Theme
+──────────────────────────────────────────── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-editor:      #1e1e1e;
+  --bg-sidebar:     #252526;
+  --bg-panel:       #2d2d2d;
+  --bg-topbar:      #3c3c3c;
+  --bg-tab-active:  #1e1e1e;
+  --bg-tab-inactive:#2d2d2d;
+  --bg-hover:       #2a2d2e;
+  --bg-selected:    #094771;
+  --bg-input:       #3c3c3c;
+
+  --text-primary:   #cccccc;
+  --text-secondary: #9d9d9d;
+  --text-tertiary:  #6b6b6b;
+  --text-bright:    #ffffff;
+
+  --border:         #3c3c3c;
+  --border-light:   #454545;
+
+  --accent-blue:    #007acc;
+  --accent-blue-bg: rgba(0,122,204,0.15);
+
+  --critical:       #f44747;
+  --critical-bg:    rgba(244,71,71,0.15);
+  --high:           #e2a53a;
+  --high-bg:        rgba(226,165,58,0.15);
+  --medium:         #4ec9b0;
+  --medium-bg:      rgba(78,201,176,0.15);
+  --low:            #608b4e;
+  --success:        #4caf50;
+  --success-bg:     rgba(76,175,80,0.15);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #__next {
+  height: 100%;
+  background: var(--bg-editor);
+  color: var(--text-primary);
+  font-family: -apple-system, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+/* ── 스크롤바 (VSCode 스타일) ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #424242; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* ── Monaco 인라인 취약점 데코레이션 ── */
+.vuln-critical-line { background: var(--critical-bg) !important; }
+.vuln-critical-glyph::before {
+  content: '●';
+  color: var(--critical);
+  font-size: 10px;
+  margin-left: 2px;
+}
+.vuln-high-line { background: var(--high-bg) !important; }
+.vuln-high-glyph::before {
+  content: '●';
+  color: var(--high);
+  font-size: 10px;
+  margin-left: 2px;
+}
+.vuln-medium-line { background: var(--medium-bg) !important; }
+.vuln-medium-glyph::before {
+  content: '●';
+  color: var(--medium);
+  font-size: 10px;
+  margin-left: 2px;
+}
+
+/* ── 공통 배지 ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.badge-critical { background: var(--critical-bg);  color: var(--critical); }
+.badge-high     { background: var(--high-bg);      color: var(--high); }
+.badge-medium   { background: var(--medium-bg);    color: var(--medium); }
+.badge-low      { background: rgba(96,139,78,.2);  color: var(--low); }
+.badge-pass     { background: var(--success-bg);   color: var(--success); }
+.badge-fail     { background: var(--critical-bg);  color: var(--critical); }
+.badge-warning  { background: var(--high-bg);      color: var(--high); }
+.badge-running  { background: var(--accent-blue-bg); color: var(--accent-blue); }
+
+/* ── 버튼 ── */
+.btn-primary {
+  background: var(--accent-blue);
+  color: #fff;
+  border: none;
+  padding: 5px 14px;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.btn-primary:hover { opacity: .85; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+  padding: 4px 12px;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* ── 탭 ── */
+.editor-tab {
+  padding: 6px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  border-right: 1px solid var(--border);
+  background: var(--bg-tab-inactive);
+  white-space: nowrap;
+  transition: background .1s;
+}
+.editor-tab:hover { background: var(--bg-hover); }
+.editor-tab.active {
+  background: var(--bg-tab-active);
+  color: var(--text-bright);
+  border-bottom-color: var(--accent-blue);
+}
+
+/* ── 채팅 버블 ── */
+.chat-bubble-user {
+  background: var(--accent-blue-bg);
+  border: 1px solid rgba(0,122,204,.3);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 8px 8px 2px 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 88%;
+  margin-left: auto;
+  white-space: pre-wrap;
+}
+.chat-bubble-ai {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 8px 8px 8px 2px;
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 88%;
+  white-space: pre-wrap;
+}
+
+/* ── 진행 바 ── */
+.progress-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+.progress-fill { height: 100%; border-radius: 2px; transition: width .3s; }

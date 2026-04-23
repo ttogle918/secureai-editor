@@ -8,7 +8,11 @@ interface Props {
 }
 
 export default function ResizeHandle({ onResize, direction = 'horizontal' }: Props) {
-  const { onMouseDown } = useResize(onResize, direction);
+  const { onMouseDown } = useResize(
+    direction,
+    onResize
+  );
+
   const isH = direction === 'horizontal';
 
   return (
@@ -16,7 +20,7 @@ export default function ResizeHandle({ onResize, direction = 'horizontal' }: Pro
       onMouseDown={onMouseDown}
       style={{
         flexShrink: 0,
-        width:  isH ? 4 : '100%',
+        width: isH ? 4 : '100%',
         height: isH ? '100%' : 4,
         cursor: isH ? 'col-resize' : 'row-resize',
         background: 'transparent',

@@ -1,36 +1,33 @@
-'use client';
-import { type Severity } from '@/lib/mockData';
+// components/ui/SeverityBadge.tsx
+// 심각도 배지 컴포넌트 (CRITICAL / HIGH / MEDIUM / LOW)
+import type { SeverityLevel } from '@/types';
+import { SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/constants/severity';
 
-const MAP: Record<Severity, { bg: string; text: string; border: string; label: string }> = {
-  critical: { bg: 'rgba(226,75,74,0.12)',  text: '#E24B4A', border: 'rgba(226,75,74,0.3)',  label: 'Critical' },
-  high:     { bg: 'rgba(186,117,23,0.12)', text: '#BA7517', border: 'rgba(186,117,23,0.3)', label: 'High'     },
-  medium:   { bg: 'rgba(78,201,176,0.12)', text: '#4ec9b0', border: 'rgba(78,201,176,0.3)', label: 'Medium'   },
-  low:      { bg: 'rgba(96,139,78,0.12)',  text: '#608b4e', border: 'rgba(96,139,78,0.3)',  label: 'Low'      },
-};
-
-export const SEVERITY_COLORS = MAP;
-
-interface Props {
-  severity: Severity;
-  size?: 'sm' | 'md';
+interface SeverityBadgeProps {
+  level: SeverityLevel;
+  className?: string;
 }
 
-export default function SeverityBadge({ severity, size = 'sm' }: Props) {
-  const c = MAP[severity];
+export function SeverityBadge({ level, className }: SeverityBadgeProps) {
+  const { text, bg, border } = SEVERITY_COLORS[level];
+
   return (
-    <span style={{
-      fontSize: size === 'sm' ? 10 : 12,
-      padding: size === 'sm' ? '2px 8px' : '3px 10px',
-      borderRadius: 4,
-      fontWeight: 700,
-      textTransform: 'uppercase',
-      letterSpacing: '0.06em',
-      background: c.bg,
-      color: c.text,
-      border: `0.5px solid ${c.border}`,
-      flexShrink: 0,
-    }}>
-      {c.label}
+    <span
+      className={className}
+      style={{
+        display: 'inline-block',
+        fontSize: 9,
+        fontWeight: 700,
+        letterSpacing: '0.5px',
+        padding: '2px 6px',
+        borderRadius: 3,
+        color: text,
+        background: bg,
+        border: `1px solid ${border}`,
+        fontFamily: 'var(--font-mono)',
+      }}
+    >
+      {SEVERITY_LABELS[level].toUpperCase()}
     </span>
   );
 }

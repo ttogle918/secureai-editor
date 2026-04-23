@@ -1,7 +1,7 @@
 'use client';
 import { useSecureStore, type SeverityFilter } from '@/store/useSecureStore';
 import { mockVulnerabilities } from '@/lib/mockData';
-import { SEVERITY_COLORS } from './SeverityBadge';
+import { SEVERITY_COLORS } from '@/lib/constants/severity';
 
 // API 그룹 추출 — "/api/users/login" → "/api/users"
 function extractApiGroups(vulns: typeof mockVulnerabilities) {
@@ -12,12 +12,12 @@ function extractApiGroups(vulns: typeof mockVulnerabilities) {
   return Array.from(groups).sort();
 }
 
-const SEV_LIST: { value: SeverityFilter; label: string }[] = [
-  { value: 'all',      label: 'ALL'      },
-  { value: 'critical', label: 'Critical' },
-  { value: 'high',     label: 'High'     },
-  { value: 'medium',   label: 'Medium'   },
-  { value: 'low',      label: 'Low'      },
+const SEV_LIST: { value: SeverityFilter; label: string; color: string | null }[] = [
+  { value: 'all',      label: 'ALL',      color: null         },
+  { value: 'critical', label: 'Critical', color: '#e24b4b'    },
+  { value: 'high',     label: 'High',     color: '#f59e0b'    },
+  { value: 'medium',   label: 'Medium',   color: '#eab308'    },
+  { value: 'low',      label: 'Low',      color: '#22c55e'    },
 ];
 
 export default function FilterBar() {
@@ -41,22 +41,34 @@ export default function FilterBar() {
 
       {/* 심각도 필터 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginRight: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>심각도</span>
-        {SEV_LIST.map(({ value, label }) => {
+        <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', marginRight: 6, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.08em' }}>심각도</span>
+        {SEV_LIST.map(({ value, label, color }) => {
           const active = severityFilter === value;
-          const c = value === 'all' ? null : SEVERITY_COLORS[value as SeverityFilter & 'critical'];
+          const isAll = value === 'all';
+          const c = color ?? '';
           return (
             <button
               key={value}
               onClick={() => setSeverity(value)}
               style={{
-                padding: '3px 10px', fontSize: 11, fontWeight: active ? 700 : 500,
-                borderRadius: 5,
-                background: active ? (c?.bg ?? 'rgba(255,255,255,0.12)') : 'transparent',
-                color: active ? (c?.text ?? '#fff') : 'rgba(255,255,255,0.4)',
-                border: `0.5px solid ${active ? (c?.border ?? 'rgba(255,255,255,0.3)') : 'rgba(255,255,255,0.1)'}`,
+                padding: '3px 9px',
+                fontSize: 10,
+                fontWeight: 800,
+                borderRadius: 4,
+                background: active
+                  ? (isAll ? 'rgba(255,255,255,0.12)' : c)
+                  : (isAll ? 'transparent' : `${c}22`),
+                color: active
+                  ? (isAll ? '#e8e8ee' : '#fff')
+                  : (isAll ? 'rgba(255,255,255,0.35)' : c),
+                border: `1px solid ${active
+                  ? (isAll ? 'rgba(255,255,255,0.22)' : c)
+                  : (isAll ? 'rgba(255,255,255,0.1)' : `${c}55`)}`,
                 cursor: 'pointer',
                 transition: 'all 0.15s',
+                textTransform: 'uppercase',
+                letterSpacing: '0.02em',
+                minWidth: isAll ? 40 : 60,
               }}
             >
               {label}

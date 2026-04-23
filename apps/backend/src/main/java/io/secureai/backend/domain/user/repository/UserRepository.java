@@ -25,11 +25,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByUsernameAndDeletedAtIsNull(String username);
 
+    // @Query("UPDATE User u SET u.sastUsageThisMonth = 0, " +
+    // "u.sastUsageResetAt = FUNCTION('DATE_TRUNC', 'month', CURRENT_TIMESTAMP) + 1
+    // MONTH " +
+    // "WHERE u.deletedAt IS NULL")
     @Modifying
-    @Query("UPDATE User u SET u.sastUsageThisMonth = 0, " +
-           "u.sastUsageResetAt = FUNCTION('DATE_TRUNC', 'month', CURRENT_TIMESTAMP) + 1 MONTH " +
-           "WHERE u.deletedAt IS NULL")
-    int resetMonthlySastUsage();
+    @Query(value = "UPDATE User u SET u.sastUsageThisMonth = 0, u.sastUsageResetAt = FUNCTION('DATE_TRUNC', 'month', CURRENT_TIMESTAMP()) + 1 MONTH WHERE u.deletedAt IS NULL", nativeQuery = true)
+    void resetMonthlySastUsage();
+
+    // int resetMonthlySastUsage();
 
     @Query("SELECT u FROM User u JOIN FETCH u.plan WHERE u.id = :id AND u.deletedAt IS NULL")
     Optional<User> findByIdWithPlan(@Param("id") UUID id);

@@ -7,38 +7,40 @@ import { useRef, useCallback, useEffect } from 'react';
  */
 export function useResize(
   direction: 'horizontal' | 'vertical',
-  initialSize: number,
-  min: number,
-  max: number,
-  onResize: (size: number) => void
+  onResize: (delta: number) => void
 ) {
   const isDragging = useRef(false);
-  const startPos   = useRef(0);
-  const startSize  = useRef(initialSize);
+  const lastPos    = useRef(0);
 
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       isDragging.current = true;
-      startPos.current   = direction === 'horizontal' ? e.clientX : e.clientY;
-      startSize.current  = initialSize;
+      lastPos.current    = direction === 'horizontal' ? e.clientX : e.clientY;
 
       const onMove = (ev: MouseEvent) => {
         if (!isDragging.current) return;
-        const delta =
-          (direction === 'horizontal' ? ev.clientX : ev.clientY) - startPos.current;
-        const next = Math.min(max, Math.max(min, startSize.current + delta));
-        onResize(next);
+        const currentPos = direction === 'horizontal' ? ev.clientX : ev.clientY;
+        const delta = currentPos - lastPos.current;
+        
+        if (delta !== 0) {
+          onResize(delta);
+          lastPos.current = currentPos;
+        }
       };
+
       const onUp = () => {
         isDragging.current = false;
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
+        document.body.style.cursor = 'default';
       };
+
+      document.body.style.cursor = direction === 'horizontal' ? 'col-resize' : 'row-resize';
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
     },
-    [direction, initialSize, min, max, onResize]
+    [direction, onResize]
   );
 
   return { onMouseDown };

@@ -72,10 +72,29 @@ dist/
 *.key
 *.p12
 *.pfx
+*.keystore
+*.jks
 certs/
 secrets/
 application-secret.yml
 application-secret.properties
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Android / Firebase
+google-services.json
+google-services-dev.json
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aar
+*.ap_
+*.dex
 
 # Docker
 .docker/

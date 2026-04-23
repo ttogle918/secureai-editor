@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecureAI — 와이어프레임</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Courier New', monospace; background: #1a1a1a; color: #ccc; }
+  
+  .page { padding: 40px; max-width: 1400px; margin: 0 auto; }
+  h1 { color: #ea580c; font-size: 28px; margin-bottom: 8px; letter-spacing: 2px; }
+  .subtitle { color: #666; font-size: 13px; margin-bottom: 48px; }
+  
+  .section { margin-bottom: 64px; }
+  .section-title { 
+    color: #ea580c; font-size: 11px; letter-spacing: 4px; text-transform: uppercase;
+    border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 24px;
+  }
+  
+  /* WIREFRAME BOXES */
+  .wf-container {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  
+  .wf-label {
+    font-size: 10px;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  
+  .wf-box {
+    background: #1e1e1e;
+    border: 1px dashed #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #555;
+    text-align: center;
+    padding: 8px;
+  }
+  
+  .wf-box.accent { border-color: #ea580c44; color: #ea580c99; }
+  .wf-box.critical { background: #1a0a0a; border-color: #e24b4b44; color: #e24b4b99; }
+  .wf-box.high { background: #1a0f0a; border-color: #f59e0b44; color: #f59e0b99; }
+  
+  /* === SCREEN 1: LANDING === */
+  .landing-wf {
+    display: grid;
+    grid-template-rows: 56px 1fr 80px;
+    height: 560px;
+    gap: 0;
+  }
+  .landing-nav { 
+    background: #0a0a0a; border-bottom: 1px solid #222;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+  }
+  .landing-nav .logo { color: #ea580c; font-size: 14px; font-weight: bold; }
+  .landing-nav .nav-items { display: flex; gap: 24px; font-size: 11px; color: #555; }
+  .landing-nav .cta { background: #ea580c; color: white; padding: 6px 14px; border-radius: 3px; font-size: 11px; }
+  
+  .landing-hero {
+    background: #0f0f0f;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0;
+  }
+  .hero-left {
+    padding: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 16px;
+    border-right: 1px solid #1a1a1a;
+  }
+  .hero-tag { font-size: 10px; color: #ea580c; letter-spacing: 3px; text-transform: uppercase; }
+  .hero-h1 { font-size: 28px; color: #e5e5e5; line-height: 1.3; }
+  .hero-h1 span { color: #ea580c; }
+  .hero-sub { font-size: 12px; color: #666; line-height: 1.7; }
+  .hero-btns { display: flex; gap: 10px; margin-top: 8px; }
+  .btn-primary { background: #ea580c; color: white; padding: 10px 20px; border-radius: 3px; font-size: 11px; }
+  .btn-secondary { border: 1px solid #333; color: #999; padding: 10px 20px; border-radius: 3px; font-size: 11px; }
+  .hero-right { padding: 24px; display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+  .layer-card {
+    background: #141414; border: 1px solid #222; border-radius: 3px;
+    padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+  }
+  .layer-num { color: #ea580c; font-size: 18px; font-weight: bold; }
+  .layer-info h4 { color: #ccc; font-size: 12px; }
+  .layer-info p { color: #555; font-size: 10px; margin-top: 2px; }
+  
+  .landing-footer {
+    background: #0a0a0a; border-top: 1px solid #222;
+    display: flex; align-items: center; justify-content: center; gap: 48px;
+  }
+  .stat { text-align: center; }
+  .stat-num { color: #ea580c; font-size: 18px; font-weight: bold; }
+  .stat-label { color: #555; font-size: 10px; }
+  
+  /* === SCREEN 2: EDITOR === */
+  .editor-wf {
+    display: grid;
+    grid-template-rows: 44px 1fr;
+    height: 640px;
+  }
+  .editor-header {
+    background: #0a0a0a; border-bottom: 1px solid #222;
+    display: flex; align-items: center; gap: 12px; padding: 0 14px;
+    font-size: 11px;
+  }
+  .editor-header .logo { color: #ea580c; font-weight: bold; margin-right: 8px; }
+  .header-path { color: #555; flex: 1; }
+  .sev-btn { padding: 3px 8px; border-radius: 2px; font-size: 10px; }
+  .sev-all { border: 1px solid #333; color: #999; }
+  .sev-c { background: #e24b4b22; border: 1px solid #e24b4b66; color: #e24b4b; }
+  .sev-h { background: #f59e0b22; border: 1px solid #f59e0b66; color: #f59e0b; }
+  .sev-m { background: #eab30822; border: 1px solid #eab30866; color: #eab308; }
+  .sev-l { background: #22c55e22; border: 1px solid #22c55e66; color: #22c55e; }
+  
+  .editor-body {
+    display: grid;
+    grid-template-columns: 200px 1fr 300px;
+    overflow: hidden;
+  }
+  
+  .sidebar { 
+    background: #0d0d0d; border-right: 1px solid #222; 
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .sidebar-header { 
+    padding: 10px 12px; font-size: 10px; color: #555; 
+    text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid #1a1a1a;
+  }
+  .file-tree { flex: 1; padding: 8px; overflow-y: auto; }
+  .file-item { 
+    padding: 4px 8px; font-size: 11px; color: #666; 
+    cursor: pointer; border-radius: 2px; display: flex; align-items: center; gap: 6px;
+  }
+  .file-item.active { background: #1a1a1a; color: #ccc; }
+  .file-item .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-c { background: #e24b4b; }
+  .dot-h { background: #f59e0b; }
+  .dot-ok { background: #22c55e; }
+  .sidebar-actions { 
+    padding: 12px; border-top: 1px solid #1a1a1a; display: flex; flex-direction: column; gap: 6px;
+  }
+  .action-btn { 
+    padding: 7px; background: #1a1a1a; border: 1px solid #2a2a2a; 
+    border-radius: 2px; font-size: 10px; color: #999; text-align: center; cursor: pointer;
+  }
+  .action-btn.primary { background: #ea580c22; border-color: #ea580c66; color: #ea580c; }
+  
+  .editor-main { 
+    background: #141414; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .editor-tabs { 
+    background: #0f0f0f; border-bottom: 1px solid #1a1a1a; 
+    display: flex; align-items: center; padding: 0 12px; height: 32px; gap: 2px;
+  }
+  .tab { 
+    padding: 4px 14px; font-size: 11px; color: #555; 
+    border-right: 1px solid #1a1a1a; display: flex; align-items: center; gap: 6px;
+  }
+  .tab.active { background: #141414; color: #ccc; }
+  .tab .vuln-dot { width: 5px; height: 5px; border-radius: 50%; background: #e24b4b; }
+  
+  .code-area { flex: 1; position: relative; overflow: hidden; }
+  .line-numbers { 
+    position: absolute; left: 0; top: 0; bottom: 0; width: 44px;
+    background: #111; border-right: 1px solid #1a1a1a;
+    display: flex; flex-direction: column; padding: 12px 0;
+  }
+  .ln { font-size: 10px; color: #333; text-align: right; padding: 1px 8px; line-height: 18px; }
+  .ln.vuln-c { color: #e24b4b66; background: #1a0a0a; }
+  .ln.vuln-h { color: #f59e0b66; background: #1a100a; }
+  
+  .code-content { 
+    margin-left: 44px; padding: 12px 16px; overflow-y: auto; height: 100%;
+    font-size: 11px; line-height: 18px; color: #777;
+  }
+  .code-line { display: flex; align-items: center; min-height: 18px; }
+  .code-line.vuln-c { background: #e24b4b0d; border-left: 2px solid #e24b4b; padding-left: 6px; }
+  .code-line.vuln-h { background: #f59e0b0d; border-left: 2px solid #f59e0b; padding-left: 6px; }
+  .kw { color: #569cd6; }
+  .str { color: #ce9178; }
+  .fn { color: #dcdcaa; }
+  .cm { color: #3a3a3a; }
+  
+  .dast-terminal {
+    background: #0a0a0a; border-top: 1px solid #1a1a1a; height: 140px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .terminal-header { 
+    padding: 6px 12px; font-size: 10px; color: #555; 
+    border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; gap: 8px;
+  }
+  .terminal-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+  .terminal-body { flex: 1; padding: 8px 12px; overflow-y: auto; }
+  .t-line { font-size: 10px; line-height: 18px; color: #555; font-family: monospace; }
+  .t-line .t-ok { color: #22c55e; }
+  .t-line .t-warn { color: #f59e0b; }
+  .t-line .t-err { color: #e24b4b; }
+  .t-line .t-time { color: #333; }
+  
+  .right-panel { 
+    background: #111; border-left: 1px solid #222; 
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .panel-tabs { 
+    background: #0a0a0a; border-bottom: 1px solid #1a1a1a; 
+    display: flex; height: 36px; align-items: stretch;
+  }
+  .ptab { 
+    flex: 1; display: flex; align-items: center; justify-content: center; 
+    font-size: 11px; color: #555; border-right: 1px solid #1a1a1a; cursor: pointer;
+  }
+  .ptab.active { color: #ea580c; border-bottom: 1px solid #ea580c; background: #111; }
+  
+  .filter-bar { 
+    padding: 8px 10px; border-bottom: 1px solid #1a1a1a; 
+    display: flex; gap: 4px; flex-wrap: wrap;
+  }
+  .api-btn { 
+    padding: 2px 8px; border: 1px solid #222; border-radius: 2px; 
+    font-size: 10px; color: #555; cursor: pointer;
+  }
+  .api-btn.active { border-color: #ea580c66; color: #ea580c; background: #ea580c11; }
+  
+  .vuln-list { flex: 1; overflow-y: auto; }
+  .vuln-item { 
+    border-bottom: 1px solid #1a1a1a; padding: 10px 12px; cursor: pointer;
+  }
+  .vuln-item.expanded { background: #141414; }
+  .vuln-top { display: flex; align-items: center; gap: 8px; }
+  .sev-tag { 
+    font-size: 9px; padding: 1px 5px; border-radius: 2px; font-weight: bold;
+  }
+  .tag-c { background: #e24b4b22; color: #e24b4b; border: 1px solid #e24b4b44; }
+  .tag-h { background: #f59e0b22; color: #f59e0b; border: 1px solid #f59e0b44; }
+  .tag-m { background: #eab30822; color: #eab308; border: 1px solid #eab30844; }
+  .vuln-name { font-size: 11px; color: #bbb; flex: 1; }
+  .vuln-file { font-size: 10px; color: #555; margin-top: 3px; padding-left: 0; }
+  
+  .vuln-detail { margin-top: 10px; font-size: 10px; color: #666; }
+  .detail-section { margin-top: 8px; }
+  .detail-label { color: #444; text-transform: uppercase; letter-spacing: 1px; font-size: 9px; margin-bottom: 4px; }
+  
+  .call-chain { 
+    background: #0f0f0f; border: 1px solid #1a1a1a; border-radius: 2px;
+    padding: 8px; font-size: 10px; margin-top: 4px;
+  }
+  .chain-node { 
+    padding: 3px 6px; border-radius: 2px; 
+    display: inline-block; cursor: pointer; margin: 2px 0;
+  }
+  .chain-ok { background: #1a1a1a; color: #666; }
+  .chain-vuln { background: #e24b4b11; color: #e24b4b; border: 1px solid #e24b4b33; box-shadow: 0 0 8px rgba(226,75,74,0.3); }
+  .chain-arrow { color: #333; padding: 0 4px; }
+  
+  .autofix-btn { 
+    margin-top: 8px; width: 100%; padding: 6px; 
+    background: #ea580c; color: white; border-radius: 2px; 
+    font-size: 10px; text-align: center; cursor: pointer; font-weight: bold;
+  }
+  
+  /* === SCREEN 3: DASHBOARD === */
+  .dash-wf {
+    display: grid;
+    grid-template-rows: 44px 1fr;
+    height: 640px;
+  }
+  .dash-body { display: grid; grid-template-columns: 200px 1fr; overflow: hidden; }
+  .dash-main { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .kpi-card { 
+    background: #141414; border: 1px solid #1f1f1f; border-radius: 3px; 
+    padding: 14px; text-align: center;
+  }
+  .kpi-card.score { border-color: #ea580c33; }
+  .kpi-num { font-size: 24px; font-weight: bold; color: #ea580c; }
+  .kpi-label { font-size: 10px; color: #555; margin-top: 4px; }
+  .kpi-num.c { color: #e24b4b; }
+  .kpi-num.h { color: #f59e0b; }
+  .kpi-num.m { color: #eab308; }
+  .kpi-num.ok { color: #22c55e; }
+  
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .chart-card { 
+    background: #141414; border: 1px solid #1f1f1f; border-radius: 3px; padding: 14px;
+  }
+  .chart-title { font-size: 11px; color: #777; margin-bottom: 12px; }
+  .bar-chart { display: flex; flex-direction: column; gap: 6px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; font-size: 10px; }
+  .bar-label { width: 80px; color: #555; text-align: right; }
+  .bar-track { flex: 1; height: 12px; background: #1a1a1a; border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; }
+  .bar-count { width: 24px; color: #555; text-align: right; }
+  
+  .sparkline { height: 60px; display: flex; align-items: flex-end; gap: 4px; padding-top: 8px; }
+  .spark-col { display: flex; flex-direction: column; gap: 2px; align-items: center; flex: 1; }
+  .spark-bar { width: 100%; border-radius: 1px; }
+  .spark-date { font-size: 9px; color: #333; }
+  
+  .heatmap { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .heat-cell { 
+    background: #1a1a1a; border-radius: 2px; padding: 6px; 
+    font-size: 10px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .heat-cell.c1 { background: #e24b4b22; border: 1px solid #e24b4b33; }
+  .heat-cell.c2 { background: #f59e0b22; border: 1px solid #f59e0b33; }
+  .heat-cell.c3 { background: #eab30822; border: 1px solid #eab30833; }
+  .heat-file { color: #666; font-size: 9px; }
+  .heat-cnt { color: #ea580c; font-weight: bold; }
+  
+  .owasp-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .owasp-cell { 
+    border: 1px solid #1a1a1a; border-radius: 2px; padding: 8px; text-align: center;
+  }
+  .owasp-cell.covered { border-color: #e24b4b33; background: #e24b4b0a; }
+  .owasp-cell.partial { border-color: #f59e0b33; background: #f59e0b0a; }
+  .owasp-id { font-size: 9px; color: #555; }
+  .owasp-name { font-size: 9px; color: #777; margin-top: 2px; }
+  
+  /* === SCREEN 4: MOBILE === */
+  .mobile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  .mobile-frame {
+    background: #0a0a0a;
+    border: 2px solid #333;
+    border-radius: 24px;
+    overflow: hidden;
+    width: 280px;
+    margin: 0 auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .mobile-header {
+    background: #111; border-bottom: 1px solid #1a1a1a;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .mobile-logo { color: #ea580c; font-size: 13px; font-weight: bold; }
+  .mobile-body { padding: 12px; display: flex; flex-direction: column; gap: 10px; height: 520px; overflow: hidden; }
+  .m-card { 
+    background: #141414; border: 1px solid #1f1f1f; border-radius: 6px; 
+    padding: 12px; font-size: 11px; 
+  }
+  .m-section { color: #555; font-size: 9px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+  .m-score-ring { 
+    width: 60px; height: 60px; border-radius: 50%; 
+    background: conic-gradient(#ea580c 72%, #1f1f1f 0);
+    margin: 0 auto 8px; display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .m-score-inner { 
+    width: 44px; height: 44px; background: #141414; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: bold; color: #ea580c;
+  }
+  .m-sev-row { display: flex; gap: 6px; }
+  .m-sev { flex: 1; border-radius: 4px; padding: 6px; text-align: center; }
+  .m-sev.c { background: #e24b4b11; border: 1px solid #e24b4b33; }
+  .m-sev.h { background: #f59e0b11; border: 1px solid #f59e0b33; }
+  .m-sev.m { background: #eab30811; border: 1px solid #eab30833; }
+  .m-sev-num { font-size: 18px; font-weight: bold; }
+  .m-sev.c .m-sev-num { color: #e24b4b; }
+  .m-sev.h .m-sev-num { color: #f59e0b; }
+  .m-sev.m .m-sev-num { color: #eab308; }
+  .m-sev-label { font-size: 9px; color: #555; }
+  .m-vuln-item { 
+    display: flex; align-items: center; gap: 8px; padding: 7px 0; 
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .m-vuln-item:last-child { border-bottom: none; }
+  .m-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .m-vuln-text { flex: 1; }
+  .m-vuln-name { font-size: 11px; color: #bbb; }
+  .m-vuln-file { font-size: 9px; color: #555; }
+  .m-arrow { color: #333; font-size: 12px; }
+  .m-chat-input {
+    background: #0f0f0f; border: 1px solid #2a2a2a; border-radius: 4px;
+    padding: 8px 12px; font-size: 11px; color: #777; margin-top: 4px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .m-send { color: #ea580c; font-size: 14px; }
+  .m-chat-msg {
+    background: #1a1a1a; border-radius: 4px; padding: 8px 10px;
+    font-size: 10px; color: #777; line-height: 1.6; margin-bottom: 6px;
+  }
+  .m-chat-msg.ai { border-left: 2px solid #ea580c; }
+  
+  .annotations { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+  .anno { background: #141414; border: 1px solid #222; border-radius: 3px; padding: 10px 14px; font-size: 11px; }
+  .anno-title { color: #ea580c; font-size: 10px; letter-spacing: 1px; margin-bottom: 6px; }
+  .anno-text { color: #555; line-height: 1.7; }
+  
+  .divider { border: none; border-top: 1px solid #1a1a1a; margin: 32px 0; }
+  
+  .note {
+    background: #111; border: 1px solid #1a1a1a; border-left: 3px solid #ea580c;
+    padding: 10px 14px; font-size: 11px; color: #666; border-radius: 0 3px 3px 0;
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>⬡ SecureAI</h1>
+  <div class="subtitle">AI 기반 보안 감사 에이전트 — 전체 화면 와이어프레임 / 2026.04</div>
+
+  <!-- ===================== SCREEN 1: LANDING ===================== -->
+  <div class="section">
+    <div class="section-title">01 — 랜딩 페이지 (Landing Page)</div>
+    <div class="wf-container">
+      <div class="landing-wf">
+        <div class="landing-nav">
+          <div class="logo">⬡ SecureAI</div>
+          <div class="nav-items">
+            <span>기능</span><span>가격</span><span>문서</span><span>GitHub</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-size:11px;color:#555;">로그인</span>
+            <div class="cta">무료 시작</div>
+          </div>
+        </div>
+        <div class="landing-hero">
+          <div class="hero-left">
+            <div class="hero-tag">AI × Security × DevSecOps</div>
+            <div class="hero-h1">바이브코딩 시대,<br><span>AI가 보안을 지킨다</span></div>
+            <div class="hero-sub">로컬 코드 → GitHub → 배포 앱까지<br>전 과정을 3-Layer AI 에이전트가 자동 점검</div>
+            <div class="hero-btns">
+              <div class="btn-primary">무료로 시작하기</div>
+              <div class="btn-secondary">데모 보기</div>
+            </div>
+          </div>
+          <div class="hero-right">
+            <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">3-Layer 보안 감사</div>
+            <div class="layer-card">
+              <div class="layer-num">L1</div>
+              <div class="layer-info">
+                <h4>SAST — 로컬 코드 분석</h4>
+                <p>MCP Filesystem + Claude AI 문맥 분석</p>
+              </div>
+            </div>
+            <div style="text-align:center;color:#333;font-size:14px;">↓</div>
+            <div class="layer-card">
+              <div class="layer-num">L2</div>
+              <div class="layer-info">
+                <h4>GitHub 저장소 스캔</h4>
+                <p>PR 자동 리뷰 + 커밋 히스토리 시크릿 탐지</p>
+              </div>
+            </div>
+            <div style="text-align:center;color:#333;font-size:14px;">↓</div>
+            <div class="layer-card">
+              <div class="layer-num" style="color:#e24b4b;">L3</div>
+              <div class="layer-info">
+                <h4>DAST — 배포 앱 동적 분석</h4>
+                <p>Docker 샌드박스 실제 공격 시뮬레이션</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="landing-footer">
+          <div class="stat"><div class="stat-num">3-Layer</div><div class="stat-label">통합 커버리지</div></div>
+          <div class="stat"><div class="stat-num">OWASP</div><div class="stat-label">Top 10 자동 매핑</div></div>
+          <div class="stat"><div class="stat-num">Zero</div><div class="stat-label">업로드 없이 로컬 분석</div></div>
+          <div class="stat"><div class="stat-num">SSE</div><div class="stat-label">실시간 결과 스트리밍</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="annotations">
+      <div class="anno"><div class="anno-title">HEADER</div><div class="anno-text">로고 + 내비게이션 + 로그인/CTA. 다크 배경(#0a0a0a), 오렌지 포인트 컬러(#ea580c).</div></div>
+      <div class="anno"><div class="anno-title">HERO SECTION</div><div class="anno-text">왼쪽: 카피 + CTA 버튼. 오른쪽: 3-Layer 구조 시각화 카드.</div></div>
+      <div class="anno"><div class="anno-title">STATS BAR</div><div class="anno-text">하단 고정 KPI 바. 핵심 차별점 4가지를 숫자로 요약.</div></div>
+      <div class="anno"><div class="anno-title">COLOR SCHEME</div><div class="anno-text">#0a0a0a / #0f0f0f / #141414 3단계 레이어 + #ea580c 오렌지 액센트.</div></div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===================== SCREEN 2: EDITOR ===================== -->
+  <div class="section">
+    <div class="section-title">02 — 메인 에디터 화면 (VSCode 스타일 웹앱)</div>
+    <div class="wf-container">
+      <div class="editor-wf">
+        <!-- HEADER -->
+        <div class="editor-header">
+          <div class="logo">⬡</div>
+          <div style="color:#333;font-size:14px;">|</div>
+          <span class="header-path">secureai-frontend / src / controllers / UserController.java</span>
+          <div style="display:flex;gap:4px;">
+            <div class="sev-btn sev-all">ALL</div>
+            <div class="sev-btn sev-c">Critical 3</div>
+            <div class="sev-btn sev-h">High 2</div>
+            <div class="sev-btn sev-m">Medium 1</div>
+            <div class="sev-btn sev-l">Low 0</div>
+          </div>
+          <div style="display:flex;gap:6px;margin-left:12px;">
+            <div style="padding:3px 10px;border:1px solid #333;border-radius:2px;font-size:10px;color:#999;">대시보드</div>
+            <div style="padding:3px 10px;background:#ea580c;border-radius:2px;font-size:10px;color:white;">분석 시작</div>
+            <div style="padding:3px 10px;border:1px solid #333;border-radius:2px;font-size:10px;color:#999;">Export PDF</div>
+          </div>
+        </div>
+        <!-- BODY -->
+        <div class="editor-body">
+          <!-- SIDEBAR -->
+          <div class="sidebar">
+            <div class="sidebar-header">프로젝트 파일 (MCP)</div>
+            <div class="file-tree">
+              <div class="file-item" style="color:#555;font-size:10px;padding-left:4px;">📁 src</div>
+              <div class="file-item" style="color:#555;font-size:10px;padding-left:12px;">📁 controllers</div>
+              <div class="file-item active" style="padding-left:20px;">
+                <div class="dot dot-c"></div>UserController.java
+              </div>
+              <div class="file-item" style="padding-left:20px;">
+                <div class="dot dot-h"></div>AuthService.java
+              </div>
+              <div class="file-item" style="padding-left:12px;">📁 models</div>
+              <div class="file-item" style="padding-left:20px;">
+                <div class="dot dot-ok"></div>User.java
+              </div>
+              <div class="file-item" style="padding-left:12px;">📁 config</div>
+              <div class="file-item" style="padding-left:20px;color:#555;">
+                <div class="dot" style="background:#333;width:6px;height:6px;border-radius:50%;"></div>SecurityConfig.java
+              </div>
+              <div class="file-item" style="color:#555;font-size:10px;padding-left:4px;margin-top:8px;">📁 frontend</div>
+              <div class="file-item" style="padding-left:12px;">
+                <div class="dot dot-h"></div>LoginPage.tsx
+              </div>
+              <div class="file-item" style="padding-left:12px;color:#555;">
+                <div class="dot" style="background:#333;width:6px;height:6px;border-radius:50%;"></div>Dashboard.tsx
+              </div>
+            </div>
+            <div class="sidebar-actions">
+              <div class="action-btn primary">⬡ 전체 분석 시작</div>
+              <div class="action-btn">📊 대시보드 전환</div>
+              <div class="action-btn">🔗 GitHub 연동</div>
+            </div>
+          </div>
+          
+          <!-- EDITOR + TERMINAL -->
+          <div class="editor-main">
+            <div class="editor-tabs">
+              <div class="tab active"><div class="vuln-dot"></div>UserController.java</div>
+              <div class="tab">AuthService.java</div>
+              <div class="tab">LoginPage.tsx</div>
+            </div>
+            <div class="code-area" style="flex:1;position:relative;overflow:hidden;">
+              <div class="line-numbers">
+                <div class="ln">40</div><div class="ln">41</div><div class="ln">42</div>
+                <div class="ln">43</div><div class="ln">44</div><div class="ln">45</div>
+                <div class="ln vuln-c">46</div><div class="ln vuln-c">47</div>
+                <div class="ln">48</div><div class="ln">49</div><div class="ln">50</div>
+                <div class="ln">51</div><div class="ln vuln-h">52</div>
+                <div class="ln vuln-h">53</div><div class="ln">54</div>
+                <div class="ln">55</div><div class="ln">56</div>
+              </div>
+              <div class="code-content">
+                <div class="code-line"><span class="cm">// 사용자 로그인 처리</span></div>
+                <div class="code-line"><span class="kw">@PostMapping</span><span>("/login")</span></div>
+                <div class="code-line"><span class="kw">public</span> <span class="fn">ResponseEntity</span><span>&lt;User&gt; login(</span></div>
+                <div class="code-line"><span>&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="kw">@RequestBody</span><span> LoginDto dto) {</span></div>
+                <div class="code-line"><span>&nbsp;&nbsp;</span><span class="kw">String</span><span> query = </span></div>
+                <div class="code-line"><span>&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="str">"SELECT * FROM users WHERE"</span></div>
+                <div class="code-line vuln-c"><span>&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="str">+ " name = '" + dto.getName()</span><span>&nbsp;&nbsp;&nbsp;</span><span style="color:#e24b4b;font-size:9px;">◀ 🔴 SQL Injection</span></div>
+                <div class="code-line vuln-c"><span>&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="str">+ "' AND pw = '" + dto.getPw() + "'";</span></div>
+                <div class="code-line"><span>&nbsp;&nbsp;</span><span class="kw">return</span><span> userRepo.query(query);</span></div>
+                <div class="code-line"><span>}</span></div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line"><span class="kw">@GetMapping</span><span>("/user/{id}")</span></div>
+                <div class="code-line vuln-h"><span class="kw">public</span><span> User getUser(</span><span class="kw">@PathVariable</span><span> id) {</span><span>&nbsp;</span><span style="color:#f59e0b;font-size:9px;">◀ 🟠 IDOR</span></div>
+                <div class="code-line vuln-h"><span>&nbsp;&nbsp;</span><span class="cm">// 인증 없이 타인 정보 조회 가능</span></div>
+                <div class="code-line"><span>&nbsp;&nbsp;</span><span class="kw">return</span><span> userRepo.findById(id);</span></div>
+                <div class="code-line"><span>}</span></div>
+              </div>
+            </div>
+            <div class="dast-terminal">
+              <div class="terminal-header">
+                <div class="terminal-dot"></div>
+                <span>DAST 에이전트 — 실시간 로그 (SSE)</span>
+                <span style="margin-left:auto;color:#333;font-size:10px;">Docker Sandbox 격리</span>
+              </div>
+              <div class="terminal-body">
+                <div class="t-line"><span class="t-time">[14:32:01]</span> <span class="t-ok">✓</span> Docker 샌드박스 초기화 완료</div>
+                <div class="t-line"><span class="t-time">[14:32:02]</span> 🔍 SQL Injection 페이로드 생성 중...</div>
+                <div class="t-line"><span class="t-time">[14:32:03]</span> → payload: <span style="color:#666;">' OR '1'='1</span></div>
+                <div class="t-line"><span class="t-time">[14:32:04]</span> <span class="t-err">✗ EXPLOIT SUCCESS</span> — 전체 users 테이블 노출 확인</div>
+                <div class="t-line"><span class="t-time">[14:32:05]</span> <span class="t-warn">⚠</span> IDOR: /api/user/2 → 타인 데이터 반환됨</div>
+                <div class="t-line"><span class="t-time">[14:32:06]</span> <span class="t-ok">✓</span> 익스플로잇 로그 암호화 저장 완료</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- RIGHT PANEL -->
+          <div class="right-panel">
+            <div class="panel-tabs">
+              <div class="ptab active">취약점 상세</div>
+              <div class="ptab">AI 채팅</div>
+            </div>
+            <div class="filter-bar">
+              <div class="api-btn active">/api/users ▾</div>
+              <div class="api-btn">/api/auth</div>
+              <div class="api-btn">/api/payment</div>
+              <div class="api-btn" style="color:#333;">기타</div>
+            </div>
+            <div class="vuln-list">
+              <!-- VULN 1 expanded -->
+              <div class="vuln-item expanded">
+                <div class="vuln-top">
+                  <div class="sev-tag tag-c">CRITICAL</div>
+                  <div class="vuln-name">SQL Injection</div>
+                  <span style="color:#555;font-size:14px;">▲</span>
+                </div>
+                <div class="vuln-file">UserController.java:46 · CWE-89</div>
+                <div class="vuln-detail">
+                  <div class="detail-section">
+                    <div class="detail-label">설명</div>
+                    <div>사용자 입력값이 쿼리에 직접 삽입되어 전체 DB 접근 가능</div>
+                  </div>
+                  <div class="detail-section">
+                    <div class="detail-label">API 호출 체인</div>
+                    <div class="call-chain">
+                      <div><div class="chain-node chain-ok">LoginPage.tsx:18</div></div>
+                      <div style="color:#333;padding-left:8px;font-size:12px;">└─</div>
+                      <div style="padding-left:16px;"><div class="chain-node chain-ok">POST /api/users/login</div></div>
+                      <div style="color:#333;padding-left:24px;font-size:12px;">└─</div>
+                      <div style="padding-left:32px;"><div class="chain-node chain-vuln">UserController.java:46 🔴</div></div>
+                    </div>
+                  </div>
+                  <div class="autofix-btn">⚡ AUTO FIX 적용</div>
+                </div>
+              </div>
+              <!-- VULN 2 collapsed -->
+              <div class="vuln-item">
+                <div class="vuln-top">
+                  <div class="sev-tag tag-c">CRITICAL</div>
+                  <div class="vuln-name">Hardcoded Secret Key</div>
+                  <span style="color:#333;font-size:14px;">▼</span>
+                </div>
+                <div class="vuln-file">application.properties:12 · CWE-798</div>
+              </div>
+              <div class="vuln-item">
+                <div class="vuln-top">
+                  <div class="sev-tag tag-h">HIGH</div>
+                  <div class="vuln-name">IDOR</div>
+                  <span style="color:#333;font-size:14px;">▼</span>
+                </div>
+                <div class="vuln-file">UserController.java:52 · CWE-284</div>
+              </div>
+              <div class="vuln-item">
+                <div class="vuln-top">
+                  <div class="sev-tag tag-h">HIGH</div>
+                  <div class="vuln-name">XSS (Reflected)</div>
+                  <span style="color:#333;font-size:14px;">▼</span>
+                </div>
+                <div class="vuln-file">LoginPage.tsx:34 · CWE-79</div>
+              </div>
+              <div class="vuln-item">
+                <div class="vuln-top">
+                  <div class="sev-tag tag-m">MEDIUM</div>
+                  <div class="vuln-name">Missing CORS Policy</div>
+                  <span style="color:#333;font-size:14px;">▼</span>
+                </div>
+                <div class="vuln-file">SecurityConfig.java:8 · OWASP A05</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotations">
+      <div class="anno"><div class="anno-title">SIDEBAR (200px)</div><div class="anno-text">MCP 파일 트리. 취약점 수준별 컬러 도트. 전체 분석/대시보드 전환 버튼. 160~400px 드래그 리사이즈.</div></div>
+      <div class="anno"><div class="anno-title">CODE EDITOR (Monaco)</div><div class="anno-text">인라인 취약점 하이라이팅. 라인넘버 강조. 호버 시 취약점 툴팁. Diff 뷰어 지원.</div></div>
+      <div class="anno"><div class="anno-title">DAST TERMINAL</div><div class="anno-text">SSE 실시간 로그 스트리밍. Docker 샌드박스 실행 현황. 높이 80~420px 드래그 리사이즈.</div></div>
+      <div class="anno"><div class="anno-title">RIGHT PANEL (300px)</div><div class="anno-text">취약점 상세 토글 + AI 채팅 탭 전환. API 그룹 필터바. 각 취약점 펼치면 콜체인 + AutoFix.</div></div>
+    </div>
+    <div class="note">💡 헤더 심각도 필터(Critical/High/Medium/Low)와 패널 API 그룹 필터는 AND 조건으로 동작. 예: Critical + /api/users → 해당 API Critical만 표시.</div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===================== SCREEN 3: DASHBOARD ===================== -->
+  <div class="section">
+    <div class="section-title">03 — 대시보드 화면 (태블로 스타일)</div>
+    <div class="wf-container">
+      <div class="dash-wf">
+        <div class="editor-header">
+          <div class="logo">⬡</div>
+          <div style="color:#333;font-size:14px;">|</div>
+          <span style="color:#ea580c;font-size:11px;">대시보드</span>
+          <span class="header-path" style="margin-left:8px;font-size:11px;color:#555;">프로젝트: secureai-frontend · 마지막 분석: 방금 전</span>
+          <div style="margin-left:auto;display:flex;gap:4px;">
+            <div class="sev-btn sev-all">ALL</div>
+            <div class="sev-btn sev-c">Critical 3</div>
+            <div class="sev-btn sev-h">High 2</div>
+          </div>
+          <div style="display:flex;gap:6px;margin-left:12px;">
+            <div style="padding:3px 10px;border:1px solid #333;border-radius:2px;font-size:10px;color:#999;">에디터</div>
+            <div style="padding:3px 10px;background:#1a1a1a;border:1px solid #333;border-radius:2px;font-size:10px;color:#999;">Export PDF</div>
+          </div>
+        </div>
+        <div class="dash-body">
+          <div class="sidebar" style="padding:8px;">
+            <div style="color:#555;font-size:10px;text-transform:uppercase;letter-spacing:2px;padding:8px;margin-bottom:8px;">프로젝트</div>
+            <div style="padding:8px 10px;background:#1a1a1a;border-radius:2px;font-size:11px;color:#ccc;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+              <div class="dot dot-c"></div>secureai-frontend
+            </div>
+            <div style="padding:8px 10px;font-size:11px;color:#555;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+              <div class="dot" style="background:#333;width:6px;height:6px;border-radius:50%;"></div>auth-service
+            </div>
+            <div style="padding:8px 10px;font-size:11px;color:#555;display:flex;align-items:center;gap:6px;">
+              <div class="dot dot-ok"></div>landing-page
+            </div>
+            <div class="sidebar-actions">
+              <div class="action-btn primary">+ 새 프로젝트</div>
+              <div class="action-btn">📋 리포트 목록</div>
+            </div>
+          </div>
+          <div class="dash-main">
+            <!-- KPI -->
+            <div class="kpi-row">
+              <div class="kpi-card score"><div class="kpi-num">72</div><div class="kpi-label">보안 점수</div></div>
+              <div class="kpi-card"><div class="kpi-num c">3</div><div class="kpi-label">🔴 Critical</div></div>
+              <div class="kpi-card"><div class="kpi-num h">2</div><div class="kpi-label">🟠 High</div></div>
+              <div class="kpi-card"><div class="kpi-num m">1</div><div class="kpi-label">🟡 Medium</div></div>
+              <div class="kpi-card"><div class="kpi-num ok">40%</div><div class="kpi-label">패치 완료율</div></div>
+            </div>
+            <!-- CHARTS -->
+            <div class="chart-row">
+              <div class="chart-card">
+                <div class="chart-title">심각도 분포 (OWASP 분류)</div>
+                <div class="bar-chart">
+                  <div class="bar-row"><div class="bar-label">Injection</div><div class="bar-track"><div class="bar-fill" style="width:70%;background:#e24b4b;"></div></div><div class="bar-count">2</div></div>
+                  <div class="bar-row"><div class="bar-label">Auth Failure</div><div class="bar-track"><div class="bar-fill" style="width:35%;background:#f59e0b;"></div></div><div class="bar-count">1</div></div>
+                  <div class="bar-row"><div class="bar-label">XSS</div><div class="bar-track"><div class="bar-fill" style="width:35%;background:#f59e0b;"></div></div><div class="bar-count">1</div></div>
+                  <div class="bar-row"><div class="bar-label">Access Control</div><div class="bar-track"><div class="bar-fill" style="width:35%;background:#f59e0b;"></div></div><div class="bar-count">1</div></div>
+                  <div class="bar-row"><div class="bar-label">Misc Config</div><div class="bar-track"><div class="bar-fill" style="width:18%;background:#eab308;"></div></div><div class="bar-count">1</div></div>
+                </div>
+              </div>
+              <div class="chart-card">
+                <div class="chart-title">보안 점수 트렌드 (7일)</div>
+                <div class="sparkline">
+                  <div class="spark-col"><div class="spark-bar" style="height:40px;background:#e24b4b33;"></div><div class="spark-date">4/13</div></div>
+                  <div class="spark-col"><div class="spark-bar" style="height:36px;background:#e24b4b33;"></div><div class="spark-date">4/14</div></div>
+                  <div class="spark-col"><div class="spark-bar" style="height:48px;background:#f59e0b55;"></div><div class="spark-date">4/15</div></div>
+                  <div class="spark-col"><div class="spark-bar" style="height:52px;background:#f59e0b55;"></div><div class="spark-date">4/16</div></div>
+                  <div class="spark-col"><div class="spark-bar" style="height:56px;background:#eab30855;"></div><div class="spark-date">4/17</div></div>
+                  <div class="spark-col"><div class="spark-bar" style="height:64px;background:#22c55e55;"></div><div class="spark-date">4/18</div></div>
+                  <div class="spark-col"><div class="spark-bar" style="height:72px;background:#ea580c;"></div><div class="spark-date">오늘</div></div>
+                </div>
+              </div>
+            </div>
+            <!-- HEATMAP -->
+            <div class="chart-card">
+              <div class="chart-title">파일별 취약점 히트맵</div>
+              <div class="heatmap">
+                <div class="heat-cell c1"><div class="heat-file">UserController.java</div><div class="heat-cnt">2 Critical</div></div>
+                <div class="heat-cell c2"><div class="heat-file">AuthService.java</div><div class="heat-cnt">1 Critical</div></div>
+                <div class="heat-cell c2"><div class="heat-file">LoginPage.tsx</div><div class="heat-cnt">1 High</div></div>
+                <div class="heat-cell c3"><div class="heat-file">SecurityConfig.java</div><div class="heat-cnt">1 Medium</div></div>
+                <div class="heat-cell"><div class="heat-file">Dashboard.tsx</div><div class="heat-cnt" style="color:#22c55e;">Clean</div></div>
+              </div>
+            </div>
+            <!-- OWASP -->
+            <div class="chart-card">
+              <div class="chart-title">OWASP Top 10 커버리지 (A01~A10)</div>
+              <div class="owasp-grid">
+                <div class="owasp-cell covered"><div class="owasp-id">A01</div><div class="owasp-name">Access Control</div></div>
+                <div class="owasp-cell covered"><div class="owasp-id">A02</div><div class="owasp-name">Crypto Fail</div></div>
+                <div class="owasp-cell covered"><div class="owasp-id">A03</div><div class="owasp-name">Injection</div></div>
+                <div class="owasp-cell partial"><div class="owasp-id">A04</div><div class="owasp-name">Insec. Design</div></div>
+                <div class="owasp-cell partial"><div class="owasp-id">A05</div><div class="owasp-name">Misc. Config</div></div>
+                <div class="owasp-cell"><div class="owasp-id">A06</div><div class="owasp-name">Vuln. Comp.</div></div>
+                <div class="owasp-cell covered"><div class="owasp-id">A07</div><div class="owasp-name">Auth Fail</div></div>
+                <div class="owasp-cell"><div class="owasp-id">A08</div><div class="owasp-name">Data Integrity</div></div>
+                <div class="owasp-cell partial"><div class="owasp-id">A09</div><div class="owasp-name">Logging</div></div>
+                <div class="owasp-cell"><div class="owasp-id">A10</div><div class="owasp-name">SSRF</div></div>
+              </div>
+              <div style="display:flex;gap:16px;margin-top:8px;">
+                <span style="font-size:9px;color:#e24b4b;">■ 탐지됨</span>
+                <span style="font-size:9px;color:#f59e0b;">■ 부분 탐지</span>
+                <span style="font-size:9px;color:#333;">■ 미커버</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note">💡 대시보드는 에디터 화면의 "대시보드 전환" 버튼으로 접근. 동일 헤더 심각도 필터 공유. 글로벌 필터 상태 유지.</div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===================== SCREEN 4: MOBILE ===================== -->
+  <div class="section">
+    <div class="section-title">04 — 모바일 화면 (3개 주요 뷰)</div>
+    <div class="mobile-grid">
+      
+      <!-- MOBILE 1: DASHBOARD -->
+      <div>
+        <div class="wf-label" style="text-align:center;margin-bottom:12px;">대시보드 뷰</div>
+        <div class="mobile-frame">
+          <div class="mobile-header">
+            <div class="mobile-logo">⬡ SecureAI</div>
+            <div style="font-size:10px;color:#555;">secureai-frontend</div>
+          </div>
+          <div class="mobile-body">
+            <div class="m-card">
+              <div class="m-section">보안 점수</div>
+              <div class="m-score-ring">
+                <div class="m-score-inner">72</div>
+              </div>
+              <div style="text-align:center;font-size:10px;color:#555;">전주 대비 +8점 ↑</div>
+            </div>
+            <div class="m-card">
+              <div class="m-section">심각도 현황</div>
+              <div class="m-sev-row">
+                <div class="m-sev c"><div class="m-sev-num">3</div><div class="m-sev-label">Critical</div></div>
+                <div class="m-sev h"><div class="m-sev-num">2</div><div class="m-sev-label">High</div></div>
+                <div class="m-sev m"><div class="m-sev-num">1</div><div class="m-sev-label">Medium</div></div>
+              </div>
+            </div>
+            <div class="m-card">
+              <div class="m-section">최근 발견 취약점</div>
+              <div class="m-vuln-item">
+                <div class="m-dot" style="background:#e24b4b;"></div>
+                <div class="m-vuln-text">
+                  <div class="m-vuln-name">SQL Injection</div>
+                  <div class="m-vuln-file">UserController.java:46</div>
+                </div>
+                <div class="m-arrow">›</div>
+              </div>
+              <div class="m-vuln-item">
+                <div class="m-dot" style="background:#e24b4b;"></div>
+                <div class="m-vuln-text">
+                  <div class="m-vuln-name">Hardcoded Secret</div>
+                  <div class="m-vuln-file">application.properties:12</div>
+                </div>
+                <div class="m-arrow">›</div>
+              </div>
+              <div class="m-vuln-item">
+                <div class="m-dot" style="background:#f59e0b;"></div>
+                <div class="m-vuln-text">
+                  <div class="m-vuln-name">IDOR</div>
+                  <div class="m-vuln-file">UserController.java:52</div>
+                </div>
+                <div class="m-arrow">›</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <div style="flex:1;background:#ea580c;border-radius:4px;padding:10px;text-align:center;font-size:11px;color:white;font-weight:bold;">분석 시작</div>
+              <div style="flex:1;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;padding:10px;text-align:center;font-size:11px;color:#999;">PDF 내보내기</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- MOBILE 2: VULN DETAIL -->
+      <div>
+        <div class="wf-label" style="text-align:center;margin-bottom:12px;">취약점 상세 뷰</div>
+        <div class="mobile-frame">
+          <div class="mobile-header">
+            <div style="color:#555;font-size:13px;">‹</div>
+            <div style="font-size:12px;color:#ccc;">SQL Injection</div>
+            <div style="font-size:10px;background:#e24b4b22;color:#e24b4b;border:1px solid #e24b4b44;padding:2px 6px;border-radius:2px;">CRITICAL</div>
+          </div>
+          <div class="mobile-body">
+            <div class="m-card">
+              <div class="m-section">위치</div>
+              <div style="font-size:11px;color:#ea580c;font-family:monospace;">UserController.java:46</div>
+              <div style="font-size:10px;color:#555;margin-top:2px;">CWE-89 · OWASP A03:2021</div>
+            </div>
+            <div class="m-card">
+              <div class="m-section">문제 설명</div>
+              <div style="font-size:11px;color:#999;line-height:1.6;">사용자 입력값이 SQL 쿼리에 직접 삽입되어 공격자가 DB 전체에 접근 가능합니다.</div>
+            </div>
+            <div class="m-card">
+              <div class="m-section">API 호출 체인</div>
+              <div style="font-size:10px;font-family:monospace;line-height:2;color:#555;">
+                LoginPage.tsx:18<br>
+                <span style="color:#333;">└─</span> POST /api/users/login<br>
+                <span style="color:#333;">&nbsp;&nbsp;&nbsp;└─</span> <span style="color:#e24b4b;text-shadow:0 0 6px rgba(226,75,74,0.5);">UserController.java:46 🔴</span>
+              </div>
+            </div>
+            <div class="m-card">
+              <div class="m-section">DAST 결과</div>
+              <div style="font-size:10px;color:#e24b4b;background:#e24b4b11;border:1px solid #e24b4b33;padding:6px 8px;border-radius:3px;font-family:monospace;">EXPLOIT SUCCESS<br><span style="color:#555;">' OR '1'='1 → 전체 DB 노출</span></div>
+            </div>
+            <div style="background:#ea580c;border-radius:4px;padding:12px;text-align:center;font-size:12px;color:white;font-weight:bold;">⚡ AUTO FIX 적용</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- MOBILE 3: AI CHAT -->
+      <div>
+        <div class="wf-label" style="text-align:center;margin-bottom:12px;">AI 채팅 뷰</div>
+        <div class="mobile-frame">
+          <div class="mobile-header">
+            <div style="color:#555;font-size:13px;">‹</div>
+            <div style="font-size:12px;color:#ccc;">AI 보안 어시스턴트</div>
+            <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;"></div>
+          </div>
+          <div class="mobile-body" style="justify-content:space-between;">
+            <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:8px;">
+              <div class="m-chat-msg" style="background:#1a1a1a;border-radius:4px;padding:8px 10px;font-size:10px;color:#777;align-self:flex-end;border:1px solid #222;">이 SQL Injection 어떻게 고쳐?</div>
+              <div class="m-chat-msg ai">
+                <div style="color:#ea580c;font-size:9px;margin-bottom:4px;">SecureAI Agent</div>
+                PreparedStatement를 사용하면 됩니다.<br><br>
+                <span style="color:#555;font-family:monospace;font-size:9px;">String query = "SELECT * FROM users<br>WHERE name = ? AND pw = ?";<br>stmt.setString(1, dto.getName());</span><br><br>
+                파라미터화 쿼리로 사용자 입력을 데이터로만 처리합니다.
+              </div>
+              <div class="m-chat-msg" style="background:#1a1a1a;border-radius:4px;padding:8px 10px;font-size:10px;color:#777;align-self:flex-end;border:1px solid #222;">다른 위험한 게 더 있어?</div>
+              <div class="m-chat-msg ai">
+                <div style="color:#ea580c;font-size:9px;margin-bottom:4px;">SecureAI Agent</div>
+                <span style="color:#f59e0b;">🟠 IDOR</span>: /api/user/{`{id}`}에서 인증 없이 타인 정보 조회 가능합니다. 다음으로 확인하면 좋을 것들: 인증 미들웨어 추가 권장.
+              </div>
+            </div>
+            <div>
+              <div class="m-chat-input">
+                <span>취약점에 대해 질문하세요...</span>
+                <div class="m-send">➤</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+    <div class="annotations" style="margin-top:24px;">
+      <div class="anno"><div class="anno-title">모바일 대시보드</div><div class="anno-text">보안 점수 링 차트 + 심각도 카드 + 취약점 목록. 스크롤 기반 세로 레이아웃.</div></div>
+      <div class="anno"><div class="anno-title">취약점 상세</div><div class="anno-text">위치·CWE·콜체인·DAST 결과·AutoFix. 모바일 최적화 카드 UI.</div></div>
+      <div class="anno"><div class="anno-title">AI 채팅</div><div class="anno-text">자연어 질의응답. 오렌지 액센트 AI 발화. 키보드 올라와도 채팅창 밀림 없이 고정.</div></div>
+      <div class="anno"><div class="anno-title">공통 UX</div><div class="anno-text">하단 탭바(대시보드/에디터/채팅/설정). 스와이프 네비게이션. 다크 테마 유지.</div></div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <div style="text-align:center;font-size:10px;color:#333;padding-bottom:40px;">
+    SecureAI Wireframe v1.0 — AI 기반 보안 감사 에이전트 · 2026.04
+  </div>
+
+</div>
+</body>
+</html>

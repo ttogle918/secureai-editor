@@ -1,0 +1,42 @@
+version: '3.9'
+
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  postgres:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  redis:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  backend:
+    restart: always
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+    ports:
+      - "127.0.0.1:8080:8080"
+
+  frontend:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    ports:
+      - "127.0.0.1:3000:3000"

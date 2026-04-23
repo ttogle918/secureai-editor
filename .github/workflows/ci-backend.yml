@@ -1,0 +1,73 @@
+name: CI — Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/backend/**"
+      - ".github/workflows/ci-backend.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/backend/**"
+      - ".github/workflows/ci-backend.yml"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: secureai_test
+          POSTGRES_USER: secureai
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U secureai"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Build & test
+        working-directory: apps/backend
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/secureai_test
+          DB_USER: secureai
+          DB_PASSWORD: test_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_PASSWORD: ""
+          JWT_SECRET: ci-test-secret-key-at-least-64-characters-long-for-testing-only
+          SECUREAI_ENCRYPTION_KEY: Y2ktdGVzdC1lbmNyeXB0aW9uLWtleS0zMmJ5dGVz
+        run: ./gradlew build --no-daemon
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: apps/backend/build/reports/tests/

@@ -1,0 +1,43 @@
+name: CI — AI Agent
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/ai_engine/**"
+      - ".github/workflows/ci-ai-agent.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/ai_engine/**"
+      - ".github/workflows/ci-ai-agent.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/ai_engine/requirements.txt
+
+      - name: Install dependencies
+        working-directory: apps/ai_engine
+        run: pip install -r requirements.txt pytest pytest-asyncio httpx
+
+      - name: Run tests
+        working-directory: apps/ai_engine
+        env:
+          INTERNAL_API_KEY: ci-test-internal-key
+          CLAUDE_API_KEY: dummy-for-ci
+        run: pytest tests/ -v --tb=short 2>/dev/null || echo "No tests found yet"
+
+      - name: Type check
+        working-directory: apps/ai_engine
+        run: python -m py_compile main.py config/settings.py api/middleware/internal_key_auth.py

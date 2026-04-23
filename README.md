@@ -33,3 +33,9 @@ A powerful platform that combines **SAST**, **DAST**, and **Auto-Remediation** i
 - **Frontend**: Next.js 14+, Monaco Editor, Tailwind CSS.
 - **Infrastructure**: Docker (Sandbox), PostgreSQL, SSE (Real-time).
 - **LLM**: Claude 3 (Anthropic), GPT-4o (OpenAI).
+
+---
+
+## 🤝 Collaboration
+
+- [**Git Guidelines**](file:///c:/Users/ttogl/workspace/secureaiengine/docs/GIT_GUIDE.md) - Our standards for commits and branching.

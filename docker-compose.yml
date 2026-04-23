@@ -1,0 +1,163 @@
+version: '3.9'
+
+# ===== 네트워크 =====
+# app-net   : frontend ↔ backend
+# data-net  : backend ↔ postgres, redis
+# dast-net  : DAST 샌드박스 격리 (Sprint 6에서 활성화)
+networks:
+  app-net:
+    driver: bridge
+  data-net:
+    driver: bridge
+  dast-net:
+    driver: bridge
+    internal: true
+
+# ===== 볼륨 =====
+volumes:
+  postgres_data:
+  redis_data:
+  reports_data:
+
+    # ===== 서비스 =====
+services:
+
+  # ── PostgreSQL 15 ──────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: secureai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-secureai}
+      POSTGRES_USER: ${DB_USER:-secureai}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - data-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-secureai} -d ${DB_NAME:-secureai}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Redis 7 ──────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: secureai-redis
+    restart: unless-stopped
+    command: >
+      redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required} --maxmemory 512mb --maxmemory-policy allkeys-lru --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - data-net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ── Spring Boot Backend ───────────────────────────────
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: secureai-backend
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-secureai}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-secureai}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      SECUREAI_ENCRYPTION_KEY: ${SECUREAI_ENCRYPTION_KEY}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - reports_data:/app/reports
+    ports:
+      - "8080:8080"
+    networks:
+      - app-net
+      - data-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Python AI Engine ─────────────────────────────────
+  ai_engine:
+    build:
+      context: ./apps/ai_engine
+      dockerfile: Dockerfile
+    container_name: secureai-ai-engine
+    restart: unless-stopped
+    environment:
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:?CLAUDE_API_KEY is required}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-opus-4-7}
+      LANGCHAIN_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGCHAIN_PROJECT: ${LANGSMITH_PROJECT:-secureai-agent}
+      LANGCHAIN_TRACING_V2: ${LANGSMITH_TRACING:-false}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      MCP_WORKSPACE_ROOT: /workspace
+    volumes:
+      - /workspace:/workspace:ro
+    ports:
+      - "8000:8000"
+    networks:
+      - app-net
+      - data-net
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── MCP Server (Node.js) ─────────────────────────────
+  mcp_server:
+    build:
+      context: ./apps/mcp_server
+      dockerfile: Dockerfile
+    container_name: secureai-mcp-server
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+    volumes:
+      - /workspace:/workspace:ro
+    networks:
+      - app-net
+      - data-net
+  # ── Next.js Frontend ──────────────────────────────────
+  # 개발: cd apps/frontend && npm run dev  (로컬 실행)
+  # 프로덕션 배포 시 아래 주석 해제
+  # frontend:
+  #   build:
+  #     context: ./apps/frontend
+  #     dockerfile: Dockerfile
+  #   container_name: secureai-frontend
+  #   restart: unless-stopped
+  #   environment:
+  #     NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080/api/v1}
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - app-net
+  #   depends_on:
+  #     - backend

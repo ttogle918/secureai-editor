@@ -42,6 +42,16 @@ public class PlanChecker {
     }
 
     public boolean canAddMember(UUID projectId) {
+        int maxMembers = teamMemberRepository.findOwnerByProjectId(projectId)
+                .map(owner -> (int) owner.getUser().getPlan().getMaxMembers())
+                .orElse(1);
+        if (maxMembers == -1) return true;
+
+        int current = teamMemberRepository.countByProjectId(projectId);
+        if (current >= maxMembers) {
+            throw new BusinessException(ErrorCode.PROJECT_MEMBER_LIMIT_EXCEEDED,
+                    "플랜의 최대 멤버 수(%d명)를 초과합니다.".formatted(maxMembers));
+        }
         return true;
     }
 

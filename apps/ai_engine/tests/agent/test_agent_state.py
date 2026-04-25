@@ -11,6 +11,7 @@ def _make_state(**kwargs) -> AgentState:
         "workspace_root": "/workspace",
         "files_to_scan": [],
         "current_file_index": 0,
+        "current_file_sha256": None,
         "cache_hit": False,
         "sast_results": [],
         "status": "running",
@@ -22,8 +23,7 @@ def _make_state(**kwargs) -> AgentState:
 
 def test_serialization_roundtrip():
     state = _make_state(files_to_scan=["src/Main.java", "src/Dao.java"])
-    serialized = json.dumps(state)
-    restored: AgentState = json.loads(serialized)
+    restored: AgentState = json.loads(json.dumps(state))
     assert restored["session_id"] == state["session_id"]
     assert restored["files_to_scan"] == ["src/Main.java", "src/Dao.java"]
 
@@ -32,6 +32,18 @@ def test_empty_files_to_scan():
     state = _make_state()
     assert state["files_to_scan"] == []
     assert state["current_file_index"] == 0
+
+
+def test_sha256_field_defaults_none():
+    state = _make_state()
+    assert state["current_file_sha256"] is None
+
+
+def test_sha256_field_set():
+    sha = "a" * 64
+    state = _make_state(current_file_sha256=sha)
+    restored: AgentState = json.loads(json.dumps(state))
+    assert restored["current_file_sha256"] == sha
 
 
 def test_sast_results_accumulation():
@@ -47,7 +59,6 @@ def test_sast_results_accumulation():
 
 def test_error_state():
     state = _make_state(status="error", error_message="MCP connection failed")
-    serialized = json.dumps(state)
-    restored: AgentState = json.loads(serialized)
+    restored: AgentState = json.loads(json.dumps(state))
     assert restored["status"] == "error"
     assert restored["error_message"] == "MCP connection failed"

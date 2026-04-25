@@ -1,5 +1,6 @@
-"""LangGraph 그래프 컴파일 & dry-run 테스트."""
+"""LangGraph 그래프 컴파일 & 엣지 라우팅 테스트."""
 import pytest
+from unittest.mock import AsyncMock, patch
 
 from agent.agent_state import AgentState
 from agent.graph_builder import get_graph
@@ -7,7 +8,7 @@ from agent.security_audit_graph import route_after_scan, route_after_cache, rout
 
 
 # ---------------------------------------------------------------------------
-# 조건부 엣지 단위 테스트
+# 헬퍼
 # ---------------------------------------------------------------------------
 
 def _base_state(**kwargs) -> AgentState:
@@ -17,6 +18,7 @@ def _base_state(**kwargs) -> AgentState:
         "workspace_root": "/workspace",
         "files_to_scan": [],
         "current_file_index": 0,
+        "current_file_sha256": None,
         "cache_hit": False,
         "sast_results": [],
         "status": "running",
@@ -26,24 +28,24 @@ def _base_state(**kwargs) -> AgentState:
     return state
 
 
+# ---------------------------------------------------------------------------
+# 조건부 엣지 단위 테스트 (외부 의존 없음)
+# ---------------------------------------------------------------------------
+
 def test_route_after_scan_no_files():
-    state = _base_state(files_to_scan=[])
-    assert route_after_scan(state) == "__end__"
+    assert route_after_scan(_base_state(files_to_scan=[])) == "__end__"
 
 
 def test_route_after_scan_has_files():
-    state = _base_state(files_to_scan=["a.java"])
-    assert route_after_scan(state) == "cache_check_node"
+    assert route_after_scan(_base_state(files_to_scan=["a.java"])) == "cache_check_node"
 
 
 def test_route_after_cache_hit():
-    state = _base_state(cache_hit=True)
-    assert route_after_cache(state) == "next_file_node"
+    assert route_after_cache(_base_state(cache_hit=True)) == "next_file_node"
 
 
 def test_route_after_cache_miss():
-    state = _base_state(cache_hit=False)
-    assert route_after_cache(state) == "sast_node"
+    assert route_after_cache(_base_state(cache_hit=False)) == "sast_node"
 
 
 def test_route_after_next_more_files():
@@ -57,62 +59,99 @@ def test_route_after_next_done():
 
 
 # ---------------------------------------------------------------------------
-# 그래프 컴파일 & dry-run 통합 테스트
+# 그래프 컴파일 테스트
 # ---------------------------------------------------------------------------
 
 def test_graph_compiles():
-    graph = get_graph()
-    assert graph is not None
+    assert get_graph() is not None
 
 
 def test_graph_singleton():
-    g1 = get_graph()
-    g2 = get_graph()
-    assert g1 is g2
+    assert get_graph() is get_graph()
+
+
+# ---------------------------------------------------------------------------
+# 그래프 dry-run (MCP / Redis / Claude mock)
+# ---------------------------------------------------------------------------
+
+def _make_mocks():
+    """모든 외부 의존성을 mock 으로 대체한다."""
+    return [
+        patch(
+            "agent.nodes.scan_files_node.list_scannable_files",
+            new_callable=lambda: lambda: AsyncMock(return_value=[]),
+        ),
+        patch(
+            "agent.nodes.cache_check_node.read_file",
+            new_callable=lambda: lambda: AsyncMock(return_value="code"),
+        ),
+        patch(
+            "agent.nodes.cache_check_node._get_redis",
+            return_value=AsyncMock(**{"get.return_value": None}),
+        ),
+        patch(
+            "agent.nodes.sast_node.read_file",
+            new_callable=lambda: lambda: AsyncMock(return_value="code"),
+        ),
+        patch(
+            "agent.nodes.sast_node.analyze_for_sast",
+            new_callable=lambda: lambda: AsyncMock(return_value='{"vulnerabilities":[]}'),
+        ),
+        patch(
+            "agent.nodes.sast_node._get_redis",
+            return_value=AsyncMock(**{"setex.return_value": True}),
+        ),
+    ]
+
+
+def _fake_redis_no_cache():
+    """캐시 미스 시나리오용 Redis mock."""
+    r = AsyncMock()
+    r.get = AsyncMock(return_value=None)
+    r.setex = AsyncMock(return_value=True)
+    return r
 
 
 @pytest.mark.asyncio
-async def test_graph_empty_files_dry_run():
-    """파일 없는 상태로 그래프 실행 → completed 상태로 종료."""
-    graph = get_graph()
-    initial: AgentState = {
-        "session_id": "dry-run-001",
-        "project_id": "proj-001",
-        "workspace_root": "/workspace",
-        "files_to_scan": [],
-        "current_file_index": 0,
-        "cache_hit": False,
-        "sast_results": [],
-        "status": "running",
-        "error_message": None,
-    }
-    final_state = None
-    async for event in graph.astream(initial):
-        final_state = event
+async def test_graph_no_files_ends_immediately():
+    """파일 없는 상태 → scan 후 바로 END."""
+    async def _no_files(_session_id):
+        return []
 
-    assert final_state is not None
+    with patch("agent.nodes.scan_files_node.list_scannable_files", side_effect=_no_files):
+        graph = get_graph()
+        events = [e async for e in graph.astream(_base_state())]
+        node_names = [k for e in events for k in e]
+        assert "scan_files_node" in node_names
+        assert "sast_node" not in node_names
 
 
 @pytest.mark.asyncio
-async def test_graph_single_file_dry_run():
-    """파일 1개로 그래프 실행 → 노드 순서대로 흐름."""
-    graph = get_graph()
-    initial: AgentState = {
-        "session_id": "dry-run-002",
-        "project_id": "proj-001",
-        "workspace_root": "/workspace",
-        "files_to_scan": ["src/Dao.java"],
-        "current_file_index": 0,
-        "cache_hit": False,
-        "sast_results": [],
-        "status": "running",
-        "error_message": None,
-    }
-    visited_nodes: list[str] = []
-    async for event in graph.astream(initial):
-        visited_nodes.extend(event.keys())
+async def test_graph_single_file_visits_all_nodes():
+    """파일 1개 → scan → cache_check → sast → next → aggregate 순 방문."""
+    async def _one_file(_sid):
+        return ["src/Dao.java"]
 
-    assert "scan_files_node" in visited_nodes
-    assert "cache_check_node" in visited_nodes
-    assert "sast_node" in visited_nodes
-    assert "aggregate_node" in visited_nodes
+    async def _read_file(_sid, _path):
+        return "public class Dao { String q = id; }"
+
+    async def _analyze(_path, _content):
+        return '{"vulnerabilities": []}'
+
+    with (
+        patch("agent.nodes.scan_files_node.list_scannable_files", side_effect=_one_file),
+        patch("agent.nodes.cache_check_node.read_file", side_effect=_read_file),
+        patch("agent.nodes.cache_check_node._get_redis", return_value=_fake_redis_no_cache()),
+        patch("agent.nodes.sast_node.read_file", side_effect=_read_file),
+        patch("agent.nodes.sast_node.analyze_for_sast", side_effect=_analyze),
+        patch("agent.nodes.sast_node._get_redis", return_value=_fake_redis_no_cache()),
+    ):
+        graph = get_graph()
+        events = [e async for e in graph.astream(_base_state())]
+        node_names = [k for e in events for k in e]
+
+        assert "scan_files_node" in node_names
+        assert "cache_check_node" in node_names
+        assert "sast_node" in node_names
+        assert "next_file_node" in node_names
+        assert "aggregate_node" in node_names

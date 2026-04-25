@@ -2,6 +2,7 @@
 // 루트 레이아웃 — 폰트 최적화 + Provider 트리
 import type { Metadata } from 'next';
 import { JetBrains_Mono, Space_Grotesk } from 'next/font/google';
+import AuthProvider from '@/components/AuthProvider';
 import './globals.css';
 
 // ── Fonts (UI/UX REVISIONS.md §8 대응) ──────────────────
@@ -34,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${jetbrainsMono.variable} ${spaceGrotesk.variable}`}
     >
       <body style={{ margin: 0 }}>
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

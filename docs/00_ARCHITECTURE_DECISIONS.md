@@ -258,3 +258,102 @@ services:
 ---
 
 *이 문서는 ERD(01_ERD.md) 및 API 설계서(02_API_DESIGN.md) 작성의 전제 조건입니다.*
+
+---
+
+## Sprint 1 ADR (2026-04-19 ~ 2026-04-25)
+
+---
+
+## ADR-011 — DB 마이그레이션: Flyway → ddl-auto:update (임시)
+
+### 결정
+Sprint 1 기간 중 **`spring.jpa.hibernate.ddl-auto=update`** 를 사용하고 Flyway는 비활성화한다.
+
+### 근거
+- Sprint 1은 엔티티 스키마가 빠르게 변경되는 설계 초기 단계
+- Flyway 스크립트를 매 변경마다 작성하면 개발 속도 저하
+- 데이터 유실이 허용되는 로컬 개발 환경(Docker Compose)에서만 운영
+
+### 제약
+- **프로덕션 배포 전 반드시 Flyway로 전환** 필요
+- 컬럼 이름 변경·삭제는 ddl-auto가 처리하지 않으므로 수동 ALTER 필요
+- Sprint 2 착수 전 `V1__init.sql` 작성 후 ddl-auto를 `validate`로 변경 예정
+
+---
+
+## ADR-012 — Access Token 저장: 메모리 전용
+
+### 결정
+Access Token은 **JS 메모리(클로저 변수)에만** 저장한다. `localStorage`, `sessionStorage`, Zustand persist에 저장하지 않는다.
+
+### 근거
+- `localStorage`에 저장하면 XSS 공격으로 토큰 탈취 가능 (OWASP A03)
+- Zustand `persist` 미들웨어의 `partialize`로 `accessToken` 키를 명시적으로 제외
+- 대신 **HttpOnly Secure Cookie**에 Refresh Token 저장 → 페이지 새로고침 시 `POST /auth/refresh`로 조용히 재발급(Silent Refresh)
+
+### 구현 세부사항
+- `apps/frontend/src/lib/api/client.ts`: `let _accessToken: string | null = null` (모듈 수준 변수)
+- `apps/frontend/src/hooks/useAuth.ts`: `initAuth()` — 앱 마운트 시 Refresh 쿠키로 토큰 복원
+- `apps/frontend/src/components/AuthProvider.tsx`: root layout에서 `initAuth()` 1회 호출 (useRef 가드)
+- `isInitialized` 플래그: refresh 완료 전 보호된 페이지가 `/login`으로 조기 리다이렉트하는 것 방지
+
+---
+
+## ADR-013 — GitHub OAuth CSRF 방어: State + Redis
+
+### 결정
+OAuth 2.0 state 파라미터를 **UUID 생성 → Redis TTL 10분 저장 → 콜백에서 검증 후 즉시 삭제** 방식으로 구현한다.
+
+### 흐름
+```
+1. GET /api/v1/auth/github
+   → UUID state 생성
+   → Redis SET "secureai:oauth:state:{state}" "1" EX 600
+   → GitHub Authorization URL로 리다이렉트 (state 포함)
+
+2. GET /api/v1/auth/github/callback?code=...&state=...
+   → Redis에 key 존재 확인
+   → 없으면 AUTH_OAUTH_STATE_INVALID (400) 반환
+   → 있으면 즉시 DEL (재사용 방지)
+   → GitHub code → 사용자 처리 → LoginResponse
+   → 프론트엔드 /auth/callback?accessToken=... 으로 리다이렉트
+```
+
+### 보안 고려사항
+- state 검증 실패 시 즉시 예외 (`BusinessException(ErrorCode.AUTH_OAUTH_STATE_INVALID)`)
+- Redis TTL로 오래된 state 자동 만료
+- 콜백 처리 즉시 key 삭제 → 동일 state 재사용 불가 (replay attack 방지)
+
+---
+
+## ADR-014 — Jackson 3.x / Spring Boot 4 호환
+
+### 결정
+Spring Boot 4.0에서 Jackson은 기본적으로 **Jackson 3.x** (FasterXML)로 올라간다.  
+`ObjectMapper` 직접 주입 대신 Spring이 제공하는 Bean을 사용하고, 직렬화 설정은 `application.properties`로 관리한다.
+
+### 영향
+- `com.fasterxml.jackson` 패키지 임포트는 그대로 유지 (Jackson 3.x는 패키지명 변경 없음)
+- `spring.jackson.serialization.write-dates-as-timestamps=false` → ISO-8601 문자열 직렬화
+- `OffsetDateTime` 파라미터를 포함하는 DTO는 `@JsonFormat` 불필요 (기본 ISO-8601 처리)
+
+---
+
+## ADR-015 — Refresh Token DB 저장 전략
+
+### 결정
+Refresh Token은 **SHA-256 해시값만 DB(`refresh_tokens` 테이블)에 저장**한다. 원문은 저장하지 않는다.
+
+### 근거
+- DB 유출 시 토큰 원문 노출 방지
+- 검증: 요청의 원문 토큰 → SHA-256 → DB 조회
+- Rotation: 사용 시 즉시 새 토큰 발급 + 구 해시 무효화
+- 재사용 감지: 이미 무효화된 해시 재요청 → 해당 유저 전체 세션 강제 만료 (`revokeAllByUserId`)
+
+### 토큰 발급 흐름
+```
+1. 랜덤 UUID → Raw Token (클라이언트 전달용)
+2. SHA-256(Raw Token) → DB 저장
+3. HttpOnly Cookie로 Raw Token 설정 (Secure, SameSite=Strict, Max-Age=2592000)
+```

@@ -22,8 +22,8 @@ Combines static analysis, dynamic testing, and AI-powered patch generation into 
 
 | Service | Stack | Port |
 |---------|-------|------|
-| backend | Spring Boot 4, Java 25, Flyway, JPA | 8080 |
-| frontend | Next.js 15, Monaco Editor, Tailwind | 3000 |
+| backend | Spring Boot 4.0, Java 25, JPA/Hibernate 7, ddl-auto:update | 8080 |
+| frontend | Next.js 15, Monaco Editor, Tailwind, Zustand | 3000 |
 | ai_engine | Python 3.12, FastAPI, LangGraph, Claude API | 8000 |
 | mcp_server | Node.js 20, TypeScript, MCP SDK | stdio |
 | postgres | PostgreSQL 15 | 5432 |
@@ -74,6 +74,7 @@ make dev
 |-----|---------|
 | http://localhost:3000 | Frontend |
 | http://localhost:8080/actuator/health | Backend health |
+| http://localhost:8080/swagger-ui/index.html | Swagger UI (REST API docs) |
 | http://localhost:8000/health | AI Agent health |
 
 ### 4. Other useful commands
@@ -87,6 +88,20 @@ make rebuild       # rebuild & restart backend image
 make db            # open psql inside postgres container
 make redis-cli     # open redis-cli inside redis container
 ```
+
+---
+
+## Sprint Status
+
+| Sprint | 기간 | 상태 | 주요 완료 항목 |
+|--------|------|------|--------------|
+| Sprint 1 — Auth & User Foundation | 2026-04-19 ~ 2026-04-25 | ✅ 완료 | 회원가입·이메일인증·로그인·JWT·Refresh Token Rotation·GitHub OAuth(CSRF 방어)·비밀번호 재설정·프로필 API |
+| Sprint 2 — Project & Repository Management | 예정 | 🔜 대기 | 프로젝트 CRUD, GitHub Repo 연동, 팀 멤버 초대 |
+| Sprint 3 — SAST AI Pipeline | 예정 | 🔜 대기 | LangGraph 에이전트, Claude API 연동, 취약점 탐지 |
+| Sprint 4 — DAST & Remediation | 예정 | 🔜 대기 | Docker 샌드박스 DAST, 자동 패치 생성 |
+
+> **현재 인프라 상태**: DB 마이그레이션 도구로 Flyway 대신 `spring.jpa.hibernate.ddl-auto=update` 사용 중 (Sprint 1 범위).  
+> Sprint 2 착수 전 Flyway로 전환 예정 (`docs/00_ARCHITECTURE_DECISIONS.md` ADR-011 참조).
 
 ---
 

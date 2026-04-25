@@ -13,6 +13,7 @@ public enum ErrorCode {
     AUTH_REFRESH_INVALID(HttpStatus.UNAUTHORIZED, "Refresh Token이 유효하지 않거나 재사용되었습니다."),
     AUTH_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     AUTH_USERNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 사용자명입니다."),
+    AUTH_OAUTH_STATE_INVALID(HttpStatus.BAD_REQUEST, "유효하지 않은 OAuth state 파라미터입니다. CSRF 공격이 의심됩니다."),
 
     PLAN_FEATURE_NOT_ALLOWED(HttpStatus.FORBIDDEN, "현재 플랜에서 지원하지 않는 기능입니다."),
     PLAN_LIMIT_EXCEEDED(HttpStatus.FORBIDDEN, "월별 사용 한도를 초과했습니다."),

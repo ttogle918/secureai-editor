@@ -1,6 +1,5 @@
 package io.secureai.backend.domain.auth.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import io.secureai.backend.domain.plan.PlanRepository;
 import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.repository.UserRepository;
@@ -9,12 +8,14 @@ import io.secureai.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -44,10 +45,10 @@ public class GitHubOAuthService {
     @Transactional
     public User handleCallback(String code) {
         String accessToken = exchangeCodeForToken(code);
-        JsonNode profile = fetchGitHubProfile(accessToken);
+        Map<String, Object> profile = fetchGitHubProfile(accessToken);
 
-        long githubId = profile.get("id").asLong();
-        String githubLogin = profile.get("login").asText();
+        long githubId = ((Number) profile.get("id")).longValue();
+        String githubLogin = (String) profile.get("login");
         String email = resolveEmail(profile, accessToken);
 
         return userRepository.findByGithubIdAndDeletedAtIsNull(githubId)
@@ -99,49 +100,52 @@ public class GitHubOAuthService {
                 "code", code
         );
 
-        ResponseEntity<JsonNode> response = restTemplate.exchange(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 "https://github.com/login/oauth/access_token",
                 HttpMethod.POST,
                 new HttpEntity<>(body, headers),
-                JsonNode.class
+                new ParameterizedTypeReference<>() {}
         );
 
-        if (response.getBody() == null || !response.getBody().has("access_token")) {
+        if (response.getBody() == null || !response.getBody().containsKey("access_token")) {
             throw new BusinessException(ErrorCode.GITHUB_AUTH_REQUIRED, "GitHub 토큰 교환 실패");
         }
-        return response.getBody().get("access_token").asText();
+        return (String) response.getBody().get("access_token");
     }
 
-    private JsonNode fetchGitHubProfile(String accessToken) {
+    private Map<String, Object> fetchGitHubProfile(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + accessToken);
         headers.set("Accept", "application/vnd.github.v3+json");
 
-        return restTemplate.exchange(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 "https://api.github.com/user",
                 HttpMethod.GET,
                 new HttpEntity<>(headers),
-                JsonNode.class
-        ).getBody();
+                new ParameterizedTypeReference<>() {}
+        );
+        return response.getBody();
     }
 
-    private String resolveEmail(JsonNode profile, String accessToken) {
-        if (profile.has("email") && !profile.get("email").isNull()) {
-            return profile.get("email").asText();
+    private String resolveEmail(Map<String, Object> profile, String accessToken) {
+        Object emailVal = profile.get("email");
+        if (emailVal != null && !(emailVal instanceof String s && s.isBlank())) {
+            return (String) emailVal;
         }
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", "Bearer " + accessToken);
-            JsonNode emails = restTemplate.exchange(
+            ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
                     "https://api.github.com/user/emails",
                     HttpMethod.GET,
                     new HttpEntity<>(headers),
-                    JsonNode.class
-            ).getBody();
+                    new ParameterizedTypeReference<>() {}
+            );
+            List<Map<String, Object>> emails = response.getBody();
             if (emails != null) {
-                for (JsonNode emailNode : emails) {
-                    if (emailNode.get("primary").asBoolean()) {
-                        return emailNode.get("email").asText();
+                for (Map<String, Object> emailEntry : emails) {
+                    if (Boolean.TRUE.equals(emailEntry.get("primary"))) {
+                        return (String) emailEntry.get("email");
                     }
                 }
             }

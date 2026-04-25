@@ -42,7 +42,10 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/api/v1/auth/**",
                     "/actuator/health",
-                    "/actuator/info"
+                    "/actuator/info",
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/v3/api-docs/**"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/reports/*/download").permitAll()
                 .requestMatchers("/webhooks/**").permitAll()

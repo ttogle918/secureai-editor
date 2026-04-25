@@ -33,8 +33,9 @@ dependencies {
 	// Spring Boot 4.0.5에서 찾을 수 없는 스타터 대신 직접 의존성 추가
 	// implementation("org.springframework:spring-aspects:7.0.6")
 	// implementation("org.springframework:spring-aop:7.0.6")
-	implementation("org.flywaydb:flyway-core:10.20.0")
-	implementation("org.flywaydb:flyway-database-postgresql:10.20.0")
+	// Flyway 임시 제거 — Spring Boot 4.0.5 bean 초기화 순서 문제로 ddl-auto:update 사용
+	// implementation("org.flywaydb:flyway-core:10.20.0")
+	// implementation("org.flywaydb:flyway-database-postgresql:10.20.0")
 
 	// JWT
 	implementation("io.jsonwebtoken:jjwt-api:0.12.6")
@@ -49,8 +50,11 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-starter-test:4.0.5")
 	testImplementation("org.springframework.security:spring-security-test:7.0.0")
 	testCompileOnly("org.projectlombok:lombok:1.18.36")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.3")
+	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testAnnotationProcessor("org.projectlombok:lombok:1.18.36")
+
+	// Swagger / OpenAPI
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
 }
 
 tasks.withType<Test> {

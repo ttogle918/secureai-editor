@@ -117,3 +117,6 @@ files.zip
 /secureai---white-hat-security-auditor/
 /apps/sandbox/temp/
 /bash
+
+# Claude Code memory
+.claude/

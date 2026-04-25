@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     # MCP Server
     mcp_workspace_root: str = Field("/workspace", alias="MCP_WORKSPACE_ROOT")
+    mcp_server_script: str = Field("/app/mcp_server/dist/index.js", alias="MCP_SERVER_SCRIPT")
 
 
 settings = Settings()

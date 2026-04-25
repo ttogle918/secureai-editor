@@ -3,23 +3,18 @@ LangGraph 보안 감사 그래프 컴파일 & 싱글턴 캐싱.
 
 TASK-206에서 checkpointer 인자를 추가하면 중단·재개가 활성화된다.
 """
-
 import logging
 from typing import Any
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
 from agent.agent_state import AgentState
-from agent.security_audit_graph import (
-    scan_files_node,
-    cache_check_node,
-    sast_node,
-    next_file_node,
-    aggregate_node,
-    route_after_scan,
-    route_after_cache,
-    route_after_next,
-)
+from agent.nodes.aggregate_node import aggregate_node
+from agent.nodes.cache_check_node import cache_check_node
+from agent.nodes.next_file_node import next_file_node
+from agent.nodes.sast_node import sast_node
+from agent.nodes.scan_files_node import scan_files_node
+from agent.security_audit_graph import route_after_cache, route_after_next, route_after_scan
 
 logger = logging.getLogger(__name__)
 

@@ -1,13 +1,46 @@
-fastapi==0.115.5
-uvicorn[standard]==0.32.1
-pydantic==2.10.3
-pydantic-settings==2.6.1
-anthropic>=0.42.0
-langchain==0.3.9
-langchain-anthropic==0.3.3
-langgraph==0.2.53
-langsmith==0.1.147
-httpx==0.28.0
+# ───────────────────────────────────────────────────
+# Web framework
+# ───────────────────────────────────────────────────
+fastapi==0.115.14
+uvicorn[standard]==0.34.3
+
+# ───────────────────────────────────────────────────
+# Data validation
+# ───────────────────────────────────────────────────
+pydantic==2.13.3
+pydantic-settings==2.14.0
+
+# ───────────────────────────────────────────────────
+# Anthropic SDK
+# ───────────────────────────────────────────────────
+anthropic==0.97.0
+
+# ───────────────────────────────────────────────────
+# LangChain / LangGraph / LangSmith
+# 2025 H2에 0.x → 1.x 메이저 버전 전환됨
+# langchain 0.3.x, langgraph 0.2.x, langsmith 0.1.x 는 사용 금지
+# ───────────────────────────────────────────────────
+langchain==1.2.15
+langchain-anthropic==1.4.1
+langgraph==1.1.9
+langchain-mcp-adapters==0.2.2        # TASK-202: MCP stdio 연동
+langgraph-checkpoint-postgres==3.0.5 # TASK-206: PostgresSaver 체크포인트
+langsmith==0.7.36
+
+# ───────────────────────────────────────────────────
+# HTTP / networking
+# ───────────────────────────────────────────────────
+httpx==0.28.1
+
+# ───────────────────────────────────────────────────
+# Storage / cache
+# redis 6.x/7.x는 auth API 변경으로 5.3.x 유지
+# psycopg3 는 langgraph-checkpoint-postgres 가 자동 설치
+# ───────────────────────────────────────────────────
+redis==5.3.1
+
+# ───────────────────────────────────────────────────
+# Utilities
+# ───────────────────────────────────────────────────
 python-dotenv==1.0.1
-redis==5.2.1
 PyYAML==6.0.2

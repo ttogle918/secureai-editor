@@ -163,12 +163,15 @@ public class AuthService {
 
     @Transactional
     public LoginResponse loginWithUser(User user, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
-        user.setLastLoginAt(OffsetDateTime.now());
-        userRepository.save(user);
-        String accessToken = tokenService.generateAccessToken(user.getId(), user.getEmail());
-        String rawRefreshToken = issueRefreshToken(user, httpRequest);
+        // plan 포함 재조회 — 트랜잭션 경계를 넘어온 user의 lazy proxy 방지
+        User freshUser = userRepository.findByIdWithPlan(user.getId())
+                .orElse(user);
+        freshUser.setLastLoginAt(OffsetDateTime.now());
+        userRepository.save(freshUser);
+        String accessToken = tokenService.generateAccessToken(freshUser.getId(), freshUser.getEmail());
+        String rawRefreshToken = issueRefreshToken(freshUser, httpRequest);
         setRefreshCookie(rawRefreshToken, httpResponse);
-        return new LoginResponse(accessToken, "Bearer", jwtProperties.getAccessTokenExpirySeconds(), user);
+        return new LoginResponse(accessToken, "Bearer", jwtProperties.getAccessTokenExpirySeconds(), freshUser);
     }
 
     @Transactional

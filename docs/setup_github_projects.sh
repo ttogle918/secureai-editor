@@ -45,13 +45,15 @@ PROJECT_DATA=$(gh api graphql -f ownerId="$OWNER_ID" -f title="SecureAI Developm
   }
 ')
 
-PROJECT_ID=$(echo "$PROJECT_DATA" | gh api graphql --jq '.data.createProjectV2.projectV2.id' --silent -f query='query{viewer{id}}' 2>/dev/null || echo "")
-PROJECT_NUMBER=$(echo "$PROJECT_DATA" | gh api graphql --jq '.data.createProjectV2.projectV2.number' --silent -f query='query{viewer{id}}' 2>/dev/null || echo "")
+# 프로젝트 정보 추출 (Python 사용 또는 grep)
+PROJECT_ID=$(echo "$PROJECT_DATA" | python3 -c "import sys, json; print(json.load(sys.stdin)['data']['createProjectV2']['projectV2']['id'])" 2>/dev/null || \
+            echo "$PROJECT_DATA" | grep -oP '(?<="id":")[^"]+' | head -n 1)
+PROJECT_NUMBER=$(echo "$PROJECT_DATA" | python3 -c "import sys, json; print(json.load(sys.stdin)['data']['createProjectV2']['projectV2']['number'])" 2>/dev/null || \
+                echo "$PROJECT_DATA" | grep -oP '(?<="number":)[0-9]+' | head -n 1)
 
-# 만약 위 방법이 안 될 경우를 대비한 대체 추출 (grep/sed 사용)
 if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" == "null" ]; then
-  PROJECT_ID=$(echo "$PROJECT_DATA" | grep -oP '(?<="id":")[^"]+')
-  PROJECT_NUMBER=$(echo "$PROJECT_DATA" | grep -oP '(?<="number":)[0-9]+')
+  echo "  ❌ 프로젝트 정보를 추출하지 못했습니다. 응답 데이터: $PROJECT_DATA"
+  exit 1
 fi
 
 echo "  ✅ 프로젝트 생성 완료 (ID: $PROJECT_ID, Number: $PROJECT_NUMBER)"
@@ -111,7 +113,7 @@ create_milestone() {
     -f title="$title" \
     -f due_on="${due}T00:00:00Z" \
     -f description="$desc" \
-    --method POST 2>/dev/null || true
+    --method POST > /dev/null 2>&1 || true
 }
 
 TODAY=$(date +%Y-%m-%d)
@@ -140,24 +142,31 @@ create_issue() {
 
   # 마일스톤 번호 조회
   local milestone_num=$(gh api repos/$FULL_REPO/milestones \
-    --jq ".[] | select(.title == \"$milestone_title\") | .number" 2>/dev/null || echo "")
+    --jq ".[] | select(.title == \"$milestone_title\") | .number" || echo "")
 
-  local issue_num
+  local issue_url
   if [ -n "$milestone_num" ]; then
-    issue_num=$(gh issue create \
+    issue_url=$(gh issue create \
       --repo "$FULL_REPO" \
       --title "$title" \
       --body "$body" \
       --label "$labels" \
-      --milestone "$milestone_num" \
-      --json number --jq '.number' 2>/dev/null || echo "")
+      --milestone "$milestone_title" || echo "")
   else
-    issue_num=$(gh issue create \
+    issue_url=$(gh issue create \
       --repo "$FULL_REPO" \
       --title "$title" \
       --body "$body" \
-      --label "$labels" \
-      --json number --jq '.number' 2>/dev/null || echo "")
+      --label "$labels" || echo "")
+  fi
+
+  # URL에서 이슈 번호 추출 (예: https://github.com/owner/repo/issues/123 -> 123)
+  local issue_num=$(echo "$issue_url" | grep -oP '\d+$' || echo "")
+
+  # 생성된 이슈를 프로젝트 보드에 추가
+  if [ -n "$PROJECT_ID" ] && [ -n "$issue_num" ]; then
+    gh project item-add "$PROJECT_NUMBER" --owner "$OWNER" --url "https://github.com/$FULL_REPO/issues/$issue_num" --format json > /dev/null 2>&1 || true
+    echo "  ✅ 프로젝트 보드에 추가됨"
   fi
 
   echo "  📌 이슈 #$issue_num 생성: $title"

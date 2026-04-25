@@ -131,19 +131,21 @@ services:
         condition: service_healthy
 
   # ── MCP Server (Node.js) ─────────────────────────────
-  mcp_server:
-    build:
-      context: ./apps/mcp_server
-      dockerfile: Dockerfile
-    container_name: secureai-mcp-server
-    restart: unless-stopped
-    environment:
-      PORT: 3001
-    volumes:
-      - /workspace:/workspace:ro
-    networks:
-      - app-net
-      - data-net
+  # stdio 모드 MCP 서버 — AI Agent가 subprocess로 직접 spawn하므로
+  # docker-compose 단독 실행 불가 (Sprint 2에서 AI Agent가 내부적으로 기동)
+  # mcp_server:
+  #   build:
+  #     context: ./apps/mcp_server
+  #     dockerfile: Dockerfile
+  #   container_name: secureai-mcp-server
+  #   restart: unless-stopped
+  #   environment:
+  #     PORT: 3001
+  #   volumes:
+  #     - /workspace:/workspace:ro
+  #   networks:
+  #     - app-net
+  #     - data-net
   # ── Next.js Frontend ──────────────────────────────────
   # 개발: cd apps/frontend && npm run dev  (로컬 실행)
   # 프로덕션 배포 시 아래 주석 해제

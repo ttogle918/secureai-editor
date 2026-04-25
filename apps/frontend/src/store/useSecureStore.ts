@@ -1,6 +1,5 @@
 // ============================================================
-// Zustand 단일 스토어 — SecureAI (통합본)
-// appStore.ts 와 useSecureStore.ts 를 이것으로 통일
+// Zustand 단일 스토어 — SecureAI
 // ============================================================
 import { create } from 'zustand';
 import {
@@ -31,11 +30,11 @@ interface SecureStore {
 
   // ── 패널 크기 (드래그 리사이즈) ──────────────────────────
   sidebarWidth:    number;
-  setSidebarWidth: (w: number) => void;
+  setSidebarWidth: (w: number | ((prev: number) => number)) => void;
   rightPanelWidth:    number;
-  setRightPanelWidth: (w: number) => void;
+  setRightPanelWidth: (w: number | ((prev: number) => number)) => void;
   terminalHeight:     number;
-  setTerminalHeight:  (h: number) => void;
+  setTerminalHeight:  (h: number | ((prev: number) => number)) => void;
 
   // ── 취약점 ──────────────────────────────────────────────
   vulns: Vulnerability[];
@@ -52,9 +51,6 @@ interface SecureStore {
   apiGroupFilter:    string | null;
   setApiGroupFilter: (g: string | null) => void;
 
-  // ── 파생 셀렉터 ─────────────────────────────────────────
-  filteredVulns: () => Vulnerability[];
-  apiGroups:     () => string[];
 
   // ── 분석 상태 ───────────────────────────────────────────
   isAnalyzing: boolean;
@@ -88,11 +84,20 @@ export const useSecureStore = create<SecureStore>((set, get) => ({
 
   // ── 패널 크기 (min/max 클램프 포함)
   sidebarWidth: 220,
-  setSidebarWidth: (w) => set({ sidebarWidth: Math.max(160, Math.min(400, w)) }),
+  setSidebarWidth: (w) => set((s) => {
+    const next = typeof w === 'function' ? w(s.sidebarWidth) : w;
+    return { sidebarWidth: Math.max(160, Math.min(450, next)) };
+  }),
   rightPanelWidth: 360,
-  setRightPanelWidth: (w) => set({ rightPanelWidth: Math.max(280, Math.min(640, w)) }),
-  terminalHeight: 160,
-  setTerminalHeight: (h) => set({ terminalHeight: Math.max(80, Math.min(420, h)) }),
+  setRightPanelWidth: (w) => set((s) => {
+    const next = typeof w === 'function' ? w(s.rightPanelWidth) : w;
+    return { rightPanelWidth: Math.max(260, Math.min(600, next)) };
+  }),
+  terminalHeight: 180,
+  setTerminalHeight: (h) => set((s) => {
+    const next = typeof h === 'function' ? h(s.terminalHeight) : h;
+    return { terminalHeight: Math.max(80, Math.min(500, next)) };
+  }),
 
   // ── 취약점
   vulns: mockVulnerabilities,
@@ -115,25 +120,6 @@ export const useSecureStore = create<SecureStore>((set, get) => ({
   apiGroupFilter: null,
   setApiGroupFilter: (g) => set({ apiGroupFilter: g }),
 
-  // ── 파생: 필터 + AND 조건
-  filteredVulns: () => {
-    const { vulns, severityFilter, apiGroupFilter } = get();
-    return vulns.filter((v) => {
-      const sevOk = severityFilter === 'all' || v.severity === severityFilter;
-      const apiOk = !apiGroupFilter
-        || (v.apiGroup
-            ? v.apiGroup === apiGroupFilter || v.apiGroup.startsWith(apiGroupFilter + '/')
-            : apiGroupFilter === 'other');
-      return sevOk && apiOk;
-    });
-  },
-
-  // ── 파생: API 그룹 목록
-  apiGroups: () => {
-    const groups = new Set<string>();
-    get().vulns.forEach((v) => { if (v.apiGroup) groups.add(v.apiGroup); });
-    return Array.from(groups).sort();
-  },
 
   // ── 분석
   isAnalyzing: false,
@@ -166,6 +152,4 @@ export const useSecureStore = create<SecureStore>((set, get) => ({
   },
 }));
 
-// ── 하위 호환: appStore.ts 에서 import 하던 코드도 동작하도록 ─
 export const useAppStore = useSecureStore;
-export type { SeverityFilter as AppSeverityFilter };

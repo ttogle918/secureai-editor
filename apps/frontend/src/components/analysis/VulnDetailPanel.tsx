@@ -1,17 +1,17 @@
 // ── 에디터 오른쪽: 취약점 상세 토글 패널 (수정 가능) ──────────
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle,
   Zap, Info, ExternalLink, Layers, RefreshCw,
 } from 'lucide-react';
-import { useAppStore } from '@/store/appStore';
+import { useSecureStore as useAppStore } from '@/store/useSecureStore';
 import { mockPatches } from '@/lib/mockData';
 import type { Vulnerability } from '@/lib/mockData';
 
 const SEV_COLOR: Record<string, string> = {
-  critical: '#E24B4A', high: '#BA7517', medium: '#4ec9b0', low: '#608b4e',
+  critical: '#e24b4b', high: '#f59e0b', medium: '#eab308', low: '#22c55e',
 };
 const LAYER_COLOR: Record<string, string> = {
   Frontend: '#378ADD', Controller: '#7F77DD', Service: '#1D9E75',
@@ -127,7 +127,9 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
 
   return (
     <div style={{
-      border: isOpen ? `0.5px solid rgba(255,255,255,0.15)` : '0.5px solid rgba(255,255,255,0.06)',
+      borderTop: isOpen ? `0.5px solid rgba(255,255,255,0.15)` : '0.5px solid rgba(255,255,255,0.06)',
+      borderRight: isOpen ? `0.5px solid rgba(255,255,255,0.15)` : '0.5px solid rgba(255,255,255,0.06)',
+      borderBottom: isOpen ? `0.5px solid rgba(255,255,255,0.15)` : '0.5px solid rgba(255,255,255,0.06)',
       borderLeft: `2px solid ${patchApplied ? '#4caf50' : sColor}`,
       borderRadius: 10,
       background: '#141414',
@@ -271,7 +273,21 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
 }
 
 export default function VulnDetailPanel() {
-  const filteredVulns = useAppStore(s => s.filteredVulns());
+  const vulns = useAppStore((s) => s.vulns);
+  const severityFilter = useAppStore((s) => s.severityFilter);
+  const apiGroupFilter = useAppStore((s) => s.apiGroupFilter);
+
+  const filteredVulns = useMemo(() => {
+    return vulns.filter((v) => {
+      const sevOk = severityFilter === 'all' || v.severity === severityFilter;
+      const apiOk =
+        !apiGroupFilter ||
+        (v.apiGroup
+          ? v.apiGroup === apiGroupFilter || v.apiGroup.startsWith(apiGroupFilter + '/')
+          : apiGroupFilter === 'other');
+      return sevOk && apiOk;
+    });
+  }, [vulns, severityFilter, apiGroupFilter]);
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>

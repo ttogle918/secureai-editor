@@ -33,9 +33,8 @@ dependencies {
 	// Spring Boot 4.0.5에서 찾을 수 없는 스타터 대신 직접 의존성 추가
 	// implementation("org.springframework:spring-aspects:7.0.6")
 	// implementation("org.springframework:spring-aop:7.0.6")
-	// Flyway 임시 제거 — Spring Boot 4.0.5 bean 초기화 순서 문제로 ddl-auto:update 사용
-	// implementation("org.flywaydb:flyway-core:10.20.0")
-	// implementation("org.flywaydb:flyway-database-postgresql:10.20.0")
+	implementation("org.springframework.boot:spring-boot-starter-flyway")
+	implementation("org.flywaydb:flyway-database-postgresql")
 
 	// JWT
 	implementation("io.jsonwebtoken:jjwt-api:0.12.6")

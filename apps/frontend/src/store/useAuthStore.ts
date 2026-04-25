@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export type UserPlan = 'free' | 'pro' | 'team';
 
@@ -12,26 +13,39 @@ export type AuthUser = {
 
 interface AuthStore {
   user: AuthUser | null;
-  accessToken: string | null;
+  accessToken: string | null;  // 메모리에만 존재 — localStorage 저장 안 함
   isLoading: boolean;
+  isInitialized: boolean;      // 앱 로드 시 silent refresh 완료 여부
   error: string | null;
 
   setUser: (user: AuthUser | null) => void;
   setAccessToken: (token: string | null) => void;
   setLoading: (v: boolean) => void;
+  setInitialized: (v: boolean) => void;
   setError: (msg: string | null) => void;
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
-  accessToken: null,
-  isLoading: false,
-  error: null,
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    (set) => ({
+      user: null,
+      accessToken: null,
+      isLoading: false,
+      isInitialized: false,
+      error: null,
 
-  setUser: (user) => set({ user }),
-  setAccessToken: (accessToken) => set({ accessToken }),
-  setLoading: (isLoading) => set({ isLoading }),
-  setError: (error) => set({ error }),
-  logout: () => set({ user: null, accessToken: null, error: null }),
-}));
+      setUser: (user) => set({ user }),
+      setAccessToken: (accessToken) => set({ accessToken }),
+      setLoading: (isLoading) => set({ isLoading }),
+      setInitialized: (isInitialized) => set({ isInitialized }),
+      setError: (error) => set({ error }),
+      logout: () => set({ user: null, accessToken: null, error: null }),
+    }),
+    {
+      name: 'secureai-auth',
+      // accessToken은 메모리에만 — user 정보만 localStorage에 저장 (빠른 UI 렌더링용)
+      partialize: (state) => ({ user: state.user }),
+    },
+  ),
+);

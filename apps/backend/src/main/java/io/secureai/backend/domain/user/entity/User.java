@@ -1,0 +1,110 @@
+package io.secureai.backend.domain.user.entity;
+
+import io.secureai.backend.domain.plan.Plan;
+import io.secureai.backend.global.crypto.AesEncryptionConverter;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = "users")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @Column(nullable = false, unique = true, length = 255)
+    private String email;
+
+    @Column(length = 255)
+    private String passwordHash;
+
+    @Column(nullable = false, unique = true, length = 100)
+    private String username;
+
+    @Column(length = 100)
+    private String displayName;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_id", nullable = false)
+    private Plan plan;
+
+    @Column(unique = true)
+    private Long githubId;
+
+    @Column(length = 100)
+    private String githubLogin;
+
+    @Convert(converter = AesEncryptionConverter.class)
+    @Column(columnDefinition = "bytea")
+    private String githubToken;
+
+    private OffsetDateTime githubTokenExpiresAt;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer sastUsageThisMonth = 0;
+
+    @Column(nullable = false)
+    private OffsetDateTime sastUsageResetAt;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean emailVerified = false;
+
+    @Column(length = 64)
+    private String emailVerifyToken;
+
+    private OffsetDateTime emailVerifyExpiresAt;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isActive = true;
+
+    private OffsetDateTime lastLoginAt;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Short loginFailCount = 0;
+
+    private OffsetDateTime lockedUntil;
+
+    @Column(nullable = false, length = 50)
+    @Builder.Default
+    private String timezone = "Asia/Seoul";
+
+    @Column(nullable = false, length = 10)
+    @Builder.Default
+    private String locale = "ko";
+
+    @Column(nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
+
+    private OffsetDateTime updatedAt;
+
+    private OffsetDateTime deletedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
+        if (this.sastUsageResetAt == null) {
+            this.sastUsageResetAt = OffsetDateTime.now()
+                    .withDayOfMonth(1).plusMonths(1)
+                    .withHour(0).withMinute(0).withSecond(0).withNano(0);
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = OffsetDateTime.now();
+    }
+}

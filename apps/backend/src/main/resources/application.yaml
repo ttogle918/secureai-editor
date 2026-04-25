@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: secureai-backend
+
+  threads:
+    virtual:
+      enabled: true
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/secureai}
+    username: ${SPRING_DATASOURCE_USERNAME:secureai}
+    password: ${SPRING_DATASOURCE_PASSWORD:secureai}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        default_schema: public
+    open-in-view: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+secureai:
+  jwt:
+    secret: ${JWT_SECRET:bXktc3VwZXItc2VjcmV0LWtleS1mb3Itand0LXNpZ25pbmctbXVzdC1iZS0yNTYtYml0cy1sb25n}
+    access-token-expiry-seconds: 900
+    refresh-token-expiry-seconds: 2592000
+  encryption:
+    key: ${SECUREAI_ENCRYPTION_KEY:0000000000000000000000000000000000000000000000000000000000000000}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:3000}
+  github:
+    client-id: ${GITHUB_CLIENT_ID:}
+    client-secret: ${GITHUB_CLIENT_SECRET:}

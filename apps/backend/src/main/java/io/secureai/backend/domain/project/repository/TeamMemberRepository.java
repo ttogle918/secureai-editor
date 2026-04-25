@@ -23,6 +23,6 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, UUID> {
 
     int countByProjectId(UUID projectId);
 
-    @Query("SELECT tm FROM TeamMember tm JOIN FETCH tm.user WHERE tm.project.id = :projectId AND tm.role = 'owner'")
+    @Query("SELECT tm FROM TeamMember tm JOIN FETCH tm.user u JOIN FETCH u.plan WHERE tm.project.id = :projectId AND tm.role = 'owner'")
     Optional<TeamMember> findOwnerByProjectId(@Param("projectId") UUID projectId);
 }

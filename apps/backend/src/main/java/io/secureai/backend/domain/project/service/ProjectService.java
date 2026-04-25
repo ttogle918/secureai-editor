@@ -3,15 +3,18 @@ package io.secureai.backend.domain.project.service;
 import io.secureai.backend.domain.project.dto.*;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.entity.TeamMember;
+import io.secureai.backend.domain.project.event.ProjectDeletedEvent;
 import io.secureai.backend.domain.project.repository.ProjectRepository;
 import io.secureai.backend.domain.project.repository.TeamMemberRepository;
 import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.repository.UserRepository;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
+import io.secureai.backend.global.plan.PlanChecker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,6 +31,8 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final PlanChecker planChecker;
 
     @Transactional(readOnly = true)
     public Page<ProjectListItemResponse> listProjects(UUID userId, Pageable pageable) {
@@ -93,7 +98,7 @@ public class ProjectService {
         checkOwnerAccess(userId, projectId);
         project.softDelete();
         projectRepository.save(project);
-        // TODO Sprint 4: 72시간 후 하드 삭제 이벤트 발행
+        eventPublisher.publishEvent(new ProjectDeletedEvent(this, projectId, userId, OffsetDateTime.now()));
     }
 
     @Transactional(readOnly = true)
@@ -106,6 +111,7 @@ public class ProjectService {
     @Transactional
     public TeamMemberResponse inviteMember(UUID userId, UUID projectId, InviteMemberRequest request) {
         checkAdminAccess(userId, projectId);
+        planChecker.canAddMember(projectId);
         Project project = loadProject(projectId);
 
         User invitedUser = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())

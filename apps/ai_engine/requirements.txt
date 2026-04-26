@@ -25,6 +25,7 @@ langchain-anthropic==1.4.1
 langgraph==1.1.9
 langchain-mcp-adapters==0.2.2        # TASK-202: MCP stdio 연동
 langgraph-checkpoint-postgres==3.0.5 # TASK-206: PostgresSaver 체크포인트
+psycopg-pool==3.2.6                  # TASK-206: AsyncConnectionPool
 langsmith==0.7.36
 
 # ───────────────────────────────────────────────────

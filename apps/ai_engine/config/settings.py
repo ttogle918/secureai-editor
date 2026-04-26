@@ -39,5 +39,11 @@ class Settings(BaseSettings):
     # Backend 내부 API
     backend_internal_url: str = Field("http://backend:8080", alias="BACKEND_INTERNAL_URL")
 
+    # PostgreSQL (LangGraph Checkpointer)
+    postgres_url: str = Field(
+        "postgresql://secureai:secureai@postgres:5432/secureai",
+        alias="POSTGRES_URL",
+    )
+
 
 settings = Settings()

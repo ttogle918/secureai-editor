@@ -1,7 +1,7 @@
 # Sprint 2 테스트 현황 & 미해결 항목
 
 > 마지막 업데이트: 2026-04-26
-> 자동화 단위 테스트: **43 passed** (`python -m pytest tests/agent/ tests/infrastructure/`)
+> 자동화 단위 테스트: **47 passed** (`python -m pytest tests/agent/ tests/infrastructure/`)
 
 ---
 
@@ -14,6 +14,7 @@
 | TASK-203 Spring ↔ Agent SSE | ✅ 6/6 통과 (Docker 내) | ⏳ 보류 | ⏳ 보류 |
 | TASK-204 취약점 저장 파이프라인 | ✅ 10/10 통과 | ⏳ 보류 | ⏳ 보류 |
 | TASK-205 진행 로그 시스템 | ✅ 8/8 통과 | ⏳ 보류 | ⏳ 보류 |
+| TASK-206 LangGraph Checkpointer | ✅ 4/4 로컬 + 9/9 Docker | ⏳ 보류 | ⏳ 보류 |
 
 ---
 

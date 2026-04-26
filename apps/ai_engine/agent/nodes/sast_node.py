@@ -9,12 +9,14 @@ from agent.response_parser import parse_sast_response
 from agent.tools.mcp_filesystem_tools import read_file
 from config.settings import settings
 from infrastructure.backend_api_client import save_vulnerabilities
+from infrastructure.progress_log_client import log_completed, log_failed, log_started
 
 logger = logging.getLogger(__name__)
 
 _redis: aioredis.Redis | None = None
 _CACHE_PREFIX = "secureai:sast:cache:"
 _CACHE_TTL = 60 * 60 * 24 * 7  # 7일
+_STEP_ORDER = 2
 
 
 def _get_redis() -> aioredis.Redis:
@@ -38,6 +40,7 @@ async def sast_node(state: AgentState) -> dict:
     sha256 = state.get("current_file_sha256")
 
     logger.info("[sast] session=%s file=%s", session_id, file_path)
+    await log_started(session_id, "sast", _STEP_ORDER, target=file_path)
 
     try:
         content = await read_file(session_id, file_path)
@@ -49,12 +52,22 @@ async def sast_node(state: AgentState) -> dict:
             await r.setex(f"{_CACHE_PREFIX}{sha256}", _CACHE_TTL, json.dumps(vulns))
 
         await save_vulnerabilities(session_id, state["project_id"], file_path, vulns)
+        await log_completed(
+            session_id, "sast", _STEP_ORDER,
+            target=file_path,
+            detail={"vulnCount": len(vulns)},
+        )
 
         logger.info("[sast] session=%s file=%s vulns=%d", session_id, file_path, len(vulns))
         result = {"file": file_path, "vulnerabilities": vulns, "cached": False}
 
     except Exception as exc:
         logger.error("[sast] session=%s file=%s error=%s", session_id, file_path, exc)
+        await log_failed(
+            session_id, "sast", _STEP_ORDER,
+            target=file_path,
+            detail={"error": str(exc)},
+        )
         result = {"file": file_path, "vulnerabilities": [], "error": str(exc)}
 
     return {"sast_results": state.get("sast_results", []) + [result]}

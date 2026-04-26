@@ -1,7 +1,7 @@
 # Sprint 2 테스트 현황 & 미해결 항목
 
 > 마지막 업데이트: 2026-04-26
-> 자동화 단위 테스트: **35 passed** (`python -m pytest tests/agent/ tests/infrastructure/`)
+> 자동화 단위 테스트: **43 passed** (`python -m pytest tests/agent/ tests/infrastructure/`)
 
 ---
 
@@ -13,6 +13,7 @@
 | TASK-202 MCP + SAST 노드 | ✅ 9/9 통과 | ⏳ 보류 | ⏳ 보류 |
 | TASK-203 Spring ↔ Agent SSE | ✅ 6/6 통과 (Docker 내) | ⏳ 보류 | ⏳ 보류 |
 | TASK-204 취약점 저장 파이프라인 | ✅ 10/10 통과 | ⏳ 보류 | ⏳ 보류 |
+| TASK-205 진행 로그 시스템 | ✅ 8/8 통과 | ⏳ 보류 | ⏳ 보류 |
 
 ---
 
@@ -139,6 +140,31 @@
 | 취약점 필터 API severity AND 조건 정확성 | 실DB 연결 |
 | callChain JSONB GIN 인덱스 EXPLAIN 확인 | TASK-206 migration 완료 후 |
 | 취약점 10개 동시 저장 → 집계 동기화 경쟁 조건 없음 | 실DB 연결 |
+
+---
+
+## TASK-205 — 진행 로그 시스템 구축
+
+### ✅ 완료된 자동화 테스트 (8개)
+
+| 파일 | 테스트 | 결과 |
+|------|--------|------|
+| `test_progress_log_client.py` | log_started 페이로드 (sessionId, stepName, stepOrder, status, target) | ✅ |
+| `test_progress_log_client.py` | log_started target 파라미터 전달 | ✅ |
+| `test_progress_log_client.py` | log_completed 페이로드 (status, target, detail) | ✅ |
+| `test_progress_log_client.py` | log_completed detail=None 시 키 제외 | ✅ |
+| `test_progress_log_client.py` | log_failed status="failed" 확인 | ✅ |
+| `test_progress_log_client.py` | HTTP 오류 시 예외 전파 없음 (log_started) | ✅ |
+| `test_progress_log_client.py` | HTTP 오류 시 예외 전파 없음 (log_completed) | ✅ |
+| `test_progress_log_client.py` | 올바른 URL 경로 전송 확인 | ✅ |
+
+### ⏳ 통합/E2E 테스트 보류
+
+| 항목 | 선행 조건 |
+|------|----------|
+| 분석 실행 → progress-logs API 조회 → step 순서 확인 | 실DB 연결 + MCP 서버 |
+| started → completed 상태 전환 및 durationMs 계산 정확성 | 실DB 연결 |
+| UNIQUE 제약 — 동일 (session, step, target) 재시도 시 덮어쓰기 | 실DB 연결 |
 
 ---
 

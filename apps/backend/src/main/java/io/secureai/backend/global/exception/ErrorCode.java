@@ -37,6 +37,7 @@ public enum ErrorCode {
     AI_AGENT_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI 분석 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."),
 
     VULN_NOT_FOUND(HttpStatus.NOT_FOUND, "취약점을 찾을 수 없습니다."),
+    PROGRESS_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "진행 로그를 찾을 수 없습니다."),
 
     DAST_DOMAIN_NOT_VERIFIED(HttpStatus.FORBIDDEN, "도메인 소유권이 확인되지 않았습니다."),
     DAST_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "도메인별 DAST 횟수를 초과했습니다."),

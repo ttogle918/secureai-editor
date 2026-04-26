@@ -14,7 +14,15 @@ class Settings(BaseSettings):
 
     # Anthropic
     claude_api_key: str = Field(..., alias="CLAUDE_API_KEY")
-    claude_model: str = Field("claude-opus-4-7", alias="CLAUDE_MODEL")
+    claude_model: str = Field("claude-haiku-4-5-20251001", alias="CLAUDE_MODEL")
+
+    # OpenAI
+    openai_api_key: str = Field("", alias="OPENAI_API_KEY")
+    openai_model: str = Field("gpt-4o-mini", alias="OPENAI_MODEL")
+
+    # Gemini
+    gemini_api_key: str = Field("", alias="GEMINI_API_KEY")
+    gemini_model: str = Field("gemini-2.0-flash", alias="GEMINI_MODEL")
 
     # LangSmith tracing
     langsmith_api_key: str = Field("", alias="LANGCHAIN_API_KEY")

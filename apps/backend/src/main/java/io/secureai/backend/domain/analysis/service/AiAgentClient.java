@@ -1,6 +1,5 @@
 package io.secureai.backend.domain.analysis.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
@@ -9,7 +8,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -29,7 +27,6 @@ public class AiAgentClient {
     private static final long RESET_TIMEOUT_MS = 30_000L;
 
     private final RestClient restClient;
-    private final ObjectMapper objectMapper;
     private final String internalKey;
 
     private final AtomicBoolean circuitOpen = new AtomicBoolean(false);
@@ -38,11 +35,9 @@ public class AiAgentClient {
 
     public AiAgentClient(
             @Value("${secureai.ai-agent.url}") String agentUrl,
-            @Value("${secureai.internal-api-key}") String internalKey,
-            ObjectMapper objectMapper
+            @Value("${secureai.internal-api-key}") String internalKey
     ) {
         this.internalKey = internalKey;
-        this.objectMapper = objectMapper;
         this.restClient = RestClient.builder()
                 .baseUrl(agentUrl)
                 .defaultHeader("X-Internal-Key", internalKey)

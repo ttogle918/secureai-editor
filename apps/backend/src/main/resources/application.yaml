@@ -69,3 +69,6 @@ secureai:
   github:
     client-id: ${GITHUB_CLIENT_ID:}
     client-secret: ${GITHUB_CLIENT_SECRET:}
+  ai-agent:
+    url: ${AI_AGENT_URL:http://localhost:8000}
+  internal-api-key: ${INTERNAL_API_KEY:dev-internal-key}

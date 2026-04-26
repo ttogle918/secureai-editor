@@ -1,0 +1,41 @@
+package io.secureai.backend.domain.analysis.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.secureai.backend.domain.analysis.dto.ProgressEvent;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.connection.Message;
+import org.springframework.data.redis.connection.MessageListener;
+import org.springframework.stereotype.Component;
+
+import java.util.UUID;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class RedisSubscriber implements MessageListener {
+
+    private final SseEmitterService sseEmitterService;
+    private final ObjectMapper objectMapper;
+
+    @Override
+    public void onMessage(Message message, byte[] pattern) {
+        try {
+            String channel = new String(message.getChannel());
+            String body = new String(message.getBody());
+
+            // 채널에서 sessionId 추출: secureai:progress:{uuid}
+            String sessionIdStr = channel.substring(channel.lastIndexOf(':') + 1);
+            UUID sessionId = UUID.fromString(sessionIdStr);
+
+            ProgressEvent event = objectMapper.readValue(body, ProgressEvent.class);
+            sseEmitterService.send(sessionId, event);
+
+            if ("completed".equals(event.type()) || "error".equals(event.type())) {
+                sseEmitterService.complete(sessionId);
+            }
+        } catch (Exception e) {
+            log.warn("[redis-sub] failed to process message: {}", e.getMessage());
+        }
+    }
+}

@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from api.middleware.internal_key_auth import InternalKeyAuthMiddleware
+from api.routes.analyze import router as analyze_router
 from config.settings import settings
 
 
@@ -25,6 +26,8 @@ app = FastAPI(
 )
 
 app.add_middleware(InternalKeyAuthMiddleware)
+
+app.include_router(analyze_router)
 
 
 @app.get("/health")

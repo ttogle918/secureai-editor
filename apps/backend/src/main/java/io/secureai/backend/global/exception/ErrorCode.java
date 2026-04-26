@@ -32,6 +32,9 @@ public enum ErrorCode {
 
     SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "분석 세션을 찾을 수 없습니다."),
     SESSION_ALREADY_RUNNING(HttpStatus.CONFLICT, "해당 프로젝트에 진행 중인 분석이 있습니다."),
+    SESSION_NOT_RESUMABLE(HttpStatus.CONFLICT, "재개하거나 취소할 수 없는 상태의 세션입니다."),
+
+    AI_AGENT_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI 분석 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."),
 
     VULN_NOT_FOUND(HttpStatus.NOT_FOUND, "취약점을 찾을 수 없습니다."),
 

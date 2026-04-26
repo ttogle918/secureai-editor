@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,4 +26,8 @@ public interface AnalysisSessionRepository extends JpaRepository<AnalysisSession
 
     @Query("SELECT s FROM AnalysisSession s WHERE s.status = 'running'")
     List<AnalysisSession> findAllRunning();
+
+    @Modifying
+    @Query("UPDATE AnalysisSession s SET s.vulnCount = s.vulnCount + :count WHERE s.id = :sessionId")
+    void incrementVulnCount(@Param("sessionId") UUID sessionId, @Param("count") int count);
 }

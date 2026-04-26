@@ -8,6 +8,7 @@ from agent.claude_client import analyze_for_sast
 from agent.response_parser import parse_sast_response
 from agent.tools.mcp_filesystem_tools import read_file
 from config.settings import settings
+from infrastructure.backend_api_client import save_vulnerabilities
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,8 @@ async def sast_node(state: AgentState) -> dict:
         if sha256:
             r = _get_redis()
             await r.setex(f"{_CACHE_PREFIX}{sha256}", _CACHE_TTL, json.dumps(vulns))
+
+        await save_vulnerabilities(session_id, state["project_id"], file_path, vulns)
 
         logger.info("[sast] session=%s file=%s vulns=%d", session_id, file_path, len(vulns))
         result = {"file": file_path, "vulnerabilities": vulns, "cached": False}

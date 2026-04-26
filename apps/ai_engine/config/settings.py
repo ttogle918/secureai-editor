@@ -36,5 +36,8 @@ class Settings(BaseSettings):
     mcp_workspace_root: str = Field("/workspace", alias="MCP_WORKSPACE_ROOT")
     mcp_server_script: str = Field("/app/mcp_server/dist/index.js", alias="MCP_SERVER_SCRIPT")
 
+    # Backend 내부 API
+    backend_internal_url: str = Field("http://backend:8080", alias="BACKEND_INTERNAL_URL")
+
 
 settings = Settings()

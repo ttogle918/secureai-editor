@@ -11,4 +11,4 @@ os.environ.setdefault("CLAUDE_API_KEY", "test-claude-key")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/1")
 os.environ.setdefault("MCP_WORKSPACE_ROOT", "/workspace")
 os.environ.setdefault("MCP_SERVER_SCRIPT", "/app/mcp_server/dist/index.js")
-os.environ.setdefault("POSTGRES_URL", "postgresql://test:test@localhost:5432/test")
+# POSTGRES_URL은 .env 파일에서 읽는다 — 통합 테스트 실행 시 올바른 URL 필요

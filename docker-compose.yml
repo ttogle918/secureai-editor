@@ -140,7 +140,6 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-
   # ── MCP Server (Node.js) ─────────────────────────────
   # stdio 모드 MCP 서버 — AI Agent가 subprocess로 직접 spawn하므로
   # docker-compose 단독 실행 불가 (Sprint 2에서 AI Agent가 내부적으로 기동)

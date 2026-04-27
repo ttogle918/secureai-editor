@@ -190,11 +190,13 @@ async def test_resume_runs_only_remaining_nodes(saver):
     config = {"configurable": {"thread_id": _tid("resume")}}
 
     # 1차 실행: step_one에서 자동 중단
+    # LangGraph 1.x: interrupt_after 시 '__interrupt__' 이벤트가 함께 emit됨
     first_nodes = []
     async for event in graph.astream({"count": 0, "visited": []}, config):
         first_nodes.append(next(iter(event)))
 
-    assert first_nodes == ["step_one"], \
+    user_first = [n for n in first_nodes if not n.startswith("__")]
+    assert user_first == ["step_one"], \
         f"interrupt_after 설정 시 step_one에서 멈춰야 함. 실제: {first_nodes}"
 
     ct_mid = await saver.aget_tuple(config)
@@ -207,9 +209,10 @@ async def test_resume_runs_only_remaining_nodes(saver):
     async for event in graph.astream(None, config):
         second_nodes.append(next(iter(event)))
 
-    assert "step_one" not in second_nodes, \
+    user_second = [n for n in second_nodes if not n.startswith("__")]
+    assert "step_one" not in user_second, \
         f"재개 시 이미 완료된 step_one이 재실행되면 안 됨. 실행된 노드: {second_nodes}"
-    assert "step_two" in second_nodes, \
+    assert "step_two" in user_second, \
         f"재개 시 step_two가 실행돼야 함. 실행된 노드: {second_nodes}"
 
     ct_final = await saver.aget_tuple(config)

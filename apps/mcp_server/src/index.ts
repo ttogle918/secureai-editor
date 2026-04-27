@@ -116,9 +116,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+const SKIP_DIRS = new Set([
+  "node_modules", ".git", ".next", "dist", "build", "out",
+  "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+  "target", ".gradle", ".idea", ".vscode",
+  ".android", ".kotlin", "androidTest",
+  "coverage", ".nyc_output",
+]);
+
 function listDir(dir: string, recursive: boolean, prefix = ""): string[] {
   const entries: string[] = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory() && SKIP_DIRS.has(entry.name)) continue;
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
     entries.push(entry.isDirectory() ? `${rel}/` : rel);
     if (recursive && entry.isDirectory()) {
@@ -132,6 +141,7 @@ function searchFiles(dir: string, pattern: string, results: string[] = []): stri
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
+      if (SKIP_DIRS.has(entry.name)) continue;
       searchFiles(full, pattern, results);
     } else if (entry.name.toLowerCase().includes(pattern)) {
       results.push(full);

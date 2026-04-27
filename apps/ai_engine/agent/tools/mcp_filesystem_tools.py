@@ -23,23 +23,35 @@ SCANNABLE_EXTENSIONS: frozenset[str] = frozenset({
 })
 
 
+def _extract_text(result) -> str:
+    """langchain_mcp_adapters 툴이 반환하는 content list 또는 str을 텍스트로 변환한다."""
+    if isinstance(result, str):
+        return result
+    if isinstance(result, list):
+        return "\n".join(
+            item["text"] for item in result
+            if isinstance(item, dict) and item.get("type") == "text"
+        )
+    return str(result)
+
+
 async def read_file(session_id: str, relative_path: str) -> str:
     tool = get_tool(session_id, "read_file")
     result = await tool.ainvoke({"path": relative_path})
-    return result if isinstance(result, str) else str(result)
+    return _extract_text(result)
 
 
 async def list_directory(session_id: str, path: str = ".", recursive: bool = True) -> list[str]:
     tool = get_tool(session_id, "list_directory")
     result = await tool.ainvoke({"path": path, "recursive": recursive})
-    raw = result if isinstance(result, str) else str(result)
+    raw = _extract_text(result)
     return [line.strip() for line in raw.splitlines() if line.strip()]
 
 
 async def search_files(session_id: str, pattern: str, directory: str = ".") -> list[str]:
     tool = get_tool(session_id, "search_files")
     result = await tool.ainvoke({"pattern": pattern, "directory": directory})
-    raw = result if isinstance(result, str) else str(result)
+    raw = _extract_text(result)
     return [line.strip() for line in raw.splitlines() if line.strip()]
 
 

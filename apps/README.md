@@ -9,7 +9,7 @@
 | | `docs/` | Business plans, API specs, design docs | |
 | **Frontend** | `apps/frontend/` | Next.js-based dashboard & editor UI | Includes Monaco Editor |
 | **Backend** | `apps/backend/` | Spring Boot main API server | SSE streams, session mgmt |
-| **AI Engine** | `apps/ai_engine/` | LangGraph4j-based analysis workflow | SAST/DAST/Patch nodes |
+| **AI Engine** | `apps/ai_engine/` | Python LangGraph SAST pipeline | scan → cache → sast → aggregate nodes |
 | **MCP Server** | `apps/mcp_server/` | Local file & DB context provider | MCP Protocol compliant |
 | **Sandbox** | `apps/sandbox/` | Isolated Docker environment for DAST | |
 

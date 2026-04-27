@@ -1,7 +1,9 @@
 # Sprint 2 테스트 현황 & 미해결 항목
 
-> 마지막 업데이트: 2026-04-27
-> 자동화 단위 테스트: **47 passed** (`python -m pytest tests/agent/ tests/infrastructure/`)
+> 마지막 업데이트: 2026-04-27 (최종)
+> 자동화 단위 테스트: **43 passed, 4 errors(Windows 로컬)** (`python -m pytest tests/agent/ tests/infrastructure/`)
+> Docker 환경: 47 passed (WinError 10014 4건은 로컬 전용 이슈)
+> Spring Boot 단위 테스트: **5 passed** (`AiAgentClientTest` 3 + `VulnerabilityServiceTest` 2)
 
 ---
 
@@ -11,8 +13,8 @@
 |------|------------|------------|----------|
 | TASK-201 LangGraph 골격 | ✅ 16/16 통과 | ⏳ 보류 | ⏳ 보류 |
 | TASK-202 MCP + SAST 노드 | ✅ 9/9 통과 | ⏳ 보류 | ⏳ 보류 |
-| TASK-203 Spring ↔ Agent SSE | ✅ 6/6 통과 (Docker 내) | ⏳ 보류 | ⏳ 보류 |
-| TASK-204 취약점 저장 파이프라인 | ✅ 10/10 통과 | ⏳ 보류 | ⏳ 보류 |
+| TASK-203 Spring ↔ Agent SSE | ✅ 6/6 Python + ✅ 3/3 Java CB | ⏳ 보류 | ⏳ 보류 |
+| TASK-204 취약점 저장 파이프라인 | ✅ 10/10 Python + ✅ 2/2 Java Vuln | ⏳ 보류 | ⏳ 보류 |
 | TASK-205 진행 로그 시스템 | ✅ 8/8 통과 | ⏳ 보류 | ⏳ 보류 |
 | TASK-206 LangGraph Checkpointer | ✅ 4/4 로컬 + 9/9 Docker | ✅ 4/4 작성 (postgres 필요) | ⏳ 보류 |
 | TASK-207 중단 감지 및 재개 API | ✅ 5/5 작성 (Java: 3 CB + 2 Vuln) | ⏳ 보류 | ⏳ 보류 |
@@ -87,13 +89,13 @@
 > ⚠️ 로컬 실행 불가 (FastAPI 미설치). Docker 컨테이너 내에서는 정상 실행:
 > `docker exec secureai-ai-engine python -m pytest tests/`
 
-### ❌ 미작성 단위 테스트 (스프린트 종료 전 작성 필요)
+### ✅ 완료된 Java Circuit Breaker 단위 테스트 (3개, 2026-04-27)
 
-| 항목 | 파일 위치 |
-|------|----------|
-| Circuit Breaker — 연속 3회 실패 시 OPEN 전환 | `tests/` (Java: `AiAgentClientTest.java`) |
-| Circuit Breaker — OPEN 상태에서 즉시 예외 반환 | 동일 |
-| Circuit Breaker — 30초 후 HALF-OPEN → 성공 시 CLOSED | 동일 |
+| 파일 | 테스트 | 결과 |
+|------|--------|------|
+| `AiAgentClientTest.java` | 연속 3회 실패 → `circuitOpen = true` | ✅ |
+| `AiAgentClientTest.java` | OPEN 상태에서 즉시 `AI_AGENT_UNAVAILABLE` 반환, `RestClient` 미호출 | ✅ |
+| `AiAgentClientTest.java` | 30초 경과 → HALF-OPEN → 성공 시 `circuitOpen = false` | ✅ |
 
 ### ⏳ 통합/E2E 테스트 보류
 
@@ -127,14 +129,14 @@
 | `test_backend_api_client.py` | HTTP 오류 → 0 반환 (세션 중단 없음) | ✅ |
 | `test_backend_api_client.py` | payload 구조 (sessionId, projectId, filePath, vulnType 등) | ✅ |
 
-### ❌ 미작성 단위 테스트 (스프린트 종료 전 작성 필요)
+### ✅ 완료된 Java VulnerabilityService 단위 테스트 (2개, 2026-04-27)
 
-| 항목 | 파일 위치 |
-|------|----------|
-| 중복 fingerprint → DB 저장 스킵 동작 | `tests/` (Java: `VulnerabilityServiceTest.java`) |
-| VulnerabilityFoundEvent → session.vulnCount 자동 증분 | 동일 |
+| 파일 | 테스트 | 결과 |
+|------|--------|------|
+| `VulnerabilityServiceTest.java` | 중복 fingerprint → `saveAll` 미호출, 이벤트 미발행 | ✅ |
+| `VulnerabilityServiceTest.java` | 신규 취약점 → `VulnerabilityFoundEvent(sessionId, savedCount=1)` 발행 확인 | ✅ |
 
-### ⏳ 통합/E2E 테스트 보류
+### ⏳ 통합/E2E 테스트 보류 → Sprint 3 이월
 
 | 항목 | 선행 조건 |
 |------|----------|
@@ -241,12 +243,55 @@
 | `VulnerabilityServiceTest.java` | 중복 fingerprint → DB 저장 스킵 | ✅ |
 | `VulnerabilityServiceTest.java` | 신규 취약점 → VulnerabilityFoundEvent 발행 확인 | ✅ |
 
-### ⏳ 통합/E2E 테스트 보류
+### ❌ 미작성 단위 테스트 (TASK-207 AnalysisService 로직)
+
+> AiAgentClientTest·VulnerabilityServiceTest는 이번 세션에서 완료되었으나,  
+> TASK-207 바이어 자체의 `AnalysisService.resumeSession()` 검증 테스트는 미작성.
+
+| 항목 | 파일 |
+|------|------|
+| 이미 완료된 세션 재개 시도 → `SESSION_NOT_RESUMABLE` (409) | `AnalysisServiceResumeTest.java` (미작성) |
+| 다른 사용자의 세션 재개 시도 → `SESSION_NOT_FOUND` (404) | 동일 |
+
+### ⏳ 통합/E2E 테스트 보류 → Sprint 3 이월
 
 | 항목 | 선행 조건 |
 |------|----------|
 | AI Agent 컨테이너 강제 종료 → 30초 내 세션 status='interrupted' 전환 | Docker 전체 스택 |
 | 중단 후 재개 → 마지막 체크포인트부터 재실행 → 최종 완료 | Docker 전체 스택 |
+
+---
+
+## Sprint 2 완료 기준 점검 (2026-04-27 최종)
+
+### ✅ 달성된 항목
+
+| 완료 기준 | 상태 | 비고 |
+|----------|------|------|
+| **AI 분석 동작**: 단일 파일 입력 → SAST → 취약점 JSON 반환 | ✅ 구현 완료 | MCP 서버 빌드 후 E2E 확인 필요 |
+| **Circuit Breaker**: AI Agent 장애 시 서비스 전체 다운 없음 | ✅ 구현 + 단위 테스트 완료 | |
+| **중단 재개 ⭐**: 분석 중단 → `agent_checkpoints` 보존 → 재개 API로 복구 | ✅ 구현 완료 | 통합 테스트는 Sprint 3 |
+| **진행 로그 ⭐**: 모든 단계가 `analysis_progress_log`에 기록 | ✅ 구현 완료 | 통합 테스트는 Sprint 3 |
+| **LangGraph 통합 테스트**: `tests/integration/` 4개 | ✅ 4/4 Docker 통과 | |
+
+### ⏳ Sprint 3으로 이월된 항목
+
+| 항목 | 이유 |
+|------|------|
+| MCP 서버 빌드 & E2E 통합 테스트 전체 | MCP Node.js 서버 빌드 미완료 |
+| SSE 스트림 수동 검증 (cURL) | 전체 Docker 스택 필요 |
+| LangSmith 대시보드 트레이스 확인 | `LANGSMITH_TRACING=true` + MCP 서버 필요 |
+| 취약점 저장 통합 테스트 (실DB) | 실DB 연결 필요 |
+| TASK-207 `AnalysisServiceResumeTest.java` 작성 | 미작성 |
+| 체크포인트 24시간 만료 클린업 | `ExpiredDataCleanupJob` 미구현 (Sprint 3) |
+| 세션 취소 엔드포인트 `POST /sessions/{id}/cancel` | Sprint 3 이월 |
+
+### ⚠️ 알려진 이슈
+
+| 이슈 | 영향 | 조치 |
+|------|------|------|
+| Windows 로컬 테스트 4개 ERROR (WinError 10014) | 로컬 전용 — Docker에서는 정상 | Docker에서만 실행할 것 |
+| `docker compose build ai-engine` 미실행 | `psycopg[binary]` 컨테이너 재시작 후 소실 가능성 | 다음 세션 시작 시 반드시 재빌드 |
 
 ---
 
@@ -256,19 +301,19 @@
 
 - [x] **`AiAgentClientTest.java`** — Circuit Breaker 단위 테스트 3개 ✅
 - [x] **`VulnerabilityServiceTest.java`** — 서비스 로직 단위 테스트 2개 ✅
+- [x] **TASK-206 통합 테스트 4개** — Docker 4/4 passed ✅
+- [x] **TASK-207 구현** — resume API + scheduler ✅
 
-### 🟠 우선순위 보통 — Docker 통합 테스트 (MCP 빌드 후)
+### 🟠 Sprint 3 우선순위 — MCP 서버 빌드 후 진행
 
-- [ ] `test_vuln_save_e2e` — 분석 실행 → 취약점 저장 → DB 확인
-  ```bash
-  # 취약한 Java 파일 /workspace에 배치 후
-  docker exec secureai-ai-engine python -m pytest tests/ -k integration
-  ```
+- [ ] `docker compose build ai-engine` — psycopg[binary] 영구 적용
+- [ ] MCP 서버 빌드 (`apps/mcp_server/` npm install + build)
+- [ ] E2E 통합 테스트: 취약한 파일 분석 → 취약점 저장 → SSE 이벤트 수신
+- [ ] `AnalysisServiceResumeTest.java` 작성 (SESSION_NOT_RESUMABLE, 403)
 - [ ] SSE 스트림 수동 확인
   ```bash
-  # 1. 먼저 JWT 토큰 발급 (POST /api/v1/auth/login)
-  # 2. 프로젝트/세션 생성
-  # 3. SSE 구독
+  # 1. JWT 토큰 발급 (POST /api/v1/auth/login)
+  # 2. 세션 생성 후
   curl -N -H "Authorization: Bearer {token}" \
     http://localhost:8080/api/v1/analysis/sessions/{sessionId}/stream
   ```
@@ -287,6 +332,9 @@
 # AI Engine 전체 테스트 (FastAPI 포함)
 docker exec secureai-ai-engine python -m pytest tests/ -v
 
-# 로컬 (FastAPI 미설치 환경)
+# AI Engine 통합 테스트 (PostgreSQL 연결 필요)
+docker exec secureai-ai-engine python -m pytest tests/integration/ -v
+
+# 로컬 (FastAPI 미설치 환경) — 4개 WinError 무시
 python -m pytest tests/agent/ tests/infrastructure/ -v
 ```

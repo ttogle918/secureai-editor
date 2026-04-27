@@ -128,7 +128,8 @@ services:
       MCP_WORKSPACE_ROOT: /workspace
       BACKEND_INTERNAL_URL: http://backend:8080
     volumes:
-      - /workspace:/workspace:ro
+      - ${WORKSPACE_PATH:-/workspace}:/workspace:ro
+      - ./apps/mcp_server:/app/mcp_server:ro
     ports:
       - "8000:8000"
     networks:

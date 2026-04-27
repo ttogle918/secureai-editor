@@ -22,10 +22,10 @@ Combines static analysis, dynamic testing, and AI-powered patch generation into 
 
 | Service | Stack | Port |
 |---------|-------|------|
-| backend | Spring Boot 4.0, Java 25, JPA/Hibernate 7, ddl-auto:update | 8080 |
+| backend | Spring Boot 4.0, Java 21, JPA/Hibernate 7, ddl-auto:update | 8080 |
 | frontend | Next.js 15, Monaco Editor, Tailwind, Zustand | 3000 |
 | ai_engine | Python 3.12, FastAPI, LangGraph, Claude API | 8000 |
-| mcp_server | Node.js 20, TypeScript, MCP SDK | stdio |
+| mcp_server | Node.js 20, TypeScript, MCP SDK | stdio (subprocess) |
 | postgres | PostgreSQL 15 | 5432 |
 | redis | Redis 7 | 6379 |
 
@@ -96,12 +96,11 @@ make redis-cli     # open redis-cli inside redis container
 | Sprint | 기간 | 상태 | 주요 완료 항목 |
 |--------|------|------|--------------|
 | Sprint 1 — Auth & User Foundation | 2026-04-19 ~ 2026-04-25 | ✅ 완료 | 회원가입·이메일인증·로그인·JWT·Refresh Token Rotation·GitHub OAuth(CSRF 방어)·비밀번호 재설정·프로필 API |
-| Sprint 2 — Project & Repository Management | 예정 | 🔜 대기 | 프로젝트 CRUD, GitHub Repo 연동, 팀 멤버 초대 |
-| Sprint 3 — SAST AI Pipeline | 예정 | 🔜 대기 | LangGraph 에이전트, Claude API 연동, 취약점 탐지 |
-| Sprint 4 — DAST & Remediation | 예정 | 🔜 대기 | Docker 샌드박스 DAST, 자동 패치 생성 |
+| Sprint 2 — Project & AI Pipeline | 2026-04-26 ~ 2026-04-28 | ✅ 완료 | 프로젝트 CRUD·팀 멤버 초대, AI Agent HTTP/SSE 브릿지, SAST 취약점 파이프라인, 진행 로그, LangGraph PostgreSQL 체크포인터, 세션 중단/재개 API |
+| Sprint 3 — DAST & Remediation | 예정 | 🔜 대기 | Docker 샌드박스 DAST, 자동 패치 생성 |
+| Sprint 4 — Production Hardening | 예정 | 🔜 대기 | CI/CD, 성능 최적화, 모니터링 |
 
-> **현재 인프라 상태**: DB 마이그레이션 도구로 Flyway 대신 `spring.jpa.hibernate.ddl-auto=update` 사용 중 (Sprint 1 범위).  
-> Sprint 2 착수 전 Flyway로 전환 예정 (`docs/00_ARCHITECTURE_DECISIONS.md` ADR-011 참조).
+> **DB 마이그레이션**: Flyway V001~V006 파일 작성 완료. 단, Spring Boot 4.0.5 bean 초기화 순서 이슈로 Flyway 의존성은 현재 주석 처리 → `ddl-auto: update`로 대체 운영 중. Sprint 3에서 Flyway 재활성화 예정.
 
 ---
 
@@ -111,8 +110,11 @@ See [`docs/11_CLAUDE_CODE_GUIDE.md`](docs/11_CLAUDE_CODE_GUIDE.md) for the full 
 
 Key documents:
 - [`docs/00_ARCHITECTURE_DECISIONS.md`](docs/00_ARCHITECTURE_DECISIONS.md) — ADR (why we chose each technology)
-- [`docs/01_ERD.md`](docs/01_ERD.md) — Database schema (18 tables)
-- [`docs/02_API_DESIGN.md`](docs/02_API_DESIGN.md) — REST API reference (50+ endpoints)
+- [`docs/01_ERD.md`](docs/01_ERD.md) — Database schema
+- [`docs/02_API_DESIGN.md`](docs/02_API_DESIGN.md) — REST API reference (Sprint 1)
+- [`docs/02_API_DESIGN_V2.md`](docs/02_API_DESIGN_V2.md) — Sprint 2 API 추가 (resume, progress-log, AI Engine API)
+- [`docs/03_DOCKER_INFRA_V2.md`](docs/03_DOCKER_INFRA_V2.md) — Docker 인프라 실제 구성 (Sprint 2 기준)
+- [`docs/06_REPOSITORY_STRUCTURE_V2.md`](docs/06_REPOSITORY_STRUCTURE_V2.md) — 레포지토리 구조 (정오표 포함)
 - [`docs/07_SPRINT_BACKLOG_V2.md`](docs/07_SPRINT_BACKLOG_V2.md) — Sprint backlog
 
 ---
@@ -133,10 +135,11 @@ To report a security vulnerability, use the [security vulnerability template](.g
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Spring Boot 4.0, Java 25, Spring Security 7, JPA/Hibernate 6 |
+| Backend | Spring Boot 4.0.5, Java 21, Spring Security 7, JPA/Hibernate 7 |
 | Auth | JWT (JJWT 0.12), BCrypt(12), AES-256-GCM, Refresh Token Rotation |
-| Database | PostgreSQL 15, Flyway migrations, Redis 7 |
-| AI Agent | Python 3.12, FastAPI, LangGraph, Anthropic Claude API, LangSmith |
-| MCP | Node.js 20, TypeScript, MCP SDK (@modelcontextprotocol/sdk) |
+| Database | PostgreSQL 15, Flyway V001~V006 (현재 ddl-auto:update 병행), Redis 7 |
+| AI Agent | Python 3.12, FastAPI, LangGraph, Anthropic Claude API, LangSmith, psycopg3 |
+| Checkpointer | LangGraph AsyncPostgresSaver — PostgreSQL 기반 세션 체크포인트 |
+| MCP | Node.js 20, TypeScript, MCP SDK (@modelcontextprotocol/sdk) — stdio subprocess |
 | Frontend | Next.js 15, TypeScript, Tailwind CSS, Monaco Editor, Zustand |
 | Infra | Docker, Docker Compose, GitHub Actions CI |

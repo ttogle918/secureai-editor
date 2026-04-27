@@ -1,6 +1,6 @@
 # Sprint 2 테스트 현황 & 미해결 항목
 
-> 마지막 업데이트: 2026-04-26
+> 마지막 업데이트: 2026-04-27
 > 자동화 단위 테스트: **47 passed** (`python -m pytest tests/agent/ tests/infrastructure/`)
 
 ---
@@ -14,7 +14,8 @@
 | TASK-203 Spring ↔ Agent SSE | ✅ 6/6 통과 (Docker 내) | ⏳ 보류 | ⏳ 보류 |
 | TASK-204 취약점 저장 파이프라인 | ✅ 10/10 통과 | ⏳ 보류 | ⏳ 보류 |
 | TASK-205 진행 로그 시스템 | ✅ 8/8 통과 | ⏳ 보류 | ⏳ 보류 |
-| TASK-206 LangGraph Checkpointer | ✅ 4/4 로컬 + 9/9 Docker | ⏳ 보류 | ⏳ 보류 |
+| TASK-206 LangGraph Checkpointer | ✅ 4/4 로컬 + 9/9 Docker | ✅ 4/4 작성 (postgres 필요) | ⏳ 보류 |
+| TASK-207 중단 감지 및 재개 API | ✅ 5/5 작성 (Java: 3 CB + 2 Vuln) | ⏳ 보류 | ⏳ 보류 |
 
 ---
 
@@ -169,17 +170,92 @@
 
 ---
 
+## TASK-206 — LangGraph Checkpointer 통합
+
+### ✅ 완료된 단위 테스트 (4개, 로컬)
+
+| 파일 | 테스트 | 결과 |
+|------|--------|------|
+| `test_checkpointer.py` | get_checkpointer 초기값 None | ✅ |
+| `test_checkpointer.py` | set_checkpointer → get_checkpointer 반환 | ✅ |
+| `test_checkpointer.py` | 덮어쓰기 | ✅ |
+| `test_checkpointer.py` | None으로 초기화 | ✅ |
+
+### ✅ 완료된 단위 테스트 (3개, Docker 전용)
+
+| 파일 | 테스트 | 결과 |
+|------|--------|------|
+| `test_analyze_route.py` | checkpointer 없을 때 resume → error 이벤트 | ✅ |
+| `test_analyze_route.py` | checkpointer 있을 때 resume → started + completed | ✅ |
+| `test_analyze_route.py` | resume 중 cancel flag → cancelled 이벤트 | ✅ |
+
+### ✅ 완료된 통합 테스트 (4개, postgres 필요 — 미연결 시 자동 스킵)
+
+| 파일 | 테스트 | 실행 |
+|------|--------|------|
+| `test_checkpointer_integration.py` | 그래프 완료 후 체크포인트 DB 저장 확인 | Docker |
+| `test_checkpointer_integration.py` | thread_id 격리 — 두 세션 체크포인트 섞이지 않음 | Docker |
+| `test_checkpointer_integration.py` | interrupt 후 재개 시 나머지 노드만 실행 (핵심) | Docker |
+| `test_checkpointer_integration.py` | 완료된 스레드 재개 → 추가 실행 없음 | Docker |
+
+> Docker 실행: `docker exec secureai-ai-engine python -m pytest tests/integration/ -v`
+
+### 🐛 발견된 버그 및 수정 (2026-04-27)
+
+| 버그 | 원인 | 수정 |
+|------|------|------|
+| postgres 없이 `tests/integration/` 실행 시 SKIP 대신 ERROR | `saver` fixture에서 `await instance.setup()`이 try-except 블록 밖에 위치 — `pool.open()` 성공 후 `setup()` 에서 30초 timeout 발생 시 미처리 | `setup()` 호출을 try-except 안으로 이동. `pool.wait(timeout=3)` 추가로 실제 연결 수립 확인 |
+| 로컬 Windows 에서 `pool.open(timeout=5)` 이 postgres 미연결 상태에도 정상 반환 | psycopg-pool 3.x의 `open()` 이 백그라운드 태스크로 연결을 시도하여 즉시 반환 | `pool.wait(timeout=3)` 명시 추가 — 연결 미성립 시 빠르게 예외 발생 |
+
+**로컬 실행 결과 (Docker 없음):**
+- 수정 전: `4 errors` (30초 × 4 = 120초 소요)
+- 수정 후: `4 skipped` (약 32초 소요)
+
+### ⏳ 수동 검증 보류
+
+| 항목 | 방법 |
+|------|------|
+| 10개 파일 분석 중 5번째에서 컨테이너 재시작 → 재개 시 6번째 파일부터 | `docker restart secureai-ai-engine` 후 `/agent/resume` 호출 |
+| 체크포인트 DB 테이블 자동 생성 확인 | `docker exec secureai-postgres psql -U secureai -c '\dt checkpoints*'` |
+
+---
+
+## TASK-207 — 중단 감지 및 재개 API
+
+### ✅ 구현 완료
+
+| 파일 | 변경 내용 |
+|------|----------|
+| `AiAgentClient.java` | `resumeAnalysis()`, `isCircuitOpen()` 추가 |
+| `AnalysisService.java` | `resumeSession()` 추가 (interrupted 상태 검증 → markRunning → agentClient.resumeAnalysis) |
+| `AnalysisController.java` | `POST /api/v1/analysis/sessions/{id}/resume` 엔드포인트 추가 |
+| `SessionInterruptionScheduler.java` | Circuit Breaker OPEN 감지 → 30초 주기로 실행 중 세션 interrupted 전환 |
+
+### ✅ 완료된 단위 테스트 (5개)
+
+| 파일 | 테스트 | 결과 |
+|------|--------|------|
+| `AiAgentClientTest.java` | 연속 3회 실패 → circuitOpen=true | ✅ |
+| `AiAgentClientTest.java` | OPEN 상태에서 즉시 AI_AGENT_UNAVAILABLE | ✅ |
+| `AiAgentClientTest.java` | 30초 경과 HALF-OPEN → 성공 시 circuitOpen=false | ✅ |
+| `VulnerabilityServiceTest.java` | 중복 fingerprint → DB 저장 스킵 | ✅ |
+| `VulnerabilityServiceTest.java` | 신규 취약점 → VulnerabilityFoundEvent 발행 확인 | ✅ |
+
+### ⏳ 통합/E2E 테스트 보류
+
+| 항목 | 선행 조건 |
+|------|----------|
+| AI Agent 컨테이너 강제 종료 → 30초 내 세션 status='interrupted' 전환 | Docker 전체 스택 |
+| 중단 후 재개 → 마지막 체크포인트부터 재실행 → 최종 완료 | Docker 전체 스택 |
+
+---
+
 ## 스프린트 종료 전 직접 수행해야 할 항목
 
-### 🔴 우선순위 높음 — 자동화 테스트 작성
+### ✅ 완료됨 (2026-04-27)
 
-- [ ] **`AiAgentClientTest.java`** — Circuit Breaker 단위 테스트 3개
-  - 연속 3회 실패 → `circuitOpen=true`
-  - OPEN 상태에서 `AI_AGENT_UNAVAILABLE` 즉시 throw
-  - 30초 경과 후 HALF-OPEN → 성공 시 `circuitOpen=false`
-- [ ] **`VulnerabilityServiceTest.java`** — 서비스 로직 단위 테스트
-  - 중복 fingerprint 스킵 (mock repository)
-  - `VulnerabilityFoundEvent` 발행 확인
+- [x] **`AiAgentClientTest.java`** — Circuit Breaker 단위 테스트 3개 ✅
+- [x] **`VulnerabilityServiceTest.java`** — 서비스 로직 단위 테스트 2개 ✅
 
 ### 🟠 우선순위 보통 — Docker 통합 테스트 (MCP 빌드 후)
 

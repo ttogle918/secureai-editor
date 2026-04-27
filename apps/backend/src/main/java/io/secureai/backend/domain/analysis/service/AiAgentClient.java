@@ -66,6 +66,21 @@ public class AiAgentClient {
         }
     }
 
+    public void resumeAnalysis(UUID sessionId) {
+        checkCircuit();
+        try {
+            restClient.post()
+                    .uri("/agent/resume/{sessionId}", sessionId)
+                    .retrieve()
+                    .toBodilessEntity();
+            resetFailures();
+            log.info("[agent-client] resumeAnalysis sessionId={}", sessionId);
+        } catch (RestClientException e) {
+            recordFailure(e);
+            throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);
+        }
+    }
+
     public void cancelAnalysis(UUID sessionId) {
         if (circuitOpen.get()) return;
         try {
@@ -76,6 +91,10 @@ public class AiAgentClient {
         } catch (RestClientException e) {
             log.warn("[agent-client] cancel failed sessionId={} err={}", sessionId, e.getMessage());
         }
+    }
+
+    public boolean isCircuitOpen() {
+        return circuitOpen.get();
     }
 
     private void checkCircuit() {

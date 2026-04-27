@@ -63,6 +63,13 @@ public class AnalysisController {
         return sseEmitterService.subscribe(sessionId);
     }
 
+    @PostMapping("/sessions/{sessionId}/resume")
+    public ResponseEntity<ApiResponse<AnalysisSessionResponse>> resumeSession(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID sessionId) {
+        return ResponseEntity.ok(ApiResponse.success(analysisService.resumeSession(userId, sessionId)));
+    }
+
     @PostMapping("/sessions/{sessionId}/cancel")
     public ResponseEntity<Void> cancelSession(
             @AuthenticationPrincipal UUID userId,

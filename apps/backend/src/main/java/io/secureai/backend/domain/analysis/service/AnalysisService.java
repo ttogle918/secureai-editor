@@ -84,6 +84,22 @@ public class AnalysisService {
     }
 
     @Transactional
+    public AnalysisSessionResponse resumeSession(UUID userId, UUID sessionId) {
+        AnalysisSession session = sessionRepository.findByIdAndUserId(sessionId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        if (!"interrupted".equals(session.getStatus())) {
+            throw new BusinessException(ErrorCode.SESSION_NOT_RESUMABLE);
+        }
+
+        session.markRunning();
+        sessionRepository.save(session);
+        aiAgentClient.resumeAnalysis(sessionId);
+        log.info("[analysis] resumed sessionId={}", sessionId);
+        return AnalysisSessionResponse.from(session);
+    }
+
+    @Transactional
     public void cancelSession(UUID userId, UUID sessionId) {
         AnalysisSession session = sessionRepository.findByIdAndUserId(sessionId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));

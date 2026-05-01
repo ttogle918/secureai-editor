@@ -821,29 +821,37 @@ spring:
 
 ## 6. Flyway 마이그레이션 순서
 
+> 번호 체계는 `spring02_revision.md`, `spring3_revision.md` 기준으로 전면 수정됨.  
+> V016 이후는 해당 스프린트 시작 시 순차 배정.
+
 ```
+-- Sprint 0 (완료) --
 V001__create_plans.sql
 V002__create_users.sql
 V003__create_refresh_tokens.sql
 V004__create_projects.sql
 V005__create_team_members.sql
+
+-- Sprint 2 --
 V006__create_analysis_sessions_partitioned.sql
 V007__create_vulnerabilities.sql
-V008__create_exploit_results.sql
-V009__create_patch_suggestions.sql
-V010__create_reports.sql
-V011__create_scan_targets.sql
-V012__create_github_configs.sql
-V013__create_pr_review_history.sql
-V014__create_cve_data.sql
-V015__create_vulnerability_cve_mapping.sql
-V016__create_dependency_components.sql
-V017__create_monitoring_results_partitioned.sql
-V018__create_audit_logs_partitioned.sql
-V019__create_indexes.sql
-V020__create_triggers.sql
-V021__seed_plans.sql
-V022__seed_initial_partitions_2026.sql
+V008__create_analysis_progress_log.sql          ← (원본 V023 → 수정)
+V009__create_agent_checkpoints.sql              ← (원본 미지정 → 신규)
+
+-- Sprint 3 --
+V010__create_audit_logs.sql                     ← (Sprint 1 이월, 원본 V018 → 신규)
+V011__create_patch_suggestions.sql              ← (원본 V009 → 수정)
+V012__create_cve_data.sql                       ← (원본 V014 → 수정)
+V013__create_dependency_components.sql          ← (원본 V016 → 수정)
+V014__create_vulnerability_components.sql       ← (원본 V015 → 수정)
+
+-- Sprint 5 --
+V015__create_pr_review_history.sql              ← (원본 V013 → 수정)
+
+-- Sprint 6 이후 (순차 배정 예정) --
+V016~ : github_configs, exploit_results, scan_targets, reports,
+        monitoring_results_partitioned, indexes, triggers,
+        seed_plans, seed_initial_partitions_2026
 ```
 
 ---

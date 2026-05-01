@@ -414,7 +414,7 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - **완료 조건**: 분석 실행 시 `analysis_progress_log`에 단계별 레코드 쌓임
 
 **📋 하위 할일**
-- [ ] `AnalysisProgressLog.java` 엔티티 + Flyway V023
+- [ ] `AnalysisProgressLog.java` 엔티티 + Flyway V008
 - [ ] `AnalysisProgressLogRepository.java`
 - [ ] `ProgressLogService.java` (log, getBySessionId 메서드)
 - [ ] `POST /api/v1/internal/progress-log` Backend 내부 엔드포인트
@@ -565,7 +565,7 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 **📋 하위 할일**
 - [ ] `patch_generation.jinja2` 프롬프트
 - [ ] `patch_node.py` + `diff_generator.py`
-- [ ] `PatchSuggestion.java` + Flyway V009
+- [ ] `PatchSuggestion.java` + Flyway V011
 - [ ] `PatchService.java` + `PatchController.java`
 - [ ] Redis 패치 템플릿 캐시
 
@@ -582,7 +582,7 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - **중요도**: 🟠 High | **순서**: 4번째 병렬
 
 **📋 하위 할일**
-- [ ] `CveData.java`, `DependencyComponent.java` + Flyway V014~V016
+- [ ] `CveData.java`, `DependencyComponent.java` + Flyway V012~V014
 - [ ] `NvdApiClient.java` + `NvdSyncJob.java`
 - [ ] SBOM 파서 4종 (Maven, npm, pip, Cargo)
 - [ ] `SbomService.java`
@@ -783,7 +783,7 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] `GitHubWebhookService.java` PR 처리
 - [ ] 변경 파일(diff)만 선택 스캔
 - [ ] `create_pr_comment.ts` MCP Tool
-- [ ] `PrReviewHistory.java` + Flyway V013
+- [ ] `PrReviewHistory.java` + Flyway V015
 - [ ] GitHub Check Run API 연동
 - [ ] `GitHubConfig.java` Webhook 설정
 

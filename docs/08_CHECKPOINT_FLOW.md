@@ -266,8 +266,8 @@ CREATE INDEX idx_progress_log_session_status ON analysis_progress_log(session_id
 ### 5.3 Flyway 마이그레이션
 
 ```
-V023__create_analysis_progress_log.sql
-V024__create_agent_checkpoints_hint.sql   -- LangGraph 자동 생성이지만 초기 로딩 힌트
+V008__create_analysis_progress_log.sql
+V009__create_agent_checkpoints_hint.sql   -- LangGraph 자동 생성이지만 초기 로딩 힌트
 ```
 
 ---

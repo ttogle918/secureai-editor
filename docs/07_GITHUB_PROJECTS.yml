@@ -144,7 +144,7 @@ issues:
     title: "[Sprint 0] Spring Boot 프로젝트 초기화"
     body: |
       ## 📌 목표
-      Spring Boot 3.3, Java 21, Gradle Kotlin DSL 프로젝트 초기화.
+      Spring Boot 4.0.5, Java 21, Gradle Kotlin DSL 프로젝트 초기화.
       Flyway 설정 및 초기 마이그레이션 파일 작성.
 
       ## ✅ 완료 조건

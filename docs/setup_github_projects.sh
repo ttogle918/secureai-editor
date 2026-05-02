@@ -188,7 +188,7 @@ create_issue \
 
 create_issue \
   "[Sprint 0] Spring Boot 프로젝트 초기화" \
-  "## 📌 목표\nSpring Boot 3.3, Java 21, Gradle Kotlin DSL 초기화.\n\n## ✅ 완료 조건\n/actuator/health 200 응답, Flyway 마이그레이션 성공\n\n## 📋 하위 할일\n- [ ] Spring Initializr 프로젝트 생성\n- [ ] build.gradle.kts 의존성 정의\n- [ ] application.yml 설정 (Virtual Thread 포함)\n- [ ] Flyway V001~V005 마이그레이션\n- [ ] AsyncConfig Thread Pool 5종\n- [ ] GlobalExceptionHandler + ErrorCode" \
+  "## 📌 목표\nSpring Boot 4.0.5, Java 21, Gradle Kotlin DSL 초기화.\n\n## ✅ 완료 조건\n/actuator/health 200 응답, Flyway 마이그레이션 성공\n\n## 📋 하위 할일\n- [ ] Spring Initializr 프로젝트 생성\n- [ ] build.gradle.kts 의존성 정의\n- [ ] application.yml 설정 (Virtual Thread 포함)\n- [ ] Flyway V001~V005 마이그레이션\n- [ ] AsyncConfig Thread Pool 5종\n- [ ] GlobalExceptionHandler + ErrorCode" \
   "sprint-0,backend,critical" \
   "Sprint 0 — 환경 세팅"
 

@@ -61,7 +61,7 @@ Sprint 9  (Week 19-20): VSCode Extension & 모니터링 (Phase 3)
 ---
 
 #### TASK-003 🔴 Spring Boot 프로젝트 초기화
-- **설명**: Spring Boot 3.3, Java 21, Gradle Kotlin DSL로 프로젝트 초기화. JPA, Security, Redis, Validation, Actuator 의존성 설정. Flyway 설정 및 V001(plans 테이블) 마이그레이션 첫 파일 작성. Virtual Thread 활성화.
+- **설명**: Spring Boot 4.0.5, Java 21, Gradle Kotlin DSL로 프로젝트 초기화. JPA, Security, Redis, Validation, Actuator 의존성 설정. Flyway 설정 및 V001(plans 테이블) 마이그레이션 첫 파일 작성. Virtual Thread 활성화.
 - **중요도**: 🔴 Critical
 - **순서**: 3번째
 - **완료 조건**: `/actuator/health` 200 응답, Flyway 마이그레이션 성공

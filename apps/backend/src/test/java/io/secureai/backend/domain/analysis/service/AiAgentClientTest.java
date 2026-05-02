@@ -18,7 +18,7 @@ import static org.mockito.Mockito.*;
 
 class AiAgentClientTest {
 
-    private AiAgentClient client;
+    private DefaultAiAgentClient client;
     private RestClient.RequestBodyUriSpec uriSpec;
     private RestClient.RequestBodySpec bodySpec;
     private RestClient.ResponseSpec responseSpec;
@@ -26,7 +26,7 @@ class AiAgentClientTest {
 
     @BeforeEach
     void setUp() {
-        client = new AiAgentClient("http://localhost:8000", "test-key");
+        client = new DefaultAiAgentClient("http://localhost:8000", "test-key");
 
         // 내부 RestClient를 mock으로 교체
         restClient = mock(RestClient.class);

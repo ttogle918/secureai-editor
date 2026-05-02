@@ -30,6 +30,7 @@ public class AnalysisService {
     private final TeamMemberRepository teamMemberRepository;
     private final UserRepository userRepository;
     private final AiAgentClient aiAgentClient;
+    private final GitHubApiService gitHubApiService;
 
     @Transactional
     public AnalysisSessionResponse startAnalysis(UUID userId, StartAnalysisRequest request) {
@@ -53,17 +54,30 @@ public class AnalysisService {
                 .build();
         sessionRepository.save(session);
 
-        String workspaceRoot = request.workspaceRoot() != null
-                ? request.workspaceRoot()
-                : "/workspace/" + project.getId();
-
         session.markRunning();
         sessionRepository.save(session);
 
         // AI Agent 비동기 호출 (Virtual Thread 에서 실행)
-        aiAgentClient.startAnalysis(session.getId(), project.getId(), workspaceRoot);
+        if ("github".equalsIgnoreCase(request.effectiveSourceType())) {
+            GitHubApiService.GithubRepoInfo info =
+                    gitHubApiService.resolveAndValidate(userId, request.githubRepoUrl(), request.githubRef());
+            // 토큰은 로그에 출력 금지
+            aiAgentClient.startAnalysis(
+                    session.getId(), project.getId(), null,
+                    "github", info.owner(), info.repo(), info.ref(), info.token()
+            );
+        } else {
+            String workspaceRoot = request.workspaceRoot() != null
+                    ? request.workspaceRoot()
+                    : "/workspace/" + project.getId();
+            aiAgentClient.startAnalysis(
+                    session.getId(), project.getId(), workspaceRoot,
+                    "local", null, null, null, null
+            );
+        }
 
-        log.info("[analysis] started sessionId={} projectId={}", session.getId(), project.getId());
+        log.info("[analysis] started sessionId={} projectId={} sourceType={}",
+                session.getId(), project.getId(), request.effectiveSourceType());
         return AnalysisSessionResponse.from(session);
     }
 

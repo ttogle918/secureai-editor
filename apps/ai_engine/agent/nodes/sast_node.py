@@ -7,8 +7,10 @@ import redis.asyncio as aioredis
 from agent.agent_state import AgentState
 from agent.claude_client import analyze_for_sast
 from agent.nodes.code_chunker import chunk_file
+from agent.nodes.vuln_classifier import classify_and_enrich
 from agent.response_parser import parse_sast_response
 from agent.tools.mcp_filesystem_tools import read_file
+from agent.tools.mcp_github_tools import get_github_file_content
 from config.settings import settings
 from infrastructure.backend_api_client import save_vulnerabilities
 from infrastructure.progress_log_client import log_completed, log_failed, log_started
@@ -106,8 +108,21 @@ async def sast_node(state: AgentState) -> dict:
     await log_started(session_id, "sast", _STEP_ORDER, target=file_path)
 
     try:
-        content = await read_file(session_id, file_path)
-        vulns = await _analyze_chunks(file_path, content)
+        source_type = state.get("source_type", "local")
+        if source_type == "github":
+            # github_token은 로그에 절대 출력 금지
+            content = await get_github_file_content(
+                session_id,
+                state["github_owner"],
+                state["github_repo"],
+                file_path,
+                state.get("github_ref"),
+                state.get("github_token"),
+            )
+        else:
+            content = await read_file(session_id, file_path)
+        raw_vulns = await _analyze_chunks(file_path, content)
+        vulns = classify_and_enrich(raw_vulns, file_path)
 
         if sha256:
             r = _get_redis()

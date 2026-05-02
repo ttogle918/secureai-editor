@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -44,14 +45,49 @@ public class AiAgentClient {
                 .build();
     }
 
+    /**
+     * 로컬 파일시스템 기반 분석을 시작한다.
+     * 하위 호환성을 위해 유지되는 convenience 메서드.
+     */
     public void startAnalysis(UUID sessionId, UUID projectId, String workspaceRoot) {
+        startAnalysis(sessionId, projectId, workspaceRoot, "local", null, null, null, null);
+    }
+
+    /**
+     * 분석을 시작한다. source_type에 따라 local 또는 github 경로로 동작한다.
+     *
+     * @param sessionId     분석 세션 UUID
+     * @param projectId     프로젝트 UUID
+     * @param workspaceRoot 로컬 워크스페이스 경로 (source_type=local 전용, nullable)
+     * @param sourceType    "local" | "github"
+     * @param githubOwner   GitHub 레포지토리 소유자 (nullable)
+     * @param githubRepo    GitHub 레포지토리 이름 (nullable)
+     * @param githubRef     branch/tag/commit (nullable)
+     * @param githubToken   복호화된 GitHub 개인 접근 토큰 (nullable, 로그 출력 금지)
+     */
+    public void startAnalysis(
+            UUID sessionId,
+            UUID projectId,
+            String workspaceRoot,
+            String sourceType,
+            String githubOwner,
+            String githubRepo,
+            String githubRef,
+            String githubToken
+    ) {
         checkCircuit();
         try {
-            Map<String, Object> body = Map.of(
-                    "session_id", sessionId.toString(),
-                    "project_id", projectId.toString(),
-                    "workspace_root", workspaceRoot
-            );
+            Map<String, Object> body = new HashMap<>();
+            body.put("session_id", sessionId.toString());
+            body.put("project_id", projectId.toString());
+            body.put("workspace_root", workspaceRoot != null ? workspaceRoot : "");
+            body.put("source_type", sourceType != null ? sourceType : "local");
+            if (githubOwner != null) body.put("github_owner", githubOwner);
+            if (githubRepo != null) body.put("github_repo", githubRepo);
+            if (githubRef != null) body.put("github_ref", githubRef);
+            // githubToken은 body에 포함하되 로그에 절대 출력 금지
+            if (githubToken != null) body.put("github_token", githubToken);
+
             restClient.post()
                     .uri("/agent/analyze")
                     .body(body)
@@ -59,7 +95,8 @@ public class AiAgentClient {
                     .toBodilessEntity();
 
             resetFailures();
-            log.info("[agent-client] startAnalysis sessionId={}", sessionId);
+            // 토큰은 로그에 출력 금지
+            log.info("[agent-client] startAnalysis sessionId={} sourceType={}", sessionId, sourceType);
         } catch (RestClientException e) {
             recordFailure(e);
             throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);

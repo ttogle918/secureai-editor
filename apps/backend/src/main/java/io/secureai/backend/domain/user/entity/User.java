@@ -2,8 +2,10 @@ package io.secureai.backend.domain.user.entity;
 
 import io.secureai.backend.domain.plan.Plan;
 import io.secureai.backend.global.crypto.AesEncryptionConverter;
+import io.secureai.backend.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -12,10 +14,10 @@ import java.util.UUID;
 @Table(name = "users")
 @Getter
 @Setter
-@Builder
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class User extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -85,26 +87,20 @@ public class User {
     @Builder.Default
     private String locale = "ko";
 
-    @Column(nullable = false, updatable = false)
-    private OffsetDateTime createdAt;
-
-    private OffsetDateTime updatedAt;
-
     private OffsetDateTime deletedAt;
 
+    @Override
     @PrePersist
     protected void onCreate() {
-        this.createdAt = OffsetDateTime.now();
-        this.updatedAt = OffsetDateTime.now();
+        super.onCreate();
         if (this.sastUsageResetAt == null) {
-            this.sastUsageResetAt = OffsetDateTime.now()
-                    .withDayOfMonth(1).plusMonths(1)
-                    .withHour(0).withMinute(0).withSecond(0).withNano(0);
+            initSastUsageResetAt();
         }
     }
 
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = OffsetDateTime.now();
+    private void initSastUsageResetAt() {
+        this.sastUsageResetAt = OffsetDateTime.now()
+                .withDayOfMonth(1).plusMonths(1)
+                .withHour(0).withMinute(0).withSecond(0).withNano(0);
     }
 }

@@ -3,6 +3,7 @@ package io.secureai.backend.domain.analysis.service;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestClient;
@@ -12,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class AiAgentClientTest {
@@ -71,7 +73,8 @@ class AiAgentClientTest {
 
         UUID sessionId = UUID.randomUUID();
 
-        assertThatThrownBy(() -> client.startAnalysis(sessionId, UUID.randomUUID(), "/ws"))
+        assertThatThrownBy(() -> client.startAnalysis(
+                        sessionId, UUID.randomUUID(), "/ws", "local", null, null, null, null))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.AI_AGENT_UNAVAILABLE);
@@ -100,5 +103,51 @@ class AiAgentClientTest {
         client.resumeAnalysis(sessionId); // 성공 → CLOSED
 
         assertThat(client.isCircuitOpen()).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
+    // TC-4: github source_type으로 startAnalysis 호출 시 circuit이 CLOSED이면 성공
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("github source_type으로 startAnalysis 호출 시 circuit CLOSED이면 성공한다")
+    void startAnalysis_github_source_type_succeeds_when_circuit_closed() {
+        when(restClient.post()).thenReturn(uriSpec);
+        when(uriSpec.uri(anyString())).thenReturn(bodySpec);
+        // body()는 제네릭 메서드 — any(Object.class)로 명시적 타입 지정 필요
+        when(bodySpec.body(any(Object.class))).thenReturn(bodySpec);
+        when(bodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.toBodilessEntity()).thenReturn(null);
+
+        UUID sessionId = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+
+        // 예외 없이 성공해야 한다
+        assertThatCode(() -> client.startAnalysis(
+                sessionId, projectId, null,
+                "github", "myorg", "myrepo", "main", "ghp_token"))
+                .doesNotThrowAnyException();
+
+        assertThat(client.isCircuitOpen()).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
+    // TC-5: convenience 오버로드(workspaceRoot 단일 파라미터)가 정상 동작한다
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("convenience startAnalysis(3파라미터)도 circuit CLOSED이면 성공한다")
+    void startAnalysis_convenience_overload_succeeds() {
+        when(restClient.post()).thenReturn(uriSpec);
+        when(uriSpec.uri(anyString())).thenReturn(bodySpec);
+        when(bodySpec.body(any(Object.class))).thenReturn(bodySpec);
+        when(bodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.toBodilessEntity()).thenReturn(null);
+
+        UUID sessionId = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+
+        assertThatCode(() -> client.startAnalysis(sessionId, projectId, "/workspace/test"))
+                .doesNotThrowAnyException();
     }
 }

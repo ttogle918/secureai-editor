@@ -9,11 +9,17 @@ def _make_state(**kwargs) -> AgentState:
         "session_id": "sess-001",
         "project_id": "proj-001",
         "workspace_root": "/workspace",
+        "source_type": "local",
+        "github_owner": None,
+        "github_repo": None,
+        "github_ref": None,
+        "github_token": None,
         "files_to_scan": [],
         "current_file_index": 0,
         "current_file_sha256": None,
         "cache_hit": False,
         "sast_results": [],
+        "progress_percent": 0.0,
         "status": "running",
         "error_message": None,
     }
@@ -62,3 +68,35 @@ def test_error_state():
     restored: AgentState = json.loads(json.dumps(state))
     assert restored["status"] == "error"
     assert restored["error_message"] == "MCP connection failed"
+
+
+def test_github_source_type_fields():
+    """source_type=github 상태에서 GitHub 필드가 직렬화/역직렬화된다."""
+    state = _make_state(
+        source_type="github",
+        github_owner="myorg",
+        github_repo="myrepo",
+        github_ref="main",
+        github_token="ghp_secret",
+    )
+    restored: AgentState = json.loads(json.dumps(state))
+    assert restored["source_type"] == "github"
+    assert restored["github_owner"] == "myorg"
+    assert restored["github_repo"] == "myrepo"
+    assert restored["github_ref"] == "main"
+    assert restored["github_token"] == "ghp_secret"
+
+
+def test_local_source_type_github_fields_are_none():
+    """source_type=local 상태에서 GitHub 필드는 None이다."""
+    state = _make_state(source_type="local")
+    assert state["github_owner"] is None
+    assert state["github_repo"] is None
+    assert state["github_ref"] is None
+    assert state["github_token"] is None
+
+
+def test_progress_percent_defaults_zero():
+    """progress_percent 기본값은 0.0이다."""
+    state = _make_state()
+    assert state["progress_percent"] == 0.0

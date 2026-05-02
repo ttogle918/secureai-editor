@@ -9,6 +9,14 @@ import path from "node:path";
 
 import { validatePath, PathValidationError } from "./path_validator.js";
 import { assertReadable, FileFilterError } from "./file_filter.js";
+import {
+  handleGetFileContent,
+  getFileContentToolDef,
+} from "./github/get_repo_contents.js";
+import {
+  handleListDirectory as handleGitHubListDirectory,
+  listDirectoryToolDef,
+} from "./github/list_directory.js";
 
 const WORKSPACE_ROOT = process.env["MCP_WORKSPACE_ROOT"] ?? "/workspace";
 
@@ -61,6 +69,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["path"],
       },
     },
+    getFileContentToolDef,
+    listDirectoryToolDef,
   ],
 }));
 
@@ -104,6 +114,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
         return { content: [{ type: "text", text: JSON.stringify(info, null, 2) }] };
       }
+
+      case "github_get_file_content":
+        return handleGetFileContent(args as Record<string, unknown>);
+
+      case "github_list_directory":
+        return handleGitHubListDirectory(args as Record<string, unknown>);
 
       default:
         return { content: [{ type: "text", text: `Unknown tool: ${name}` }], isError: true };

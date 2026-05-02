@@ -41,7 +41,7 @@ async def save_vulnerabilities(
             "owasp":        v.get("owasp"),
             "description":  v.get("description"),
             "codeSnippet":  v.get("code_snippet"),
-            "callChain":    v.get("call_chain", []),
+            "callChain":    v.get("callChain") or v.get("call_chain", []),
             "fingerprint":  _fingerprint(file_path, line, vuln_type),
         })
 

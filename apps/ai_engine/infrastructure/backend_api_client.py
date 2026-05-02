@@ -66,3 +66,34 @@ async def save_vulnerabilities(
     except Exception as exc:
         logger.error("[backend-api] save_vulnerabilities failed session=%s: %s", session_id, exc)
         return 0
+
+
+async def save_patch_results(
+    session_id: str,
+    project_id: str,
+    patch_results: list[dict],
+) -> int:
+    """패치 결과 목록을 Backend에 저장한다. 실패 시 0을 반환하고 로그만 남긴다."""
+    if not patch_results:
+        return 0
+
+    payload = {
+        "sessionId": session_id,
+        "projectId": project_id,
+        "patches": patch_results,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{settings.backend_internal_url}/api/v1/internal/patches",
+                json=payload,
+                headers={"X-Internal-Key": settings.internal_api_key},
+            )
+            resp.raise_for_status()
+            saved: int = resp.json().get("data", {}).get("saved", 0)
+            logger.info("[backend-api] patch saved=%d session=%s", saved, session_id)
+            return saved
+    except Exception as exc:
+        logger.error("[backend-api] save_patch_results failed session=%s: %s", session_id, exc)
+        return 0

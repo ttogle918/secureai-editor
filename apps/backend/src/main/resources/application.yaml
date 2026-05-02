@@ -85,3 +85,5 @@ secureai:
   ai-agent:
     url: ${AI_AGENT_URL:http://localhost:8000}
   internal-api-key: ${INTERNAL_API_KEY:dev-internal-key}
+  nvd:
+    api-key: ${NVD_API_KEY:}

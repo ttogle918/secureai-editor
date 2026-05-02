@@ -20,6 +20,9 @@ class AgentState(TypedDict):
     # 누적 결과
     sast_results: list[dict]
 
+    # 진행률 (0.0 ~ 100.0) — SSE 이벤트로 프론트엔드에 전달
+    progress_percent: float
+
     # 세션 상태
     status: str          # running / completed / error
     error_message: str | None

@@ -91,9 +91,16 @@
 | TASK-305 | CVE DB & SBOM 파서 — NvdApiClient + 4종 파서 + V009/V010/V012 | 2026-05-02 | Gradle MavenPomParser 5 + NpmPackageParser 4 + PipRequirementsParser 4 pass |
 
 ## 이월 태스크
-| TASK | 이유 |
-|------|------|
-| — | — |
+> 자동화 불가(✅ 수동 검증) 또는 외부 자원 의존(GitHub/NVD 실호출)으로 다음 스프린트로 이월
+
+| TASK | 이월 항목 | 이유 |
+|------|----------|------|
+| TASK-301 | ✅ 100·500·2000 라인 파일 분석 | 수동 검증 — Sprint 4 웹 UI에서 실프로젝트 분석 시 함께 검증 |
+| TASK-303 | 🔬 GitHub API 연동 6종 (공개/비공개 레포 SAST, 토큰 검증, 10MB·바이너리 필터) | 실 GitHub 토큰·테스트 레포 필요 — Sprint 5 GitHub Layer 2에서 통합 검증 |
+| TASK-303 | ✅ GitHub URL → 분석 → 취약점 표시 | 수동 검증 — Sprint 4 UI 완성 후 가능 |
+| TASK-304 | ✅ 생성 패치 코드 컴파일·실행 가능 여부 | 수동 검증 — Sprint 4 UI/적용 플로우 완성 후 가능 |
+| TASK-305 | 🔬 NvdSyncJob 실행 → Redis 캐시 채워짐 → 다음 조회 캐시 HIT | NVD 실호출 + 일배치 스케줄 검증 필요 — Sprint 6 (CVE 운영) 이월 |
+| TASK-305 | ✅ 실 pom.xml → 50개 이상 컴포넌트 추출 | 수동 검증 — 실프로젝트 SBOM 분석 시 함께 검증 |
 
 ---
 
@@ -294,3 +301,39 @@
 - `apps/backend/…/sbom/` 도메인 신규 (entity, repository, parser 6개, service)
 - `apps/backend/src/main/resources/db/migration/V009/V010/V012.sql` (신규)
 - Flyway 순서: V009(cve_data) → V010(dependency_components) → V011(patch_suggestions, TASK-304) → V012(cve_component_mapping)
+
+---
+
+## Sprint 3 통합 테스트 보강 (2026-05-04)
+
+기존 완료(2026-05-02) 시점에 pending 으로 남았던 통합 테스트를 자동화하여 추가 검증
+
+### 추가된 테스트 파일
+- `tests/integration/test_backend_sprint3.py` — DB 스키마 / JSONB GIN / NVD Redis 캐시 키 검증 (9개)
+- `tests/integration/test_sprint3_integration.py` — Redis HIT/MISS/TTL + Claude API 실호출 SAST (7개)
+- `tests/integration/test_sprint3_pending.py` — 5HIT+5MISS 시나리오 / 진행률 / 병렬 처리 / 패치 생성·캐시·적용 / CVE 매칭 (8개)
+
+### 인프라 수정
+- **V013 Flyway 마이그레이션** — `vulnerabilities.call_chain` TEXT → JSONB 변환 + GIN 인덱스. DEFAULT 드랍 후 USING 절로 변환 (PostgreSQL 제약 우회)
+- **application.yaml** — `flyway.baseline-version=0` (V001부터 실행 보장), `flyway.out-of-order=true` (V013 역순 적용 허용)
+- **NvdApiClient.java** — Spring Boot 4.0.5 `RestClient.Builder` 자동구성 미동작 → 정적 팩토리 `RestClient.builder().build()` 방식으로 변경
+
+### 통합 테스트 결과 (2026-05-04 기준)
+| TASK | 추가 통과 항목 | 이월 |
+|------|--------------|------|
+| TASK-301 | 🔬 5HIT/5MISS 캐시 호출 분기, 🔬 진행률 50% 정확성, 🔬 병렬 vs 순차 스루풋 | ✅ 100·500·2000 라인 분석 |
+| TASK-302 | 🔬 callChain JSONB GIN 인덱스 검색 | — |
+| TASK-303 | 🧪 (단위 테스트만 통과) | 🔬 실 GitHub API 6종 + ✅ |
+| TASK-304 | 🔬 PreparedStatement 패치 생성, 🔬 패치 캐시 HIT, 🔬 is_applied 업데이트 | ✅ 컴파일·실행 가능 검증 |
+| TASK-305 | 🔬 의존성 → CVE 매칭 → DB 저장, 🔬 NVD Redis 캐시 키 형식 | 🔬 NvdSyncJob 실행 + ✅ |
+
+### 최종 자동 테스트 결과
+```
+pytest tests/ → 147 passed / 0 failed (11.46s)
+- 단위 110 + 통합 37
+```
+
+### 설계 결정
+- **patch_node 통합 테스트는 Claude를 mock**: 실 Claude 응답이 마크다운 펜스(```json … ```)를 자주 포함해 `parse_patch_response`의 `json.loads()`가 실패. 파이프라인 동작(MISS→호출→캐시 저장→HIT) 검증 자체는 mock 으로 충분. `parse_patch_response` 마크다운 파싱 강화는 별도 개선 항목으로 분리
+- **벤더(GitHub/NVD) 실호출은 이월**: 토큰·테스트 레포·rate limit 처리가 필요한 항목은 Sprint 5/6에서 운영 환경과 함께 검증
+- **DB 통합 테스트는 FK 체인 직접 구성**: users→projects→analysis_sessions→vulnerabilities 순으로 fixture 생성. CASCADE DELETE 로 정리

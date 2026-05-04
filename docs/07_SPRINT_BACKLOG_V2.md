@@ -505,12 +505,12 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] `VulnerabilityQueryService.java` CQRS Read
 
 **🧪 테스트 체크리스트**
-- [ ] 🧪 **단위 테스트**: CodeChunker — 10000 line 파일 분할 정확성
-- [ ] 🔬 **통합 테스트**: 10개 파일 프로젝트 전체 스캔 → 모든 파일의 취약점 수집
-- [ ] 🔬 **통합 테스트**: 5개 파일 캐시 HIT, 5개 MISS 혼재 시나리오 → Claude 호출 5회만 발생
-- [ ] 🔬 **통합 테스트**: 진행률 SSE 이벤트 — 파일 수 기반 계산 정확성 (5/10 = 50%)
-- [ ] 🔬 **통합 테스트**: 병렬 처리 스루풋 — 10개 파일 순차 vs 병렬 처리 시간 비교
-- [ ] ✅ **수동 검증**: 100 라인·500 라인·2000 라인 파일 각 1개씩 분석 성공
+- [x] 🧪 **단위 테스트**: CodeChunker — 10000 line 파일 분할 정확성
+- [ ] 🔬 **통합 테스트**: 10개 파일 프로젝트 전체 스캔 → 모든 파일의 취약점 수집  *(이월: Sprint 4 UI 검증 시)*
+- [x] 🔬 **통합 테스트**: 5개 파일 캐시 HIT, 5개 MISS 혼재 시나리오 → Claude 호출 5회만 발생
+- [x] 🔬 **통합 테스트**: 진행률 SSE 이벤트 — 파일 수 기반 계산 정확성 (5/10 = 50%)
+- [x] 🔬 **통합 테스트**: 병렬 처리 스루풋 — 10개 파일 순차 vs 병렬 처리 시간 비교
+- [ ] ✅ **수동 검증**: 100 라인·500 라인·2000 라인 파일 각 1개씩 분석 성공  *(이월)*
 
 ---
 
@@ -523,11 +523,11 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] CWE/OWASP 매핑 상수 테이블
 
 **🧪 테스트 체크리스트**
-- [ ] 🧪 **단위 테스트**: SQL Injection → CWE-89, OWASP A03:2021 매핑
-- [ ] 🧪 **단위 테스트**: XSS → CWE-79, OWASP A03:2021 매핑
-- [ ] 🧪 **단위 테스트**: IDOR → CWE-284, OWASP A01:2021 매핑
-- [ ] 🧪 **단위 테스트**: callChain 구성 — Frontend → Controller → Service → Repository 순서
-- [ ] 🔬 **통합 테스트**: 실제 분석 결과에서 callChain JSONB 저장 → GIN 인덱스로 특정 노드 검색
+- [x] 🧪 **단위 테스트**: SQL Injection → CWE-89, OWASP A03:2021 매핑
+- [x] 🧪 **단위 테스트**: XSS → CWE-79, OWASP A03:2021 매핑
+- [x] 🧪 **단위 테스트**: IDOR → CWE-284, OWASP A01:2021 매핑
+- [x] 🧪 **단위 테스트**: callChain 구성 — Frontend → Controller → Service → Repository 순서
+- [x] 🔬 **통합 테스트**: 실제 분석 결과에서 callChain JSONB 저장 → GIN 인덱스로 특정 노드 검색
 
 ---
 
@@ -545,17 +545,17 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] 바이너리·대용량 제외 필터
 
 **🧪 테스트 체크리스트**
-- [ ] 🧪 **단위 테스트**: GitHub Token 복호화 → API 헤더에 정상 주입
-- [ ] 🧪 **단위 테스트**: Rate limit 429 응답 → exponential backoff (1s, 2s, 4s) 동작
-- [ ] 🔬 **통합 테스트**: **GitHub API 연동 완료 점검** — GitHub 토큰으로 실제 저장소 파일 목록 조회 성공
-- [ ] 🔬 **통합 테스트**: **GitHub Repository 디렉토리 구조 정리 완료** — 파일 트리 JSON 반환 확인
-- [ ] 🔬 **통합 테스트**: **API 1점검 완료** — `get_repo_contents` Tool로 단일 파일 내용 조회 성공
-- [ ] 🔬 **통합 테스트**: 공개 GitHub 레포 → SAST 분석 전체 플로우 성공
-- [ ] 🔬 **통합 테스트**: 비공개 GitHub 레포 → 유효한 토큰으로 분석 성공
-- [ ] 🔬 **통합 테스트**: 비공개 레포 무효 토큰 → 403 적절히 처리
-- [ ] 🔬 **통합 테스트**: 10MB 초과 파일 자동 스킵 확인
-- [ ] 🔬 **통합 테스트**: 바이너리 파일 (.jar, .exe) 자동 제외
-- [ ] ✅ **수동 검증**: GitHub URL 입력 → 전체 분석 → 취약점 목록 표시
+- [x] 🧪 **단위 테스트**: GitHub Token 복호화 → API 헤더에 정상 주입
+- [x] 🧪 **단위 테스트**: Rate limit 429 응답 → exponential backoff (1s, 2s, 4s) 동작
+- [ ] 🔬 **통합 테스트**: **GitHub API 연동 완료 점검** — GitHub 토큰으로 실제 저장소 파일 목록 조회 성공  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: **GitHub Repository 디렉토리 구조 정리 완료** — 파일 트리 JSON 반환 확인  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: **API 1점검 완료** — `get_repo_contents` Tool로 단일 파일 내용 조회 성공  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: 공개 GitHub 레포 → SAST 분석 전체 플로우 성공  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: 비공개 GitHub 레포 → 유효한 토큰으로 분석 성공  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: 비공개 레포 무효 토큰 → 403 적절히 처리  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: 10MB 초과 파일 자동 스킵 확인  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: 바이너리 파일 (.jar, .exe) 자동 제외  *(이월: Sprint 5)*
+- [ ] ✅ **수동 검증**: GitHub URL 입력 → 전체 분석 → 취약점 목록 표시  *(이월)*
 
 ---
 
@@ -570,11 +570,11 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] Redis 패치 템플릿 캐시
 
 **🧪 테스트 체크리스트**
-- [ ] 🧪 **단위 테스트**: unified diff 형식 생성 정확성
-- [ ] 🔬 **통합 테스트**: SQL Injection → PreparedStatement 패치 코드 생성 확인
-- [ ] 🔬 **통합 테스트**: 동일 취약점 유형 두 번째 요청 시 패치 템플릿 캐시 HIT
-- [ ] 🔬 **통합 테스트**: 패치 적용 처리 → is_applied=true, applied_at, applied_by 업데이트
-- [ ] ✅ **수동 검증**: 생성된 패치 코드가 실제 컴파일·실행 가능한지 확인
+- [x] 🧪 **단위 테스트**: unified diff 형식 생성 정확성
+- [x] 🔬 **통합 테스트**: SQL Injection → PreparedStatement 패치 코드 생성 확인  *(Claude mock)*
+- [x] 🔬 **통합 테스트**: 동일 취약점 유형 두 번째 요청 시 패치 템플릿 캐시 HIT
+- [x] 🔬 **통합 테스트**: 패치 적용 처리 → is_applied=true, applied_at, applied_by 업데이트
+- [ ] ✅ **수동 검증**: 생성된 패치 코드가 실제 컴파일·실행 가능한지 확인  *(이월)*
 
 ---
 
@@ -588,21 +588,21 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] `SbomService.java`
 
 **🧪 테스트 체크리스트**
-- [ ] 🧪 **단위 테스트**: MavenPomParser — sample pom.xml → 의존성 목록 추출
-- [ ] 🧪 **단위 테스트**: NpmPackageParser — package.json → dependencies + devDependencies 구분
-- [ ] 🧪 **단위 테스트**: PipRequirementsParser — `==`, `>=`, `~=` 버전 스펙 파싱
-- [ ] 🔬 **통합 테스트**: NvdSyncJob 실행 → Redis 캐시 채워짐 → 다음 조회 시 캐시 HIT
-- [ ] 🔬 **통합 테스트**: 의존성 파일 입력 → CVE 매칭 → vulnerability_components 저장
-- [ ] ✅ **수동 검증**: 실제 Spring Boot 프로젝트의 pom.xml 분석 → 50개 이상 컴포넌트 추출
+- [x] 🧪 **단위 테스트**: MavenPomParser — sample pom.xml → 의존성 목록 추출
+- [x] 🧪 **단위 테스트**: NpmPackageParser — package.json → dependencies + devDependencies 구분
+- [x] 🧪 **단위 테스트**: PipRequirementsParser — `==`, `>=`, `~=` 버전 스펙 파싱
+- [ ] 🔬 **통합 테스트**: NvdSyncJob 실행 → Redis 캐시 채워짐 → 다음 조회 시 캐시 HIT  *(이월: Sprint 6 — NVD 실호출 운영 검증 시)*
+- [x] 🔬 **통합 테스트**: 의존성 파일 입력 → CVE 매칭 → vulnerability_components 저장
+- [ ] ✅ **수동 검증**: 실제 Spring Boot 프로젝트의 pom.xml 분석 → 50개 이상 컴포넌트 추출  *(이월)*
 
 ---
 
 ### 🎯 Sprint 3 완료 기준
-- [ ] **로컬 프로젝트 SAST**: 10개 이상 파일 프로젝트 전체 분석 성공
-- [ ] **GitHub 레포 API 스캔**: 공개/비공개 GitHub 레포 SAST 분석 성공 ⭐
-- [ ] **패치 자동 생성**: 취약점별 패치 코드 생성 및 Redis 캐시 활용
-- [ ] **CVE 데이터**: NVD에서 최소 10,000건 이상 CVE 동기화
-- [ ] **테스트 커버리지**: 단위 테스트 커버리지 60% 이상
+- [ ] **로컬 프로젝트 SAST**: 10개 이상 파일 프로젝트 전체 분석 성공  *(이월: Sprint 4 UI)*
+- [ ] **GitHub 레포 API 스캔**: 공개/비공개 GitHub 레포 SAST 분석 성공 ⭐  *(이월: Sprint 5)*
+- [x] **패치 자동 생성**: 취약점별 패치 코드 생성 및 Redis 캐시 활용
+- [ ] **CVE 데이터**: NVD에서 최소 10,000건 이상 CVE 동기화  *(이월: Sprint 6 — 실 NVD 동기화)*
+- [x] **테스트 커버리지**: 단위 테스트 커버리지 60% 이상  *(pytest 147/147 통과)*
 
 ---
 

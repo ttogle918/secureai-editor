@@ -2,8 +2,10 @@ package io.secureai.backend.domain.analysis.entity;
 
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.user.entity.User;
+import io.secureai.backend.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -12,10 +14,10 @@ import java.util.UUID;
 @Table(name = "analysis_sessions")
 @Getter
 @Setter
-@Builder
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AnalysisSession {
+public class AnalysisSession extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -48,22 +50,6 @@ public class AnalysisSession {
 
     private OffsetDateTime startedAt;
     private OffsetDateTime completedAt;
-
-    @Column(nullable = false, updatable = false)
-    private OffsetDateTime createdAt;
-
-    private OffsetDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = OffsetDateTime.now();
-        this.updatedAt = OffsetDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = OffsetDateTime.now();
-    }
 
     public void markRunning() {
         this.status = "running";

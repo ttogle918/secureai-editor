@@ -25,13 +25,18 @@ _cancel_flags: dict[str, bool] = {}
 class AnalyzeRequest(BaseModel):
     session_id: str
     project_id: str
-    workspace_root: str
+    workspace_root: str = ""
+    source_type: str = "local"
+    github_owner: str | None = None
+    github_repo: str | None = None
+    github_ref: str | None = None
+    github_token: str | None = None  # 복호화된 값 (로그 출력 금지)
 
 
 @router.post("/analyze", status_code=status.HTTP_202_ACCEPTED)
 async def start_analyze(req: AnalyzeRequest, background_tasks: BackgroundTasks):
     _cancel_flags[req.session_id] = False
-    background_tasks.add_task(_run_analysis, req.session_id, req.project_id, req.workspace_root)
+    background_tasks.add_task(_run_analysis, req)
     return {"session_id": req.session_id, "status": "accepted"}
 
 
@@ -49,7 +54,8 @@ async def cancel_analyze(session_id: str):
     _cancel_flags[session_id] = True
 
 
-async def _run_analysis(session_id: str, project_id: str, workspace_root: str) -> None:
+async def _run_analysis(req: AnalyzeRequest) -> None:
+    session_id = req.session_id
     redis = await get_redis()
     channel = f"secureai:progress:{session_id}"
 
@@ -58,7 +64,8 @@ async def _run_analysis(session_id: str, project_id: str, workspace_root: str) -
         await redis.publish(channel, payload)
 
     try:
-        logger.info("[analyze] session=%s starting", session_id)
+        # github_token은 로그에 절대 출력 금지
+        logger.info("[analyze] session=%s starting source_type=%s", session_id, req.source_type)
         await publish("started")
 
         checkpointer = get_checkpointer()
@@ -66,18 +73,24 @@ async def _run_analysis(session_id: str, project_id: str, workspace_root: str) -
         config = {"configurable": {"thread_id": session_id}}
         initial_state = {
             "session_id": session_id,
-            "project_id": project_id,
-            "workspace_root": workspace_root,
+            "project_id": req.project_id,
+            "workspace_root": req.workspace_root,
+            "source_type": req.source_type,
+            "github_owner": req.github_owner,
+            "github_repo": req.github_repo,
+            "github_ref": req.github_ref,
+            "github_token": req.github_token,
             "files_to_scan": [],
             "current_file_index": 0,
             "current_file_sha256": None,
             "cache_hit": False,
             "sast_results": [],
+            "progress_percent": 0.0,
             "status": "running",
             "error_message": None,
         }
 
-        async with mcp_session(session_id, workspace_root, settings.mcp_server_script):
+        async with mcp_session(session_id, req.workspace_root, settings.mcp_server_script):
             async for event in graph.astream(initial_state, config):
                 if _cancel_flags.get(session_id):
                     logger.info("[analyze] session=%s cancelled by flag", session_id)
@@ -143,20 +156,24 @@ async def _run_resume(session_id: str) -> None:
 
     config = {"configurable": {"thread_id": session_id}}
 
-    # 체크포인트 상태에서 workspace_root 읽기
+    # 체크포인트 상태에서 workspace_root 및 source_type 읽기
     workspace_root = settings.mcp_workspace_root
+    source_type = "local"
     try:
         checkpoint_tuple = await checkpointer.aget_tuple(config)
         if checkpoint_tuple:
             channel_values = checkpoint_tuple.checkpoint.get("channel_values", {})
             workspace_root = channel_values.get("workspace_root", workspace_root)
+            source_type = channel_values.get("source_type", "local")
     except Exception as exc:
         logger.warning("[resume] session=%s checkpoint read failed: %s", session_id, exc)
 
     graph = get_graph(checkpointer=checkpointer)
 
     try:
-        logger.info("[resume] session=%s resuming workspace=%s", session_id, workspace_root)
+        # github_token은 로그에 절대 출력 금지
+        logger.info("[resume] session=%s resuming workspace=%s source_type=%s",
+                    session_id, workspace_root, source_type)
         await publish("started")
 
         async with mcp_session(session_id, workspace_root, settings.mcp_server_script):

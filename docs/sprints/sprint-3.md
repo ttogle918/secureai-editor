@@ -89,7 +89,6 @@
 | TASK-303 Backend | GitHub API 연동 — GitHubRestClient + GitHubApiService + source_type 분기 | 2026-05-02 | Gradle 15/15 pass |
 | TASK-304 | 패치 에이전트 — diff_generator + patch_node + PatchSuggestion V011 | 2026-05-02 | pytest 12/12 + Gradle 5/5 pass |
 | TASK-305 | CVE DB & SBOM 파서 — NvdApiClient + 4종 파서 + V009/V010/V012 | 2026-05-02 | Gradle MavenPomParser 5 + NpmPackageParser 4 + PipRequirementsParser 4 pass |
->>>>>>> Stashed changes
 
 ## 이월 태스크
 | TASK | 이유 |

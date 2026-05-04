@@ -7,7 +7,7 @@ export class FileFilterError extends Error {
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
-const BINARY_EXTENSIONS = new Set([
+export const BINARY_EXTENSIONS = new Set([
   ".exe", ".dll", ".so", ".dylib",
   ".jar", ".war", ".ear", ".class",
   ".zip", ".gz", ".tar", ".7z", ".rar",

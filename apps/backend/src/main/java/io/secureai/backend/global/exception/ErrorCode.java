@@ -44,6 +44,11 @@ public enum ErrorCode {
 
     GITHUB_AUTH_REQUIRED(HttpStatus.FORBIDDEN, "GitHub 연동이 필요합니다."),
     GITHUB_WEBHOOK_INVALID(HttpStatus.BAD_REQUEST, "Webhook 서명이 유효하지 않습니다."),
+    GITHUB_REPO_NOT_FOUND(HttpStatus.NOT_FOUND, "GitHub 레포지토리를 찾을 수 없습니다."),
+    INVALID_GITHUB_URL(HttpStatus.BAD_REQUEST, "유효하지 않은 GitHub URL 형식입니다."),
+    GITHUB_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "GitHub API 호출 횟수를 초과했습니다. 잠시 후 다시 시도해주세요."),
+
+    PATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "패치 제안을 찾을 수 없습니다."),
 
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "리포트를 찾을 수 없습니다."),
 

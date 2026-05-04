@@ -8,7 +8,7 @@ import pytest
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from api.routes.analyze import _cancel_flags, _run_analysis, _run_resume
+from api.routes.analyze import AnalyzeRequest, _cancel_flags, _run_analysis, _run_resume
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +64,7 @@ async def test_run_analysis_no_files_publishes_started_and_completed():
             patch("api.routes.analyze.get_graph", return_value=mock_graph),
             patch("api.routes.analyze.mcp_session", _noop_mcp),
         ):
-            await _run_analysis("sess-no-files", "proj-1", "/workspace")
+            await _run_analysis(AnalyzeRequest(session_id="sess-no-files", project_id="proj-1", workspace_root="/workspace"))
 
         types = _event_types(published)
         assert types[0] == "started"
@@ -97,7 +97,7 @@ async def test_run_analysis_cancel_flag_emits_cancelled():
             patch("api.routes.analyze.get_graph", return_value=mock_graph),
             patch("api.routes.analyze.mcp_session", _noop_mcp),
         ):
-            await _run_analysis("sess-cancel", "proj-1", "/workspace")
+            await _run_analysis(AnalyzeRequest(session_id="sess-cancel", project_id="proj-1", workspace_root="/workspace"))
 
         types = _event_types(published)
         assert "cancelled" in types
@@ -127,7 +127,7 @@ async def test_run_analysis_mcp_error_publishes_error_event():
             patch("api.routes.analyze.get_graph", return_value=MagicMock()),
             patch("api.routes.analyze.mcp_session", _boom_mcp),
         ):
-            await _run_analysis("sess-error", "proj-1", "/workspace")
+            await _run_analysis(AnalyzeRequest(session_id="sess-error", project_id="proj-1", workspace_root="/workspace"))
 
         types = _event_types(published)
         assert "error" in types
@@ -159,7 +159,7 @@ async def test_run_analysis_cleanup_cancel_flag():
         patch("api.routes.analyze.get_graph", return_value=mock_graph),
         patch("api.routes.analyze.mcp_session", _noop_mcp),
     ):
-        await _run_analysis("sess-cleanup", "proj-1", "/workspace")
+        await _run_analysis(AnalyzeRequest(session_id="sess-cleanup", project_id="proj-1", workspace_root="/workspace"))
 
     assert "sess-cleanup" not in _cancel_flags
 
@@ -190,7 +190,7 @@ async def test_run_analysis_progress_event_contains_file_info():
             patch("api.routes.analyze.get_graph", return_value=mock_graph),
             patch("api.routes.analyze.mcp_session", _noop_mcp),
         ):
-            await _run_analysis("sess-progress", "proj-1", "/workspace")
+            await _run_analysis(AnalyzeRequest(session_id="sess-progress", project_id="proj-1", workspace_root="/workspace"))
 
         progress_events = [json.loads(m) for m in published if json.loads(m)["type"] == "progress"]
         assert len(progress_events) >= 1

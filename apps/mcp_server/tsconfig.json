@@ -8,6 +8,8 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "types": ["node", "jest"],
+    "isolatedModules": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true

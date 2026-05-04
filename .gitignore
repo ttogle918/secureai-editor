@@ -114,7 +114,8 @@ temp/
 files.zip
 
 # Project Specific
-/secureai---white-hat-security-auditor/
+/docs/frontend-reference/secureai---white-hat-security-auditor/
+/docs/frontend-reference/packages/
 /apps/sandbox/temp/
 /bash
 

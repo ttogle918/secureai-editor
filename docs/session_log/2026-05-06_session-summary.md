@@ -50,7 +50,7 @@
 ---
 
 ## 4. 다음 세션에서 할 것
-- [ ] TASK-405: AI 채팅 API (BE FastAPI + Spring + FE ChatPanel) — Sprint 4 Stage 4
+- [x] TASK-405: AI 채팅 API — 완료 (이월: 🔬 통합 테스트 + ✅ 수동 검증)
 - [ ] 분석 엔진 Sprint 완료 후 TASK-404 수동 검증 5개 재확인
 - [ ] `scripts/gh_import_issues.sh` 구현 (백로그 `[x]` → GitHub Issues close 동기화)
 - [ ] TASK-402 수동 검증 (JWT Sprint 완료 후)

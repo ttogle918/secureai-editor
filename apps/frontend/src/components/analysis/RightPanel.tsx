@@ -11,8 +11,6 @@ import { ProgressPanel } from '@/components/ui/ProgressPanel';
 export function RightPanel() {
   const rightTab = useSecureStore((s) => s.rightTab);
   const setRightTab = useSecureStore((s) => s.setRightTab);
-  const chatMessages = useSecureStore((s) => s.chatMessages);
-  const sendChat = useSecureStore((s) => s.sendChat);
   const vulns = useSecureStore((s) => s.vulns);
   const selectedPath = useSecureStore((s) => s.selectedPath);
   const fileVulnCount = vulns.filter((v) => v.filePath === selectedPath).length;
@@ -97,7 +95,7 @@ export function RightPanel() {
           aria-labelledby="right-tab-chat"
           style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
         >
-          <ChatPanel messages={chatMessages} onSend={sendChat} />
+          <ChatPanel />
         </div>
       )}
       {rightTab === 'progress' && (

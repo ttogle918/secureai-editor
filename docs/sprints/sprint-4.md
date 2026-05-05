@@ -331,3 +331,32 @@ SSE 수동 검증 6개 항목 모두 JWT 인증 구현에 의존.
 - ✅ 수동 검증: 5개 가정 통과 (실제 분석 엔진 Sprint 완료 후 재확인 예정)
 
 ---
+
+### TASK-405: AI 채팅 API 및 UI
+**완료일**: 2026-05-06
+**Epic**: EPIC-5 | **Sprint**: 4
+
+#### 구현 내용
+- `chat_client.py`: `AsyncAnthropic.messages.stream()` 기반 스트리밍 래퍼, prompt caching, 10턴 이력 제한
+- `api/routes/chat.py`: `POST /agent/chat` SSE 라우터 (delta/done/error 이벤트)
+- `main.py`: chat_router 등록
+- `ChatRequest.java` / `ChatChunkResponse.java`: 요청·응답 DTO
+- `ChatService.java`: `RestClient` + Virtual Thread로 AI Engine SSE relay, 세션 소유권 검증
+- `ChatController.java`: `POST /api/v1/analysis/sessions/{sessionId}/chat`
+- `useChat.ts`: fetch+ReadableStream SSE 수신 훅, streamingText 실시간 상태, sseSessionId 없으면 mock
+- `ChatPanel.tsx`: useChat 훅 연결, 인라인 다크 스타일, 스트리밍 타이핑 버블
+- `RightPanel.tsx`: `<ChatPanel />` props 없이 렌더링
+- 테스트: `test_chat_route.py` (3개), `ChatServiceTest.java` (3개)
+
+#### 설계 결정
+- RestClient + Virtual Thread: WebFlux 대신 Virtual Thread 기반 동기 relay → 기존 Spring MVC 스택 유지
+- sseSessionId null 시 mock 응답: 미로그인/미분석 상태에서도 채팅 UI 동작 유지
+- 이력 10턴 제한: AI Engine 레이어에서 트리밍 (Spring은 그대로 전달)
+
+#### 테스트 결과
+- 🧪 AI Engine pytest: 3개 통과 (정상 스트림 / 이력 트리밍 / 에러 이벤트)
+- 🧪 Backend ChatServiceTest: 3개 통과 (정상 / SESSION_NOT_FOUND / PROJECT_ACCESS_DENIED)
+- 🔬 통합 테스트: 이월 (실제 Claude API + 전체 스택 기동 필요)
+- ✅ 수동 검증: 이월 (AI 엔진 Sprint 완료 후)
+
+---

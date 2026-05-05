@@ -5,13 +5,13 @@ import { useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { useSecureStore }           from '@/store/useSecureStore';
-import { mockFileTree }             from '@/lib/mockData';
 import { AppHeader }                from '@/components/layout/AppHeader';
 import { AppSidebar }               from '@/components/layout/AppSidebar';
 import { EditorLayout }             from '@/components/editor/EditorLayout';
 import { AnalysisLoadingOverlay }   from '@/components/analysis/AnalysisLoadingOverlay';
 import DashboardPage                from '@/components/dashboard/DashboardPage';
 import ResizeHandle                 from '@/components/ui/ResizeHandle';
+import { ToastContainer }           from '@/components/ui/Toast';
 
 export default function HomePage() {
   const sidebarWidth     = useSecureStore((s) => s.sidebarWidth);
@@ -99,6 +99,9 @@ export default function HomePage() {
 
       {/* ── 분석 로딩 오버레이 ─────────────────────────── */}
       <AnalysisLoadingOverlay />
+
+      {/* ── Toast 알림 ────────────────────────────────── */}
+      <ToastContainer />
     </div>
   );
 }

@@ -216,3 +216,38 @@
 - [ ] Docker 기동: `make dev`
 - [ ] Backend + AI Engine + Frontend 모두 정상 기동 확인
 - [ ] TASK-401부터 시작
+
+---
+
+## 8. 구현 완료 기록
+
+### TASK-402: SSE 실시간 구독 인프라
+**완료일**: 2026-05-05
+**Epic**: EPIC-5 | **Sprint**: 4
+**상태**: 구현 완료 / 수동 검증 이월 (JWT 인증 구현 후 연동 예정)
+
+#### 구현 내용
+- `useSse.ts`: fetch + ReadableStream 방식 SSE 훅 (EventSource 미사용 — JWT 헤더 전달 위해)
+- exponential backoff 재연결: 1s → 2s → 4s → 8s → 16s → 30s 상한, 401 시 재연결 중단
+- `useToast.ts` / `Toast.tsx`: Zustand 독립 스토어, 4초 자동 소멸, severity별 색상, 우하단 고정
+- `SseIndicator.tsx`: status별 점멸 표시 (idle/connecting/open/reconnecting/auth_error)
+- `useSecureStore.ts`: `addVuln()`, `sseSessionId`/`setSseSessionId` 추가
+- `AppHeader.tsx`: useSse 연결, vuln_found/completed/error 이벤트 핸들러
+
+#### 설계 결정
+- EventSource 대신 fetch + ReadableStream 사용: JWT Authorization 헤더 전달이 EventSource API에서 불가
+- 401 응답 시 재연결 안 함: 토큰 만료 시 무한 재연결 방지
+- AbortController cleanup: useEffect cleanup에서 abort → 메모리 누수 방지
+- 파싱 오류 skip: 개별 이벤트 파싱 실패 시 전체 세션 중단 금지
+
+#### 이월 사유
+SSE 수동 검증 6개 항목 모두 JWT 인증 구현에 의존.
+`sseSessionId`는 실제 `POST /api/v1/analysis/sessions` 응답으로 설정되어야 하나,
+프론트엔드 로그인 플로우가 미구현 상태. 인증 Sprint 완료 후 검증 예정.
+
+#### 테스트 결과
+- 🧪 단위 테스트: 이월 (인증 연동 후 작성 예정)
+- ✅ 수동 검증: 이월 (JWT 인증 구현 후)
+- 🛡️ 보안 검증: 이월 (백엔드 @AuthenticationPrincipal 처리 완료, 프론트 검증 이월)
+
+---

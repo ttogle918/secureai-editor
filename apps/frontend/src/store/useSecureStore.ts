@@ -44,10 +44,15 @@ interface SecureStore {
 
   // ── 취약점 ──────────────────────────────────────────────
   vulns: Vulnerability[];
+  addVuln: (v: Vulnerability) => void;
   expandedVulnId: string | null;
   setExpandedVulnId: (id: string | null) => void;
   revealLine: number | null;
   setRevealLine: (line: number | null) => void;
+
+  // ── SSE 세션 ─────────────────────────────────────────────
+  sseSessionId: string | null;
+  setSseSessionId: (id: string | null) => void;
 
   // ── 패치 ────────────────────────────────────────────────
   patches: PatchSuggestion[];
@@ -115,11 +120,16 @@ export const useSecureStore = create<SecureStore>((set, get) => ({
 
   // ── 취약점
   vulns: mockVulnerabilities,
+  addVuln: (v) => set((s) => ({ vulns: [...s.vulns, v] })),
   expandedVulnId: null,
   setExpandedVulnId: (id) =>
     set((s) => ({ expandedVulnId: s.expandedVulnId === id ? null : id })),
   revealLine: null,
   setRevealLine: (line) => set({ revealLine: line }),
+
+  // ── SSE 세션
+  sseSessionId: null,
+  setSseSessionId: (id) => set({ sseSessionId: id }),
 
   // ── 패치
   patches: mockPatches,

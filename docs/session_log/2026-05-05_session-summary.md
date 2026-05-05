@@ -209,9 +209,36 @@ Cannot construct instance of WorkspaceTreeNode (no Creators, like default constr
 
 ---
 
-## 9. 다음 세션에서 할 것
+## 9. TASK-402 SSE 인프라 구현 (2026-05-05 계속)
 
+### 9-1. 구현 완료 (수동 검증은 JWT 인증 구현 후 이월)
+
+| 파일 | 내용 |
+|---|---|
+| `hooks/useSse.ts` (신규) | fetch+ReadableStream SSE, exponential backoff(1s→30s), 401 재연결 중단, AbortController cleanup |
+| `hooks/useToast.ts` (신규) | Zustand 독립 스토어, 4초 자동 소멸 |
+| `components/ui/Toast.tsx` (신규) | 우하단 고정, severity별 색상, framer-motion 애니메이션 |
+| `components/ui/SseIndicator.tsx` (신규) | idle/connecting/open/reconnecting/auth_error 상태별 점멸 |
+| `store/useSecureStore.ts` (수정) | `addVuln()`, `sseSessionId`/`setSseSessionId` 추가 |
+| `components/layout/AppHeader.tsx` (수정) | useSse 연결, 이벤트 핸들러, SseIndicator 렌더 |
+| `app/page.tsx` (수정) | ToastContainer 마운트 |
+
+### 9-2. 이월 사유
+
+- SSE 수동 검증 6개 항목 모두 JWT 인증 연동 필요
+- `sseSessionId`는 실제 `POST /api/v1/analysis/sessions` 응답으로 설정되어야 함
+- 현재 auth_error 상태로 대기 — 인증 Sprint 완료 후 검증 예정
+
+### 9-3. 커밋 대상 파일 (git commit 전 정리)
+
+이번 세션 전체(TASK-401 + TASK-407 + TASK-402)를 하나의 커밋으로 묶음.
+
+---
+
+## 10. 다음 세션에서 할 것
+
+- [ ] git commit (커밋 메시지 추천 완료)
+- [ ] TASK-403: VSCode 레이아웃 완성
 - [ ] TASK-407 수동 검증 (폴더 열기 → 파일 트리 → 에디터 실제 동작)
 - [ ] TASK-401 수동 검증 (물결 밑줄, glyph 점, 라인 이동 확인)
-- [ ] TASK-402: SSE 실시간 취약점 스트리밍 구현
-- [ ] TASK-403: VSCode 레이아웃 완성
+- [ ] TASK-402 수동 검증: JWT 인증 구현 후

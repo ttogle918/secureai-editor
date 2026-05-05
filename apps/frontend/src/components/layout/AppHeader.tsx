@@ -1,12 +1,17 @@
 // components/layout/AppHeader.tsx
 // 앱 상단 헤더 — 심각도 필터, 파이프라인 상태, 액션 버튼
 'use client';
+import { useState } from 'react';
 import {
   PanelLeftClose, PanelLeftOpen, ChevronRight,
   FileJson, Play, LayoutDashboard, Code2,
 } from 'lucide-react';
 import { useSecureStore, type SeverityFilter } from '@/store/useSecureStore';
 import { SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/constants/severity';
+import { useSse, type SseStatus } from '@/hooks/useSse';
+import { useToastStore } from '@/hooks/useToast';
+import { SseIndicator } from '@/components/ui/SseIndicator';
+import type { Vulnerability } from '@/lib/mockData';
 
 const SEV_FILTERS: Array<'critical' | 'high' | 'medium' | 'low'> = ['critical', 'high', 'medium', 'low'];
 
@@ -33,6 +38,40 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const vulns              = useSecureStore((s) => s.vulns);
   const isAnalyzing        = useSecureStore((s) => s.isAnalyzing);
   const startAnalysis      = useSecureStore((s) => s.startAnalysis);
+  const sseSessionId       = useSecureStore((s) => s.sseSessionId);
+  const addVuln            = useSecureStore((s) => s.addVuln);
+  const addToast           = useToastStore((s) => s.addToast);
+
+  // SSE 상태 — 컴포넌트 로컬 상태로 관리
+  const [sseStatus, setSseStatus] = useState<SseStatus>('idle');
+
+  useSse({
+    sessionId: sseSessionId,
+    onEvent: (event) => {
+      if (event.type === 'vuln_found') {
+        // ProgressEvent를 Vulnerability로 매핑 (최소 필드)
+        const vuln: Vulnerability = {
+          id:            `sse-${Date.now()}`,
+          type:          event.node ?? 'Unknown',
+          severity:      'high',
+          lineStart:     0,
+          lineEnd:       0,
+          filePath:      event.file ?? '',
+          description:   event.message ?? '',
+          cweId:         '',
+          owaspCategory: '',
+          status:        'open',
+        };
+        addVuln(vuln);
+        addToast(event.message ?? '취약점이 발견되었습니다.', 'high');
+      } else if (event.type === 'completed') {
+        addToast('분석 완료', 'info');
+      } else if (event.type === 'error') {
+        addToast(event.message ?? 'SSE 오류가 발생했습니다.', 'error');
+      }
+    },
+    onStatusChange: setSseStatus,
+  });
 
   const handleSevFilter = (sev: SeverityFilter) => {
     setSeverityFilter(severityFilter === sev ? 'all' : sev);
@@ -169,6 +208,11 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
             <FileJson size={14} /> Export JSON
           </button>
         )}
+
+        {/* SSE 연결 상태 표시 */}
+        <div style={{ marginLeft: 8 }}>
+          <SseIndicator status={sseStatus} />
+        </div>
       </div>
     </header>
   );

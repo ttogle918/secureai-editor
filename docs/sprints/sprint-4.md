@@ -246,9 +246,10 @@ SSE 수동 검증 6개 항목 모두 JWT 인증 구현에 의존.
 프론트엔드 로그인 플로우가 미구현 상태. 인증 Sprint 완료 후 검증 예정.
 
 #### 테스트 결과
-- 🧪 단위 테스트: 이월 (인증 연동 후 작성 예정)
-- ✅ 수동 검증: 이월 (JWT 인증 구현 후)
-- 🛡️ 보안 검증: 이월 (백엔드 @AuthenticationPrincipal 처리 완료, 프론트 검증 이월)
+- 🧪 SseEmitterServiceTest JUnit5: 6개 통과 (subscribe/send/complete/completeWithError 레지스트리 관리)
+- 🧪 useSse.test.ts Jest: 7개 통과 (auth_error / 401 / vuln_found / completed / [DONE] skip / JSON 파싱 오류 skip)
+- ✅ 수동 검증: 이월 (JWT 인증 구현 후 — SSE 실시간 취약점 표시, 재연결 동작)
+- 🛡️ 보안 검증: 이월 (JWT 인증 구현 후)
 
 ---
 

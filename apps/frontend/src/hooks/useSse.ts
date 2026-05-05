@@ -3,6 +3,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback, type MutableRefObject } from 'react';
+import { getAccessToken } from '@/lib/api/client';
 
 // ─── 타입 정의 ────────────────────────────────────────────────
 export type SseStatus =
@@ -39,8 +40,7 @@ function getRetryDelay(retryCount: number): number {
 }
 
 function readJwtToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('jwt');
+  return getAccessToken();
 }
 
 // ─── 훅 구현 ─────────────────────────────────────────────────

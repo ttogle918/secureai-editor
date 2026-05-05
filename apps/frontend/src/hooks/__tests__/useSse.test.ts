@@ -1,13 +1,12 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { useSse, type ProgressEvent } from '../useSse';
 
-// ── localStorage mock ──────────────────────────────────────────────────────
-const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  clear:   jest.fn(),
-};
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+// ── getAccessToken mock ────────────────────────────────────────────────────
+jest.mock('@/lib/api/client', () => ({
+  getAccessToken: jest.fn(),
+}));
+import { getAccessToken } from '@/lib/api/client';
+const mockGetAccessToken = getAccessToken as jest.Mock;
 
 // ── SSE 응답용 ReadableStream 팩토리 ───────────────────────────────────────
 function createSseStream(jsonPayloads: string[]): ReadableStream<Uint8Array> {
@@ -38,7 +37,7 @@ function mockFetchWith(body: ReadableStream | null, status = 200) {
 afterEach(() => {
   jest.restoreAllMocks();
   (global.fetch as jest.Mock)?.mockReset?.();
-  localStorageMock.getItem.mockReset();
+  mockGetAccessToken.mockReset();
 });
 
 // ── 테스트 ─────────────────────────────────────────────────────────────────
@@ -55,7 +54,7 @@ describe('useSse', () => {
   });
 
   it('JWT 토큰 없으면 onStatusChange("auth_error") 호출', async () => {
-    localStorageMock.getItem.mockReturnValue(null); // JWT 없음
+    mockGetAccessToken.mockReturnValue(null); // JWT 없음
     const onEvent        = jest.fn();
     const onStatusChange = jest.fn();
 
@@ -68,7 +67,7 @@ describe('useSse', () => {
   });
 
   it('401 응답 시 onStatusChange("auth_error") 호출되고 재연결 안 함', async () => {
-    localStorageMock.getItem.mockReturnValue('mock-jwt');
+    mockGetAccessToken.mockReturnValue('mock-jwt');
     mockFetchWith(null, 401);
     const onEvent        = jest.fn();
     const onStatusChange = jest.fn();
@@ -83,7 +82,7 @@ describe('useSse', () => {
   });
 
   it('vuln_found 이벤트 수신 시 onEvent 호출', async () => {
-    localStorageMock.getItem.mockReturnValue('mock-jwt');
+    mockGetAccessToken.mockReturnValue('mock-jwt');
 
     const vulnEvent: ProgressEvent = {
       sessionId: 'session-789',
@@ -109,7 +108,7 @@ describe('useSse', () => {
   });
 
   it('completed 이벤트 수신 시 onStatusChange("closed") 호출', async () => {
-    localStorageMock.getItem.mockReturnValue('mock-jwt');
+    mockGetAccessToken.mockReturnValue('mock-jwt');
 
     const completedEvent: ProgressEvent = {
       sessionId: 'session-abc',
@@ -131,7 +130,7 @@ describe('useSse', () => {
   });
 
   it('[DONE] 메시지는 onEvent를 호출하지 않음', async () => {
-    localStorageMock.getItem.mockReturnValue('mock-jwt');
+    mockGetAccessToken.mockReturnValue('mock-jwt');
     mockFetchWith(createSseStream(['[DONE]']));
 
     const onEvent        = jest.fn();
@@ -149,7 +148,7 @@ describe('useSse', () => {
   });
 
   it('잘못된 JSON은 skip하고 세션 중단 없음', async () => {
-    localStorageMock.getItem.mockReturnValue('mock-jwt');
+    mockGetAccessToken.mockReturnValue('mock-jwt');
 
     const validEvent: ProgressEvent = { sessionId: 's', type: 'completed' };
     // 두 번째 줄: 유효한 이벤트 → 첫 번째: invalid JSON

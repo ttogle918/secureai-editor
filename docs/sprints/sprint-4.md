@@ -277,3 +277,30 @@ SSE 수동 검증 6개 항목 모두 JWT 인증 구현에 의존.
 - ✅ 수동 검증: 6개 확인
 
 ---
+
+### TASK-406: 진행률 체크리스트 Markdown
+**완료일**: 2026-05-05
+**Epic**: EPIC-5 | **Sprint**: 4
+
+#### 구현 내용
+- `ProgressSummaryResponse.java`: `{ total, completed, percentage, steps[] }` 응답 DTO (record + @JsonInclude)
+- `ProgressLogService.getSummary()`: 세션 권한 검증 → 로그 집계 → 완료율 계산
+- `ProgressLogController`: `GET /api/v1/analysis/sessions/{sessionId}/progress` 엔드포인트 추가
+- `useSecureStore.ts`: `ProgressStep` 타입 + `progressSteps` 상태 + setter 3종 추가, persist partialize 포함
+- `ProgressPanel.tsx`: 진행률 바 (`aria-progressbar`) + 단계 목록 (status 아이콘) + `.md` 다운로드
+- `RightPanel.tsx`: 'progress' 3번째 탭 추가 (CheckSquare 아이콘)
+- `ProgressLogServiceTest.java`: JUnit5 단위 테스트 5개
+- `ProgressPanel.test.tsx`: Jest + Testing Library 5개 (jest.config.js, jest.setup.ts 포함)
+
+#### 설계 결정
+- Markdown 생성은 순수 TypeScript 함수 — 클라이언트 사이드 다운로드, 백엔드 불필요
+- 백로그 "pytest 테스트" 항목은 오기재 (TypeScript 구현) → Jest로 대체
+- `ProgressStep` 인라인 타입 정의로 `ProgressPanel` ↔ `useSecureStore` 순환 의존성 방지
+- 실시간 갱신(406-6): SSE `vuln_found` 이벤트 → `updateProgressStep` 연동은 JWT 인증 Sprint 후 예정
+
+#### 테스트 결과
+- 🧪 Progress API JUnit5: 5개 통과 (`ProgressLogServiceTest.java`)
+- 🧪 ProgressPanel Jest: 5개 통과 (`ProgressPanel.test.tsx`)
+- ✅ 수동 검증: 3개 확인 (패널 탭 표시 / F5 새로고침 유지 / `.md` 다운로드)
+
+---

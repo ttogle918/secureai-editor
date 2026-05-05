@@ -12,7 +12,16 @@ import type { SeverityLevel } from '@/types';
 export type Severity       = 'critical' | 'high' | 'medium' | 'low';
 export type SeverityFilter = 'all' | Severity;
 export type ViewMode       = 'editor' | 'dashboard';
-export type RightTab       = 'vulns' | 'chat';
+export type RightTab       = 'vulns' | 'chat' | 'progress';
+
+// 진행률 단계 타입 — ProgressPanel과 순환 의존성 방지를 위해 인라인 정의
+export interface ProgressStep {
+  stepName: string;
+  stepOrder: number;
+  target: string;
+  status: 'pending' | 'running' | 'completed' | 'error';
+  durationMs?: number;
+}
 
 // 탭 타입 — EditorTabs.tsx와 동일 구조, circular 방지를 위해 인라인 정의
 export interface EditorTab {
@@ -94,6 +103,12 @@ interface SecureStore {
 
   // ── DAST 로그 ───────────────────────────────────────────
   dastLogs: DastLog[];
+
+  // ── 진행률 ──────────────────────────────────────────────
+  progressSteps: ProgressStep[];
+  setProgressSteps: (steps: ProgressStep[]) => void;
+  addProgressStep: (step: ProgressStep) => void;
+  updateProgressStep: (stepOrder: number, update: Partial<ProgressStep>) => void;
 
   // ── 채팅 ────────────────────────────────────────────────
   chatMessages: ChatMessage[];
@@ -207,6 +222,22 @@ export const useSecureStore = create<SecureStore>()(
   // ── DAST
   dastLogs: mockDastLogs,
 
+  // ── 진행률
+  progressSteps: [
+    { stepName: 'SAST 초기화', stepOrder: 1, target: 'UserAuth.java',    status: 'completed', durationMs: 840 },
+    { stepName: 'SAST 분석',   stepOrder: 2, target: 'AuthService.java', status: 'completed', durationMs: 1200 },
+    { stepName: 'SAST 분석',   stepOrder: 3, target: 'LoginPage.tsx',    status: 'running',   durationMs: undefined },
+    { stepName: 'DAST 준비',   stepOrder: 4, target: '전체',              status: 'pending',   durationMs: undefined },
+  ],
+  setProgressSteps: (steps) => set({ progressSteps: steps }),
+  addProgressStep: (step) => set((s) => ({ progressSteps: [...s.progressSteps, step] })),
+  updateProgressStep: (stepOrder, update) =>
+    set((s) => ({
+      progressSteps: s.progressSteps.map((step) =>
+        step.stepOrder === stepOrder ? { ...step, ...update } : step
+      ),
+    })),
+
   // ── 채팅
   chatMessages: mockChatMessages,
   addChatMessage: (m) => set((s) => ({ chatMessages: [...s.chatMessages, m] })),
@@ -236,6 +267,7 @@ export const useSecureStore = create<SecureStore>()(
         workspaceTree:   state.workspaceTree,
         openTabs:        state.openTabs,
         selectedPath:    state.selectedPath,
+        progressSteps:   state.progressSteps,
       }),
     }
   )

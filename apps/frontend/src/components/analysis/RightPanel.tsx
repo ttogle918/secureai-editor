@@ -1,11 +1,12 @@
 // components/analysis/RightPanel.tsx
-// 에디터 오른쪽 패널 — 취약점 상세 / AI 채팅 탭 전환
+// 에디터 오른쪽 패널 — 취약점 상세 / AI 채팅 / 진행률 탭 전환
 'use client';
-import { MessageSquare, ShieldAlert } from 'lucide-react';
+import { MessageSquare, ShieldAlert, CheckSquare } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
 import FilterBar from '@/components/ui/FilterBar';
 import VulnDetailPanel from '@/components/analysis/VulnDetailPanel';
 import ChatPanel from '@/components/analysis/ChatPanel';
+import { ProgressPanel } from '@/components/ui/ProgressPanel';
 
 export function RightPanel() {
   const rightTab = useSecureStore((s) => s.rightTab);
@@ -17,8 +18,9 @@ export function RightPanel() {
   const fileVulnCount = vulns.filter((v) => v.filePath === selectedPath).length;
 
   const TABS = [
-    { id: 'vulns' as const, label: `취약점 (${fileVulnCount})`, icon: <ShieldAlert size={12} aria-hidden="true" /> },
-    { id: 'chat' as const, label: 'AI 채팅', icon: <MessageSquare size={12} aria-hidden="true" /> },
+    { id: 'vulns'     as const, label: `취약점 (${fileVulnCount})`, icon: <ShieldAlert  size={12} aria-hidden="true" /> },
+    { id: 'chat'     as const, label: 'AI 채팅',                   icon: <MessageSquare size={12} aria-hidden="true" /> },
+    { id: 'progress' as const, label: '진행률',                    icon: <CheckSquare   size={12} aria-hidden="true" /> },
   ] as const;
 
   return (
@@ -77,7 +79,7 @@ export function RightPanel() {
       </div>
 
       {/* Panel content */}
-      {rightTab === 'vulns' ? (
+      {rightTab === 'vulns' && (
         <div
           id="right-panel-vulns"
           role="tabpanel"
@@ -87,7 +89,8 @@ export function RightPanel() {
           <FilterBar />
           <VulnDetailPanel />
         </div>
-      ) : (
+      )}
+      {rightTab === 'chat' && (
         <div
           id="right-panel-chat"
           role="tabpanel"
@@ -95,6 +98,16 @@ export function RightPanel() {
           style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
         >
           <ChatPanel messages={chatMessages} onSend={sendChat} />
+        </div>
+      )}
+      {rightTab === 'progress' && (
+        <div
+          id="right-panel-progress"
+          role="tabpanel"
+          aria-labelledby="right-tab-progress"
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+        >
+          <ProgressPanel />
         </div>
       )}
     </div>

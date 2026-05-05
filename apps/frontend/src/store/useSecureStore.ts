@@ -4,7 +4,7 @@
 import { create } from 'zustand';
 import {
   mockVulnerabilities, mockChatMessages, mockDastLogs, mockPatches,
-  type Vulnerability, type ChatMessage, type DastLog, type PatchSuggestion,
+  type Vulnerability, type ChatMessage, type DastLog, type PatchSuggestion, type FileNode,
 } from '@/lib/mockData';
 
 export type Severity       = 'critical' | 'high' | 'medium' | 'low';
@@ -36,10 +36,18 @@ interface SecureStore {
   terminalHeight:     number;
   setTerminalHeight:  (h: number | ((prev: number) => number)) => void;
 
+  // ── 워크스페이스 (로컬 폴더) ────────────────────────────
+  workspaceId: string | null;
+  setWorkspaceId: (id: string | null) => void;
+  workspaceTree: FileNode[];
+  setWorkspaceTree: (tree: FileNode[]) => void;
+
   // ── 취약점 ──────────────────────────────────────────────
   vulns: Vulnerability[];
   expandedVulnId: string | null;
   setExpandedVulnId: (id: string | null) => void;
+  revealLine: number | null;
+  setRevealLine: (line: number | null) => void;
 
   // ── 패치 ────────────────────────────────────────────────
   patches: PatchSuggestion[];
@@ -99,11 +107,19 @@ export const useSecureStore = create<SecureStore>((set, get) => ({
     return { terminalHeight: Math.max(80, Math.min(500, next)) };
   }),
 
+  // ── 워크스페이스
+  workspaceId: null,
+  setWorkspaceId: (id) => set({ workspaceId: id }),
+  workspaceTree: [],
+  setWorkspaceTree: (tree) => set({ workspaceTree: tree }),
+
   // ── 취약점
   vulns: mockVulnerabilities,
   expandedVulnId: null,
   setExpandedVulnId: (id) =>
     set((s) => ({ expandedVulnId: s.expandedVulnId === id ? null : id })),
+  revealLine: null,
+  setRevealLine: (line) => set({ revealLine: line }),
 
   // ── 패치
   patches: mockPatches,

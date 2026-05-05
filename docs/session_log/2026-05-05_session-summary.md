@@ -97,9 +97,121 @@ AI 엔진 전체 테스트: 147 passed / 0 failed
 
 ---
 
-## 6. 다음 세션에서 할 것
+## 6. 다음 세션에서 할 것 (이 항목은 이번 세션에서 진행됨 → 섹션 7 참조)
 
-- [ ] `feat/sprint4` 브랜치 생성
-- [ ] Docker 기동: `make dev`
-- [ ] TASK-401: Monaco Editor SSR 검증부터 시작
+- [x] TASK-401: Monaco Editor 취약점 시각화 개선
 - [ ] TASK-403: 3컬럼 레이아웃 병렬 진행
+
+---
+
+## 7. Sprint 4 구현 (2026-05-05 계속)
+
+### 7-1. CLAUDE.md 슬림화 — 에이전트 위임 원칙 적용
+
+- Sprint 번호 제거 → PM 에이전트가 백로그에서 직접 파악하도록
+- 중복 내용(테스트 표기 기준, DoD, 에이전트 상세 역할) 삭제
+- "마스터는 이해·분배, 직접 구현하지 않는다" 원칙 명시
+- 78줄 → 59줄
+
+### 7-2. Monaco Editor 취약점 시각화 개선 (TASK-401 연계)
+
+| 파일 | 변경 |
+|---|---|
+| `globals.css` | `vuln-{severity}-line` 배경 + `vuln-{severity}-glyph` 브레이크포인트 점 CSS |
+| `useSecureStore.ts` | `revealLine / setRevealLine` 상태 추가 |
+| `CodeEditor.tsx` | `setModelMarkers` 물결 밑줄 + overview ruler + `revealLineInCenter` 연결 |
+| `VulnDetailPanel.tsx` | 카드 토글/Call Chain 클릭 → 해당 라인으로 에디터 스크롤 |
+
+**핵심 수정**: `handleJump(path, line)`에서 `line`을 받고도 사용하지 않아 라인 이동 안 됨 → `revealLine` store 상태로 해결. `onMount`에서도 파일 전환 후 pending reveal 처리.
+
+### 7-3. TASK-407 추가 및 구현 — 로컬 폴더 열기
+
+**배경 논의**:
+- VS Code "Add Folder to Workspace" 방식을 웹앱에서 구현 요청
+- 브라우저 보안 제약: 절대 경로를 서버에 전달 불가
+- 결론: `showDirectoryPicker()` (File System Access API) 채택
+
+**아키텍처 결정**:
+- 파일 내용 → 백엔드 → Redis 임시 저장 (TTL 24h) → AI Engine 분석
+- Snyk, SonarCloud 등 클라우드 SAST 도구와 동일 방식
+- 배포 후 모든 사용자 사용 가능 (Chrome/Edge)
+
+**백엔드 신규 파일:**
+- `WorkspaceController.java` — POST /api/workspace, GET /{id}/tree, GET /{id}/file
+- `WorkspaceService.java` — Redis Hash 저장, 트리 JSON 생성, TTL 24h
+- DTO 3종 (Request, Response, TreeNode)
+- `SecurityConfig.java` — `/api/workspace/**` permitAll 추가
+
+**프론트엔드:**
+- `useWorkspace.ts` (신규) — `showDirectoryPicker()` + 재귀 파일 읽기 (node_modules/.git 제외, 500KB 초과 제외) + 업로드 + 트리 로드
+- `useSecureStore.ts` — `workspaceId`, `workspaceTree` 상태 추가
+- `EditorLayout.tsx` — "폴더 열기" 버튼 + 사이드바 파일 트리 + 파일 내용 API 로드
+
+### 7-4. 아키텍처 논의 — 웹앱 vs 데스크탑 앱
+
+| 항목 | 결론 |
+|---|---|
+| 분석 서버 방식 | ✅ 맞음 — Backend+AI Engine이 Docker로 서버 역할 완성 |
+| 로컬 파일 수정 | `showDirectoryPicker({ mode: 'readwrite' })` 로 브라우저에서도 가능 |
+| 데스크탑 앱 필요 시점 | 파일 감시(fs.watch), CI/CD 연동, 모든 브라우저 지원 필요 시 |
+| 현재 전략 | 웹앱 유지 / VS Code Extension은 Sprint 8~9에 별도 TASK |
+
+**중요 포인트**: 로컬 파일 수정이 불가능해서 데스크탑 앱이 필요한 게 아님. `readwrite` 모드로 브라우저에서도 수정 가능. 데스크탑 앱의 장점은 권한 팝업 없는 접근, 파일 변경 감지, CI/CD 연동.
+
+---
+
+## 8. TASK-407 디버깅 및 사이드바 통합 (2026-05-05 계속)
+
+### 8-1. TASK-407 백엔드 오류 2건 수정
+
+**오류 1: WorkspaceTreeNode Jackson 역직렬화 실패**
+
+```
+Cannot construct instance of WorkspaceTreeNode (no Creators, like default constructor, exist)
+```
+
+- 원인: `@Builder`만 있고 `@NoArgsConstructor` 없음 → Jackson이 기본 생성자 못 찾음
+- 수정: `@NoArgsConstructor` + `@AllArgsConstructor` 추가
+
+**오류 2: Failed to fetch (백엔드 컨테이너 미실행)**
+
+- 원인: `docker compose up --build -d backend`를 실행하지 않아 컨테이너가 올라오지 않음
+- `docker ps`로 확인 시 `secureai-backend` 없음
+- 수정: `docker compose down -v` 후 재빌드로 해결
+
+### 8-2. 사이드바 중복 구조 발견 및 통합
+
+**문제**: 사이드바가 두 겹으로 렌더됨
+
+| 위치 | 내용 | 너비 |
+|---|---|---|
+| `AppSidebar.tsx` (page.tsx) | 로고 + mock 파일트리 + 하단 버튼 | `sidebarWidth` |
+| `EditorLayout.tsx` 내부 | 폴더 열기 + workspace 트리 | `sidebarWidth` |
+
+- 같은 `sidebarWidth` (220px)를 두 번 적용 → 실제 사이드바 폭 2배
+- EditorLayout 내부 ResizeHandle의 `onSidebarResize`가 `prev - d` → 방향 반전 버그 포함
+
+**수정 내용**:
+
+| 파일 | 변경 |
+|---|---|
+| `AppSidebar.tsx` | `useWorkspace` 통합 — 폴더 열기 버튼 + workspace/mock 트리 전환 |
+| `EditorLayout.tsx` | 내부 사이드바 div + 중복 ResizeHandle 제거 |
+
+**리사이즈 방향 분석 결과**:
+
+| 핸들 | 수식 | 방향 |
+|---|---|---|
+| 사이드바 (`page.tsx`) | `prev + d` | ✅ 정확 |
+| 오른쪽 패널 | `prev - d` | ✅ 정확 |
+| 터미널 | `prev - d` | ✅ 정확 |
+| EditorLayout 내부 사이드바 | `prev - d` | ❌ 반전 → 삭제로 해결 |
+
+---
+
+## 9. 다음 세션에서 할 것
+
+- [ ] TASK-407 수동 검증 (폴더 열기 → 파일 트리 → 에디터 실제 동작)
+- [ ] TASK-401 수동 검증 (물결 밑줄, glyph 점, 라인 이동 확인)
+- [ ] TASK-402: SSE 실시간 취약점 스트리밍 구현
+- [ ] TASK-403: VSCode 레이아웃 완성

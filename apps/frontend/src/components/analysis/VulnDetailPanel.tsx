@@ -103,8 +103,10 @@ function CallChainItem({
 function VulnCard({ vuln }: { vuln: Vulnerability }) {
   const expandedVulnId    = useAppStore(s => s.expandedVulnId);
   const setExpandedVulnId = useAppStore(s => s.setExpandedVulnId);
+  const selectedPath      = useAppStore(s => s.selectedPath);
   const setSelectedPath   = useAppStore(s => s.setSelectedPath);
   const setViewMode       = useAppStore(s => s.setViewMode);
+  const setRevealLine     = useAppStore(s => s.setRevealLine);
   const [isFixing, setIsFixing] = useState(false);
   const [patchApplied, setPatchApplied] = useState(vuln.status === 'patched');
 
@@ -113,6 +115,7 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
   const sColor = SEV_COLOR[vuln.severity] ?? '#888';
 
   const handleJump = (path: string, line: number) => {
+    setRevealLine(line);
     setSelectedPath(path);
     setViewMode('editor');
   };
@@ -138,7 +141,14 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
     }}>
       {/* 토글 헤더 */}
       <button
-        onClick={() => setExpandedVulnId(isOpen ? null : vuln.id)}
+        onClick={() => {
+          setExpandedVulnId(isOpen ? null : vuln.id);
+          // 카드 열 때 해당 라인으로 이동
+          if (!isOpen) {
+            setRevealLine(vuln.lineStart);
+            if (vuln.filePath !== selectedPath) setSelectedPath(vuln.filePath);
+          }
+        }}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 10,
           padding: '11px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',

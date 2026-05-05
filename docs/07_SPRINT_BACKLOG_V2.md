@@ -740,6 +740,30 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 
 ---
 
+#### TASK-407 🟠 로컬 폴더 열기 (showDirectoryPicker) ⭐ NEW
+- **설명**: 브라우저 `showDirectoryPicker()` API로 OS 폴더 선택 → 파일 내용을 백엔드에 업로드 → Redis에 임시 저장(24h) → 에디터/파일 트리에 실제 코드 표시. 배포 후 모든 사용자가 사용 가능.
+- **중요도**: 🟠 High
+- **순서**: 6번째 (Sprint 4 마지막)
+- **완료 조건**: "폴더 열기" 클릭 → OS 폴더 선택창 → 에디터에 실제 파일 표시
+
+**📋 하위 할일**
+- [ ] `WorkspaceController.java` — `POST /api/workspace`, `GET /api/workspace/{id}/tree`, `GET /api/workspace/{id}/file`
+- [ ] `WorkspaceService.java` — Redis 저장/조회 (TTL 24h), 파일 트리 JSON 생성
+- [ ] `WorkspaceRequest.java` / `WorkspaceResponse.java` DTO
+- [ ] Security config에 `/api/workspace/**` 인증 예외 또는 허용 추가
+- [ ] 프론트엔드 `useWorkspace.ts` — `showDirectoryPicker()` + 재귀 파일 읽기 + 업로드
+- [ ] `FileTree.tsx` — workspace 로드 시 실제 파일 트리로 교체
+- [ ] `EditorLayout.tsx` — "폴더 열기" 버튼 추가, 파일 내용 API 연동
+
+**🧪 테스트 체크리스트**
+- [ ] ✅ **수동 검증**: "폴더 열기" → OS 폴더 선택창 → 파일 트리에 실제 구조 표시
+- [ ] ✅ **수동 검증**: 파일 트리에서 파일 클릭 → 에디터에 실제 코드 로드
+- [ ] ✅ **수동 검증**: node_modules, .git 등 제외 확인
+- [ ] ✅ **수동 검증**: 새로고침 후 workspaceId로 파일 유지 (24h TTL)
+- [ ] 🛡️ **보안 검증**: 500KB 초과 파일 자동 제외, 바이너리 파일 제외
+
+---
+
 ### 🎯 Sprint 4 완료 기준
 - [ ] **Monaco 에디터 동작**: 취약점 인라인 하이라이팅 완성
 - [ ] **SSE 실시간**: 취약점 실시간 표시 + 자동 재연결

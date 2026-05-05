@@ -7,7 +7,6 @@ import { EditorTabs } from '@/components/editor/EditorTabs';
 import DastTerminal from '@/components/analysis/DastTerminal';
 import { RightPanel } from '@/components/analysis/RightPanel';
 import ResizeHandle from '@/components/ui/ResizeHandle';
-import type { EditorTab } from '@/components/editor/EditorTabs';
 
 const BACKEND = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 
@@ -16,15 +15,11 @@ const MonacoEditor = dynamic(
   { ssr: false },
 );
 
-const MOCK_TABS: EditorTab[] = [
-  { path: '/src/main/java/UserAuth.java', label: 'UserAuth.java', severity: 'critical' },
-  { path: '/src/main/java/AuthService.java', label: 'AuthService.java', severity: 'high' },
-  { path: '/src/main/web/LoginPage.tsx', label: 'LoginPage.tsx', severity: 'high' },
-];
-
 export function EditorLayout() {
   const selectedPath       = useSecureStore((s) => s.selectedPath);
   const setSelectedPath    = useSecureStore((s) => s.setSelectedPath);
+  const openTabs           = useSecureStore((s) => s.openTabs);
+  const closeTab           = useSecureStore((s) => s.closeTab);
   const rightPanelWidth    = useSecureStore((s) => s.rightPanelWidth);
   const setRightPanelWidth = useSecureStore((s) => s.setRightPanelWidth);
   const terminalHeight     = useSecureStore((s) => s.terminalHeight);
@@ -68,9 +63,10 @@ export function EditorLayout() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
 
         <EditorTabs
-          tabs={MOCK_TABS}
+          tabs={openTabs}
           activeTab={selectedPath}
           onSelect={setSelectedPath}
+          onClose={closeTab}
         />
 
         <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>

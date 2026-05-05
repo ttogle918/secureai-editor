@@ -3,12 +3,22 @@ import { motion } from 'framer-motion';
 import { Shield, Play, LayoutDashboard, Code2, Github, RefreshCw, FolderOpen, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useSecureStore } from '@/store/useSecureStore';
-import { mockFileTree } from '@/lib/mockData';
+import { mockFileTree, type FileNode } from '@/lib/mockData';
 import { useWorkspace } from '@/hooks/useWorkspace';
 
 const FileTree = dynamic(() => import('@/components/editor/FileTree').then((m) => m.FileTree), {
   ssr: false,
 });
+
+const severityRank: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+
+function injectVulnCount(nodes: FileNode[], map: Record<string, number>): FileNode[] {
+  return nodes.map((n) => ({
+    ...n,
+    vulnCount: n.type === 'file' ? (map[n.path] ?? 0) : undefined,
+    children: n.children ? injectVulnCount(n.children, map) : undefined,
+  }));
+}
 
 export function AppSidebar() {
   const sidebarOpen     = useSecureStore((s) => s.sidebarOpen);
@@ -17,14 +27,24 @@ export function AppSidebar() {
   const setViewMode     = useSecureStore((s) => s.setViewMode);
   const selectedPath    = useSecureStore((s) => s.selectedPath);
   const setSelectedPath = useSecureStore((s) => s.setSelectedPath);
+  const openTab         = useSecureStore((s) => s.openTab);
   const isAnalyzing     = useSecureStore((s) => s.isAnalyzing);
   const startAnalysis   = useSecureStore((s) => s.startAnalysis);
   const workspaceId     = useSecureStore((s) => s.workspaceId);
   const workspaceTree   = useSecureStore((s) => s.workspaceTree);
+  const vulns           = useSecureStore((s) => s.vulns);
 
   const { openFolder, status: wsStatus, progress: wsProgress } = useWorkspace();
 
-  const tree = workspaceId && workspaceTree.length > 0 ? workspaceTree : mockFileTree;
+  const rawTree = workspaceId && workspaceTree.length > 0 ? workspaceTree : mockFileTree;
+
+  const vulnCountMap: Record<string, number> = {};
+  for (const v of vulns) {
+    const rank = severityRank[v.severity] ?? 0;
+    vulnCountMap[v.filePath] = Math.max(vulnCountMap[v.filePath] ?? 0, rank);
+  }
+
+  const tree = injectVulnCount(rawTree, vulnCountMap);
 
   return (
     <motion.aside
@@ -91,6 +111,7 @@ export function AppSidebar() {
           selectedPath={selectedPath}
           onSelect={(p) => {
             setSelectedPath(p);
+            openTab(p, p.split('/').pop() ?? p);
             setViewMode('editor');
           }}
         />

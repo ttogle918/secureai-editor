@@ -235,10 +235,32 @@ Cannot construct instance of WorkspaceTreeNode (no Creators, like default constr
 
 ---
 
-## 10. 다음 세션에서 할 것
+## 10. TASK-403 VSCode 레이아웃 완성 (2026-05-05 계속)
+
+### 10-1. 구현 내용
+
+| 항목 | 변경 | 파일 |
+|---|---|---|
+| 리사이즈 범위 수정 | 사이드바 160–400px, 우측 패널 280–640px | `useSecureStore.ts` |
+| 패널 크기 persist | Zustand `persist` 미들웨어, `secureai-panel-sizes` localStorage 키 | `useSecureStore.ts` |
+| 동적 탭 관리 | `openTabs` / `openTab` / `closeTab` 액션 추가, 중복 방지, 닫을 때 인접 탭 이동 | `useSecureStore.ts` |
+| EditorLayout 탭 연결 | 하드코딩 MOCK_TABS 제거 → store `openTabs`/`closeTab` 사용 | `EditorLayout.tsx` |
+| 파일트리 vuln 도트 | `vulns` → 파일별 최악 severity rank 계산 → `injectVulnCount`로 트리 주입 | `AppSidebar.tsx` |
+| 파일 클릭 → 탭 열기 | `onSelect`에서 `openTab` 동시 호출 | `AppSidebar.tsx` |
+
+### 10-2. 설계 결정
+
+- `EditorTab` 타입을 store 내 인라인 정의 (EditorTabs.tsx ↔ store 순환 의존성 방지)
+- `injectVulnCount`: 트리를 deep clone하면서 vulnCount 주입 — FileTree 컴포넌트 변경 없음
+- persist `partialize`: 패널 크기 3개만 저장 (vulns, chatMessages 등 큰 배열 제외)
+
+---
+
+## 11. 다음 세션에서 할 것
 
 - [ ] git commit (커밋 메시지 추천 완료)
-- [ ] TASK-403: VSCode 레이아웃 완성
+- [ ] TASK-403 수동 검증 (파일 클릭 → 탭, 탭 닫기, 패널 리사이즈, 새로고침 후 크기 유지)
 - [ ] TASK-407 수동 검증 (폴더 열기 → 파일 트리 → 에디터 실제 동작)
 - [ ] TASK-401 수동 검증 (물결 밑줄, glyph 점, 라인 이동 확인)
 - [ ] TASK-402 수동 검증: JWT 인증 구현 후
+- [ ] TASK-404: 취약점 상세 패널 & AI 채팅 패널

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
 import type { FileNode } from '@/lib/mockData';
 
@@ -48,8 +48,25 @@ export function useWorkspace() {
   const [status, setStatus]   = useState<UploadStatus>('idle');
   const [progress, setProgress] = useState('');
 
+  const workspaceId    = useSecureStore((s) => s.workspaceId);
   const setWorkspaceId   = useSecureStore((s) => s.setWorkspaceId);
   const setWorkspaceTree = useSecureStore((s) => s.setWorkspaceTree);
+
+  // 새로고침 후 persist된 workspaceId가 Redis에서 만료됐는지 확인
+  useEffect(() => {
+    if (!workspaceId) return;
+    fetch(`${BACKEND}/api/workspace/${workspaceId}/tree`)
+      .then((r) => {
+        if (!r.ok) {
+          // 만료 또는 없는 워크스페이스 → 상태 초기화
+          setWorkspaceId(null);
+          setWorkspaceTree([]);
+          setStatus('idle');
+        }
+      })
+      .catch(() => {}); // 네트워크 오류는 무시 (오프라인 등)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 마운트 시 1회만
 
   const openFolder = useCallback(async () => {
     if (!('showDirectoryPicker' in window)) {
@@ -88,10 +105,17 @@ export function useWorkspace() {
       setWorkspaceId(workspaceId);
       setWorkspaceTree(tree);
 
-      // 첫 파일 자동 선택
+      // 워크스페이스 열릴 때 mock 탭 초기화 후 첫 파일로 교체
       const firstFile = findFirstFile(tree);
+      const store = useSecureStore.getState();
+      store.setSelectedPath(firstFile ?? '');
+      // openTabs를 첫 파일 하나로 교체 (mock 탭 제거)
       if (firstFile) {
-        useSecureStore.getState().setSelectedPath(firstFile);
+        useSecureStore.setState({
+          openTabs: [{ path: firstFile, label: firstFile.split('/').pop() ?? firstFile }],
+        });
+      } else {
+        useSecureStore.setState({ openTabs: [] });
       }
 
       setStatus('done');

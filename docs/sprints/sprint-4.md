@@ -251,3 +251,29 @@ SSE 수동 검증 6개 항목 모두 JWT 인증 구현에 의존.
 - 🛡️ 보안 검증: 이월 (백엔드 @AuthenticationPrincipal 처리 완료, 프론트 검증 이월)
 
 ---
+
+### TASK-403: VSCode 스타일 에디터 레이아웃 & 파일 트리
+**완료일**: 2026-05-05
+**Epic**: EPIC-5 | **Sprint**: 4
+
+#### 구현 내용
+- `useSecureStore.ts`: 동적 탭 관리 (`openTabs`, `openTab`, `closeTab`) 추가
+  - 중복 탭 방지, 닫을 때 인접 탭 자동 이동
+  - `EditorTab` 타입 인라인 정의 (순환 의존성 방지)
+- `useSecureStore.ts`: Zustand `persist` 미들웨어 적용
+  - `sidebarWidth`, `rightPanelWidth`, `terminalHeight`, `workspaceId`, `workspaceTree`, `openTabs`, `selectedPath` localStorage 저장
+- 리사이즈 범위 수정: 사이드바 160–400px, 우측 패널 280–640px
+- `AppSidebar.tsx`: `injectVulnCount`로 vulns 배열 → 파일별 최악 severity → 트리 도트 표시
+- `AppSidebar.tsx`: 파일 클릭 시 `openTab` 동시 호출 → 탭 자동 생성
+- `useWorkspace.ts`: 워크스페이스 열기 시 mock 탭 초기화 후 첫 파일 탭으로 교체
+- `useWorkspace.ts`: 마운트 시 workspaceId 유효성 확인 (Redis 만료 시 자동 초기화)
+
+#### 설계 결정
+- 멀티 워크스페이스 기능 논의 → 단일 워크스페이스(교체 방식) 유지 결정
+  - 이유: 복잡도 대비 사용 빈도 낮음, GitHub 레포 연동 Sprint 이후 재검토
+- `EditorLayout`에서 `MOCK_TABS` 하드코딩 제거 → store `openTabs` 완전 위임
+
+#### 테스트 결과
+- ✅ 수동 검증: 6개 확인
+
+---

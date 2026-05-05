@@ -2,15 +2,32 @@
 // Zustand 단일 스토어 — SecureAI
 // ============================================================
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import {
   mockVulnerabilities, mockChatMessages, mockDastLogs, mockPatches,
   type Vulnerability, type ChatMessage, type DastLog, type PatchSuggestion, type FileNode,
 } from '@/lib/mockData';
+import type { SeverityLevel } from '@/types';
 
 export type Severity       = 'critical' | 'high' | 'medium' | 'low';
 export type SeverityFilter = 'all' | Severity;
 export type ViewMode       = 'editor' | 'dashboard';
 export type RightTab       = 'vulns' | 'chat';
+
+// 탭 타입 — EditorTabs.tsx와 동일 구조, circular 방지를 위해 인라인 정의
+export interface EditorTab {
+  path: string;
+  label: string;
+  severity?: SeverityLevel;
+}
+
+const INITIAL_TABS: EditorTab[] = [
+  { path: '/src/main/java/UserAuth.java',    label: 'UserAuth.java',    severity: 'critical' },
+  { path: '/src/main/java/AuthService.java', label: 'AuthService.java', severity: 'high' },
+  { path: '/src/main/web/LoginPage.tsx',     label: 'LoginPage.tsx',    severity: 'high' },
+];
+
+const DEFAULT_SELECTED_PATH = INITIAL_TABS[0].path;
 
 // ─── 스토어 인터페이스 ────────────────────────────────────────
 interface SecureStore {
@@ -27,6 +44,11 @@ interface SecureStore {
   // ── 파일 선택 ────────────────────────────────────────────
   selectedPath: string;
   setSelectedPath: (p: string) => void;
+
+  // ── 열린 탭 ──────────────────────────────────────────────
+  openTabs: EditorTab[];
+  openTab: (path: string, label: string, severity?: SeverityLevel) => void;
+  closeTab: (path: string) => void;
 
   // ── 패널 크기 (드래그 리사이즈) ──────────────────────────
   sidebarWidth:    number;
@@ -80,7 +102,9 @@ interface SecureStore {
 }
 
 // ─── 스토어 구현 ─────────────────────────────────────────────
-export const useSecureStore = create<SecureStore>((set, get) => ({
+export const useSecureStore = create<SecureStore>()(
+  persist(
+    (set, get) => ({
   // ── 뷰
   viewMode: 'editor',
   setViewMode: (m) => set((s) => ({ viewMode: typeof m === 'function' ? m(s.viewMode) : m })),
@@ -92,19 +116,44 @@ export const useSecureStore = create<SecureStore>((set, get) => ({
   setSidebarOpen: (v) => set((s) => ({ sidebarOpen: typeof v === 'function' ? v(s.sidebarOpen) : v })),
 
   // ── 파일
-  selectedPath: '/src/main/java/UserAuth.java',
+  selectedPath: DEFAULT_SELECTED_PATH,
   setSelectedPath: (p) => set({ selectedPath: p }),
+
+  // ── 열린 탭
+  openTabs: INITIAL_TABS,
+  openTab: (path, label, severity) => set((s) => {
+    const alreadyOpen = s.openTabs.some((t) => t.path === path);
+    if (alreadyOpen) {
+      return { selectedPath: path };
+    }
+    return {
+      openTabs: [...s.openTabs, { path, label, severity }],
+      selectedPath: path,
+    };
+  }),
+  closeTab: (path) => set((s) => {
+    const filtered = s.openTabs.filter((t) => t.path !== path);
+    if (s.selectedPath !== path) {
+      return { openTabs: filtered };
+    }
+    if (filtered.length === 0) {
+      return { openTabs: filtered, selectedPath: DEFAULT_SELECTED_PATH };
+    }
+    const closedIdx = s.openTabs.findIndex((t) => t.path === path);
+    const nextTab = filtered[closedIdx - 1] ?? filtered[0];
+    return { openTabs: filtered, selectedPath: nextTab.path };
+  }),
 
   // ── 패널 크기 (min/max 클램프 포함)
   sidebarWidth: 220,
   setSidebarWidth: (w) => set((s) => {
     const next = typeof w === 'function' ? w(s.sidebarWidth) : w;
-    return { sidebarWidth: Math.max(160, Math.min(450, next)) };
+    return { sidebarWidth: Math.max(160, Math.min(400, next)) };
   }),
   rightPanelWidth: 360,
   setRightPanelWidth: (w) => set((s) => {
     const next = typeof w === 'function' ? w(s.rightPanelWidth) : w;
-    return { rightPanelWidth: Math.max(260, Math.min(600, next)) };
+    return { rightPanelWidth: Math.max(280, Math.min(640, next)) };
   }),
   terminalHeight: 180,
   setTerminalHeight: (h) => set((s) => {
@@ -176,6 +225,20 @@ export const useSecureStore = create<SecureStore>((set, get) => ({
       set((s) => ({ chatMessages: [...s.chatMessages, aiMsg] }));
     }, 800);
   },
-}));
+    }),
+    {
+      name: 'secureai-editor-state',
+      partialize: (state) => ({
+        sidebarWidth:    state.sidebarWidth,
+        rightPanelWidth: state.rightPanelWidth,
+        terminalHeight:  state.terminalHeight,
+        workspaceId:     state.workspaceId,
+        workspaceTree:   state.workspaceTree,
+        openTabs:        state.openTabs,
+        selectedPath:    state.selectedPath,
+      }),
+    }
+  )
+);
 
 export const useAppStore = useSecureStore;

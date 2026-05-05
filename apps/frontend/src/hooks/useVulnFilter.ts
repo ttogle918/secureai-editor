@@ -1,52 +1,43 @@
-import { useState, useMemo } from 'react';
-import type { Vulnerability, Severity } from '@/lib/mockData';
+// src/hooks/useVulnFilter.ts
+// 스토어의 severityFilter / apiGroupFilter 를 읽어 AND 조건 필터링 수행
+import { useMemo } from 'react';
+import { useSecureStore } from '@/store/useSecureStore';
+import type { Vulnerability } from '@/lib/mockData';
 
-export type FilterSeverity = Severity | 'all';
-export type FilterApiGroup = string | 'all' | 'standalone'; // 'standalone' = API 없는 독립 파일
+/**
+ * useVulnFilter
+ *
+ * useSecureStore 의 severityFilter + apiGroupFilter 를 읽어
+ * AND 조건으로 필터링된 취약점 배열을 반환한다.
+ *
+ * apiGroupFilter 규칙:
+ *   - null          → 전체 포함
+ *   - '__none__'    → apiGroup 이 null/undefined 인 취약점만
+ *   - 그 외 문자열  → v.apiGroup === filter 인 취약점만
+ */
+export function useVulnFilter(): Vulnerability[] {
+  const vulns          = useSecureStore((s) => s.vulns);
+  const severityFilter = useSecureStore((s) => s.severityFilter);
+  const apiGroupFilter = useSecureStore((s) => s.apiGroupFilter);
 
-export interface VulnFilter {
-  severity: FilterSeverity;
-  apiGroup: FilterApiGroup;
-}
+  return useMemo(() => {
+    return vulns.filter((v) => {
+      // severity AND 조건
+      const sevOk =
+        severityFilter === 'all' || v.severity === severityFilter;
 
-export function useVulnFilter(vulns: Vulnerability[]) {
-  const [filter, setFilter] = useState<VulnFilter>({ severity: 'all', apiGroup: 'all' });
+      // apiGroup AND 조건
+      let apiOk: boolean;
+      if (apiGroupFilter === null) {
+        apiOk = true;
+      } else if (apiGroupFilter === '__none__') {
+        // API 그룹이 없는 취약점만
+        apiOk = v.apiGroup == null;
+      } else {
+        apiOk = v.apiGroup === apiGroupFilter;
+      }
 
-  // API 그룹 목록 자동 추출
-  const apiGroups = useMemo(() => {
-    const groups = new Set<string>();
-    vulns.forEach(v => {
-      if (v.apiGroup) groups.add(v.apiGroup);
-    });
-    return Array.from(groups).sort();
-  }, [vulns]);
-
-  // 필터 적용
-  const filtered = useMemo(() => {
-    return vulns.filter(v => {
-      const sevOk = filter.severity === 'all' || v.severity === filter.severity;
-      const apiOk =
-        filter.apiGroup === 'all' ||
-        (filter.apiGroup === 'standalone' && !v.apiGroup) ||
-        (v.apiGroup && v.apiGroup === filter.apiGroup) ||
-        // /api/users 필터 시 /api/users/login 도 매치
-        (v.apiEndpoint && filter.apiGroup !== 'standalone' && v.apiEndpoint.includes(filter.apiGroup));
       return sevOk && apiOk;
     });
-  }, [vulns, filter]);
-
-  const setSeverity = (s: FilterSeverity) => setFilter(f => ({ ...f, severity: s }));
-  const setApiGroup = (g: FilterApiGroup) => setFilter(f => ({ ...f, apiGroup: g }));
-  const reset = () => setFilter({ severity: 'all', apiGroup: 'all' });
-
-  // 심각도별 카운트
-  const counts = useMemo(() => ({
-    critical: vulns.filter(v => v.severity === 'critical').length,
-    high:     vulns.filter(v => v.severity === 'high').length,
-    medium:   vulns.filter(v => v.severity === 'medium').length,
-    low:      vulns.filter(v => v.severity === 'low').length,
-    total:    vulns.length,
-  }), [vulns]);
-
-  return { filter, filtered, apiGroups, counts, setSeverity, setApiGroup, reset };
+  }, [vulns, severityFilter, apiGroupFilter]);
 }

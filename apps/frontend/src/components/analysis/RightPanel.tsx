@@ -1,9 +1,9 @@
 // components/analysis/RightPanel.tsx
 // 에디터 오른쪽 패널 — 취약점 상세 / AI 채팅 / 진행률 탭 전환
+// VulnDetailPanel 이 FilterBar 를 내장하므로 여기서 별도 렌더링 불필요
 'use client';
 import { MessageSquare, ShieldAlert, CheckSquare } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
-import FilterBar from '@/components/ui/FilterBar';
 import VulnDetailPanel from '@/components/analysis/VulnDetailPanel';
 import ChatPanel from '@/components/analysis/ChatPanel';
 import { ProgressPanel } from '@/components/ui/ProgressPanel';
@@ -86,7 +86,7 @@ export function RightPanel() {
           aria-labelledby="right-tab-vulns"
           style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}
         >
-          <FilterBar />
+          {/* FilterBar 는 VulnDetailPanel 내부에 내장됨 */}
           <VulnDetailPanel />
         </div>
       )}

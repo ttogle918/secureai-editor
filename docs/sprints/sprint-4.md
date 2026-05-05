@@ -305,3 +305,29 @@ SSE 수동 검증 6개 항목 모두 JWT 인증 구현에 의존.
 - ✅ 수동 검증: 3개 확인 (패널 탭 표시 / F5 새로고침 유지 / `.md` 다운로드)
 
 ---
+
+### TASK-404: 취약점 상세 패널 & 필터 UI
+**완료일**: 2026-05-06
+**Epic**: EPIC-5 | **Sprint**: 4
+
+#### 구현 내용
+- `useVulnFilter.ts`: `severityFilter + apiGroupFilter` AND 조건 필터 훅 (Zustand 스토어 구독)
+  - `__none__` 키로 apiGroup null/undefined 취약점 필터
+- `FilterBar.tsx`: 심각도 토글 버튼 + API 그룹 드롭다운, 강조색 `#ea580c` 통일
+- `VulnDetailPanel.tsx`: `useVulnFilter` 훅 + `FilterBar` 내장 아코디언 패널
+  - severity 배지, CWE, 설명, Before/After diff 뷰어, AUTO FIX 버튼
+  - 클릭 시 `setExpandedVulnId` + `setRevealLine` + `setSelectedPath` 연동
+- `CallChainView.tsx`: 수평 노드 체인, 취약 노드 빨간 글로우 (`box-shadow: 0 0 8px #ef4444`)
+  - 노드 클릭 → `setSelectedPath` + `setRevealLine` 호출
+- `RightPanel.tsx`: `VulnDetailPanel`이 `FilterBar` 내장하므로 중복 제거
+- `useVulnFilter.test.ts`: 단위 테스트 5개
+
+#### 설계 결정
+- 외부 라이브러리(react-diff-viewer) 미사용 — 인라인 스타일 Before/After 그리드로 대체
+- `VulnDetailPanel` 내부에 `FilterBar` 내장 (Compound Component) — 의논 맥락: session_log 참조
+
+#### 테스트 결과
+- 🧪 useVulnFilter Jest: 5개 통과 (전체/severity/apiGroup/AND/\_\_none\_\_ 필터)
+- ✅ 수동 검증: 5개 가정 통과 (실제 분석 엔진 Sprint 완료 후 재확인 예정)
+
+---

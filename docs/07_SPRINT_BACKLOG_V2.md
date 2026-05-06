@@ -597,6 +597,25 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 
 ---
 
+#### TASK-306 🔴 보안 지식 베이스(SKB) 구축 및 초기 동기화 ⭐ NEW
+- **설명**: `docs/security/` 하위의 전문가 노트를 DB로 이전하고, RAG의 기반이 되는 동적 보안 지식 저장소를 구축함.
+- **중요도**: 🔴 Critical
+- **순서**: 5번째
+- **완료 조건**: MD 파일 수정 후 동기화 스크립트 실행 시 DB 테이블(`security_guidelines`)에 내용이 최신화됨.
+
+**📋 하위 할일**
+- [ ] `security_guidelines` 테이블 생성 (Flyway V015)
+- [ ] MD 파일 파싱 및 DB Upsert 스크립트 작성 (`sync_guidelines.py`)
+- [ ] AI Engine에서 DB 지침을 조회하는 기초 로직 마련
+- [ ] 초기 데이터 동기화 실행
+
+**🧪 테스트 체크리스트**
+- [ ] 🧪 **단위 테스트**: MD 파일 파서 — 제목, 본문, 메타데이터 추출 정확성
+- [ ] 🔬 **통합 테스트**: 스크립트 실행 → DB 레코드 생성 및 업데이트(Upsert) 확인
+- [ ] ✅ **수동 검증**: SQL로 특정 취약점 유형(SQLi 등)의 지침 조회 성공
+
+---
+
 ### 🎯 Sprint 3 완료 기준
 - [ ] **로컬 프로젝트 SAST**: 10개 이상 파일 프로젝트 전체 분석 성공  *(이월: Sprint 4 UI)*
 - [ ] **GitHub 레포 API 스캔**: 공개/비공개 GitHub 레포 SAST 분석 성공 ⭐  *(이월: Sprint 5)*

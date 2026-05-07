@@ -70,12 +70,19 @@ interface SecureStore {
   // ── 워크스페이스 (로컬 폴더) ────────────────────────────
   workspaceId: string | null;
   setWorkspaceId: (id: string | null) => void;
+  workspaceName: string | null;
+  setWorkspaceName: (name: string | null) => void;
   workspaceTree: FileNode[];
   setWorkspaceTree: (tree: FileNode[]) => void;
+
+  // ── 프로젝트 ─────────────────────────────────────────────
+  projectId: string | null;
+  setProjectId: (id: string | null) => void;
 
   // ── 취약점 ──────────────────────────────────────────────
   vulns: Vulnerability[];
   addVuln: (v: Vulnerability) => void;
+  clearVulns: () => void;
   expandedVulnId: string | null;
   setExpandedVulnId: (id: string | null) => void;
   revealLine: number | null;
@@ -99,7 +106,6 @@ interface SecureStore {
   // ── 분석 상태 ───────────────────────────────────────────
   isAnalyzing: boolean;
   setIsAnalyzing: (v: boolean) => void;
-  startAnalysis: () => void;
 
   // ── DAST 로그 ───────────────────────────────────────────
   dastLogs: DastLog[];
@@ -179,12 +185,19 @@ export const useSecureStore = create<SecureStore>()(
   // ── 워크스페이스
   workspaceId: null,
   setWorkspaceId: (id) => set({ workspaceId: id }),
+  workspaceName: null,
+  setWorkspaceName: (name) => set({ workspaceName: name }),
   workspaceTree: [],
   setWorkspaceTree: (tree) => set({ workspaceTree: tree }),
+
+  // ── 프로젝트
+  projectId: null,
+  setProjectId: (id) => set({ projectId: id }),
 
   // ── 취약점
   vulns: mockVulnerabilities,
   addVuln: (v) => set((s) => ({ vulns: [...s.vulns, v] })),
+  clearVulns: () => set({ vulns: [] }),
   expandedVulnId: null,
   setExpandedVulnId: (id) =>
     set((s) => ({ expandedVulnId: s.expandedVulnId === id ? null : id })),
@@ -214,10 +227,6 @@ export const useSecureStore = create<SecureStore>()(
   // ── 분석
   isAnalyzing: false,
   setIsAnalyzing: (v) => set({ isAnalyzing: v }),
-  startAnalysis: () => {
-    set({ isAnalyzing: true });
-    setTimeout(() => set({ isAnalyzing: false, viewMode: 'dashboard' }), 2800);
-  },
 
   // ── DAST
   dastLogs: mockDastLogs,

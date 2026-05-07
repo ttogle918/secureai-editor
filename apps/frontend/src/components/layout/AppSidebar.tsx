@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { useSecureStore } from '@/store/useSecureStore';
 import { mockFileTree, type FileNode } from '@/lib/mockData';
 import { useWorkspace } from '@/hooks/useWorkspace';
+import { useStartAnalysis } from '@/hooks/useStartAnalysis';
 
 const FileTree = dynamic(() => import('@/components/editor/FileTree').then((m) => m.FileTree), {
   ssr: false,
@@ -28,9 +29,8 @@ export function AppSidebar() {
   const selectedPath    = useSecureStore((s) => s.selectedPath);
   const setSelectedPath = useSecureStore((s) => s.setSelectedPath);
   const openTab         = useSecureStore((s) => s.openTab);
-  const isAnalyzing     = useSecureStore((s) => s.isAnalyzing);
-  const startAnalysis   = useSecureStore((s) => s.startAnalysis);
   const workspaceId     = useSecureStore((s) => s.workspaceId);
+  const { startAnalysis, isAnalyzing } = useStartAnalysis();
   const workspaceTree   = useSecureStore((s) => s.workspaceTree);
   const vulns           = useSecureStore((s) => s.vulns);
 

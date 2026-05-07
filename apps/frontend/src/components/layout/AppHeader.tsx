@@ -10,6 +10,7 @@ import { useSecureStore, type SeverityFilter } from '@/store/useSecureStore';
 import { SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/constants/severity';
 import { useSse, type SseStatus } from '@/hooks/useSse';
 import { useToastStore } from '@/hooks/useToast';
+import { useStartAnalysis } from '@/hooks/useStartAnalysis';
 import { SseIndicator } from '@/components/ui/SseIndicator';
 import type { Vulnerability } from '@/lib/mockData';
 
@@ -36,11 +37,11 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const severityFilter     = useSecureStore((s) => s.severityFilter);
   const setSeverityFilter  = useSecureStore((s) => s.setSeverityFilter);
   const vulns              = useSecureStore((s) => s.vulns);
-  const isAnalyzing        = useSecureStore((s) => s.isAnalyzing);
-  const startAnalysis      = useSecureStore((s) => s.startAnalysis);
+  const setIsAnalyzing     = useSecureStore((s) => s.setIsAnalyzing);
   const sseSessionId       = useSecureStore((s) => s.sseSessionId);
   const addVuln            = useSecureStore((s) => s.addVuln);
   const addToast           = useToastStore((s) => s.addToast);
+  const { startAnalysis, isAnalyzing } = useStartAnalysis();
 
   // SSE 상태 — 컴포넌트 로컬 상태로 관리
   const [sseStatus, setSseStatus] = useState<SseStatus>('idle');
@@ -66,11 +67,16 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         addToast(event.message ?? '취약점이 발견되었습니다.', 'high');
       } else if (event.type === 'completed') {
         addToast('분석 완료', 'info');
+        setIsAnalyzing(false);
       } else if (event.type === 'error') {
         addToast(event.message ?? 'SSE 오류가 발생했습니다.', 'error');
+        setIsAnalyzing(false);
       }
     },
-    onStatusChange: setSseStatus,
+    onStatusChange: (status) => {
+      setSseStatus(status);
+      if (status === 'closed' || status === 'auth_error') setIsAnalyzing(false);
+    },
   });
 
   const handleSevFilter = (sev: SeverityFilter) => {

@@ -48,9 +48,11 @@ export function useWorkspace() {
   const [status, setStatus]   = useState<UploadStatus>('idle');
   const [progress, setProgress] = useState('');
 
-  const workspaceId    = useSecureStore((s) => s.workspaceId);
+  const workspaceId      = useSecureStore((s) => s.workspaceId);
   const setWorkspaceId   = useSecureStore((s) => s.setWorkspaceId);
+  const setWorkspaceName = useSecureStore((s) => s.setWorkspaceName);
   const setWorkspaceTree = useSecureStore((s) => s.setWorkspaceTree);
+  const setProjectId     = useSecureStore((s) => s.setProjectId);
 
   // 새로고침 후 persist된 workspaceId가 Redis에서 만료됐는지 확인
   useEffect(() => {
@@ -103,6 +105,8 @@ export function useWorkspace() {
 
       const tree: FileNode[] = treeData.map(toFileNode);
       setWorkspaceId(workspaceId);
+      setWorkspaceName(dirHandle.name);
+      setProjectId(null); // 새 폴더 열면 프로젝트 재생성
       setWorkspaceTree(tree);
 
       // 워크스페이스 열릴 때 mock 탭 초기화 후 첫 파일로 교체
@@ -129,7 +133,7 @@ export function useWorkspace() {
       setStatus('error');
       setProgress(err?.message ?? '알 수 없는 오류');
     }
-  }, [setWorkspaceId, setWorkspaceTree]);
+  }, [setWorkspaceId, setWorkspaceName, setProjectId, setWorkspaceTree]);
 
   return { openFolder, status, progress };
 }

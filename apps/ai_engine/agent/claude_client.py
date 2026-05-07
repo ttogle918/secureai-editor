@@ -47,9 +47,20 @@ def _get_client() -> AsyncAnthropic:
     return _client
 
 
-async def analyze_for_sast(file_path: str, content: str) -> str:
-    """파일 하나에 대한 SAST 분석을 Claude에 요청하고 원문 응답을 반환한다."""
+async def analyze_for_sast(file_path: str, content: str, guidelines: str = "") -> str:
+    """파일 하나에 대한 SAST 분석을 Claude에 요청하고 원문 응답을 반환한다.
+
+    guidelines가 있으면 시스템 프롬프트에 추가한다.
+    가이드라인 포함 시 1,024 tokens 초과 → prompt caching 실제 동작.
+    동일 stack의 파일들은 시스템 프롬프트가 동일하므로 두 번째 호출부터 cache HIT.
+    """
     client = _get_client()
+
+    system_text = (
+        f"{_SYSTEM_PROMPT}\n\n---\n\n# Stack-Specific Security Patterns\n\n{guidelines}"
+        if guidelines
+        else _SYSTEM_PROMPT
+    )
 
     response = await client.messages.create(
         model=settings.claude_model,
@@ -57,7 +68,7 @@ async def analyze_for_sast(file_path: str, content: str) -> str:
         system=[
             {
                 "type": "text",
-                "text": _SYSTEM_PROMPT,
+                "text": system_text,
                 "cache_control": {"type": "ephemeral"},
             }
         ],

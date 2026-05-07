@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 
 import redis.asyncio as aioredis
 
@@ -13,12 +14,29 @@ from agent.tools.mcp_filesystem_tools import read_file
 from agent.tools.mcp_github_tools import get_github_file_content
 from config.settings import settings
 from infrastructure.backend_api_client import save_vulnerabilities
+from infrastructure.guidelines_client import load_guidelines
 from infrastructure.progress_log_client import log_completed, log_failed, log_started
 
 logger = logging.getLogger(__name__)
 
 _redis: aioredis.Redis | None = None
 _CACHE_PREFIX = "secureai:sast:cache:"
+
+# 파일 확장자 → security_guidelines.target_stack 매핑
+_EXT_TO_STACK: dict[str, str] = {
+    ".java": "java_spring",
+    ".kt":   "java_spring",
+    ".py":   "python_fastapi",
+    ".ts":   "frontend_react_nextjs",
+    ".tsx":  "frontend_react_nextjs",
+    ".js":   "node_express_nestjs",
+    ".go":   "go_gin_echo",
+}
+
+
+def _detect_stack(file_path: str) -> str:
+    ext = os.path.splitext(file_path)[1].lower()
+    return _EXT_TO_STACK.get(ext, "common")
 _CACHE_TTL = 60 * 60 * 24 * 7  # 7일
 _STEP_ORDER = 2
 
@@ -49,7 +67,7 @@ def _dedup_vulns(vulns: list[dict]) -> list[dict]:
     return result
 
 
-async def _analyze_chunks(file_path: str, content: str) -> list[dict]:
+async def _analyze_chunks(file_path: str, content: str, guidelines: str = "") -> list[dict]:
     """파일을 청크로 분할하고 Claude를 병렬 호출해 취약점 목록을 반환한다.
 
     300 라인 이하면 청크 없이 단일 호출, 초과면 asyncio.gather로 병렬 처리한다.
@@ -58,7 +76,7 @@ async def _analyze_chunks(file_path: str, content: str) -> list[dict]:
     chunks = chunk_file(file_path, content)
 
     if len(chunks) == 1:
-        raw = await analyze_for_sast(file_path, chunks[0].content)
+        raw = await analyze_for_sast(file_path, chunks[0].content, guidelines)
         return parse_sast_response(raw, file_path)
 
     # 청크가 여러 개면 병렬 호출 (chunk label을 파일명에 포함해 로그 추적 용이)
@@ -66,6 +84,7 @@ async def _analyze_chunks(file_path: str, content: str) -> list[dict]:
         analyze_for_sast(
             f"{file_path}[chunk {c.chunk_index + 1}/{c.total_chunks}]",
             c.content,
+            guidelines,
         )
         for c in chunks
     ]
@@ -121,7 +140,10 @@ async def sast_node(state: AgentState) -> dict:
             )
         else:
             content = await read_file(session_id, file_path)
-        raw_vulns = await _analyze_chunks(file_path, content)
+
+        stack = _detect_stack(file_path)
+        guidelines = await load_guidelines(stack)
+        raw_vulns = await _analyze_chunks(file_path, content, guidelines)
         vulns = classify_and_enrich(raw_vulns, file_path)
 
         if sha256:

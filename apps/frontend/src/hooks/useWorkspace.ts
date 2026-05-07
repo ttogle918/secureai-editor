@@ -1,6 +1,7 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
+import { isTauri, pickDirectoryNative, readDirectoryNative, dirNameFromPath } from '@/lib/tauri';
 import type { FileNode } from '@/lib/mockData';
 
 const BACKEND = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
@@ -71,28 +72,45 @@ export function useWorkspace() {
   }, []); // 마운트 시 1회만
 
   const openFolder = useCallback(async () => {
-    if (!('showDirectoryPicker' in window)) {
-      alert('이 브라우저는 폴더 선택을 지원하지 않습니다. Chrome 또는 Edge를 사용해 주세요.');
-      return;
-    }
-
     try {
       setStatus('picking');
-      const dirHandle: FileSystemDirectoryHandle = await (window as any).showDirectoryPicker({
-        mode: 'read',
-      });
 
-      setStatus('reading');
-      setProgress('파일 읽는 중...');
-      const files: Array<{ path: string; content: string }> = [];
-      await readDir(dirHandle, '', files);
+      let projectName: string;
+      let files: Array<{ path: string; content: string }>;
+
+      if (isTauri()) {
+        // ── Tauri 데스크탑: 네이티브 폴더 선택 ──────────────────────
+        const dirPath = await pickDirectoryNative();
+        if (!dirPath) { setStatus('idle'); return; }
+
+        projectName = dirNameFromPath(dirPath);
+        setStatus('reading');
+        setProgress('파일 읽는 중...');
+        files = await readDirectoryNative(dirPath);
+
+      } else {
+        // ── 웹 브라우저: File System Access API ──────────────────────
+        if (!('showDirectoryPicker' in window)) {
+          alert('이 브라우저는 폴더 선택을 지원하지 않습니다. Chrome 또는 Edge를 사용해 주세요.');
+          setStatus('idle');
+          return;
+        }
+        const dirHandle: FileSystemDirectoryHandle = await (window as any).showDirectoryPicker({ mode: 'read' });
+        projectName = dirHandle.name;
+        setStatus('reading');
+        setProgress('파일 읽는 중...');
+        const collected: Array<{ path: string; content: string }> = [];
+        await readDir(dirHandle, '', collected);
+        files = collected;
+      }
+
       setProgress(`${files.length}개 파일 읽음 — 업로드 중...`);
-
       setStatus('uploading');
+
       const res = await fetch(`${BACKEND}/api/workspace`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectName: dirHandle.name, files }),
+        body: JSON.stringify({ projectName, files }),
       });
 
       if (!res.ok) throw new Error(`업로드 실패: ${res.status}`);
@@ -105,15 +123,13 @@ export function useWorkspace() {
 
       const tree: FileNode[] = treeData.map(toFileNode);
       setWorkspaceId(workspaceId);
-      setWorkspaceName(dirHandle.name);
-      setProjectId(null); // 새 폴더 열면 프로젝트 재생성
+      setWorkspaceName(projectName);
+      setProjectId(null);
       setWorkspaceTree(tree);
 
-      // 워크스페이스 열릴 때 mock 탭 초기화 후 첫 파일로 교체
       const firstFile = findFirstFile(tree);
       const store = useSecureStore.getState();
       store.setSelectedPath(firstFile ?? '');
-      // openTabs를 첫 파일 하나로 교체 (mock 탭 제거)
       if (firstFile) {
         useSecureStore.setState({
           openTabs: [{ path: firstFile, label: firstFile.split('/').pop() ?? firstFile }],
@@ -125,10 +141,7 @@ export function useWorkspace() {
       setStatus('done');
       setProgress('');
     } catch (err: any) {
-      if (err?.name === 'AbortError') {
-        setStatus('idle'); // 사용자가 취소
-        return;
-      }
+      if (err?.name === 'AbortError') { setStatus('idle'); return; }
       console.error(err);
       setStatus('error');
       setProgress(err?.message ?? '알 수 없는 오류');

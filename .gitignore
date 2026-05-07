@@ -23,6 +23,7 @@ yarn-error.log*
 .eslintcache
 .turbo/
 .vercel/
+*.tsbuildinfo
 
 # Java (Spring Boot / Gradle / Maven)
 build/
@@ -78,6 +79,7 @@ certs/
 secrets/
 application-secret.yml
 application-secret.properties
+
 
 # Database files
 *.db

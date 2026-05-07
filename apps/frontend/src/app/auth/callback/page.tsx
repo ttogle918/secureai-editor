@@ -33,7 +33,7 @@ function CallbackHandler() {
           plan: u.plan.name as 'free' | 'pro' | 'team',
           githubConnected: !!u.githubLogin,
         });
-        router.push('/');
+        router.push('/editor');
       })
       .catch(() => {
         setError('사용자 정보를 불러오는 데 실패했습니다.');

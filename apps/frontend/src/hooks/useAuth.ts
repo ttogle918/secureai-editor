@@ -107,7 +107,7 @@ export function useAuth() {
       setAccessToken(token);
       storeSetToken(token);
       setUser({ id: u.id, email: u.email, username: u.username, plan: u.planName as 'free' | 'pro' | 'team', githubConnected: false });
-      router.push('/');
+      router.push('/editor');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '로그인에 실패했습니다.';
       setError(msg);
@@ -141,7 +141,7 @@ export function useAuth() {
     } catch { /* ignore */ }
     storeLogout();
     setAccessToken(null);
-    router.push('/login');
+    router.push('/');
   }, [storeLogout, router]);
 
   return { user, accessToken, isLoading, error, login, register, logout, loadUser, initAuth };

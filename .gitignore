@@ -85,6 +85,7 @@ application-secret.properties
 *.db
 *.sqlite
 *.sqlite3
+docs/analysis_results*.sql
 
 # Android / Firebase
 google-services.json

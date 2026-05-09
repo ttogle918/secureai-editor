@@ -21,6 +21,7 @@ public class UserMeResponse {
     private String locale;
     private PlanInfo plan;
     private UsageInfo usage;
+    private CreditInfo credits;
     private OffsetDateTime createdAt;
 
     public static UserMeResponse from(User user) {
@@ -38,6 +39,10 @@ public class UserMeResponse {
                         user.getSastUsageThisMonth(),
                         plan.getMonthlySastLimit(),
                         user.getSastUsageResetAt()))
+                .credits(new CreditInfo(
+                        user.getCreditBalance(),
+                        user.getAnthropicApiKey() != null,
+                        user.getPreferredModel()))
                 .createdAt(user.getCreatedAt())
                 .build();
     }
@@ -60,6 +65,14 @@ public class UserMeResponse {
                     .allowMonitoring(plan.getAllowMonitoring())
                     .build();
         }
+    }
+
+    @Getter
+    @Builder
+    public static class CreditInfo {
+        private int balance;
+        private boolean hasByok;
+        private String preferredModel;
     }
 
     @Getter

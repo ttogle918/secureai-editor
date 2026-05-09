@@ -1,9 +1,6 @@
 package io.secureai.backend.domain.user.controller;
 
-import io.secureai.backend.domain.user.dto.ChangePasswordRequest;
-import io.secureai.backend.domain.user.dto.DeleteMeRequest;
-import io.secureai.backend.domain.user.dto.UpdateUserRequest;
-import io.secureai.backend.domain.user.dto.UserMeResponse;
+import io.secureai.backend.domain.user.dto.*;
 import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.aop.AuditLog;
 import io.secureai.backend.global.response.ApiResponse;
@@ -13,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -50,5 +48,37 @@ public class UserController {
             @Valid @RequestBody DeleteMeRequest request) {
         userService.deleteMe(userId, request.getConfirmPassword());
         return ResponseEntity.noContent().build();
+    }
+
+    // ── 크레딧 & 설정 ──────────────────────────────────────────────────────
+
+    @GetMapping("/me/credits")
+    public ResponseEntity<ApiResponse<CreditSummaryResponse>> getCredits(
+            @AuthenticationPrincipal UUID userId) {
+        return ResponseEntity.ok(ApiResponse.success(userService.getCredits(userId)));
+    }
+
+    @PutMapping("/me/settings")
+    public ResponseEntity<ApiResponse<CreditSummaryResponse>> updateSettings(
+            @AuthenticationPrincipal UUID userId,
+            @Valid @RequestBody UpdateSettingsRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(userService.updateSettings(userId, request)));
+    }
+
+    @PutMapping("/me/api-key")
+    @AuditLog(action = "SAVE_API_KEY", resource = "user")
+    public ResponseEntity<ApiResponse<Map<String, Boolean>>> saveApiKey(
+            @AuthenticationPrincipal UUID userId,
+            @Valid @RequestBody SaveApiKeyRequest request) {
+        userService.saveApiKey(userId, request.apiKey());
+        return ResponseEntity.ok(ApiResponse.success(Map.of("hasByok", true)));
+    }
+
+    @DeleteMapping("/me/api-key")
+    @AuditLog(action = "REMOVE_API_KEY", resource = "user")
+    public ResponseEntity<ApiResponse<Map<String, Boolean>>> removeApiKey(
+            @AuthenticationPrincipal UUID userId) {
+        userService.removeApiKey(userId);
+        return ResponseEntity.ok(ApiResponse.success(Map.of("hasByok", false)));
     }
 }

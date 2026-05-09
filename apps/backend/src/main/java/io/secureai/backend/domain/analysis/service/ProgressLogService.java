@@ -64,10 +64,21 @@ public class ProgressLogService {
             return ProgressLogResponse.from(saved);
         }
 
-        // completed / failed
+        // completed / failed — started 레코드가 없으면 즉석 생성 (재시작·순서 역전 방어)
         AnalysisProgressLog progressLog = progressLogRepository
                 .findBySessionIdAndStepNameAndTarget(req.sessionId(), req.stepName(), target)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PROGRESS_LOG_NOT_FOUND));
+                .orElseGet(() -> {
+                    AnalysisSession session = sessionRepository.findById(req.sessionId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+                    return progressLogRepository.save(AnalysisProgressLog.builder()
+                            .session(session)
+                            .stepName(req.stepName())
+                            .stepOrder(req.stepOrder())
+                            .target(target)
+                            .status("started")
+                            .startedAt(OffsetDateTime.now())
+                            .build());
+                });
 
         OffsetDateTime completedAt = OffsetDateTime.now();
         progressLog.setStatus(req.status());

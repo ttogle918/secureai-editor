@@ -68,6 +68,14 @@ public class WorkspaceService {
         return content != null ? content.toString() : null;
     }
 
+    public Map<String, String> getAllFiles(String workspaceId) {
+        Map<Object, Object> raw = redisTemplate.opsForHash().entries(PREFIX + workspaceId + ":files");
+        if (raw.isEmpty()) return null;
+        Map<String, String> files = new LinkedHashMap<>();
+        raw.forEach((k, v) -> files.put(k.toString(), v.toString()));
+        return files;
+    }
+
     public Map<String, String> getMeta(String workspaceId) {
         Map<Object, Object> raw = redisTemplate.opsForHash().entries(PREFIX + workspaceId + ":meta");
         Map<String, String> meta = new LinkedHashMap<>();

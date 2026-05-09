@@ -52,6 +52,14 @@ public class WorkspaceController {
         return ResponseEntity.ok(Map.of("path", path, "content", content));
     }
 
+    /** 전체 파일 일괄 내보내기 — AI Engine 내부 전용 */
+    @GetMapping("/{workspaceId}/export")
+    public ResponseEntity<Map<String, String>> exportFiles(@PathVariable String workspaceId) {
+        Map<String, String> files = workspaceService.getAllFiles(workspaceId);
+        if (files == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(files);
+    }
+
     /** 워크스페이스 메타 조회 (projectName, fileCount) */
     @GetMapping("/{workspaceId}/meta")
     public ResponseEntity<Map<String, String>> getMeta(@PathVariable String workspaceId) {

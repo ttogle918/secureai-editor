@@ -3,6 +3,7 @@ package io.secureai.backend.domain.user.entity;
 import io.secureai.backend.domain.plan.Plan;
 import io.secureai.backend.global.crypto.AesEncryptionConverter;
 import io.secureai.backend.global.entity.BaseTimeEntity;
+import io.secureai.backend.global.model.ModelConstants;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -88,6 +89,18 @@ public class User extends BaseTimeEntity {
     private String locale = "ko";
 
     private OffsetDateTime deletedAt;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer creditBalance = 100;
+
+    @Convert(converter = AesEncryptionConverter.class)
+    @Column(columnDefinition = "bytea")
+    private String anthropicApiKey;
+
+    @Column(length = 60, nullable = false)
+    @Builder.Default
+    private String preferredModel = ModelConstants.HAIKU;
 
     @Override
     @PrePersist

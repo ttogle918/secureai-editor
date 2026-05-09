@@ -4,10 +4,13 @@ import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.net.http.HttpClient;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -31,7 +34,11 @@ public class DefaultAiAgentClient implements AiAgentClient {
             @Value("${secureai.ai-agent.url}") String agentUrl,
             @Value("${secureai.internal-api-key}") String internalKey
     ) {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .build();
         this.restClient = RestClient.builder()
+                .requestFactory(new JdkClientHttpRequestFactory(httpClient))
                 .baseUrl(agentUrl)
                 .defaultHeader("X-Internal-Key", internalKey)
                 .build();
@@ -39,7 +46,7 @@ public class DefaultAiAgentClient implements AiAgentClient {
 
     @Override
     public void startAnalysis(UUID sessionId, UUID projectId, String workspaceRoot) {
-        startAnalysis(sessionId, projectId, workspaceRoot, "local", null, null, null, null);
+        startAnalysis(sessionId, projectId, workspaceRoot, "local", null, null, null, null, null, null);
     }
 
     @Override
@@ -51,7 +58,9 @@ public class DefaultAiAgentClient implements AiAgentClient {
             String githubOwner,
             String githubRepo,
             String githubRef,
-            String githubToken
+            String githubToken,
+            String preferredModel,
+            String userApiKey
     ) {
         checkCircuit();
         try {
@@ -64,9 +73,13 @@ public class DefaultAiAgentClient implements AiAgentClient {
             if (githubRepo != null) body.put("github_repo", githubRepo);
             if (githubRef != null) body.put("github_ref", githubRef);
             if (githubToken != null) body.put("github_token", githubToken);
+            // 사용자 모델/키 — 로그에 출력 금지
+            if (preferredModel != null) body.put("preferred_model", preferredModel);
+            if (userApiKey != null) body.put("user_api_key", userApiKey);
 
             restClient.post()
                     .uri("/agent/analyze")
+                    .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
                     .toBodilessEntity();

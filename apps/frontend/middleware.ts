@@ -16,5 +16,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/editor/:path*'],
+  matcher: ['/editor/:path*', '/settings/:path*'],
 };

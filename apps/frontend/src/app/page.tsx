@@ -7,6 +7,7 @@ export default function LandingPage() {
       <Nav />
       <Hero />
       <FeaturesStrip />
+      <PricingSection />
       <StatsBar />
       <Footer />
     </div>
@@ -96,7 +97,7 @@ function Hero() {
             border: '1px solid rgba(34,197,94,0.25)',
             fontSize: 12, color: '#22c55e', marginBottom: 32,
           }}>
-            ✓ 회원가입 시 10회 무료 분석 제공
+            ✓ 회원가입 시 100 크레딧 무료 제공
           </div>
 
           {/* CTA buttons */}
@@ -186,6 +187,149 @@ function FeaturesStrip() {
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>{desc}</div>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+/* ── Pricing section ────────────────────────────────────────────── */
+const PLANS = [
+  {
+    name: 'Free',
+    displayName: '무료',
+    price: '₩0',
+    period: '/월',
+    credits: 100,
+    highlight: false,
+    badge: null as string | null,
+    models: ['Haiku (1 cr/파일)'],
+    features: ['월 100 크레딧', '로컬 SAST 분석', 'GitHub 저장소 스캔', 'OWASP Top 10 자동 분류'],
+    cta: '무료 시작',
+    ctaHref: '/register',
+  },
+  {
+    name: 'Pro',
+    displayName: '프로',
+    price: '₩15,000',
+    period: '/월',
+    credits: 2000,
+    highlight: true,
+    badge: '가장 인기',
+    models: ['Haiku (1 cr/파일)', 'Sonnet (5 cr/파일)'],
+    features: ['월 2,000 크레딧', 'BYOK 지원 (자기 키로 무제한)', '이메일 우선 지원', '패치 추천 무제한'],
+    cta: '프로 시작',
+    ctaHref: '/register?plan=pro',
+  },
+  {
+    name: 'Team',
+    displayName: '팀',
+    price: '₩49,000',
+    period: '/월',
+    credits: 10000,
+    highlight: false,
+    badge: null,
+    models: ['Haiku (1 cr/파일)', 'Sonnet (5 cr/파일)', 'Opus (20 cr/파일)'],
+    features: ['월 10,000 크레딧', '팀 멤버 무제한', 'DAST 동적 분석', '전용 슬랙 채널 지원'],
+    cta: '팀으로 시작',
+    ctaHref: '/register?plan=team',
+  },
+] as const;
+
+function PricingSection() {
+  return (
+    <section id="pricing" style={{ background: '#0a0a0a', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '72px 24px' }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 56 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', color: '#ea580c', marginBottom: 12, textTransform: 'uppercase' }}>
+            가격 플랜
+          </div>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, color: '#e8e8ee', margin: '0 0 16px', letterSpacing: '-0.025em' }}>
+            필요한 만큼만 사용하세요
+          </h2>
+          <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6, maxWidth: 480, margin: '0 auto' }}>
+            크레딧 단위 과금 — 쓴 만큼만 결제합니다.<br />
+            자체 API 키(BYOK)로 무제한 사용도 가능합니다.
+          </p>
+        </div>
+
+        {/* Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24, alignItems: 'start' }}>
+          {PLANS.map((plan) => (
+            <div key={plan.name} style={{
+              position: 'relative',
+              borderRadius: 16,
+              padding: '32px 28px',
+              background: plan.highlight ? 'rgba(234,88,12,0.06)' : 'rgba(255,255,255,0.02)',
+              border: plan.highlight ? '1px solid rgba(234,88,12,0.4)' : '1px solid rgba(255,255,255,0.08)',
+              boxShadow: plan.highlight ? '0 0 32px rgba(234,88,12,0.1)' : 'none',
+            }}>
+              {plan.badge && (
+                <div style={{
+                  position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
+                  padding: '4px 16px', borderRadius: 20,
+                  background: '#ea580c', color: '#fff',
+                  fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap',
+                }}>
+                  {plan.badge}
+                </div>
+              )}
+
+              {/* Plan name + price */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: plan.highlight ? '#ea580c' : 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
+                  {plan.displayName}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                  <span style={{ fontSize: 36, fontWeight: 800, color: '#e8e8ee', letterSpacing: '-0.03em' }}>{plan.price}</span>
+                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>{plan.period}</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 6 }}>
+                  월 {plan.credits.toLocaleString()} 크레딧 포함
+                </div>
+              </div>
+
+              {/* Model access */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                  사용 가능한 모델
+                </div>
+                {plan.models.map((m) => (
+                  <div key={m} style={{ fontSize: 12, color: '#a3e6a3', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>
+                    ✓ {m}
+                  </div>
+                ))}
+              </div>
+
+              {/* Features */}
+              <div style={{ marginBottom: 28 }}>
+                {plan.features.map((f) => (
+                  <div key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+                    <span style={{ color: '#ea580c', fontSize: 13, flexShrink: 0, marginTop: 1 }}>✓</span>
+                    <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA */}
+              <Link href={plan.ctaHref} style={{
+                display: 'block', textAlign: 'center',
+                padding: '11px 20px', borderRadius: 8,
+                background: plan.highlight ? '#ea580c' : 'rgba(255,255,255,0.06)',
+                color: plan.highlight ? '#fff' : 'rgba(255,255,255,0.7)',
+                border: plan.highlight ? 'none' : '1px solid rgba(255,255,255,0.12)',
+                fontSize: 14, fontWeight: 700, textDecoration: 'none',
+              }}>
+                {plan.cta}
+              </Link>
+            </div>
+          ))}
+        </div>
+
+        {/* BYOK note */}
+        <div style={{ textAlign: 'center', marginTop: 40, fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>
+          Anthropic API 키를 직접 연결하면(BYOK) 크레딧 소모 없이 무제한 분석이 가능합니다.
+        </div>
       </div>
     </section>
   );

@@ -63,22 +63,26 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
         background:   '#141414',
         overflow:     'hidden',
         transition:   'border-color 0.2s',
+        flexShrink:   0,
       }}
     >
-      {/* 아코디언 헤더 */}
+      {/* 아코디언 헤더 — 닫힌 상태 고정 높이 52px */}
       <button
         onClick={handleToggle}
         aria-expanded={isOpen}
         style={{
           width: '100%',
+          height: 52,
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          padding: '11px 14px',
+          padding: '0 14px',
           background: 'none',
           border: 'none',
           cursor: 'pointer',
           textAlign: 'left',
+          flexShrink: 0,
+          overflow: 'hidden',
         }}
       >
         {/* 심각도 배지 */}
@@ -98,13 +102,16 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
           {vuln.severity}
         </span>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <div
             style={{
               fontSize: 13,
               fontWeight: 700,
               color: patchApplied ? '#4caf50' : '#fff',
               marginBottom: 2,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             {patchApplied && <span style={{ marginRight: 5 }}>✓</span>}
@@ -115,6 +122,9 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
               fontSize: 10,
               fontFamily: 'var(--font-mono)',
               color: 'rgba(255,255,255,0.3)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             {vuln.filePath.split('/').pop()}:{vuln.lineStart}
@@ -132,8 +142,8 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
         </div>
 
         {isOpen
-          ? <ChevronDown  size={14} color="rgba(255,255,255,0.2)" />
-          : <ChevronRight size={14} color="rgba(255,255,255,0.2)" />}
+          ? <ChevronDown  size={14} color="rgba(255,255,255,0.2)" style={{ flexShrink: 0 }} />
+          : <ChevronRight size={14} color="rgba(255,255,255,0.2)" style={{ flexShrink: 0 }} />}
       </button>
 
       {/* 아코디언 상세 */}

@@ -3,7 +3,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback, type MutableRefObject } from 'react';
-import { getAccessToken } from '@/lib/api/client';
+import { BASE_URL, getAccessToken } from '@/lib/api/client';
 
 // ─── 타입 정의 ────────────────────────────────────────────────
 export type SseStatus =
@@ -14,14 +14,36 @@ export type SseStatus =
   | 'closed'
   | 'auth_error';
 
+export interface SastVuln {
+  type: string;
+  severity: string;
+  line?: number;
+  description?: string;
+  cwe?: string;
+  owasp?: string;
+  callChain?: string[];
+}
+
+export interface SastFileResult {
+  file: string;
+  vulnerabilities: SastVuln[];
+  cached?: boolean;
+  error?: string;
+}
+
 export interface ProgressEvent {
   sessionId: string;
-  type: 'started' | 'node_complete' | 'progress' | 'completed' | 'error' | 'vuln_found';
+  type: 'started' | 'progress' | 'completed' | 'error' | 'scan_complete' | 'cancelled';
   node?: string;
   file?: string;
   current?: number;
   total?: number;
   message?: string;
+  // completed
+  vuln_count?: number;
+  results?: SastFileResult[];
+  // progress
+  cache_hit?: boolean;
 }
 
 export interface SseOptions {
@@ -32,7 +54,7 @@ export interface SseOptions {
 
 // 재연결 지연 시간 (ms): 1s → 2s → 4s → 8s → 16s → 30s 상한
 const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000];
-const SSE_BASE_URL = '/api/v1/analysis/sessions';
+const SSE_BASE_URL = `${BASE_URL}/analysis/sessions`;
 
 function getRetryDelay(retryCount: number): number {
   const index = Math.min(retryCount, RETRY_DELAYS_MS.length - 1);

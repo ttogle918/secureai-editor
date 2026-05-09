@@ -27,6 +27,7 @@ interface UserMeData {
   githubLogin: string | null;
   plan: { id: number; name: string; displayName: string; allowDast: boolean; allowMonitoring: boolean };
   usage: { sastUsageThisMonth: number; sastMonthlyLimit: number; sastResetAt: string };
+  credits: { balance: number; hasByok: boolean; preferredModel: string };
   createdAt: string;
 }
 
@@ -82,7 +83,6 @@ export function useAuth() {
     try {
       const res = await apiClient.get<{ data: UserMeData }>('/users/me');
       const u = res.data;
-      storeSetToken(accessToken);
       setUser({
         id: u.id,
         email: u.email,
@@ -96,7 +96,7 @@ export function useAuth() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, setLoading, setUser, storeLogout, storeSetToken]);
+  }, [setLoading, setUser, storeLogout]);
 
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true);

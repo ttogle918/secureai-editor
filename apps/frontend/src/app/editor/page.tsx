@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 import { useAuthStore }              from '@/store/useAuthStore';
 import { useSecureStore }            from '@/store/useSecureStore';
+import { useLoadLatestResults }      from '@/hooks/useLoadLatestResults';
 import { AppHeader }                 from '@/components/layout/AppHeader';
 import { AppSidebar }                from '@/components/layout/AppSidebar';
 import { EditorLayout }              from '@/components/editor/EditorLayout';
@@ -17,6 +18,8 @@ export default function EditorPage() {
   const router        = useRouter();
   const isInitialized = useAuthStore((s) => s.isInitialized);
   const user          = useAuthStore((s) => s.user);
+
+  useLoadLatestResults();
 
   // auth guard: initAuth 완료 후 미로그인이면 로그인 페이지로
   useEffect(() => {

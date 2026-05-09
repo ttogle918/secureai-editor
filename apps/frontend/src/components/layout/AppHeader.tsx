@@ -4,15 +4,16 @@
 import { useState } from 'react';
 import {
   PanelLeftClose, PanelLeftOpen, ChevronRight,
-  FileJson, Play, LayoutDashboard, Code2,
+  FileJson, Play, LayoutDashboard, Code2, Settings,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useSecureStore, type SeverityFilter } from '@/store/useSecureStore';
 import { SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/constants/severity';
 import { useSse, type SseStatus } from '@/hooks/useSse';
 import { useToastStore } from '@/hooks/useToast';
 import { useStartAnalysis } from '@/hooks/useStartAnalysis';
 import { SseIndicator } from '@/components/ui/SseIndicator';
-import type { Vulnerability } from '@/lib/mockData';
+import type { Severity, Vulnerability } from '@/lib/mockData';
 
 const SEV_FILTERS: Array<'critical' | 'high' | 'medium' | 'low'> = ['critical', 'high', 'medium', 'low'];
 
@@ -40,34 +41,51 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const setIsAnalyzing     = useSecureStore((s) => s.setIsAnalyzing);
   const sseSessionId       = useSecureStore((s) => s.sseSessionId);
   const addVuln            = useSecureStore((s) => s.addVuln);
+  const addProgressStep    = useSecureStore((s) => s.addProgressStep);
   const addToast           = useToastStore((s) => s.addToast);
   const { startAnalysis, isAnalyzing } = useStartAnalysis();
 
   // SSE 상태 — 컴포넌트 로컬 상태로 관리
   const [sseStatus, setSseStatus] = useState<SseStatus>('idle');
 
+  const VALID_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low'];
+
   useSse({
     sessionId: sseSessionId,
     onEvent: (event) => {
-      if (event.type === 'vuln_found') {
-        // ProgressEvent를 Vulnerability로 매핑 (최소 필드)
-        const vuln: Vulnerability = {
-          id:            `sse-${Date.now()}`,
-          type:          event.node ?? 'Unknown',
-          severity:      'high',
-          lineStart:     0,
-          lineEnd:       0,
-          filePath:      event.file ?? '',
-          description:   event.message ?? '',
-          cweId:         '',
-          owaspCategory: '',
-          status:        'open',
-        };
-        addVuln(vuln);
-        addToast(event.message ?? '취약점이 발견되었습니다.', 'high');
-      } else if (event.type === 'completed') {
-        addToast('분석 완료', 'info');
+      if (event.type === 'completed') {
+        // 분석 완료 — results 배열에서 취약점을 스토어에 적재
+        let totalVulns = 0;
+        for (const fileResult of (event.results ?? [])) {
+          for (const v of fileResult.vulnerabilities) {
+            const rawSev = (v.severity ?? 'low').toLowerCase() as Severity;
+            const severity: Severity = VALID_SEVERITIES.includes(rawSev) ? rawSev : 'low';
+            const vuln: Vulnerability = {
+              id:            `sse-${fileResult.file}-${v.line ?? 0}-${totalVulns}`,
+              type:          v.type ?? 'Unknown',
+              severity,
+              lineStart:     v.line ?? 0,
+              lineEnd:       v.line ?? 0,
+              filePath:      fileResult.file,
+              description:   v.description ?? '',
+              cweId:         v.cwe ?? '',
+              owaspCategory: v.owasp ?? '',
+              status:        'open',
+            };
+            addVuln(vuln);
+            totalVulns++;
+          }
+        }
+        addToast(`분석 완료 — 취약점 ${totalVulns}개 발견`, 'info');
         setIsAnalyzing(false);
+      } else if (event.type === 'progress' && event.node === 'sast' && event.file) {
+        // 파일별 SAST 진행률 업데이트
+        addProgressStep({
+          stepName: 'SAST 분석',
+          stepOrder: event.current ?? 0,
+          target: event.file,
+          status: 'completed',
+        });
       } else if (event.type === 'error') {
         addToast(event.message ?? 'SSE 오류가 발생했습니다.', 'error');
         setIsAnalyzing(false);
@@ -219,6 +237,21 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         <div style={{ marginLeft: 8 }}>
           <SseIndicator status={sseStatus} />
         </div>
+
+        <Link
+          href="/settings"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 32, height: 32, borderRadius: 6,
+            color: 'rgba(255,255,255,0.35)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            transition: 'color 0.15s',
+            marginLeft: 4,
+          }}
+          title="설정"
+        >
+          <Settings size={16} />
+        </Link>
       </div>
     </header>
   );

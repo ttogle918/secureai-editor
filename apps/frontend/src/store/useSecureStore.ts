@@ -115,6 +115,7 @@ interface SecureStore {
   setProgressSteps: (steps: ProgressStep[]) => void;
   addProgressStep: (step: ProgressStep) => void;
   updateProgressStep: (stepOrder: number, update: Partial<ProgressStep>) => void;
+  clearProgressSteps: () => void;
 
   // ── 채팅 ────────────────────────────────────────────────
   chatMessages: ChatMessage[];
@@ -195,7 +196,7 @@ export const useSecureStore = create<SecureStore>()(
   setProjectId: (id) => set({ projectId: id }),
 
   // ── 취약점
-  vulns: mockVulnerabilities,
+  vulns: [],
   addVuln: (v) => set((s) => ({ vulns: [...s.vulns, v] })),
   clearVulns: () => set({ vulns: [] }),
   expandedVulnId: null,
@@ -232,20 +233,22 @@ export const useSecureStore = create<SecureStore>()(
   dastLogs: mockDastLogs,
 
   // ── 진행률
-  progressSteps: [
-    { stepName: 'SAST 초기화', stepOrder: 1, target: 'UserAuth.java',    status: 'completed', durationMs: 840 },
-    { stepName: 'SAST 분석',   stepOrder: 2, target: 'AuthService.java', status: 'completed', durationMs: 1200 },
-    { stepName: 'SAST 분석',   stepOrder: 3, target: 'LoginPage.tsx',    status: 'running',   durationMs: undefined },
-    { stepName: 'DAST 준비',   stepOrder: 4, target: '전체',              status: 'pending',   durationMs: undefined },
-  ],
+  progressSteps: [],
   setProgressSteps: (steps) => set({ progressSteps: steps }),
-  addProgressStep: (step) => set((s) => ({ progressSteps: [...s.progressSteps, step] })),
+  addProgressStep: (step) => set((s) => {
+    const exists = s.progressSteps.some((p) => p.stepOrder === step.stepOrder);
+    if (exists) {
+      return { progressSteps: s.progressSteps.map((p) => p.stepOrder === step.stepOrder ? { ...p, ...step } : p) };
+    }
+    return { progressSteps: [...s.progressSteps, step] };
+  }),
   updateProgressStep: (stepOrder, update) =>
     set((s) => ({
       progressSteps: s.progressSteps.map((step) =>
         step.stepOrder === stepOrder ? { ...step, ...update } : step
       ),
     })),
+  clearProgressSteps: () => set({ progressSteps: [] }),
 
   // ── 채팅
   chatMessages: mockChatMessages,
@@ -273,10 +276,11 @@ export const useSecureStore = create<SecureStore>()(
         rightPanelWidth: state.rightPanelWidth,
         terminalHeight:  state.terminalHeight,
         workspaceId:     state.workspaceId,
+        workspaceName:   state.workspaceName,
         workspaceTree:   state.workspaceTree,
         openTabs:        state.openTabs,
         selectedPath:    state.selectedPath,
-        progressSteps:   state.progressSteps,
+        projectId:       state.projectId,
       }),
     }
   )

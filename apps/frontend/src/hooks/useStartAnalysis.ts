@@ -12,11 +12,12 @@ export function useStartAnalysis() {
   const workspaceName = useSecureStore((s) => s.workspaceName);
   const projectId     = useSecureStore((s) => s.projectId);
   const isAnalyzing   = useSecureStore((s) => s.isAnalyzing);
-  const setProjectId    = useSecureStore((s) => s.setProjectId);
-  const setSseSessionId = useSecureStore((s) => s.setSseSessionId);
-  const setIsAnalyzing  = useSecureStore((s) => s.setIsAnalyzing);
-  const setViewMode     = useSecureStore((s) => s.setViewMode);
-  const clearVulns      = useSecureStore((s) => s.clearVulns);
+  const setProjectId       = useSecureStore((s) => s.setProjectId);
+  const setSseSessionId    = useSecureStore((s) => s.setSseSessionId);
+  const setIsAnalyzing     = useSecureStore((s) => s.setIsAnalyzing);
+  const setViewMode        = useSecureStore((s) => s.setViewMode);
+  const clearVulns         = useSecureStore((s) => s.clearVulns);
+  const clearProgressSteps = useSecureStore((s) => s.clearProgressSteps);
   const addToast        = useToastStore((s) => s.addToast);
 
   const startAnalysis = useCallback(async () => {
@@ -29,6 +30,7 @@ export function useStartAnalysis() {
 
     setIsAnalyzing(true);
     clearVulns();
+    clearProgressSteps();
 
     try {
       // 프로젝트 없으면 생성
@@ -57,7 +59,7 @@ export function useStartAnalysis() {
     }
   }, [
     workspaceId, workspaceName, projectId, isAnalyzing,
-    setProjectId, setSseSessionId, setIsAnalyzing, setViewMode, clearVulns, addToast,
+    setProjectId, setSseSessionId, setIsAnalyzing, setViewMode, clearVulns, clearProgressSteps, addToast,
   ]);
 
   return { startAnalysis, isAnalyzing };

@@ -40,6 +40,8 @@ class ChatRequest(BaseModel):
     session_id: str
     message: str
     history: list[ChatHistoryItem] = Field(default_factory=list)
+    preferred_model: str | None = None
+    user_api_key: str | None = None  # BYOK (로그 출력 금지)
 
 
 def _sse_event(event: str, data: dict) -> str:
@@ -55,7 +57,7 @@ async def _generate(req: ChatRequest):
 
     full_text = ""
     try:
-        async for chunk in stream_chat(req.session_id, history, req.message):
+        async for chunk in stream_chat(req.session_id, history, req.message, req.preferred_model, req.user_api_key):
             full_text += chunk
             yield _sse_event("delta", {"text": chunk})
         yield _sse_event("done", {"full_text": full_text})

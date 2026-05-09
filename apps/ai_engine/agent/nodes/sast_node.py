@@ -67,7 +67,13 @@ def _dedup_vulns(vulns: list[dict]) -> list[dict]:
     return result
 
 
-async def _analyze_chunks(file_path: str, content: str, guidelines: str = "") -> list[dict]:
+async def _analyze_chunks(
+    file_path: str,
+    content: str,
+    guidelines: str = "",
+    model: str | None = None,
+    api_key: str | None = None,
+) -> list[dict]:
     """파일을 청크로 분할하고 Claude를 병렬 호출해 취약점 목록을 반환한다.
 
     300 라인 이하면 청크 없이 단일 호출, 초과면 asyncio.gather로 병렬 처리한다.
@@ -76,15 +82,16 @@ async def _analyze_chunks(file_path: str, content: str, guidelines: str = "") ->
     chunks = chunk_file(file_path, content)
 
     if len(chunks) == 1:
-        raw = await analyze_for_sast(file_path, chunks[0].content, guidelines)
+        raw = await analyze_for_sast(file_path, chunks[0].content, guidelines, model, api_key)
         return parse_sast_response(raw, file_path)
 
-    # 청크가 여러 개면 병렬 호출 (chunk label을 파일명에 포함해 로그 추적 용이)
     tasks = [
         analyze_for_sast(
             f"{file_path}[chunk {c.chunk_index + 1}/{c.total_chunks}]",
             c.content,
             guidelines,
+            model,
+            api_key,
         )
         for c in chunks
     ]
@@ -143,7 +150,9 @@ async def sast_node(state: AgentState) -> dict:
 
         stack = _detect_stack(file_path)
         guidelines = await load_guidelines(stack)
-        raw_vulns = await _analyze_chunks(file_path, content, guidelines)
+        preferred_model = state.get("preferred_model")
+        user_api_key = state.get("user_api_key")
+        raw_vulns = await _analyze_chunks(file_path, content, guidelines, preferred_model, user_api_key)
         vulns = classify_and_enrich(raw_vulns, file_path)
 
         if sha256:

@@ -89,7 +89,7 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
-      AI_AGENT_URL: http://ai_engine:8000
+      AI_AGENT_URL: http://ai-engine:8000
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -111,6 +111,7 @@ services:
       context: ./apps/ai_engine
       dockerfile: Dockerfile
     container_name: secureai-ai-engine
+    hostname: ai-engine
     restart: unless-stopped
     environment:
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}

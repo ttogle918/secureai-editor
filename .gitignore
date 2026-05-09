@@ -124,3 +124,6 @@ files.zip
 # Claude Code memory
 .claude/
 CLAUDE.md
+
+# Tauri App Icon
+apps/frontend/src-tauri/icons/**/*.*

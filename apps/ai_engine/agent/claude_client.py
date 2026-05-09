@@ -40,21 +40,30 @@ Rules:
 """
 
 
-def _get_client() -> AsyncAnthropic:
+def _get_client(api_key: str | None = None) -> AsyncAnthropic:
+    """플랫폼 클라이언트(싱글턴)를 반환하거나, BYOK 키가 있으면 1회용 클라이언트를 생성한다."""
+    if api_key:
+        return AsyncAnthropic(api_key=api_key)
     global _client
     if _client is None:
         _client = AsyncAnthropic(api_key=settings.claude_api_key)
     return _client
 
 
-async def analyze_for_sast(file_path: str, content: str, guidelines: str = "") -> str:
+async def analyze_for_sast(
+    file_path: str,
+    content: str,
+    guidelines: str = "",
+    model: str | None = None,
+    api_key: str | None = None,
+) -> str:
     """파일 하나에 대한 SAST 분석을 Claude에 요청하고 원문 응답을 반환한다.
 
-    guidelines가 있으면 시스템 프롬프트에 추가한다.
+    model/api_key가 제공되면 사용자 BYOK 설정을 우선 적용한다.
     가이드라인 포함 시 1,024 tokens 초과 → prompt caching 실제 동작.
-    동일 stack의 파일들은 시스템 프롬프트가 동일하므로 두 번째 호출부터 cache HIT.
     """
-    client = _get_client()
+    client = _get_client(api_key)
+    effective_model = model or settings.claude_model
 
     system_text = (
         f"{_SYSTEM_PROMPT}\n\n---\n\n# Stack-Specific Security Patterns\n\n{guidelines}"
@@ -63,7 +72,7 @@ async def analyze_for_sast(file_path: str, content: str, guidelines: str = "") -
     )
 
     response = await client.messages.create(
-        model=settings.claude_model,
+        model=effective_model,
         max_tokens=4096,
         system=[
             {
@@ -81,5 +90,5 @@ async def analyze_for_sast(file_path: str, content: str, guidelines: str = "") -
     )
 
     raw = response.content[0].text
-    logger.debug("[claude] file=%s response_chars=%d", file_path, len(raw))
+    logger.debug("[claude] file=%s model=%s response_chars=%d", file_path, effective_model, len(raw))
     return raw

@@ -53,7 +53,9 @@ async def _build_system_prompt() -> str:
     return _cached_system_prompt
 
 
-def _get_client() -> AsyncAnthropic:
+def _get_client(api_key: str | None = None) -> AsyncAnthropic:
+    if api_key:
+        return AsyncAnthropic(api_key=api_key)
     global _client
     if _client is None:
         _client = AsyncAnthropic(api_key=settings.claude_api_key)
@@ -75,34 +77,31 @@ async def stream_chat(
     session_id: str,
     history: list[dict],
     user_message: str,
+    model: str | None = None,
+    api_key: str | None = None,
 ) -> AsyncIterator[str]:
     """
     multi-turn 채팅 메시지를 Claude에 스트리밍 요청하고 텍스트 청크를 yield한다.
 
-    Args:
-        session_id: 세션 식별자 (로깅용)
-        history: [{role, content}, ...] 형태의 이전 메시지 이력
-        user_message: 현재 사용자 메시지
-
-    Yields:
-        텍스트 청크 문자열
+    model/api_key가 제공되면 BYOK 설정을 우선 적용한다.
     """
-    client = _get_client()
+    client = _get_client(api_key)
+    effective_model = model or settings.claude_model
     system_text = await _build_system_prompt()
 
     trimmed = _trim_history(history)
     messages = [*trimmed, {"role": "user", "content": user_message}]
 
     logger.info(
-        "[chat] session=%s history_len=%d user_msg_len=%d system_chars=%d",
+        "[chat] session=%s model=%s history_len=%d user_msg_len=%d",
         session_id,
+        effective_model,
         len(trimmed),
         len(user_message),
-        len(system_text),
     )
 
     async with client.messages.stream(
-        model=settings.claude_model,
+        model=effective_model,
         max_tokens=2048,
         system=[
             {

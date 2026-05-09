@@ -14,6 +14,7 @@ from agent.mcp_client import mcp_session
 from config.settings import settings
 from infrastructure.checkpointer import get_checkpointer
 from infrastructure.redis_client import get_redis
+from infrastructure.workspace_staging import cleanup_staged_workspace, is_workspace_id, stage_workspace
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,9 @@ class AnalyzeRequest(BaseModel):
     github_owner: str | None = None
     github_repo: str | None = None
     github_ref: str | None = None
-    github_token: str | None = None  # 복호화된 값 (로그 출력 금지)
+    github_token: str | None = None      # 복호화된 값 (로그 출력 금지)
+    preferred_model: str | None = None
+    user_api_key: str | None = None      # BYOK 복호화 키 (로그 출력 금지)
 
 
 @router.post("/analyze", status_code=status.HTTP_202_ACCEPTED)
@@ -63,10 +66,17 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
         payload = json.dumps({"session_id": session_id, "type": event_type, **kwargs})
         await redis.publish(channel, payload)
 
+    staged_path: str | None = None
     try:
         # github_token은 로그에 절대 출력 금지
         logger.info("[analyze] session=%s starting source_type=%s", session_id, req.source_type)
         await publish("started")
+
+        # 로컬 워크스페이스: Redis ID → 임시 디렉토리로 스테이징
+        workspace_root = req.workspace_root
+        if req.source_type != "github" and is_workspace_id(workspace_root):
+            workspace_root = await stage_workspace(workspace_root)
+            staged_path = workspace_root
 
         checkpointer = get_checkpointer()
         graph = get_graph(checkpointer=checkpointer)
@@ -74,12 +84,14 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
         initial_state = {
             "session_id": session_id,
             "project_id": req.project_id,
-            "workspace_root": req.workspace_root,
+            "workspace_root": workspace_root,
             "source_type": req.source_type,
             "github_owner": req.github_owner,
             "github_repo": req.github_repo,
             "github_ref": req.github_ref,
             "github_token": req.github_token,
+            "preferred_model": req.preferred_model,
+            "user_api_key": req.user_api_key,
             "files_to_scan": [],
             "current_file_index": 0,
             "current_file_sha256": None,
@@ -90,7 +102,7 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
             "error_message": None,
         }
 
-        async with mcp_session(session_id, req.workspace_root, settings.mcp_server_script):
+        async with mcp_session(session_id, workspace_root, settings.mcp_server_script):
             async for event in graph.astream(initial_state, config):
                 if _cancel_flags.get(session_id):
                     logger.info("[analyze] session=%s cancelled by flag", session_id)
@@ -138,6 +150,8 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
         await publish("error", message=str(exc))
     finally:
         _cancel_flags.pop(session_id, None)
+        if staged_path:
+            cleanup_staged_workspace(staged_path)
 
 
 async def _run_resume(session_id: str) -> None:

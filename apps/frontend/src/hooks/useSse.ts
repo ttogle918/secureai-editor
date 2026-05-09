@@ -17,6 +17,7 @@ export type SseStatus =
 export interface SastVuln {
   type: string;
   severity: string;
+  category?: string;
   line?: number;
   description?: string;
   cwe?: string;

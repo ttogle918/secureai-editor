@@ -15,10 +15,13 @@ export interface CallChainStep {
   isVulnerable: boolean;
 }
 
+export type VulnCategory = 'SECURITY' | 'CODE_QUALITY';
+
 export interface Vulnerability {
   id: string;
   type: string;
   severity: Severity;
+  category?: VulnCategory;
   lineStart: number;
   lineEnd: number;
   filePath: string;

@@ -13,9 +13,10 @@ import { useSse, type SseStatus } from '@/hooks/useSse';
 import { useToastStore } from '@/hooks/useToast';
 import { useStartAnalysis } from '@/hooks/useStartAnalysis';
 import { SseIndicator } from '@/components/ui/SseIndicator';
-import type { Severity, Vulnerability } from '@/lib/mockData';
+import type { Severity, VulnCategory, Vulnerability } from '@/lib/mockData';
 
 const SEV_FILTERS: Array<'critical' | 'high' | 'medium' | 'low'> = ['critical', 'high', 'medium', 'low'];
+const VALID_CATS: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
 
 // 와이어프레임 색상 — 항상 색상 표시, active 시 솔리드
 const SEV_COLORS: Record<'critical' | 'high' | 'medium' | 'low', string> = {
@@ -60,10 +61,13 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           for (const v of fileResult.vulnerabilities) {
             const rawSev = (v.severity ?? 'low').toLowerCase() as Severity;
             const severity: Severity = VALID_SEVERITIES.includes(rawSev) ? rawSev : 'low';
+            const rawCat = (v.category ?? 'SECURITY') as VulnCategory;
+            const category: VulnCategory = VALID_CATS.includes(rawCat) ? rawCat : 'SECURITY';
             const vuln: Vulnerability = {
               id:            `sse-${fileResult.file}-${v.line ?? 0}-${totalVulns}`,
               type:          v.type ?? 'Unknown',
               severity,
+              category,
               lineStart:     v.line ?? 0,
               lineEnd:       v.line ?? 0,
               filePath:      fileResult.file,

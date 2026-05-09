@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
 import { apiClient } from '@/lib/api/client';
-import type { Severity, Vulnerability } from '@/lib/mockData';
+import type { Severity, VulnCategory, Vulnerability } from '@/lib/mockData';
 
 interface SessionItem {
   id: string;
@@ -17,6 +17,7 @@ interface VulnItem {
   lineNumber: number | null;
   vulnType: string;
   severity: string;
+  category: string | null;
   cwe: string | null;
   owasp: string | null;
   description: string | null;
@@ -24,6 +25,7 @@ interface VulnItem {
 }
 
 const VALID_SEV: Severity[] = ['critical', 'high', 'medium', 'low'];
+const VALID_CAT: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
 
 export function useLoadLatestResults() {
   const projectId       = useSecureStore((s) => s.projectId);
@@ -62,10 +64,13 @@ export function useLoadLatestResults() {
         for (const v of items) {
           const rawSev = (v.severity ?? 'low').toLowerCase() as Severity;
           const severity: Severity = VALID_SEV.includes(rawSev) ? rawSev : 'low';
+          const rawCat = (v.category ?? 'SECURITY') as VulnCategory;
+          const category: VulnCategory = VALID_CAT.includes(rawCat) ? rawCat : 'SECURITY';
           const vuln: Vulnerability = {
             id:            v.id,
             type:          v.vulnType,
             severity,
+            category,
             lineStart:     v.lineNumber ?? 0,
             lineEnd:       v.lineNumber ?? 0,
             filePath:      v.filePath,

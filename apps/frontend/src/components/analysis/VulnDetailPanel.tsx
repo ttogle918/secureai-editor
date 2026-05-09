@@ -102,6 +102,26 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
           {vuln.severity}
         </span>
 
+        {/* CODE_QUALITY 배지 */}
+        {vuln.category === 'CODE_QUALITY' && (
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              padding: '2px 6px',
+              borderRadius: 4,
+              flexShrink: 0,
+              background: 'rgba(99,102,241,0.12)',
+              color: '#818cf8',
+              border: '0.5px solid rgba(99,102,241,0.3)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+            }}
+          >
+            CODE QUALITY
+          </span>
+        )}
+
         <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <div
             style={{

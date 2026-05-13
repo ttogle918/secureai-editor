@@ -37,6 +37,7 @@ async def save_vulnerabilities(
             "lineNumber":   line,
             "vulnType":     vuln_type,
             "severity":     v.get("severity", "MEDIUM"),
+            "category":     v.get("category", "SECURITY"),
             "cwe":          v.get("cwe"),
             "owasp":        v.get("owasp"),
             "description":  v.get("description"),

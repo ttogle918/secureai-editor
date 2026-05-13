@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { editor } from 'monaco-editor';
 import type { Vulnerability } from '@/lib/mockData';
+import { useSecureStore } from '@/store/useSecureStore';
 
 interface CodeEditorProps {
   value: string;
@@ -20,13 +21,22 @@ const VULN_LINE_STYLE: Record<string, { bg: string; border: string }> = {
   low:      { bg: 'rgba(34,197,94,0.04)',  border: '#22c55e' },
 };
 
+const MARKER_SEVERITY: Record<string, number> = {
+  critical: 8, // MarkerSeverity.Error
+  high:     4, // MarkerSeverity.Warning
+  medium:   2, // MarkerSeverity.Info
+  low:      1, // MarkerSeverity.Hint
+};
+
 export default function CodeEditor({
   value,
   language = 'java',
   vulnerabilities = [],
   onMount,
 }: CodeEditorProps) {
-  // dynamic import state
+  const revealLine    = useSecureStore((s) => s.revealLine);
+  const setRevealLine = useSecureStore((s) => s.setRevealLine);
+
   const [Editor, setEditor] = useState<React.ComponentType<any> | null>(null);
 
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -40,30 +50,47 @@ export default function CodeEditor({
     });
   }, []);
 
-  // Apply vulnerability decorations
+  // Apply vulnerability decorations + squiggly markers
   const applyDecorations = () => {
     const ed     = editorRef.current;
     const monaco = monacoRef.current;
     if (!ed || !monaco || !ed.getModel()) return;
 
     try {
-      const newDecorations = vulnerabilities.flatMap((v) => [
-        {
-          range: new monaco.Range(v.lineStart, 1, v.lineEnd, 1),
-          options: {
-            isWholeLine: true,
-            className: `vuln-${v.severity}-line`,
-            glyphMarginClassName: `vuln-${v.severity}-glyph`,
-            hoverMessage: {
-              value: `**${v.type}** (${v.severity.toUpperCase()})  \n${v.description}  \n_${v.cweId} · ${v.owaspCategory}_`,
-            },
+      const model = ed.getModel()!;
+
+      // 라인 배경 + glyph 점 + overview ruler
+      const newDecorations = vulnerabilities.map((v) => ({
+        range: new monaco.Range(v.lineStart, 1, v.lineEnd, 1),
+        options: {
+          isWholeLine: true,
+          className: `vuln-${v.severity}-line`,
+          glyphMarginClassName: `vuln-${v.severity}-glyph`,
+          overviewRuler: {
+            color: VULN_LINE_STYLE[v.severity]?.border ?? '#888',
+            position: monaco.editor.OverviewRulerLane.Left,
+          },
+          hoverMessage: {
+            value: `**${v.type}** (${v.severity.toUpperCase()})  \n${v.description}  \n_${v.cweId} · ${v.owaspCategory}_`,
           },
         },
-      ]);
-
+      }));
       decorIds.current = ed.deltaDecorations(decorIds.current, newDecorations);
+
+      // 물결 밑줄 (VS Code 에러/경고 스타일)
+      monaco.editor.setModelMarkers(
+        model,
+        'secureai-vulns',
+        vulnerabilities.map((v) => ({
+          startLineNumber: v.lineStart,
+          startColumn: 1,
+          endLineNumber: v.lineEnd,
+          endColumn: model.getLineMaxColumn(v.lineEnd),
+          message: `[${v.severity.toUpperCase()}] ${v.type}: ${v.description}`,
+          severity: MARKER_SEVERITY[v.severity] ?? 2,
+        })),
+      );
     } catch (err) {
-      // 에디터가 파기된 경우(disposed) 무시
       console.warn('Monaco decorations update failed (likely disposed):', err);
     }
   };
@@ -71,14 +98,26 @@ export default function CodeEditor({
   useEffect(() => {
     applyDecorations();
     return () => {
-      // Cleanup decorations on unmount
       if (editorRef.current && editorRef.current.getModel()) {
         try {
           editorRef.current.deltaDecorations(decorIds.current, []);
+          if (monacoRef.current && editorRef.current.getModel()) {
+            monacoRef.current.editor.setModelMarkers(editorRef.current.getModel()!, 'secureai-vulns', []);
+          }
         } catch (e) { /* ignore */ }
       }
     };
   }, [vulnerabilities, value]);
+
+  // 취약점 클릭 시 해당 라인으로 스크롤
+  useEffect(() => {
+    if (!revealLine || !editorRef.current) return;
+    try {
+      editorRef.current.revealLineInCenter(revealLine);
+      editorRef.current.setPosition({ lineNumber: revealLine, column: 1 });
+    } catch (e) { /* ignore */ }
+    setRevealLine(null);
+  }, [revealLine]);
 
   // Loading state
   if (!Editor) {
@@ -125,6 +164,13 @@ export default function CodeEditor({
         editorRef.current = ed;
         monacoRef.current = monaco;
         applyDecorations();
+        // 파일 전환 후 pending reveal 처리
+        const pendingLine = useSecureStore.getState().revealLine;
+        if (pendingLine) {
+          ed.revealLineInCenter(pendingLine);
+          ed.setPosition({ lineNumber: pendingLine, column: 1 });
+          useSecureStore.getState().setRevealLine(null);
+        }
         onMount?.(ed);
       }}
     />

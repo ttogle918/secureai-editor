@@ -1,14 +1,22 @@
 // components/layout/AppHeader.tsx
 // 앱 상단 헤더 — 심각도 필터, 파이프라인 상태, 액션 버튼
 'use client';
+import { useState } from 'react';
 import {
   PanelLeftClose, PanelLeftOpen, ChevronRight,
-  FileJson, Play, LayoutDashboard, Code2,
+  FileJson, Play, LayoutDashboard, Code2, Settings,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useSecureStore, type SeverityFilter } from '@/store/useSecureStore';
 import { SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/constants/severity';
+import { useSse, type SseStatus } from '@/hooks/useSse';
+import { useToastStore } from '@/hooks/useToast';
+import { useStartAnalysis } from '@/hooks/useStartAnalysis';
+import { SseIndicator } from '@/components/ui/SseIndicator';
+import type { Severity, VulnCategory, Vulnerability } from '@/lib/mockData';
 
 const SEV_FILTERS: Array<'critical' | 'high' | 'medium' | 'low'> = ['critical', 'high', 'medium', 'low'];
+const VALID_CATS: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
 
 // 와이어프레임 색상 — 항상 색상 표시, active 시 솔리드
 const SEV_COLORS: Record<'critical' | 'high' | 'medium' | 'low', string> = {
@@ -31,8 +39,67 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const severityFilter     = useSecureStore((s) => s.severityFilter);
   const setSeverityFilter  = useSecureStore((s) => s.setSeverityFilter);
   const vulns              = useSecureStore((s) => s.vulns);
-  const isAnalyzing        = useSecureStore((s) => s.isAnalyzing);
-  const startAnalysis      = useSecureStore((s) => s.startAnalysis);
+  const setIsAnalyzing     = useSecureStore((s) => s.setIsAnalyzing);
+  const sseSessionId       = useSecureStore((s) => s.sseSessionId);
+  const addVuln            = useSecureStore((s) => s.addVuln);
+  const addProgressStep    = useSecureStore((s) => s.addProgressStep);
+  const addToast           = useToastStore((s) => s.addToast);
+  const { startAnalysis, isAnalyzing } = useStartAnalysis();
+
+  // SSE 상태 — 컴포넌트 로컬 상태로 관리
+  const [sseStatus, setSseStatus] = useState<SseStatus>('idle');
+
+  const VALID_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low'];
+
+  useSse({
+    sessionId: sseSessionId,
+    onEvent: (event) => {
+      if (event.type === 'completed') {
+        // 분석 완료 — results 배열에서 취약점을 스토어에 적재
+        let totalVulns = 0;
+        for (const fileResult of (event.results ?? [])) {
+          for (const v of fileResult.vulnerabilities) {
+            const rawSev = (v.severity ?? 'low').toLowerCase() as Severity;
+            const severity: Severity = VALID_SEVERITIES.includes(rawSev) ? rawSev : 'low';
+            const rawCat = (v.category ?? 'SECURITY') as VulnCategory;
+            const category: VulnCategory = VALID_CATS.includes(rawCat) ? rawCat : 'SECURITY';
+            const vuln: Vulnerability = {
+              id:            `sse-${fileResult.file}-${v.line ?? 0}-${totalVulns}`,
+              type:          v.type ?? 'Unknown',
+              severity,
+              category,
+              lineStart:     v.line ?? 0,
+              lineEnd:       v.line ?? 0,
+              filePath:      fileResult.file,
+              description:   v.description ?? '',
+              cweId:         v.cwe ?? '',
+              owaspCategory: v.owasp ?? '',
+              status:        'open',
+            };
+            addVuln(vuln);
+            totalVulns++;
+          }
+        }
+        addToast(`분석 완료 — 취약점 ${totalVulns}개 발견`, 'info');
+        setIsAnalyzing(false);
+      } else if (event.type === 'progress' && event.node === 'sast' && event.file) {
+        // 파일별 SAST 진행률 업데이트
+        addProgressStep({
+          stepName: 'SAST 분석',
+          stepOrder: event.current ?? 0,
+          target: event.file,
+          status: 'completed',
+        });
+      } else if (event.type === 'error') {
+        addToast(event.message ?? 'SSE 오류가 발생했습니다.', 'error');
+        setIsAnalyzing(false);
+      }
+    },
+    onStatusChange: (status) => {
+      setSseStatus(status);
+      if (status === 'closed' || status === 'auth_error') setIsAnalyzing(false);
+    },
+  });
 
   const handleSevFilter = (sev: SeverityFilter) => {
     setSeverityFilter(severityFilter === sev ? 'all' : sev);
@@ -169,6 +236,26 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
             <FileJson size={14} /> Export JSON
           </button>
         )}
+
+        {/* SSE 연결 상태 표시 */}
+        <div style={{ marginLeft: 8 }}>
+          <SseIndicator status={sseStatus} />
+        </div>
+
+        <Link
+          href="/settings"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 32, height: 32, borderRadius: 6,
+            color: 'rgba(255,255,255,0.35)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            transition: 'color 0.15s',
+            marginLeft: 4,
+          }}
+          title="설정"
+        >
+          <Settings size={16} />
+        </Link>
       </div>
     </header>
   );

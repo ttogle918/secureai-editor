@@ -12,6 +12,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.springframework.http.MediaType;
+
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -74,7 +76,7 @@ class AiAgentClientTest {
         UUID sessionId = UUID.randomUUID();
 
         assertThatThrownBy(() -> client.startAnalysis(
-                        sessionId, UUID.randomUUID(), "/ws", "local", null, null, null, null))
+                        sessionId, UUID.randomUUID(), "/ws", "local", null, null, null, null, null, null))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.AI_AGENT_UNAVAILABLE);
@@ -114,6 +116,7 @@ class AiAgentClientTest {
     void startAnalysis_github_source_type_succeeds_when_circuit_closed() {
         when(restClient.post()).thenReturn(uriSpec);
         when(uriSpec.uri(anyString())).thenReturn(bodySpec);
+        when(bodySpec.contentType(any(MediaType.class))).thenReturn(bodySpec);
         // body()는 제네릭 메서드 — any(Object.class)로 명시적 타입 지정 필요
         when(bodySpec.body(any(Object.class))).thenReturn(bodySpec);
         when(bodySpec.retrieve()).thenReturn(responseSpec);
@@ -125,7 +128,7 @@ class AiAgentClientTest {
         // 예외 없이 성공해야 한다
         assertThatCode(() -> client.startAnalysis(
                 sessionId, projectId, null,
-                "github", "myorg", "myrepo", "main", "ghp_token"))
+                "github", "myorg", "myrepo", "main", "ghp_token", null, null))
                 .doesNotThrowAnyException();
 
         assertThat(client.isCircuitOpen()).isFalse();
@@ -140,6 +143,7 @@ class AiAgentClientTest {
     void startAnalysis_convenience_overload_succeeds() {
         when(restClient.post()).thenReturn(uriSpec);
         when(uriSpec.uri(anyString())).thenReturn(bodySpec);
+        when(bodySpec.contentType(any(MediaType.class))).thenReturn(bodySpec);
         when(bodySpec.body(any(Object.class))).thenReturn(bodySpec);
         when(bodySpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.toBodilessEntity()).thenReturn(null);

@@ -597,6 +597,25 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 
 ---
 
+#### TASK-306 🔴 보안 지식 베이스(SKB) 구축 및 초기 동기화 ⭐ NEW
+- **설명**: `docs/security/` 하위의 전문가 노트를 DB로 이전하고, RAG의 기반이 되는 동적 보안 지식 저장소를 구축함.
+- **중요도**: 🔴 Critical
+- **순서**: 5번째
+- **완료 조건**: MD 파일 수정 후 동기화 스크립트 실행 시 DB 테이블(`security_guidelines`)에 내용이 최신화됨.
+
+**📋 하위 할일**
+- [ ] `security_guidelines` 테이블 생성 (Flyway V015)
+- [ ] MD 파일 파싱 및 DB Upsert 스크립트 작성 (`sync_guidelines.py`)
+- [ ] AI Engine에서 DB 지침을 조회하는 기초 로직 마련
+- [ ] 초기 데이터 동기화 실행
+
+**🧪 테스트 체크리스트**
+- [ ] 🧪 **단위 테스트**: MD 파일 파서 — 제목, 본문, 메타데이터 추출 정확성
+- [ ] 🔬 **통합 테스트**: 스크립트 실행 → DB 레코드 생성 및 업데이트(Upsert) 확인
+- [ ] ✅ **수동 검증**: SQL로 특정 취약점 유형(SQLi 등)의 지침 조회 성공
+
+---
+
 ### 🎯 Sprint 3 완료 기준
 - [ ] **로컬 프로젝트 SAST**: 10개 이상 파일 프로젝트 전체 분석 성공  *(이월: Sprint 4 UI)*
 - [ ] **GitHub 레포 API 스캔**: 공개/비공개 GitHub 레포 SAST 분석 성공 ⭐  *(이월: Sprint 5)*
@@ -740,12 +759,77 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 
 ---
 
+#### TASK-407 🟠 로컬 폴더 열기 (showDirectoryPicker) ⭐ NEW
+- **설명**: 브라우저 `showDirectoryPicker()` API로 OS 폴더 선택 → 파일 내용을 백엔드에 업로드 → Redis에 임시 저장(24h) → 에디터/파일 트리에 실제 코드 표시. 배포 후 모든 사용자가 사용 가능.
+- **중요도**: 🟠 High
+- **순서**: 6번째 (Sprint 4 마지막)
+- **완료 조건**: "폴더 열기" 클릭 → OS 폴더 선택창 → 에디터에 실제 파일 표시
+
+**📋 하위 할일**
+- [ ] `WorkspaceController.java` — `POST /api/workspace`, `GET /api/workspace/{id}/tree`, `GET /api/workspace/{id}/file`
+- [ ] `WorkspaceService.java` — Redis 저장/조회 (TTL 24h), 파일 트리 JSON 생성
+- [ ] `WorkspaceRequest.java` / `WorkspaceResponse.java` DTO
+- [ ] Security config에 `/api/workspace/**` 인증 예외 또는 허용 추가
+- [ ] 프론트엔드 `useWorkspace.ts` — `showDirectoryPicker()` + 재귀 파일 읽기 + 업로드
+- [ ] `FileTree.tsx` — workspace 로드 시 실제 파일 트리로 교체
+- [ ] `EditorLayout.tsx` — "폴더 열기" 버튼 추가, 파일 내용 API 연동
+
+**🧪 테스트 체크리스트**
+- [ ] ✅ **수동 검증**: "폴더 열기" → OS 폴더 선택창 → 파일 트리에 실제 구조 표시
+- [ ] ✅ **수동 검증**: 파일 트리에서 파일 클릭 → 에디터에 실제 코드 로드
+- [ ] ✅ **수동 검증**: node_modules, .git 등 제외 확인
+- [ ] ✅ **수동 검증**: 새로고침 후 workspaceId로 파일 유지 (24h TTL)
+- [ ] 🛡️ **보안 검증**: 500KB 초과 파일 자동 제외, 바이너리 파일 제외
+
+---
+
+#### TASK-408 🟠 크레딧 시스템 & BYOK & 모델 선택 ⭐ NEW
+- **설명**: 토큰 기반 크레딧 과금 시스템 구현. Anthropic API 키 직접 연결(BYOK) 시 크레딧 소모 없이 무제한 분석 지원. 사용자가 분석 모델(Haiku/Sonnet/Opus)을 선택할 수 있도록 전 스택(Backend → AI Engine → Frontend) 연동.
+- **중요도**: 🟠 High
+- **순서**: 7번째 (Sprint 4 최종)
+- **완료 조건**: 설정 페이지에서 BYOK 키 저장 + 모델 선택 → 실제 분석 시 해당 설정 적용
+
+**📋 하위 할일**
+- [x] `V016__add_credit_and_byok.sql` — `credit_balance`, `anthropic_api_key`(BYTEA), `preferred_model` 컬럼 + `credit_transactions` 테이블
+- [x] `ModelConstants.java` — 모델 ID 상수 + 파일당 크레딧 비용 맵 (Haiku 1, Sonnet 5, Opus 20)
+- [x] `CreditTransaction.java` 엔티티 + `CreditTransactionRepository.java`
+- [x] `CreditService.java` — `deductForScan()`, `grantMonthly()`, `grantSignupBonus()`, `hasEnough()`
+- [x] `User.java` / `Plan.java` 필드 추가 (`creditBalance`, `anthropicApiKey`, `preferredModel`, `monthlyCredits`)
+- [x] `SaveApiKeyRequest.java` / `UpdateSettingsRequest.java` / `CreditSummaryResponse.java` DTO
+- [x] `UserService.java` — `getCredits()`, `saveApiKey()`, `removeApiKey()`, `updateSettings()`, `getAnalysisSettings()`
+- [x] `UserController.java` — `GET /me/credits`, `PUT /me/settings`, `PUT /me/api-key`, `DELETE /me/api-key`
+- [x] `UserMeResponse.java` — `CreditInfo` 내부 클래스 추가 (`balance`, `hasByok`, `preferredModel`)
+- [x] `AiAgentClient.java` / `DefaultAiAgentClient.java` — `preferredModel`, `userApiKey` 파라미터 추가
+- [x] `AnalysisService.java` — 분석 시작 전 `getAnalysisSettings()` 조회 후 AI 엔진에 전달
+- [x] `agent_state.py` — `preferred_model`, `user_api_key` 필드 추가
+- [x] `claude_client.py` — BYOK 키 제공 시 1회용 `AsyncAnthropic` 클라이언트 생성, 모델 오버라이드
+- [x] `sast_node.py` — state에서 모델/키 읽어 `_analyze_chunks()` → `analyze_for_sast()` 에 전달
+- [x] `chat_client.py` — `stream_chat()` 모델·키 오버라이드 지원
+- [x] `analyze.py` / `chat.py` — `AnalyzeRequest` / `ChatRequest` 에 `preferred_model`, `user_api_key` 추가
+- [x] `useAuth.ts` — `UserMeData` 인터페이스에 `credits` 필드 추가
+- [x] `AppHeader.tsx` — 설정 아이콘(Settings) 추가 → `/settings` 링크
+- [x] `middleware.ts` — `/settings/:path*` 보호 경로 추가
+- [x] `app/settings/page.tsx` — 크레딧 잔액 카드, BYOK API 키 입력(AES 암호화 안내), 모델 선택 UI (파일당 크레딧 비용 표시)
+- [x] `app/page.tsx` — 랜딩 가격 섹션 (Free/Pro/Team 플랜 카드 + BYOK 안내)
+
+**🧪 테스트 체크리스트**
+- [ ] ✅ **수동 검증**: 설정 페이지 진입 → 크레딧 잔액·BYOK 상태·현재 모델 표시 정상
+- [ ] ✅ **수동 검증**: `sk-ant-` 형식 API 키 저장 → "API 키가 연결되어 있습니다" 상태로 전환
+- [ ] ✅ **수동 검증**: BYOK 제거 → 상태 초기화 정상
+- [ ] ✅ **수동 검증**: 모델 선택(Sonnet) 저장 → 다음 분석 시 해당 모델로 요청 전송
+- [ ] ✅ **수동 검증**: 랜딩 가격 섹션 — Free/Pro/Team 플랜 카드 레이아웃 정상
+- [ ] 🛡️ **보안 검증**: `anthropic_api_key` 컬럼 — DB에 AES-256-GCM 암호화 값 저장 확인
+- [ ] 🛡️ **보안 검증**: API 키 값 서버 로그에 평문 출력 없음 (user_api_key 로그 금지 규칙)
+
+---
+
 ### 🎯 Sprint 4 완료 기준
 - [ ] **Monaco 에디터 동작**: 취약점 인라인 하이라이팅 완성
 - [ ] **SSE 실시간**: 취약점 실시간 표시 + 자동 재연결
 - [ ] **3패널 레이아웃**: 드래그 리사이즈 완전 동작
 - [ ] **AI 채팅**: 스트리밍 응답 UI 완성
 - [ ] **체크리스트 UI ⭐**: 실시간 진행 상태 + 중단 시 재개 버튼
+- [ ] **크레딧·BYOK·모델 선택 ⭐**: 설정 페이지 + 랜딩 가격 섹션 완성
 
 ---
 

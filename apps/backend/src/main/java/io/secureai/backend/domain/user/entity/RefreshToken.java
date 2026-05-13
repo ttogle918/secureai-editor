@@ -28,6 +28,7 @@ public class RefreshToken {
     @Column(length = 255)
     private String deviceInfo;
 
+    @Column(length = 45)
     private String ipAddress;
 
     @Column(nullable = false, updatable = false)

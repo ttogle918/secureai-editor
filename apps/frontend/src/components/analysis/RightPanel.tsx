@@ -1,24 +1,24 @@
 // components/analysis/RightPanel.tsx
-// 에디터 오른쪽 패널 — 취약점 상세 / AI 채팅 탭 전환
+// 에디터 오른쪽 패널 — 취약점 상세 / AI 채팅 / 진행률 탭 전환
+// VulnDetailPanel 이 FilterBar 를 내장하므로 여기서 별도 렌더링 불필요
 'use client';
-import { MessageSquare, ShieldAlert } from 'lucide-react';
+import { MessageSquare, ShieldAlert, CheckSquare } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
-import FilterBar from '@/components/ui/FilterBar';
 import VulnDetailPanel from '@/components/analysis/VulnDetailPanel';
 import ChatPanel from '@/components/analysis/ChatPanel';
+import { ProgressPanel } from '@/components/ui/ProgressPanel';
 
 export function RightPanel() {
   const rightTab = useSecureStore((s) => s.rightTab);
   const setRightTab = useSecureStore((s) => s.setRightTab);
-  const chatMessages = useSecureStore((s) => s.chatMessages);
-  const sendChat = useSecureStore((s) => s.sendChat);
   const vulns = useSecureStore((s) => s.vulns);
   const selectedPath = useSecureStore((s) => s.selectedPath);
   const fileVulnCount = vulns.filter((v) => v.filePath === selectedPath).length;
 
   const TABS = [
-    { id: 'vulns' as const, label: `취약점 (${fileVulnCount})`, icon: <ShieldAlert size={12} aria-hidden="true" /> },
-    { id: 'chat' as const, label: 'AI 채팅', icon: <MessageSquare size={12} aria-hidden="true" /> },
+    { id: 'vulns'     as const, label: `취약점 (${fileVulnCount})`, icon: <ShieldAlert  size={12} aria-hidden="true" /> },
+    { id: 'chat'     as const, label: 'AI 채팅',                   icon: <MessageSquare size={12} aria-hidden="true" /> },
+    { id: 'progress' as const, label: '진행률',                    icon: <CheckSquare   size={12} aria-hidden="true" /> },
   ] as const;
 
   return (
@@ -77,24 +77,35 @@ export function RightPanel() {
       </div>
 
       {/* Panel content */}
-      {rightTab === 'vulns' ? (
+      {rightTab === 'vulns' && (
         <div
           id="right-panel-vulns"
           role="tabpanel"
           aria-labelledby="right-tab-vulns"
           style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}
         >
-          <FilterBar />
+          {/* FilterBar 는 VulnDetailPanel 내부에 내장됨 */}
           <VulnDetailPanel />
         </div>
-      ) : (
+      )}
+      {rightTab === 'chat' && (
         <div
           id="right-panel-chat"
           role="tabpanel"
           aria-labelledby="right-tab-chat"
           style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
         >
-          <ChatPanel messages={chatMessages} onSend={sendChat} />
+          <ChatPanel />
+        </div>
+      )}
+      {rightTab === 'progress' && (
+        <div
+          id="right-panel-progress"
+          role="tabpanel"
+          aria-labelledby="right-tab-progress"
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+        >
+          <ProgressPanel />
         </div>
       )}
     </div>

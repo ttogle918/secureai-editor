@@ -2,6 +2,8 @@ package io.secureai.backend.domain.analysis.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.secureai.backend.domain.analysis.dto.ProgressLogResponse;
+import io.secureai.backend.domain.analysis.dto.ProgressSummaryResponse;
+import io.secureai.backend.domain.analysis.dto.ProgressSummaryResponse.ProgressStepDto;
 import io.secureai.backend.domain.analysis.dto.SaveProgressLogRequest;
 import io.secureai.backend.domain.analysis.entity.AnalysisProgressLog;
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
@@ -62,10 +64,21 @@ public class ProgressLogService {
             return ProgressLogResponse.from(saved);
         }
 
-        // completed / failed
+        // completed / failed — started 레코드가 없으면 즉석 생성 (재시작·순서 역전 방어)
         AnalysisProgressLog progressLog = progressLogRepository
                 .findBySessionIdAndStepNameAndTarget(req.sessionId(), req.stepName(), target)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PROGRESS_LOG_NOT_FOUND));
+                .orElseGet(() -> {
+                    AnalysisSession session = sessionRepository.findById(req.sessionId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+                    return progressLogRepository.save(AnalysisProgressLog.builder()
+                            .session(session)
+                            .stepName(req.stepName())
+                            .stepOrder(req.stepOrder())
+                            .target(target)
+                            .status("started")
+                            .startedAt(OffsetDateTime.now())
+                            .build());
+                });
 
         OffsetDateTime completedAt = OffsetDateTime.now();
         progressLog.setStatus(req.status());
@@ -97,6 +110,37 @@ public class ProgressLogService {
                 .stream()
                 .map(ProgressLogResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ProgressSummaryResponse getSummary(UUID userId, UUID sessionId) {
+        AnalysisSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        if (!teamMemberRepository.existsByProjectIdAndUserId(session.getProject().getId(), userId)) {
+            throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
+        }
+
+        List<AnalysisProgressLog> logs = progressLogRepository
+                .findBySessionIdOrderByStepOrderAscStartedAtAsc(sessionId);
+
+        int total = logs.size();
+        int completed = (int) logs.stream()
+                .filter(l -> "completed".equals(l.getStatus()))
+                .count();
+        int percentage = total == 0 ? 0 : (completed * 100 / total);
+
+        List<ProgressStepDto> steps = logs.stream()
+                .map(l -> new ProgressStepDto(
+                        l.getStepName(),
+                        l.getStepOrder(),
+                        l.getTarget(),
+                        l.getStatus(),
+                        l.getDurationMs()
+                ))
+                .toList();
+
+        return new ProgressSummaryResponse(total, completed, percentage, steps);
     }
 
     private String toJson(Object obj) {

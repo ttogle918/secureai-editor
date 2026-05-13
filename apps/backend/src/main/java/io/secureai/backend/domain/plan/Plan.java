@@ -51,6 +51,10 @@ public class Plan {
     @Column(nullable = false)
     private Short apiRateLimitPerMin;
 
+    /** 월 지급 크레딧. -1 = 무제한 */
+    @Column(nullable = false)
+    private Integer monthlyCredits;
+
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 }

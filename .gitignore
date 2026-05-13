@@ -23,6 +23,7 @@ yarn-error.log*
 .eslintcache
 .turbo/
 .vercel/
+*.tsbuildinfo
 
 # Java (Spring Boot / Gradle / Maven)
 build/
@@ -79,10 +80,12 @@ secrets/
 application-secret.yml
 application-secret.properties
 
+
 # Database files
 *.db
 *.sqlite
 *.sqlite3
+docs/analysis_results*.sql
 
 # Android / Firebase
 google-services.json
@@ -122,3 +125,6 @@ files.zip
 # Claude Code memory
 .claude/
 CLAUDE.md
+
+# Tauri App Icon
+apps/frontend/src-tauri/icons/**/*.*

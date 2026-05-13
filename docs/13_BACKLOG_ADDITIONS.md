@@ -189,6 +189,17 @@ CREATE TABLE totp_recovery_codes (
 
 ---
 
+### FEAT-SEC-006 🔴 동적 보안 지식 동기화 (RAG 기반)
+**현재 상태**: 전문가용 MD 파일로 관리 중  
+**필요성**: 전문가의 노하우와 외부 보안 피드를 결합하여 AI가 항상 최신 기준으로 검사하도록 함  
+**구현 방향**:
+- `security_guidelines` 테이블 구축 및 벡터 검색(pgvector) 연동
+- 전문가 MD 파일 → DB 자동 동기화 (TASK-306)
+- 하루 한 번 외부 보안 피드(NVD, GitHub Advisory) 수집 및 요약 저장
+- `sast_node.py` 분석 시 관련 지침 동적 검색(Retrieval) 적용
+
+---
+
 ## 3. API 기능 보완
 
 ### FEAT-API-001 🔴 분석 비교 API (Diff)

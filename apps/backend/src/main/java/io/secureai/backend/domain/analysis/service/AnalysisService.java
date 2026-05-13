@@ -9,6 +9,7 @@ import io.secureai.backend.domain.project.repository.ProjectRepository;
 import io.secureai.backend.domain.project.repository.TeamMemberRepository;
 import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.repository.UserRepository;
+import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class AnalysisService {
     private final UserRepository userRepository;
     private final AiAgentClient aiAgentClient;
     private final GitHubApiService gitHubApiService;
+    private final UserService userService;
 
     @Transactional
     public AnalysisSessionResponse startAnalysis(UUID userId, StartAnalysisRequest request) {
@@ -57,23 +59,26 @@ public class AnalysisService {
         session.markRunning();
         sessionRepository.save(session);
 
+        // 사용자 모델 설정 및 BYOK 키 조회 (분석 전 해결)
+        UserService.UserAnalysisSettings settings = userService.getAnalysisSettings(userId);
+
         // AI Agent 비동기 호출 (Virtual Thread 에서 실행)
         if ("github".equalsIgnoreCase(request.effectiveSourceType())) {
-            GitHubApiService.GithubRepoInfo info =
-                    gitHubApiService.resolveAndValidate(userId, request.githubRepoUrl(), request.githubRef());
+            GitHubApiService.GithubRepoInfo info = gitHubApiService.resolveAndValidate(userId, request.githubRepoUrl(),
+                    request.githubRef());
             // 토큰은 로그에 출력 금지
             aiAgentClient.startAnalysis(
                     session.getId(), project.getId(), null,
-                    "github", info.owner(), info.repo(), info.ref(), info.token()
-            );
+                    "github", info.owner(), info.repo(), info.ref(), info.token(),
+                    settings.preferredModel(), settings.apiKey());
         } else {
             String workspaceRoot = request.workspaceRoot() != null
                     ? request.workspaceRoot()
                     : "/workspace/" + project.getId();
             aiAgentClient.startAnalysis(
                     session.getId(), project.getId(), workspaceRoot,
-                    "local", null, null, null, null
-            );
+                    "local", null, null, null, null,
+                    settings.preferredModel(), settings.apiKey());
         }
 
         log.info("[analysis] started sessionId={} projectId={} sourceType={}",

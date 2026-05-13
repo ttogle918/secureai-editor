@@ -56,7 +56,22 @@ export default function VulnPanel({ vulns, patches, selectedId, onSelect }: Prop
               <span className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                 {v.type}
               </span>
-              <span className={`badge badge-${v.severity}`}>{severityLabel[v.severity]}</span>
+              <div className="flex items-center gap-1.5">
+                {(() => {
+                  const p = patches.find((p) =>
+                    (p.vulnId && p.vulnId === v.id) ||
+                    (p.filePath === v.filePath && p.vulnType === v.type)
+                  );
+                  if (v.status === 'patched') return (
+                    <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 3, background: 'rgba(76,175,80,0.15)', color: '#4caf50', border: '0.5px solid rgba(76,175,80,0.35)' }}>SOLVED</span>
+                  );
+                  if (p) return (
+                    <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 3, background: 'rgba(234,88,12,0.12)', color: '#f97316', border: '0.5px solid rgba(234,88,12,0.3)' }}>PATCHED</span>
+                  );
+                  return null;
+                })()}
+                <span className={`badge badge-${v.severity}`}>{severityLabel[v.severity]}</span>
+              </div>
             </div>
             <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
               <span>{v.filePath.split('/').pop()}:{v.lineStart}</span>

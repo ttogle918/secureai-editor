@@ -125,6 +125,25 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
           </span>
         )}
 
+        {/* SOLVED / PATCHED 배지 */}
+        {patchApplied ? (
+          <span style={{
+            fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 4, flexShrink: 0,
+            background: 'rgba(76,175,80,0.15)', color: '#4caf50',
+            border: '0.5px solid rgba(76,175,80,0.4)', letterSpacing: '0.04em',
+          }}>
+            SOLVED
+          </span>
+        ) : patch ? (
+          <span style={{
+            fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 4, flexShrink: 0,
+            background: 'rgba(234,88,12,0.12)', color: '#f97316',
+            border: '0.5px solid rgba(234,88,12,0.3)', letterSpacing: '0.04em',
+          }}>
+            PATCHED
+          </span>
+        ) : null}
+
         <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <div
             style={{

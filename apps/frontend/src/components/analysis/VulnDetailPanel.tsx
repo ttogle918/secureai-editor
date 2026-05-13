@@ -10,7 +10,6 @@ import { useSecureStore } from '@/store/useSecureStore';
 import { useVulnFilter } from '@/hooks/useVulnFilter';
 import { CallChainView } from '@/components/analysis/CallChainView';
 import FilterBar from '@/components/ui/FilterBar';
-import { mockPatches } from '@/lib/mockData';
 import type { Vulnerability } from '@/lib/mockData';
 
 // ── 심각도별 색상 ──────────────────────────────────────────────
@@ -32,8 +31,9 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
   const [isFixing,      setIsFixing]      = useState(false);
   const [patchApplied,  setPatchApplied]  = useState(vuln.status === 'patched');
 
+  const patches = useSecureStore((s) => s.patches);
   const isOpen  = expandedVulnId === vuln.id;
-  const patch   = mockPatches.find((p) => p.vulnId === vuln.id);
+  const patch   = patches.find((p) => p.vulnId === vuln.id);
   const sColor  = SEV_COLOR[vuln.severity] ?? '#888';
 
   const handleToggle = () => {

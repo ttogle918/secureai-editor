@@ -80,7 +80,20 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
             totalVulns++;
           }
         }
-        addToast(`분석 완료 — 취약점 ${totalVulns}개 발견`, 'info');
+        const usage = event.token_usage as { input_tokens: number; output_tokens: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number } | undefined;
+        const tokenSuffix = usage
+          ? ` · ${((usage.input_tokens + usage.output_tokens) / 1000).toFixed(1)}k 토큰`
+          : '';
+        addToast(`분석 완료 — 취약점 ${totalVulns}개 발견${tokenSuffix}`, 'info');
+        if (usage) {
+          const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+          const cacheRead  = usage.cache_read_input_tokens ?? 0;
+          const totalTokens = usage.input_tokens + usage.output_tokens;
+          addToast(
+            `토큰 상세 — 입력 ${usage.input_tokens.toLocaleString()} / 출력 ${usage.output_tokens.toLocaleString()} / 캐시쓰기 ${cacheWrite.toLocaleString()} / 캐시읽기 ${cacheRead.toLocaleString()} (총 ${totalTokens.toLocaleString()})`,
+            'info',
+          );
+        }
         setIsAnalyzing(false);
       } else if (event.type === 'progress' && event.node === 'sast' && event.file) {
         // 파일별 SAST 진행률 업데이트

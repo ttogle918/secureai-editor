@@ -4,7 +4,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
-  mockVulnerabilities, mockChatMessages, mockDastLogs, mockPatches,
   type Vulnerability, type ChatMessage, type DastLog, type PatchSuggestion, type FileNode,
 } from '@/lib/mockData';
 import type { SeverityLevel } from '@/types';
@@ -30,13 +29,8 @@ export interface EditorTab {
   severity?: SeverityLevel;
 }
 
-const INITIAL_TABS: EditorTab[] = [
-  { path: '/src/main/java/UserAuth.java',    label: 'UserAuth.java',    severity: 'critical' },
-  { path: '/src/main/java/AuthService.java', label: 'AuthService.java', severity: 'high' },
-  { path: '/src/main/web/LoginPage.tsx',     label: 'LoginPage.tsx',    severity: 'high' },
-];
-
-const DEFAULT_SELECTED_PATH = INITIAL_TABS[0].path;
+const INITIAL_TABS: EditorTab[] = [];
+const DEFAULT_SELECTED_PATH = '';
 
 // ─── 스토어 인터페이스 ────────────────────────────────────────
 interface SecureStore {
@@ -210,7 +204,7 @@ export const useSecureStore = create<SecureStore>()(
   setSseSessionId: (id) => set({ sseSessionId: id }),
 
   // ── 패치
-  patches: mockPatches,
+  patches: [],
   applyPatch: (vulnId) =>
     set((s) => ({
       vulns: s.vulns.map((v) =>
@@ -230,7 +224,7 @@ export const useSecureStore = create<SecureStore>()(
   setIsAnalyzing: (v) => set({ isAnalyzing: v }),
 
   // ── DAST
-  dastLogs: mockDastLogs,
+  dastLogs: [],
 
   // ── 진행률
   progressSteps: [],
@@ -251,7 +245,7 @@ export const useSecureStore = create<SecureStore>()(
   clearProgressSteps: () => set({ progressSteps: [] }),
 
   // ── 채팅
-  chatMessages: mockChatMessages,
+  chatMessages: [],
   addChatMessage: (m) => set((s) => ({ chatMessages: [...s.chatMessages, m] })),
   sendChat: (text) => {
     const userMsg: ChatMessage = {

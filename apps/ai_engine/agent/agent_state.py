@@ -37,6 +37,9 @@ class AgentState(TypedDict):
     preferred_model: str | None
     user_api_key: str | None  # 복호화된 값 (로그 출력 금지)
 
+    # 토큰 사용량 누적 (input, output, cache_creation_input, cache_read_input)
+    token_usage: dict
+
     # 세션 상태
     status: str          # running / completed / error
     error_message: str | None

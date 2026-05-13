@@ -72,8 +72,8 @@ async def analyze_for_sast(
     guidelines: str = "",
     model: str | None = None,
     api_key: str | None = None,
-) -> str:
-    """파일 하나에 대한 SAST 분석을 Claude에 요청하고 원문 응답을 반환한다.
+) -> tuple[str, dict]:
+    """파일 하나에 대한 SAST 분석을 Claude에 요청하고 (원문 응답, token_usage)를 반환한다.
 
     model/api_key가 제공되면 사용자 BYOK 설정을 우선 적용한다.
     가이드라인 포함 시 1,024 tokens 초과 → prompt caching 실제 동작.
@@ -106,5 +106,17 @@ async def analyze_for_sast(
     )
 
     raw = response.content[0].text
-    logger.debug("[claude] file=%s model=%s response_chars=%d", file_path, effective_model, len(raw))
-    return raw
+    u = response.usage
+    usage = {
+        "input_tokens":                  u.input_tokens,
+        "output_tokens":                 u.output_tokens,
+        "cache_creation_input_tokens":   getattr(u, "cache_creation_input_tokens", 0) or 0,
+        "cache_read_input_tokens":       getattr(u, "cache_read_input_tokens", 0) or 0,
+    }
+    logger.debug(
+        "[claude] file=%s model=%s in=%d out=%d cache_write=%d cache_read=%d",
+        file_path, effective_model,
+        usage["input_tokens"], usage["output_tokens"],
+        usage["cache_creation_input_tokens"], usage["cache_read_input_tokens"],
+    )
+    return raw, usage

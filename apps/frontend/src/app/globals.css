@@ -270,3 +270,68 @@ body {
   animation: shimmer 1.5s infinite;
   border-radius: 4px;
 }
+
+/* ── 11. Responsive Layout Utilities ────────────────────── */
+
+/* Dashboard KPI 카드 그리드: 2열(모바일) → 3열(태블릿) → 5열(데스크탑) */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (min-width: 600px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 1024px) {
+  .kpi-grid { grid-template-columns: repeat(5, 1fr); }
+}
+
+/* Dashboard 차트 그리드: 1열(모바일) → 2열(태블릿+) */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 768px) {
+  .chart-grid { grid-template-columns: 1fr 1.6fr; }
+}
+
+/* AppHeader — 모바일에서 심각도 필터 숨김 */
+.header-sev-filters {
+  display: none;
+}
+@media (min-width: 768px) {
+  .header-sev-filters { display: flex; gap: 4px; margin-right: 10px; }
+}
+
+/* AppHeader — 모바일에서 파이프라인 배지 숨김 */
+.header-pipeline-badges {
+  display: none;
+}
+@media (min-width: 900px) {
+  .header-pipeline-badges { display: flex; gap: 5px; margin-left: 10px; }
+}
+
+/* AppHeader — 모바일에서 export 버튼 숨김 */
+.header-export-btn {
+  display: none !important;
+}
+@media (min-width: 1100px) {
+  .header-export-btn { display: flex !important; }
+}
+
+/* MobileBottomNav — 모바일에서만 표시 */
+.mobile-only {
+  display: flex;
+}
+@media (min-width: 768px) {
+  .mobile-only { display: none; }
+}
+
+/* 모바일 하단 네비 공간 확보 (스크롤 영역이 nav에 가리지 않도록) */
+.pb-mobile-nav {
+  padding-bottom: 64px;
+}
+@media (min-width: 768px) {
+  .pb-mobile-nav { padding-bottom: 0; }
+}

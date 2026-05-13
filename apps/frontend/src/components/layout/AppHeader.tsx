@@ -143,7 +143,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           <span style={{ color: '#fff' }}>{currentFile}</span>
         </div>
 
-        <div style={{ display: 'flex', gap: 5, marginLeft: 10 }}>
+        <div className="header-pipeline-badges">
           {([
             { label: 'SAST',  bg: 'rgba(34,197,94,0.12)',  color: '#22c55e', border: 'rgba(34,197,94,0.35)'  },
             { label: 'DAST',  bg: 'rgba(249,115,22,0.10)', color: '#f97316', border: 'rgba(249,115,22,0.30)' },
@@ -161,7 +161,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
 
       {/* ── Right ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ display: 'flex', gap: 4, marginRight: 10 }}>
+        <div className="header-sev-filters">
           {/* ALL 버튼 — active 시 흰색 반투명 하이라이트 */}
           <button
             onClick={() => setSeverityFilter('all')}
@@ -227,10 +227,11 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         {onExportJSON && (
           <button
             onClick={onExportJSON}
+            className="header-export-btn"
             style={{
               fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.25)',
               background: 'none', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 4, marginLeft: 8,
+              alignItems: 'center', gap: 4, marginLeft: 8,
             }}
           >
             <FileJson size={14} /> Export JSON

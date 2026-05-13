@@ -33,7 +33,10 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
 
   const patches = useSecureStore((s) => s.patches);
   const isOpen  = expandedVulnId === vuln.id;
-  const patch   = patches.find((p) => p.vulnId === vuln.id);
+  const patch   = patches.find((p) =>
+    (p.vulnId && p.vulnId === vuln.id) ||
+    (p.filePath === vuln.filePath && p.vulnType === vuln.type)
+  );
   const sColor  = SEV_COLOR[vuln.severity] ?? '#888';
 
   const handleToggle = () => {

@@ -4,8 +4,9 @@
 import { useState } from 'react';
 import {
   PanelLeftClose, PanelLeftOpen, ChevronRight,
-  FileJson, Play, LayoutDashboard, Code2, Settings,
+  FileJson, Play, LayoutDashboard, Code2, Settings, History,
 } from 'lucide-react';
+import { AnalysisHistoryModal } from '@/components/analysis/AnalysisHistoryModal';
 import Link from 'next/link';
 import { useSecureStore, type SeverityFilter } from '@/store/useSecureStore';
 import { SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/constants/severity';
@@ -13,7 +14,8 @@ import { useSse, type SseStatus } from '@/hooks/useSse';
 import { useToastStore } from '@/hooks/useToast';
 import { useStartAnalysis } from '@/hooks/useStartAnalysis';
 import { SseIndicator } from '@/components/ui/SseIndicator';
-import type { Severity, VulnCategory, Vulnerability } from '@/lib/mockData';
+import { apiClient } from '@/lib/api/client';
+import type { Severity, VulnCategory, Vulnerability, PatchSuggestion } from '@/lib/mockData';
 
 const SEV_FILTERS: Array<'critical' | 'high' | 'medium' | 'low'> = ['critical', 'high', 'medium', 'low'];
 const VALID_CATS: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
@@ -31,6 +33,7 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ onExportJSON }: AppHeaderProps) {
+  const projectId          = useSecureStore((s) => s.projectId);
   const sidebarOpen        = useSecureStore((s) => s.sidebarOpen);
   const setSidebarOpen     = useSecureStore((s) => s.setSidebarOpen);
   const viewMode           = useSecureStore((s) => s.viewMode);
@@ -40,14 +43,19 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const setSeverityFilter  = useSecureStore((s) => s.setSeverityFilter);
   const vulns              = useSecureStore((s) => s.vulns);
   const setIsAnalyzing     = useSecureStore((s) => s.setIsAnalyzing);
-  const sseSessionId       = useSecureStore((s) => s.sseSessionId);
-  const addVuln            = useSecureStore((s) => s.addVuln);
+  const sseSessionId        = useSecureStore((s) => s.sseSessionId);
+  const addVuln             = useSecureStore((s) => s.addVuln);
+  const clearVulns          = useSecureStore((s) => s.clearVulns);
+  const setPatches          = useSecureStore((s) => s.setPatches);
+  const setLastTokenUsage   = useSecureStore((s) => s.setLastTokenUsage);
+  const setRightTab         = useSecureStore((s) => s.setRightTab);
   const addProgressStep    = useSecureStore((s) => s.addProgressStep);
   const addToast           = useToastStore((s) => s.addToast);
   const { startAnalysis, isAnalyzing } = useStartAnalysis();
 
   // SSE 상태 — 컴포넌트 로컬 상태로 관리
   const [sseStatus, setSseStatus] = useState<SseStatus>('idle');
+  const [showHistory, setShowHistory] = useState(false);
 
   const VALID_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low'];
 
@@ -55,45 +63,80 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
     sessionId: sseSessionId,
     onEvent: (event) => {
       if (event.type === 'completed') {
-        // 분석 완료 — results 배열에서 취약점을 스토어에 적재
-        let totalVulns = 0;
-        for (const fileResult of (event.results ?? [])) {
-          for (const v of fileResult.vulnerabilities) {
-            const rawSev = (v.severity ?? 'low').toLowerCase() as Severity;
-            const severity: Severity = VALID_SEVERITIES.includes(rawSev) ? rawSev : 'low';
-            const rawCat = (v.category ?? 'SECURITY') as VulnCategory;
-            const category: VulnCategory = VALID_CATS.includes(rawCat) ? rawCat : 'SECURITY';
-            const vuln: Vulnerability = {
-              id:            `sse-${fileResult.file}-${v.line ?? 0}-${totalVulns}`,
-              type:          v.type ?? 'Unknown',
-              severity,
-              category,
-              lineStart:     v.line ?? 0,
-              lineEnd:       v.line ?? 0,
-              filePath:      fileResult.file,
-              description:   v.description ?? '',
-              cweId:         v.cwe ?? '',
-              owaspCategory: v.owasp ?? '',
-              status:        'open',
-            };
-            addVuln(vuln);
-            totalVulns++;
-          }
-        }
+        const sid = event.sessionId;
+
+        // DB에서 실제 취약점 로드 — SSE 페이로드 대신 DB 기준으로 로드해야
+        // 캐시 히트 레이스 컨디션 + 합성 ID 불일치 문제를 모두 해결한다.
+        apiClient.get<{ data: { content: Array<{
+          id: string; filePath: string; lineNumber: number | null;
+          vulnType: string; severity: string; category: string | null;
+          cwe: string | null; owasp: string | null; description: string | null;
+        }> } }>(`/vulnerabilities?sessionId=${sid}&size=500`)
+          .then((res) => {
+            const items = res.data?.content ?? [];
+            clearVulns();
+            for (const v of items) {
+              const rawSev = (v.severity ?? 'low').toLowerCase() as Severity;
+              const severity: Severity = VALID_SEVERITIES.includes(rawSev) ? rawSev : 'low';
+              const rawCat = (v.category ?? 'SECURITY') as VulnCategory;
+              const category: VulnCategory = VALID_CATS.includes(rawCat) ? rawCat : 'SECURITY';
+              const vuln: Vulnerability = {
+                id: v.id, type: v.vulnType, severity, category,
+                lineStart: v.lineNumber ?? 0, lineEnd: v.lineNumber ?? 0,
+                filePath: v.filePath, description: v.description ?? '',
+                cweId: v.cwe ?? '', owaspCategory: v.owasp ?? '', status: 'open',
+              };
+              addVuln(vuln);
+            }
+          })
+          .catch(() => {});
+
+        const totalVulns = event.vuln_count ?? 0;
         const usage = event.token_usage as { input_tokens: number; output_tokens: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number } | undefined;
-        const tokenSuffix = usage
-          ? ` · ${((usage.input_tokens + usage.output_tokens) / 1000).toFixed(1)}k 토큰`
-          : '';
-        addToast(`분석 완료 — 취약점 ${totalVulns}개 발견${tokenSuffix}`, 'info');
         if (usage) {
-          const cacheWrite = usage.cache_creation_input_tokens ?? 0;
-          const cacheRead  = usage.cache_read_input_tokens ?? 0;
-          const totalTokens = usage.input_tokens + usage.output_tokens;
+          const inp   = usage.input_tokens;
+          const out   = usage.output_tokens;
+          const cw    = usage.cache_creation_input_tokens ?? 0;
+          const cr    = usage.cache_read_input_tokens ?? 0;
+          // claude-haiku-4-5-20251001 pricing (USD per million tokens)
+          const costUsd = (inp * 0.80 + out * 4.00 + cw * 1.00 + cr * 0.08) / 1_000_000;
+          setLastTokenUsage({
+            inputTokens:      inp,
+            outputTokens:     out,
+            cacheWriteTokens: cw,
+            cacheReadTokens:  cr,
+            estimatedCostUsd: costUsd,
+            modelId:          'claude-haiku-4-5',
+          });
+          const totalTokens = inp + out + cw + cr;
           addToast(
-            `토큰 상세 — 입력 ${usage.input_tokens.toLocaleString()} / 출력 ${usage.output_tokens.toLocaleString()} / 캐시쓰기 ${cacheWrite.toLocaleString()} / 캐시읽기 ${cacheRead.toLocaleString()} (총 ${totalTokens.toLocaleString()})`,
+            `분석 완료 — 취약점 ${totalVulns}개 · ${(totalTokens / 1000).toFixed(1)}k 토큰 · $${costUsd.toFixed(4)}`,
             'info',
           );
+        } else {
+          addToast(`분석 완료 — 취약점 ${totalVulns}개 발견`, 'info');
         }
+
+        // 패치 제안을 백엔드에서 로드 (patch_node가 저장 완료 후 completed 이벤트 발생)
+        apiClient.get<{ data: Array<{
+          id: string; vulnId: string | null; filePath: string; vulnType: string;
+          originalSnippet: string | null; patchedSnippet: string | null; explanation: string | null;
+        }> }>(`/sessions/${sid}/patches`)
+          .then((res) => {
+            const items = res.data ?? [];
+            const patches: PatchSuggestion[] = items.map((p) => ({
+              vulnId:       p.vulnId ?? undefined,
+              filePath:     p.filePath,
+              vulnType:     p.vulnType,
+              originalCode: p.originalSnippet ?? '',
+              patchedCode:  p.patchedSnippet ?? '',
+              explanation:  p.explanation ?? '',
+            }));
+            setPatches(patches);
+          })
+          .catch(() => {});
+
+        setRightTab('vulns'); // 완료 시 취약점 탭으로 자동 전환
         setIsAnalyzing(false);
       } else if (event.type === 'progress' && event.node === 'sast' && event.file) {
         // 파일별 SAST 진행률 업데이트
@@ -222,6 +265,21 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           {viewMode === 'editor' ? '대시보드' : '에디터'}
         </button>
 
+        {projectId && (
+          <button
+            onClick={() => setShowHistory(true)}
+            title="분석 이력"
+            style={{
+              fontSize: 11, fontWeight: 700, padding: '6px 10px', borderRadius: 6,
+              background: '#1a1a1c', color: 'rgba(255,255,255,0.45)',
+              border: '1px solid #2d2d30', cursor: 'pointer',
+              display: 'flex', alignItems: 'center',
+            }}
+          >
+            <History size={14} />
+          </button>
+        )}
+
         <button
           onClick={startAnalysis}
           disabled={isAnalyzing}
@@ -236,6 +294,13 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           <Play size={14} fill="currentColor" />
           {isAnalyzing ? '분석 중...' : '분석 시작'}
         </button>
+
+        {showHistory && projectId && (
+          <AnalysisHistoryModal
+            projectId={projectId}
+            onClose={() => setShowHistory(false)}
+          />
+        )}
 
         {onExportJSON && (
           <button
@@ -253,7 +318,11 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
 
         {/* SSE 연결 상태 표시 */}
         <div style={{ marginLeft: 8 }}>
-          <SseIndicator status={sseStatus} />
+          <SseIndicator
+            status={sseStatus}
+            isAnalyzing={isAnalyzing}
+            hasResults={vulns.length > 0}
+          />
         </div>
 
         <Link

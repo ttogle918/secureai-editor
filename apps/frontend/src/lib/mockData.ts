@@ -37,7 +37,9 @@ export interface Vulnerability {
 }
 
 export interface PatchSuggestion {
-  vulnId: string;
+  vulnId?: string;
+  filePath: string;
+  vulnType: string;
   originalCode: string;
   patchedCode: string;
   explanation: string;

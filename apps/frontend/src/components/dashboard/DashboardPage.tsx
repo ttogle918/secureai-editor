@@ -36,9 +36,10 @@ function EmptyState({ label }: { label: string }) {
 }
 
 export default function DashboardPage() {
-  const vulns          = useSecureStore((s) => s.vulns);
-  const severityFilter = useSecureStore((s) => s.severityFilter);
-  const apiGroupFilter = useSecureStore((s) => s.apiGroupFilter);
+  const vulns           = useSecureStore((s) => s.vulns);
+  const severityFilter  = useSecureStore((s) => s.severityFilter);
+  const apiGroupFilter  = useSecureStore((s) => s.apiGroupFilter);
+  const lastTokenUsage  = useSecureStore((s) => s.lastTokenUsage);
 
   const filteredVulns = useMemo(() => {
     return vulns.filter((v) => {
@@ -171,6 +172,59 @@ export default function DashboardPage() {
         <Card title="OWASP Top 10 커버리지 (A01 ~ A10)">
           <OwaspCoverageMatrix />
         </Card>
+
+        {/* ── 토큰 사용량 ── */}
+        {lastTokenUsage && (
+          <Card>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, color: '#9494a0' }}>토큰 사용량</span>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3,
+                  background: 'rgba(99,102,241,0.12)', color: '#818cf8',
+                  border: '0.5px solid rgba(99,102,241,0.25)',
+                }}>
+                  {lastTokenUsage.modelId}
+                </span>
+              </div>
+              <span style={{
+                fontSize: 15, fontWeight: 700,
+                color: '#e8e8ee',
+              }}>
+                ${lastTokenUsage.estimatedCostUsd.toFixed(4)}
+                <span style={{ fontSize: 11, color: '#555560', marginLeft: 6 }}>
+                  (≈ ₩{Math.round(lastTokenUsage.estimatedCostUsd * 1380).toLocaleString()})
+                </span>
+              </span>
+            </div>
+            <div style={{
+              marginTop: 12, display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)', gap: 8,
+            }}>
+              {([
+                { label: '입력',     value: lastTokenUsage.inputTokens,      color: '#60a5fa' },
+                { label: '출력',     value: lastTokenUsage.outputTokens,     color: '#34d399' },
+                { label: '캐시 쓰기', value: lastTokenUsage.cacheWriteTokens, color: '#f59e0b' },
+                { label: '캐시 읽기', value: lastTokenUsage.cacheReadTokens,  color: '#a78bfa' },
+              ] as const).map(({ label, value, color }) => (
+                <div key={label} style={{
+                  background: '#0d0d0f', borderRadius: 6, padding: '8px 12px',
+                  border: '1px solid #1f1f24',
+                }}>
+                  <div style={{ fontSize: 9, color: '#555560', marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>
+                    {value.toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: 9, color: '#404048', marginTop: 2 }}>tokens</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 8, fontSize: 10, color: '#404048' }}>
+              총 {(lastTokenUsage.inputTokens + lastTokenUsage.outputTokens + lastTokenUsage.cacheWriteTokens + lastTokenUsage.cacheReadTokens).toLocaleString()} 토큰
+              · 가격 기준: 입력 $0.80 / 출력 $4.00 / 캐시쓰기 $1.00 / 캐시읽기 $0.08 (per MTok)
+            </div>
+          </Card>
+        )}
 
         {/* ── 취약점 상세 목록 ── */}
         <div style={{ background: '#111114', border: '1px solid #1f1f24', borderRadius: 8, overflow: 'hidden' }}>

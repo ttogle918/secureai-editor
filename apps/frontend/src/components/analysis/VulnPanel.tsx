@@ -31,7 +31,12 @@ interface Props {
 
 export default function VulnPanel({ vulns, patches, selectedId, onSelect }: Props) {
   const selectedVuln = vulns.find((v) => v.id === selectedId);
-  const patch = patches.find((p) => p.vulnId === selectedId);
+  const patch = selectedVuln
+    ? patches.find((p) =>
+        (p.vulnId && p.vulnId === selectedId) ||
+        (p.filePath === selectedVuln.filePath && p.vulnType === selectedVuln.type)
+      )
+    : undefined;
 
   return (
     <div className="flex flex-col h-full">

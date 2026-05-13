@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api/client';
+import { useSecureStore } from '@/store/useSecureStore';
 
 export interface ProjectSummary {
   id: string;
@@ -22,11 +23,14 @@ interface SessionItem {
 }
 
 export function useProjects() {
-  const [projects, setProjects]   = useState<ProjectSummary[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [loading, setLoading]   = useState(true);
+
+  const projectId    = useSecureStore((s) => s.projectId);
+  const setProjectId = useSecureStore((s) => s.setProjectId);
 
   useEffect(() => {
-    async function fetch() {
+    async function load() {
       try {
         const res = await apiClient.get<{ data: ProjectItem[] }>('/projects');
         const items: ProjectItem[] = res.data ?? [];
@@ -49,14 +53,25 @@ export function useProjects() {
             }
           }),
         );
+
         setProjects(summaries);
+
+        // projectId가 없으면 가장 최근 분석 프로젝트 자동 선택
+        if (!projectId && summaries.length > 0) {
+          const latest = [...summaries].sort((a, b) =>
+            (b.lastAnalyzedAt ?? '').localeCompare(a.lastAnalyzedAt ?? ''),
+          )[0];
+          setProjectId(latest.id);
+        }
       } catch {
         setProjects([]);
       } finally {
         setLoading(false);
       }
     }
-    fetch();
+    load();
+  // projectId/setProjectId를 deps에서 제외 — 마운트 시 1회만 실행
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { projects, loading };

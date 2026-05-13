@@ -86,8 +86,20 @@ interface SecureStore {
   sseSessionId: string | null;
   setSseSessionId: (id: string | null) => void;
 
+  // ── 토큰 사용량 ──────────────────────────────────────────
+  lastTokenUsage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheWriteTokens: number;
+    cacheReadTokens: number;
+    estimatedCostUsd: number;
+    modelId: string;
+  } | null;
+  setLastTokenUsage: (usage: NonNullable<SecureStore['lastTokenUsage']> | null) => void;
+
   // ── 패치 ────────────────────────────────────────────────
   patches: PatchSuggestion[];
+  setPatches: (patches: PatchSuggestion[]) => void;
   applyPatch: (vulnId: string) => void;
 
   // ── 필터 ────────────────────────────────────────────────
@@ -203,8 +215,13 @@ export const useSecureStore = create<SecureStore>()(
   sseSessionId: null,
   setSseSessionId: (id) => set({ sseSessionId: id }),
 
+  // ── 토큰 사용량
+  lastTokenUsage: null,
+  setLastTokenUsage: (usage) => set({ lastTokenUsage: usage }),
+
   // ── 패치
   patches: [],
+  setPatches: (patches) => set({ patches }),
   applyPatch: (vulnId) =>
     set((s) => ({
       vulns: s.vulns.map((v) =>
@@ -275,6 +292,7 @@ export const useSecureStore = create<SecureStore>()(
         openTabs:        state.openTabs,
         selectedPath:    state.selectedPath,
         projectId:       state.projectId,
+        lastTokenUsage:  state.lastTokenUsage,
       }),
     }
   )

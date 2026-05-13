@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -61,8 +63,9 @@ public class AnalysisController {
     public SseEmitter streamSession(
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID sessionId) {
+        AnalysisSessionResponse session;
         try {
-            analysisService.getSession(userId, sessionId);
+            session = analysisService.getSession(userId, sessionId);
         } catch (Exception e) {
             // Content-Type이 text/event-stream으로 고정된 상태에서 예외를 GlobalExceptionHandler로
             // 넘기면 JSON 직렬화 실패(500)가 발생하므로 SSE error 이벤트로 직접 처리한다.
@@ -74,6 +77,25 @@ public class AnalysisController {
             error.complete();
             return error;
         }
+
+        // 캐시 히트 등으로 분석이 이미 완료된 경우 — pub/sub 이벤트가 유실됐을 수 있으므로
+        // 즉시 completed 이벤트를 전송하고 연결을 닫는다.
+        if ("completed".equals(session.status()) || "error".equals(session.status())) {
+            SseEmitter immediate = new SseEmitter(0L);
+            try {
+                Map<String, Object> payload = Map.of(
+                    "session_id", sessionId.toString(),
+                    "type",       session.status(),
+                    "vuln_count", session.vulnCount(),
+                    "results",    List.of()   // 프론트엔드가 DB에서 로드
+                );
+                immediate.send(SseEmitter.event().name("progress").data(payload));
+                log.info("[sse] late-connect replay sessionId={} status={}", sessionId, session.status());
+            } catch (IOException ignored) {}
+            immediate.complete();
+            return immediate;
+        }
+
         return sseEmitterService.subscribe(sessionId);
     }
 

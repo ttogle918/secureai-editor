@@ -1,13 +1,14 @@
 // components/analysis/VulnDetailPanel.tsx
 // 취약점 상세 아코디언 패널 — FilterBar 내장, useVulnFilter 훅 사용
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle,
   Zap, Info, Layers, RefreshCw,
 } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
 import { useVulnFilter } from '@/hooks/useVulnFilter';
+import { useTranslate } from '@/hooks/useTranslate';
 import { CallChainView } from '@/components/analysis/CallChainView';
 import FilterBar from '@/components/ui/FilterBar';
 import type { Vulnerability } from '@/lib/mockData';
@@ -27,12 +28,22 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
   const selectedPath      = useSecureStore((s) => s.selectedPath);
   const setSelectedPath   = useSecureStore((s) => s.setSelectedPath);
   const setRevealLine     = useSecureStore((s) => s.setRevealLine);
+  const displayLanguage   = useSecureStore((s) => s.displayLanguage);
 
-  const [isFixing,      setIsFixing]      = useState(false);
-  const [patchApplied,  setPatchApplied]  = useState(vuln.status === 'patched');
+  const [isFixing,       setIsFixing]       = useState(false);
+  const [patchApplied,   setPatchApplied]   = useState(vuln.status === 'patched');
+  const [translatedDesc, setTranslatedDesc] = useState<string | null>(null);
+
+  const { translate, translating } = useTranslate();
 
   const patches = useSecureStore((s) => s.patches);
   const isOpen  = expandedVulnId === vuln.id;
+
+  useEffect(() => {
+    if (!isOpen || displayLanguage !== 'ko' || !vuln.description) return;
+    if (translatedDesc) return;
+    translate(vuln.description, 'ko').then(setTranslatedDesc);
+  }, [isOpen, displayLanguage, vuln.description, translatedDesc, translate]);
   const patch   = patches.find((p) =>
     (p.vulnId && p.vulnId === vuln.id) ||
     (p.filePath === vuln.filePath && p.vulnType === vuln.type)
@@ -204,7 +215,11 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
           <div>
             <SectionLabel icon={<Info size={10} />} text="설명" />
             <p style={{ fontSize: 12, lineHeight: 1.7, color: 'rgba(255,255,255,0.7)' }}>
-              {vuln.description}
+              {displayLanguage === 'ko'
+                ? (translating && !translatedDesc
+                    ? <span style={{ color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>번역 중...</span>
+                    : (translatedDesc ?? vuln.description))
+                : vuln.description}
             </p>
             <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
               {[vuln.cweId, vuln.owaspCategory].filter(Boolean).map((t) => (

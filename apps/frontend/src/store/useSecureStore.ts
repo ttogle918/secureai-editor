@@ -12,6 +12,7 @@ export type Severity       = 'critical' | 'high' | 'medium' | 'low';
 export type SeverityFilter = 'all' | Severity;
 export type ViewMode       = 'editor' | 'dashboard';
 export type RightTab       = 'vulns' | 'chat' | 'progress';
+export type DisplayLanguage = 'ko' | 'en';
 
 // 진행률 단계 타입 — ProgressPanel과 순환 의존성 방지를 위해 인라인 정의
 export interface ProgressStep {
@@ -122,6 +123,10 @@ interface SecureStore {
   addProgressStep: (step: ProgressStep) => void;
   updateProgressStep: (stepOrder: number, update: Partial<ProgressStep>) => void;
   clearProgressSteps: () => void;
+
+  // ── 언어 설정 ────────────────────────────────────────────
+  displayLanguage: DisplayLanguage;
+  setDisplayLanguage: (lang: DisplayLanguage) => void;
 
   // ── 채팅 ────────────────────────────────────────────────
   chatMessages: ChatMessage[];
@@ -261,6 +266,10 @@ export const useSecureStore = create<SecureStore>()(
     })),
   clearProgressSteps: () => set({ progressSteps: [] }),
 
+  // ── 언어
+  displayLanguage: 'ko',
+  setDisplayLanguage: (lang) => set({ displayLanguage: lang }),
+
   // ── 채팅
   chatMessages: [],
   addChatMessage: (m) => set((s) => ({ chatMessages: [...s.chatMessages, m] })),
@@ -293,6 +302,7 @@ export const useSecureStore = create<SecureStore>()(
         selectedPath:    state.selectedPath,
         projectId:       state.projectId,
         lastTokenUsage:  state.lastTokenUsage,
+        displayLanguage: state.displayLanguage,
       }),
     }
   )

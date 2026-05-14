@@ -19,7 +19,7 @@ function loadCache(): Map<string, string> {
 function persistCache(cache: Map<string, string>): void {
   try {
     // keep only the most-recently-added entries if the cache grows too large
-    const entries = [...cache.entries()];
+    const entries = Array.from(cache.entries());
     const trimmed = entries.length > MAX_LS_ENTRIES
       ? entries.slice(entries.length - MAX_LS_ENTRIES)
       : entries;

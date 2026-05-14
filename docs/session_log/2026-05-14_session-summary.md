@@ -130,7 +130,19 @@ VulnDetailPanel (카드 펼침)
 
 ## 4. 미해결 / 다음 세션
 
-- [ ] `feat/frontend-ui`, `feat/i18n` 브랜치 PR 생성 및 main 머지
-- [ ] `feat/sprint4` patch_node 실제 동작 검증 (분석 실행 후 `/sessions/{id}/patches` 응답 확인)
-- [ ] DAST / L2 GitHub 파이프라인 실제 연결 (현재 UI만 존재)
-- [ ] Sprint 5 계획 수립
+- [x] `feat/frontend-ui`, `feat/i18n` 브랜치 PR 생성 (PR #62, #63) — 머지는 수동 진행
+- [x] `feat/sprint4` PR 생성 (PR #64) — 머지 후 patch_node 동작 검증 예정
+- [ ] PR #62, #63, #64 main 머지 → `feat/sprint5` 브랜치 생성
+- [ ] patch_node 실제 동작 검증 (분석 실행 후 `/sessions/{id}/patches` 응답 확인)
+- [ ] DAST / L2 GitHub 파이프라인 실제 연결 (Sprint 5 TASK-501~505)
+- [x] Sprint 5 계획 수립 → `docs/sprints/sprint-5.md` 작성 완료
+
+## 5. 이번 세션 추가 완료 (2026-05-14 이어서)
+
+| 항목 | 내용 |
+|------|------|
+| PR #62 생성 | `feat/frontend-ui` → `main` (Sprint 4 전체 + UX 개선) |
+| PR #63 생성 | `feat/i18n` → `main` (번역 기능 + 보안 수정 포함) |
+| PR #64 생성 | `feat/sprint4` → `main` (patch_node 그래프 연결) |
+| Sprint 5 계획 | `docs/sprints/sprint-5.md` — 이월 3건 + TASK-501~505 실행 계획 |
+| 보안 수정 | AuthController URL 토큰 노출(→ 일회용 코드 교환) + Open Redirect(→ `@Value` 설정값) |

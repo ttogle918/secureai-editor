@@ -121,6 +121,8 @@ files.zip
 /docs/frontend-reference/packages/
 /apps/sandbox/temp/
 /bash
+/docs/portfolio/*.md
+/docs/portfolio/viewer/logs-data.js
 
 # Claude Code memory
 .claude/

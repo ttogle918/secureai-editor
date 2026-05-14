@@ -108,8 +108,9 @@ export default function DashboardPage() {
       }}
     >
       <div
+        className="pb-mobile-nav"
         style={{
-          padding: '24px 28px',
+          padding: '20px 16px',
           maxWidth: 1280,
           margin: '0 auto',
           width: '100%',
@@ -138,7 +139,7 @@ export default function DashboardPage() {
 
         {/* ── KPI 카드 ── */}
         <div
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}
+          className="kpi-grid"
           aria-label="주요 보안 지표"
         >
           <KpiCard value={securityScore} label="보안 점수"  color={scoreColor} isScore />
@@ -153,7 +154,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── 차트 2열 ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 12 }}>
+        <div className="chart-grid">
           <Card title="심각도 분포 (OWASP 분류)">
             <SeverityBarChart rows={owaspRows} />
           </Card>

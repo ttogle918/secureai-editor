@@ -13,6 +13,7 @@ import { AnalysisLoadingOverlay }    from '@/components/analysis/AnalysisLoading
 import DashboardPage                 from '@/components/dashboard/DashboardPage';
 import ResizeHandle                  from '@/components/ui/ResizeHandle';
 import { ToastContainer }            from '@/components/ui/Toast';
+import { MobileBottomNav, type MobileScreen } from '@/components/layout/MobileBottomNav';
 
 export default function EditorPage() {
   const router        = useRouter();
@@ -31,8 +32,15 @@ export default function EditorPage() {
   const sidebarWidth    = useSecureStore((s) => s.sidebarWidth);
   const setSidebarWidth = useSecureStore((s) => s.setSidebarWidth);
   const viewMode        = useSecureStore((s) => s.viewMode);
+  const setViewMode     = useSecureStore((s) => s.setViewMode);
   const sidebarOpen     = useSecureStore((s) => s.sidebarOpen);
   const vulns           = useSecureStore((s) => s.vulns);
+
+  const mobileScreen: MobileScreen = viewMode === 'dashboard' ? 'dashboard' : 'vulns';
+  const handleMobileNav = useCallback((screen: MobileScreen) => {
+    if (screen === 'dashboard') setViewMode('dashboard');
+    else setViewMode('editor');
+  }, [setViewMode]);
 
   const onSidebarResize = useCallback(
     (d: number) => setSidebarWidth((prev) => prev + d),
@@ -124,6 +132,9 @@ export default function EditorPage() {
 
       <AnalysisLoadingOverlay />
       <ToastContainer />
+      <div className="mobile-only">
+        <MobileBottomNav activeScreen={mobileScreen} onNavigate={handleMobileNav} />
+      </div>
     </div>
   );
 }

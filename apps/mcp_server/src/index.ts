@@ -23,6 +23,10 @@ import {
   listCommitsToolDef,
   getCommitDiffToolDef,
 } from "./github/commit_history_handler.js";
+import {
+  handleCreatePrComment,
+  createPrCommentToolDef,
+} from "./github/create_pr_comment.js";
 
 const WORKSPACE_ROOT = process.env["MCP_WORKSPACE_ROOT"] ?? "/workspace";
 
@@ -79,6 +83,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     listDirectoryToolDef,
     listCommitsToolDef,
     getCommitDiffToolDef,
+    createPrCommentToolDef,
   ],
 }));
 
@@ -134,6 +139,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "github_get_commit_diff":
         return handleGetCommitDiff(args as Record<string, unknown>);
+
+      case "github_create_pr_comment":
+        return handleCreatePrComment(args as Record<string, unknown>);
 
       default:
         return { content: [{ type: "text", text: `Unknown tool: ${name}` }], isError: true };

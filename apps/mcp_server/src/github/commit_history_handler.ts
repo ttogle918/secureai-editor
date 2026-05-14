@@ -92,7 +92,7 @@ type ToolResponse = { content: Array<{ type: "text"; text: string }>; isError?: 
 // ─── Tool Handlers ────────────────────────────────────────────────────────────
 
 export async function handleListCommits(args: Record<string, unknown>): Promise<ToolResponse> {
-  const { owner, repo, ref, per_page, token } = args as ListCommitsArgs;
+  const { owner, repo, ref, per_page, token } = args as unknown as ListCommitsArgs;
 
   try {
     const commits: CommitSummary[] = await listCommits(owner, repo, ref, per_page ?? 30, token);
@@ -103,7 +103,7 @@ export async function handleListCommits(args: Record<string, unknown>): Promise<
 }
 
 export async function handleGetCommitDiff(args: Record<string, unknown>): Promise<ToolResponse> {
-  const { owner, repo, sha, token } = args as GetCommitDiffArgs;
+  const { owner, repo, sha, token } = args as unknown as GetCommitDiffArgs;
 
   try {
     const diff: CommitDiff = await getCommitDiff(owner, repo, sha, token);

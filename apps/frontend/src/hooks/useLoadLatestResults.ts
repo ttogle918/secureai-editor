@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
 import { apiClient } from '@/lib/api/client';
-import type { Severity, VulnCategory, Vulnerability } from '@/lib/mockData';
+import type { Severity, VulnCategory, Vulnerability, PatchSuggestion } from '@/lib/mockData';
 
 interface SessionItem {
   id: string;
@@ -24,6 +24,16 @@ interface VulnItem {
   status: string;
 }
 
+interface PatchItem {
+  id: string;
+  vulnId: string | null;
+  filePath: string;
+  vulnType: string;
+  originalSnippet: string | null;
+  patchedSnippet: string | null;
+  explanation: string | null;
+}
+
 const VALID_SEV: Severity[] = ['critical', 'high', 'medium', 'low'];
 const VALID_CAT: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
 
@@ -33,6 +43,7 @@ export function useLoadLatestResults() {
   const addVuln         = useSecureStore((s) => s.addVuln);
   const clearVulns      = useSecureStore((s) => s.clearVulns);
   const clearProgressSteps = useSecureStore((s) => s.clearProgressSteps);
+  const setPatches      = useSecureStore((s) => s.setPatches);
 
   // 이미 로드한 projectId를 추적해 중복 요청 방지
   const loadedRef = useRef<string | null>(null);
@@ -81,11 +92,30 @@ export function useLoadLatestResults() {
           };
           addVuln(vuln);
         }
+
+        // 3. 해당 세션의 패치 제안 조회
+        try {
+          const patchRes = await apiClient.get<{ data: PatchItem[] }>(
+            `/sessions/${latest.id}/patches`,
+          );
+          const patchItems = patchRes.data ?? [];
+          const patches: PatchSuggestion[] = patchItems.map((p) => ({
+            vulnId:       p.vulnId ?? undefined,
+            filePath:     p.filePath,
+            vulnType:     p.vulnType,
+            originalCode: p.originalSnippet ?? '',
+            patchedCode:  p.patchedSnippet ?? '',
+            explanation:  p.explanation ?? '',
+          }));
+          setPatches(patches);
+        } catch {
+          // 패치 조회 실패는 취약점 표시에 영향 없음
+        }
       } catch {
         // 조회 실패 시 빈 상태 유지 — 사용자가 직접 분석 시작 가능
       }
     }
 
     load();
-  }, [projectId, isAnalyzing, addVuln, clearVulns, clearProgressSteps]);
+  }, [projectId, isAnalyzing, addVuln, clearVulns, clearProgressSteps, setPatches]);
 }

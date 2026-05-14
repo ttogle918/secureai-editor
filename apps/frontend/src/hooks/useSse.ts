@@ -43,6 +43,12 @@ export interface ProgressEvent {
   // completed
   vuln_count?: number;
   results?: SastFileResult[];
+  token_usage?: {
+    input_tokens: number;
+    output_tokens: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
   // progress
   cache_hit?: boolean;
 }

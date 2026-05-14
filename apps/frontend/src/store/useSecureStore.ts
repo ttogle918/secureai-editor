@@ -4,7 +4,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
-  mockVulnerabilities, mockChatMessages, mockDastLogs, mockPatches,
   type Vulnerability, type ChatMessage, type DastLog, type PatchSuggestion, type FileNode,
 } from '@/lib/mockData';
 import type { SeverityLevel } from '@/types';
@@ -13,6 +12,7 @@ export type Severity       = 'critical' | 'high' | 'medium' | 'low';
 export type SeverityFilter = 'all' | Severity;
 export type ViewMode       = 'editor' | 'dashboard';
 export type RightTab       = 'vulns' | 'chat' | 'progress';
+export type DisplayLanguage = 'ko' | 'en';
 
 // 진행률 단계 타입 — ProgressPanel과 순환 의존성 방지를 위해 인라인 정의
 export interface ProgressStep {
@@ -30,13 +30,8 @@ export interface EditorTab {
   severity?: SeverityLevel;
 }
 
-const INITIAL_TABS: EditorTab[] = [
-  { path: '/src/main/java/UserAuth.java',    label: 'UserAuth.java',    severity: 'critical' },
-  { path: '/src/main/java/AuthService.java', label: 'AuthService.java', severity: 'high' },
-  { path: '/src/main/web/LoginPage.tsx',     label: 'LoginPage.tsx',    severity: 'high' },
-];
-
-const DEFAULT_SELECTED_PATH = INITIAL_TABS[0].path;
+const INITIAL_TABS: EditorTab[] = [];
+const DEFAULT_SELECTED_PATH = '';
 
 // ─── 스토어 인터페이스 ────────────────────────────────────────
 interface SecureStore {
@@ -92,8 +87,20 @@ interface SecureStore {
   sseSessionId: string | null;
   setSseSessionId: (id: string | null) => void;
 
+  // ── 토큰 사용량 ──────────────────────────────────────────
+  lastTokenUsage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheWriteTokens: number;
+    cacheReadTokens: number;
+    estimatedCostUsd: number;
+    modelId: string;
+  } | null;
+  setLastTokenUsage: (usage: NonNullable<SecureStore['lastTokenUsage']> | null) => void;
+
   // ── 패치 ────────────────────────────────────────────────
   patches: PatchSuggestion[];
+  setPatches: (patches: PatchSuggestion[]) => void;
   applyPatch: (vulnId: string) => void;
 
   // ── 필터 ────────────────────────────────────────────────
@@ -116,6 +123,10 @@ interface SecureStore {
   addProgressStep: (step: ProgressStep) => void;
   updateProgressStep: (stepOrder: number, update: Partial<ProgressStep>) => void;
   clearProgressSteps: () => void;
+
+  // ── 언어 설정 ────────────────────────────────────────────
+  displayLanguage: DisplayLanguage;
+  setDisplayLanguage: (lang: DisplayLanguage) => void;
 
   // ── 채팅 ────────────────────────────────────────────────
   chatMessages: ChatMessage[];
@@ -209,8 +220,13 @@ export const useSecureStore = create<SecureStore>()(
   sseSessionId: null,
   setSseSessionId: (id) => set({ sseSessionId: id }),
 
+  // ── 토큰 사용량
+  lastTokenUsage: null,
+  setLastTokenUsage: (usage) => set({ lastTokenUsage: usage }),
+
   // ── 패치
-  patches: mockPatches,
+  patches: [],
+  setPatches: (patches) => set({ patches }),
   applyPatch: (vulnId) =>
     set((s) => ({
       vulns: s.vulns.map((v) =>
@@ -230,7 +246,7 @@ export const useSecureStore = create<SecureStore>()(
   setIsAnalyzing: (v) => set({ isAnalyzing: v }),
 
   // ── DAST
-  dastLogs: mockDastLogs,
+  dastLogs: [],
 
   // ── 진행률
   progressSteps: [],
@@ -250,8 +266,12 @@ export const useSecureStore = create<SecureStore>()(
     })),
   clearProgressSteps: () => set({ progressSteps: [] }),
 
+  // ── 언어
+  displayLanguage: 'ko',
+  setDisplayLanguage: (lang) => set({ displayLanguage: lang }),
+
   // ── 채팅
-  chatMessages: mockChatMessages,
+  chatMessages: [],
   addChatMessage: (m) => set((s) => ({ chatMessages: [...s.chatMessages, m] })),
   sendChat: (text) => {
     const userMsg: ChatMessage = {
@@ -281,6 +301,8 @@ export const useSecureStore = create<SecureStore>()(
         openTabs:        state.openTabs,
         selectedPath:    state.selectedPath,
         projectId:       state.projectId,
+        lastTokenUsage:  state.lastTokenUsage,
+        displayLanguage: state.displayLanguage,
       }),
     }
   )

@@ -165,16 +165,6 @@ body {
   }
 }
 
-@keyframes loading-anim {
-  from {
-    width: 0;
-  }
-
-  to {
-    width: 100%;
-  }
-}
-
 @keyframes shimmer {
   from {
     background-position: 200% 0;

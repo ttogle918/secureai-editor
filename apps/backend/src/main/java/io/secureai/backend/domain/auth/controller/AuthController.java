@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,11 @@ import java.util.UUID;
 public class AuthController {
 
     private static final String OAUTH_STATE_PREFIX = "secureai:oauth:state:";
+    private static final String OAUTH_CODE_PREFIX = "secureai:oauth:code:";
+    private static final Duration OAUTH_CODE_TTL = Duration.ofSeconds(60);
+
+    @Value("${secureai.frontend.url}")
+    private String frontendUrl;
 
     private final AuthService authService;
     private final GitHubOAuthService gitHubOAuthService;
@@ -97,10 +103,33 @@ public class AuthController {
 
         User user = gitHubOAuthService.handleCallback(code);
         LoginResponse loginResponse = authService.loginWithUser(user, httpRequest, httpResponse);
-        String redirectUrl = "%s/auth/callback?accessToken=%s"
-                .formatted(getfrontendUrl(httpRequest), loginResponse.getAccessToken());
+
+        // 일회용 코드를 Redis에 저장 (60초 TTL) — JWT를 URL에 직접 노출하지 않음
+        String oauthCode = UUID.randomUUID().toString();
+        redisTemplate.opsForValue().set(
+                OAUTH_CODE_PREFIX + oauthCode,
+                loginResponse.getAccessToken(),
+                OAUTH_CODE_TTL);
+
+        String redirectUrl = "%s/auth/callback?code=%s".formatted(frontendUrl, oauthCode);
         httpResponse.sendRedirect(redirectUrl);
         return ResponseEntity.status(HttpStatus.FOUND).build();
+    }
+
+    @GetMapping("/exchange/{code}")
+    public ResponseEntity<ApiResponse<Map<String, String>>> exchangeOAuthCode(@PathVariable String code) {
+        try {
+            UUID.fromString(code);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.AUTH_OAUTH_CODE_INVALID);
+        }
+        String codeKey = OAUTH_CODE_PREFIX + code;
+        String accessToken = redisTemplate.opsForValue().get(codeKey);
+        if (accessToken == null) {
+            throw new BusinessException(ErrorCode.AUTH_OAUTH_CODE_INVALID);
+        }
+        redisTemplate.delete(codeKey);
+        return ResponseEntity.ok(ApiResponse.success(Map.of("accessToken", accessToken)));
     }
 
     @PostMapping("/forgot-password")
@@ -118,8 +147,4 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(Map.of("message", "비밀번호가 재설정되었습니다.")));
     }
 
-    private String getfrontendUrl(HttpServletRequest request) {
-        String origin = request.getHeader("Origin");
-        return origin != null ? origin : "http://localhost:3000";
-    }
 }

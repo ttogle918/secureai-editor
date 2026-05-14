@@ -2,7 +2,6 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
-import { mockFileContents } from '@/lib/mockData';
 import { EditorTabs } from '@/components/editor/EditorTabs';
 import DastTerminal from '@/components/analysis/DastTerminal';
 import { RightPanel } from '@/components/analysis/RightPanel';
@@ -45,9 +44,7 @@ export function EditorLayout() {
   const onRightResize    = useCallback((d: number) => setRightPanelWidth((prev) => prev - d), [setRightPanelWidth]);
   const onTerminalResize = useCallback((d: number) => setTerminalHeight((prev) => prev - d), [setTerminalHeight]);
 
-  const code = workspaceId
-    ? (wsFileCache[selectedPath] ?? '// 파일 로딩 중...')
-    : (mockFileContents[selectedPath] ?? '// 파일을 선택하세요');
+  const code = wsFileCache[selectedPath] ?? (selectedPath ? '// 파일 로딩 중...' : '// 파일을 선택하세요');
 
   const lang = selectedPath.endsWith('.java') ? 'java'
     : /\.(tsx?|jsx?)$/.test(selectedPath) ? 'typescript'

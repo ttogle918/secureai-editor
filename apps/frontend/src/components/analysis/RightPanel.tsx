@@ -9,16 +9,24 @@ import ChatPanel from '@/components/analysis/ChatPanel';
 import { ProgressPanel } from '@/components/ui/ProgressPanel';
 
 export function RightPanel() {
-  const rightTab = useSecureStore((s) => s.rightTab);
-  const setRightTab = useSecureStore((s) => s.setRightTab);
-  const vulns = useSecureStore((s) => s.vulns);
+  const rightTab     = useSecureStore((s) => s.rightTab);
+  const setRightTab  = useSecureStore((s) => s.setRightTab);
+  const vulns        = useSecureStore((s) => s.vulns);
+  const isAnalyzing  = useSecureStore((s) => s.isAnalyzing);
+  const progressSteps = useSecureStore((s) => s.progressSteps);
   const selectedPath = useSecureStore((s) => s.selectedPath);
   const fileVulnCount = vulns.filter((v) => v.filePath === selectedPath).length;
 
+  const completedSteps = progressSteps.filter((s) => s.status === 'completed').length;
+  const totalSteps     = progressSteps.length;
+  const progressLabel  = isAnalyzing && totalSteps > 0
+    ? `진행률 ${completedSteps}/${totalSteps}`
+    : '진행률';
+
   const TABS = [
-    { id: 'vulns'     as const, label: `취약점 (${fileVulnCount})`, icon: <ShieldAlert  size={12} aria-hidden="true" /> },
-    { id: 'chat'     as const, label: 'AI 채팅',                   icon: <MessageSquare size={12} aria-hidden="true" /> },
-    { id: 'progress' as const, label: '진행률',                    icon: <CheckSquare   size={12} aria-hidden="true" /> },
+    { id: 'vulns'    as const, label: `취약점 (${fileVulnCount})`, icon: <ShieldAlert  size={12} aria-hidden="true" />, pulsing: false },
+    { id: 'chat'     as const, label: 'AI 채팅',                   icon: <MessageSquare size={12} aria-hidden="true" />, pulsing: false },
+    { id: 'progress' as const, label: progressLabel,               icon: <CheckSquare   size={12} aria-hidden="true" />, pulsing: isAnalyzing },
   ] as const;
 
   return (
@@ -67,10 +75,19 @@ export function RightPanel() {
                 color: isActive ? '#e8e8ee' : 'rgba(255,255,255,0.28)',
                 cursor: 'pointer',
                 transition: 'all 0.15s',
+                position: 'relative',
               }}
             >
               {tab.icon}
               {tab.label}
+              {tab.pulsing && (
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: '#22c55e',
+                  animation: 'ssePulse 1.4s cubic-bezier(0.4,0,0.6,1) infinite',
+                  flexShrink: 0,
+                }} />
+              )}
             </button>
           );
         })}

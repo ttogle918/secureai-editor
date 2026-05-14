@@ -5,27 +5,27 @@
 import type { SseStatus } from '@/hooks/useSse';
 
 interface SseIndicatorProps {
-  status: SseStatus;
+  status:      SseStatus;
+  isAnalyzing: boolean;
+  hasResults:  boolean;
 }
 
-// ─── status별 렌더 구성 ──────────────────────────────────────
 interface StatusConfig {
-  color:   string;
-  label:   string;
-  pulse:   boolean;
+  color: string;
+  label: string;
+  pulse: boolean;
 }
 
-const STATUS_CONFIG: Record<SseStatus, StatusConfig> = {
-  idle:         { color: '#6b7280', label: '분석 대기',   pulse: false },
-  closed:       { color: '#6b7280', label: '분석 대기',   pulse: false },
-  connecting:   { color: '#f97316', label: '연결 중...',  pulse: true  },
-  reconnecting: { color: '#f97316', label: '연결 중...',  pulse: true  },
-  open:         { color: '#22c55e', label: '실시간 수신', pulse: true  },
-  auth_error:   { color: '#f04141', label: '인증 오류',   pulse: false },
-};
+function resolveConfig(status: SseStatus, isAnalyzing: boolean, hasResults: boolean): StatusConfig {
+  if (status === 'auth_error')                              return { color: '#f04141', label: '인증 오류',   pulse: false };
+  if (status === 'connecting' || status === 'reconnecting') return { color: '#f97316', label: '연결 중...',  pulse: true  };
+  if (status === 'open' || isAnalyzing)                     return { color: '#22c55e', label: '분석 중',     pulse: true  };
+  if (hasResults)                                           return { color: '#60a5fa', label: '분석 완료',   pulse: false };
+  return                                                           { color: '#6b7280', label: '분석 대기',   pulse: false };
+}
 
-export function SseIndicator({ status }: SseIndicatorProps) {
-  const cfg = STATUS_CONFIG[status];
+export function SseIndicator({ status, isAnalyzing, hasResults }: SseIndicatorProps) {
+  const cfg = resolveConfig(status, isAnalyzing, hasResults);
 
   return (
     <div

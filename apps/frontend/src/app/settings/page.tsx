@@ -2,9 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2 } from 'lucide-react';
+import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient } from '@/lib/api/client';
+import { useSecureStore, type DisplayLanguage } from '@/store/useSecureStore';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -23,9 +24,16 @@ const MODELS = [
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+const LANGUAGES: Array<{ id: DisplayLanguage; label: string; desc: string }> = [
+  { id: 'ko', label: '한국어', desc: '취약점 설명을 한국어로 번역해서 표시합니다.' },
+  { id: 'en', label: 'English', desc: '원문 영어 그대로 표시합니다.' },
+];
+
 export default function SettingsPage() {
   const router = useRouter();
   const { user, isInitialized } = useAuthStore();
+  const displayLanguage    = useSecureStore((s) => s.displayLanguage);
+  const setDisplayLanguage = useSecureStore((s) => s.setDisplayLanguage);
 
   const [credits, setCredits] = useState<CreditSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -186,6 +194,40 @@ export default function SettingsPage() {
             </button>
           </div>
           {keyError && <p style={{ fontSize: 12, color: '#e24b4b', marginTop: 8 }}>{keyError}</p>}
+        </Section>
+
+        {/* ── Language ── */}
+        <Section icon={<Globe size={16} />} title="표시 언어">
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 20, lineHeight: 1.6 }}>
+            취약점 설명·분석 결과를 표시할 언어를 선택하세요.<br />
+            DB에는 영어로 저장되며, 한국어 선택 시 AI가 실시간으로 번역합니다.
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {LANGUAGES.map((lang) => {
+              const active = displayLanguage === lang.id;
+              return (
+                <button
+                  key={lang.id}
+                  onClick={() => setDisplayLanguage(lang.id)}
+                  style={{
+                    flex: 1, padding: '14px 18px', borderRadius: 10, textAlign: 'left',
+                    background: active ? 'rgba(234,88,12,0.08)' : 'rgba(255,255,255,0.02)',
+                    border: `1px solid ${active ? 'rgba(234,88,12,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                    cursor: 'pointer', transition: 'border-color 0.15s',
+                    display: 'flex', alignItems: 'center', gap: 14,
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: active ? '#e8e8ee' : 'rgba(255,255,255,0.55)', marginBottom: 2 }}>
+                      {lang.label}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{lang.desc}</div>
+                  </div>
+                  {active && <Check size={15} color="#ea580c" />}
+                </button>
+              );
+            })}
+          </div>
         </Section>
 
         {/* ── Model Preference ── */}

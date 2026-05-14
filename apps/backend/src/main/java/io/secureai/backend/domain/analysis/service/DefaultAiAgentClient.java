@@ -17,6 +17,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+@SuppressWarnings("unchecked")
+
 @Slf4j
 @Component
 public class DefaultAiAgentClient implements AiAgentClient {
@@ -124,6 +126,28 @@ public class DefaultAiAgentClient implements AiAgentClient {
     @Override
     public boolean isCircuitOpen() {
         return circuitOpen.get();
+    }
+
+    @Override
+    public String translate(String text, String targetLang, String userApiKey) {
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("text", text);
+            body.put("target_lang", targetLang != null ? targetLang : "ko");
+            if (userApiKey != null) body.put("user_api_key", userApiKey);
+
+            Map<String, Object> result = restClient.post()
+                    .uri("/agent/translate")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(Map.class);
+
+            return result != null ? (String) result.getOrDefault("translated_text", text) : text;
+        } catch (RestClientException e) {
+            log.warn("[agent-client] translate failed: {}", e.getMessage());
+            return text;
+        }
     }
 
     private void checkCircuit() {

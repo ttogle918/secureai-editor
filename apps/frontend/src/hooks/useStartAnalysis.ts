@@ -16,6 +16,7 @@ export function useStartAnalysis() {
   const setSseSessionId    = useSecureStore((s) => s.setSseSessionId);
   const setIsAnalyzing     = useSecureStore((s) => s.setIsAnalyzing);
   const setViewMode        = useSecureStore((s) => s.setViewMode);
+  const setRightTab        = useSecureStore((s) => s.setRightTab);
   const clearVulns         = useSecureStore((s) => s.clearVulns);
   const clearProgressSteps = useSecureStore((s) => s.clearProgressSteps);
   const addToast        = useToastStore((s) => s.addToast);
@@ -51,7 +52,9 @@ export function useStartAnalysis() {
       );
 
       setSseSessionId(res.data.id);
-      setViewMode('dashboard');
+      setViewMode('editor');   // 진행률 패널이 있는 에디터 뷰로 유지
+      setRightTab('progress'); // 오른쪽 패널을 진행률 탭으로 자동 전환
+      addToast('분석을 시작했습니다. 오른쪽 패널에서 진행 상황을 확인하세요.', 'info');
     } catch (err) {
       setIsAnalyzing(false);
       const msg = err instanceof ApiError ? err.message : '분석 시작에 실패했습니다.';
@@ -59,7 +62,7 @@ export function useStartAnalysis() {
     }
   }, [
     workspaceId, workspaceName, projectId, isAnalyzing,
-    setProjectId, setSseSessionId, setIsAnalyzing, setViewMode, clearVulns, clearProgressSteps, addToast,
+    setProjectId, setSseSessionId, setIsAnalyzing, setViewMode, setRightTab, clearVulns, clearProgressSteps, addToast,
   ]);
 
   return { startAnalysis, isAnalyzing };

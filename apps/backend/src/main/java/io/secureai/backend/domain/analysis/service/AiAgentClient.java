@@ -23,4 +23,6 @@ public interface AiAgentClient {
     void cancelAnalysis(UUID sessionId);
 
     boolean isCircuitOpen();
+
+    String translate(String text, String targetLang, String userApiKey);
 }

@@ -1,142 +1,108 @@
 // components/analysis/AnalysisLoadingOverlay.tsx
-// 분석 시작 전체화면 오버레이 — 단계별 메시지
-// 와이어프레임: secureai-webapp.html LOADING OVERLAY
+// 분석 진행 상태 플로팅 위젯 — 비차단(non-blocking), 우하단 고정
 'use client';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Shield } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
-import { useEffect, useState } from 'react';
-
-const ANALYSIS_STEPS = [
-  '프로젝트 파일 스캔 중...',
-  'MCP Filesystem Tool 연결 중...',
-  'Claude AI로 코드 분석 중...',
-  '취약점 패턴 탐지 중...',
-  'API 호출 체인 분석 중...',
-  'DAST 샌드박스 실행 중...',
-  '결과 집계 중...',
-];
 
 export function AnalysisLoadingOverlay() {
-  const isAnalyzing = useSecureStore((s) => s.isAnalyzing);
-  const [stepIdx, setStepIdx] = useState(0);
+  const isAnalyzing   = useSecureStore((s) => s.isAnalyzing);
+  const progressSteps = useSecureStore((s) => s.progressSteps);
 
-  useEffect(() => {
-    if (!isAnalyzing) {
-      setStepIdx(0);
-      return;
-    }
-    const interval = setInterval(() => {
-      setStepIdx((i) => (i + 1) % ANALYSIS_STEPS.length);
-    }, 400);
-    return () => clearInterval(interval);
-  }, [isAnalyzing]);
+  const currentFile = progressSteps.length > 0
+    ? progressSteps[progressSteps.length - 1].target?.split('/').pop() ?? ''
+    : '';
 
   return (
     <AnimatePresence>
       {isAnalyzing && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          initial={{ opacity: 0, y: 12, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0,  scale: 1 }}
+          exit={{ opacity: 0, y: 12, scale: 0.96 }}
+          transition={{ duration: 0.18 }}
           role="status"
           aria-live="polite"
-          aria-label="AI 보안 감사 진행 중"
+          aria-label="SAST 분석 진행 중"
           style={{
             position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.85)',
-            backdropFilter: 'blur(10px)',
+            bottom: 24,
+            right: 24,
             zIndex: 50,
+            pointerEvents: 'none',
+            background: '#111114',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 12,
+            padding: '14px 18px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 24,
+            gap: 10,
+            minWidth: 240,
           }}
         >
-          {/* Spinner with shield icon */}
-          <div style={{ position: 'relative', width: 72, height: 72 }}>
-            <div
-              style={{
+          {/* 상단: 스피너 + 제목 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0 }}>
+              <div style={{
                 position: 'absolute', inset: 0,
-                border: '3px solid rgba(234,88,12,0.18)',
+                border: '2px solid rgba(234,88,12,0.18)',
                 borderRadius: '50%',
-              }}
-            />
-            <div
-              style={{
+              }} />
+              <div style={{
                 position: 'absolute', inset: 0,
-                border: '3px solid transparent',
+                border: '2px solid transparent',
                 borderTopColor: '#ea580c',
                 borderRadius: '50%',
                 animation: 'spin 0.85s linear infinite',
-              }}
-            />
-            <Shield
-              size={28}
-              color="#f97316"
-              aria-hidden="true"
-              style={{ position: 'absolute', inset: 0, margin: 'auto' }}
-            />
-          </div>
-
-          {/* Text */}
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 19, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
-              AI 보안 감사 진행 중
+              }} />
+              <Shield
+                size={12}
+                color="#f97316"
+                aria-hidden="true"
+                style={{ position: 'absolute', inset: 0, margin: 'auto' }}
+              />
             </div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
-              {ANALYSIS_STEPS[stepIdx]}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#e8e8ee' }}>
+                SAST 분석 중
+              </div>
+              {currentFile && (
+                <div style={{
+                  fontSize: 10, color: 'rgba(255,255,255,0.35)',
+                  fontFamily: 'var(--font-mono)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  maxWidth: 180,
+                }}>
+                  {currentFile}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div
-            style={{
-              width: 200,
-              height: 2,
-              background: 'rgba(255,255,255,0.1)',
-              borderRadius: 1,
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              aria-hidden="true"
-              style={{
-                height: '100%',
-                background: '#ea580c',
-                borderRadius: 1,
-                animation: 'loading-anim 2.8s ease-in-out forwards',
-              }}
-            />
-          </div>
-
-          {/* Step labels */}
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              maxWidth: 360,
-            }}
-          >
-            {['L1 SAST', 'L2 GitHub', 'L3 DAST'].map((label, i) => (
-              <span
-                key={label}
-                style={{
-                  fontSize: 10,
-                  padding: '3px 10px',
-                  borderRadius: 20,
-                  border: '0.5px solid rgba(255,255,255,0.1)',
-                  color:      i === 0 ? '#4caf50' : i === 1 ? '#e2a53a' : 'rgba(255,255,255,0.2)',
-                  background: i === 0 ? 'rgba(76,175,80,0.08)' : i === 1 ? 'rgba(226,165,58,0.08)' : 'transparent',
-                }}
-              >
-                {label}
-              </span>
-            ))}
+          {/* L1/L2/L3 레이블 */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <span style={{
+              fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+              background: 'rgba(76,175,80,0.1)', color: '#4caf50',
+              border: '0.5px solid rgba(76,175,80,0.3)',
+            }}>
+              L1 SAST
+            </span>
+            <span style={{
+              fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+              background: 'transparent', color: 'rgba(255,255,255,0.15)',
+              border: '0.5px solid rgba(255,255,255,0.08)',
+            }}>
+              L2 GitHub
+            </span>
+            <span style={{
+              fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+              background: 'transparent', color: 'rgba(255,255,255,0.15)',
+              border: '0.5px solid rgba(255,255,255,0.08)',
+            }}>
+              L3 DAST
+            </span>
           </div>
         </motion.div>
       )}

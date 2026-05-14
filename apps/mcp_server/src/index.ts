@@ -17,6 +17,12 @@ import {
   handleListDirectory as handleGitHubListDirectory,
   listDirectoryToolDef,
 } from "./github/list_directory.js";
+import {
+  handleListCommits,
+  handleGetCommitDiff,
+  listCommitsToolDef,
+  getCommitDiffToolDef,
+} from "./github/commit_history_handler.js";
 
 const WORKSPACE_ROOT = process.env["MCP_WORKSPACE_ROOT"] ?? "/workspace";
 
@@ -71,6 +77,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     getFileContentToolDef,
     listDirectoryToolDef,
+    listCommitsToolDef,
+    getCommitDiffToolDef,
   ],
 }));
 
@@ -120,6 +128,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "github_list_directory":
         return handleGitHubListDirectory(args as Record<string, unknown>);
+
+      case "github_list_commits":
+        return handleListCommits(args as Record<string, unknown>);
+
+      case "github_get_commit_diff":
+        return handleGetCommitDiff(args as Record<string, unknown>);
 
       default:
         return { content: [{ type: "text", text: `Unknown tool: ${name}` }], isError: true };

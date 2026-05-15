@@ -118,7 +118,67 @@ Stage 3 (순차)
 
 ## 구현 완료 기록
 
-<!-- Stage 완료 시 아래에 추가 -->
+### Stage 1 완료 (2026-05-15)
+
+**커밋**: `feat(dast): Sprint 6 Stage 1 — Docker 샌드박스 + 도메인 검증 + 익스플로잇 실행기`
+
+#### TASK-601-PY: Python 익스플로잇 실행기
+- `executors/sqli_executor.py`: httpx 비동기, DB 오류 문자열 탐지
+- `executors/xss_executor.py`: XSS 반사형 페이로드 탐지
+- `executors/idor_executor.py`: ID 조작 unauthorized 응답 탐지
+- `executors/ssrf_executor.py`: `follow_redirects=False` SSRF 탐지
+- `executors/auth_bypass_executor.py`: JWK alg=none / 빈 서명 JWT stdlib 전용
+- `dast_runner.py`: Strategy 패턴 `_EXECUTOR_MAP` dict
+
+#### TASK-601-BE: Java Docker 샌드박스
+- `DockerSandboxManager.java`: docker-java 3.3.x 신규 API (`DockerClientImpl.getInstance`)
+- `ContainerConfig.java`: record — networkMode="dast-isolated-net" 컴팩트 생성자 강제 검증
+- `DockerClientConfig.java`: `@Bean DockerClient` — DIP 준수 (Reviewer 지적으로 추가)
+- `ExploitResult.java`: `@Convert(AesEncryptionConverter)` on targetUrl/payload/responseSnippet
+- `ScanStatus.java`: PENDING/RUNNING/SUCCESS/FAILED/TIMEOUT enum
+- `V026__create_dast_results.sql`: UUID PK, AES 암호화 컬럼
+- `V027__create_scan_targets.sql`: consent_ip INET, unique(project_id, domain)
+
+#### TASK-602: 도메인 검증 + Rate Limit
+- `DomainVerificationService.java`: DNS TXT 조회 (JDK JNDI, dnsjava 제거), Redis Rate Limit, 분산 락
+- `DistributedLockService.java`: Redis SETNX TTL 300초
+- `ScanTarget.java`: markVerified() / recordConsent() 도메인 메서드
+
+**단위 테스트**: DistributedLockServiceTest 5개, DomainVerificationServiceTest 11개
+
+---
+
+### Stage 2 완료 (2026-05-16)
+
+**커밋**: `feat(dast): Sprint 6 Stage 2 — DAST LangGraph 에이전트 + pgvector 임베딩 + REST 레이어`
+
+#### TASK-603-PY: DAST LangGraph 에이전트
+- `dast_node.py`: guidelines 로드 + docker_tool 호출
+- `after_dast.py`: success→notify / retry_count<3→dast_node / else→notify 라우팅
+- `notify_node.py`: Redis PUBLISH `secureai:dast:logs:{session_id}` SSE
+- `docker_tool.py`: `POST /api/v1/internal/dast/execute` + X-Internal-Key
+- `dast_graph_builder.py`: 싱글턴 LangGraph 그래프
+- `api/routes/dast.py`: POST /agent/dast/start + GET /agent/dast/logs/{session_id}
+- `dast_payload.jinja2`: DAST 페이로드 생성 프롬프트
+
+#### TASK-603-BE: DAST REST 레이어
+- `DastController.java`: Repository 직접 의존 제거 — Controller→Service→Repository 계층 준수 (Reviewer 지적)
+- `DastExecutionService.java`: Shell Injection 수정 — 사용자 입력을 Docker 환경변수로 분리
+  (`DAST_VULN_TYPE`, `DAST_ENDPOINT`, `DAST_TARGET_URL`, `DAST_PARAMS`)
+- `ExploitResultPersister.java`: `@Transactional` self-invocation 방지를 위해 별도 `@Component`
+- `DastResultHandler.java`: Redis PUBLISH 결과 브로드캐스트
+
+#### FEAT-SEC-006: pgvector 임베딩
+- `V028__add_pgvector_embedding_to_guidelines.sql`: CREATE EXTENSION vector, embedding vector(384), IVFFlat 코사인 인덱스
+- `embedding_service.py`: fastembed BAAI/bge-small-en-v1.5 Lazy Singleton (API 키 불필요)
+- `guidelines_client.py`: `search_guidelines_by_vuln_type()` 추가, 기존 `load_guidelines()` 시그니처 유지
+- `sync_guidelines.py`: MD→DB 동기화 + 배치 임베딩 생성
+
+**단위 테스트**: Backend 42개(DastControllerTest 7, DastExecutionServiceTest 8, DastResultHandlerTest 7, DistributedLockServiceTest 5, DomainVerificationServiceTest 11, ExploitResultPersisterTest 4) + Python 21개(test_dast_graph 15, test_dast_route 6)
+
+**PR**: [#70](https://github.com/ttogle918/secureai-editor/pull/70)
+
+---
 
 ### FEAT-SEC-006 Vector DB (pgvector) 완료
 - Flyway V028: `CREATE EXTENSION IF NOT EXISTS vector` + `embedding vector(384)` 컬럼 추가

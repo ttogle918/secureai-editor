@@ -11,7 +11,9 @@ from fastapi.responses import JSONResponse
 from api.middleware.internal_key_auth import InternalKeyAuthMiddleware
 from api.routes.analyze import router as analyze_router
 from api.routes.chat import router as chat_router
+from api.routes.sbom import router as sbom_router
 from api.routes.translate import router as translate_router
+from api.routes.secret_scan import router as secret_scan_router
 from config.settings import settings
 from infrastructure.checkpointer import set_checkpointer
 
@@ -62,7 +64,9 @@ app.add_middleware(InternalKeyAuthMiddleware)
 
 app.include_router(analyze_router)
 app.include_router(chat_router)
+app.include_router(sbom_router)
 app.include_router(translate_router)
+app.include_router(secret_scan_router)
 
 
 @app.get("/health")

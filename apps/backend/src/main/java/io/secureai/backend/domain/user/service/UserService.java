@@ -107,6 +107,16 @@ public class UserService {
 
     public record UserAnalysisSettings(String preferredModel, String apiKey) {}
 
+    /**
+     * GitHub 연동 설정(blockMergeOnCritical)을 저장한다.
+     */
+    @Transactional
+    public void saveGithubSettings(UUID userId, GitHubSettingsRequest request) {
+        User user = loadUser(userId);
+        user.setGithubBlockMergeOnCritical(request.blockMergeOnCritical());
+        userRepository.save(user);
+    }
+
     private User loadUser(UUID userId) {
         return userRepository.findByIdWithPlan(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));

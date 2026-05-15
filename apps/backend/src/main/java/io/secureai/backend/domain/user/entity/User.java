@@ -102,6 +102,11 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private String preferredModel = ModelConstants.HAIKU;
 
+    /** Critical 취약점 발견 시 GitHub PR 머지 차단 여부 */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean githubBlockMergeOnCritical = false;
+
     @Override
     @PrePersist
     protected void onCreate() {

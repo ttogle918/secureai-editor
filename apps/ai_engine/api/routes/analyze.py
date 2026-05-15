@@ -97,6 +97,7 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
             "current_file_sha256": None,
             "cache_hit": False,
             "sast_results": [],
+            "patch_results": [],
             "progress_percent": 0.0,
             "token_usage": {"input_tokens": 0, "output_tokens": 0, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0},
             "status": "running",
@@ -144,8 +145,14 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
 
                 elif node_name == "aggregate_node":
                     results = state.get("sast_results", [])
+                    vuln_count = sum(len(r.get("vulnerabilities", [])) for r in results)
+                    await publish("progress", node="aggregate", vuln_count=vuln_count)
+
+                elif node_name == "patch_node":
+                    results = state.get("sast_results", [])
+                    vuln_count = sum(len(r.get("vulnerabilities", [])) for r in results)
                     token_usage = state.get("token_usage", {})
-                    await publish("completed", vuln_count=len(results), results=results, token_usage=token_usage)
+                    await publish("completed", vuln_count=vuln_count, results=results, token_usage=token_usage)
 
     except Exception as exc:
         logger.exception("[analyze] session=%s error", session_id)
@@ -233,8 +240,14 @@ async def _run_resume(session_id: str) -> None:
 
                 elif node_name == "aggregate_node":
                     results = state.get("sast_results", [])
+                    vuln_count = sum(len(r.get("vulnerabilities", [])) for r in results)
+                    await publish("progress", node="aggregate", vuln_count=vuln_count)
+
+                elif node_name == "patch_node":
+                    results = state.get("sast_results", [])
+                    vuln_count = sum(len(r.get("vulnerabilities", [])) for r in results)
                     token_usage = state.get("token_usage", {})
-                    await publish("completed", vuln_count=len(results), results=results, token_usage=token_usage)
+                    await publish("completed", vuln_count=vuln_count, results=results, token_usage=token_usage)
 
     except Exception as exc:
         logger.exception("[resume] session=%s error", session_id)

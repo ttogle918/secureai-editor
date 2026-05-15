@@ -1,5 +1,6 @@
 package io.secureai.backend.config;
 
+import io.secureai.backend.global.security.InternalKeyAuthFilter;
 import io.secureai.backend.global.security.JwtAuthenticationFilter;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final InternalKeyAuthFilter internalKeyAuthFilter;
 
     @Value("${secureai.cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
@@ -56,12 +58,19 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/reports/*/download").permitAll()
                 .requestMatchers("/webhooks/**").permitAll()
+                // GitHub Webhook 수신 — HMAC 서명으로 인증하므로 JWT 불필요
+                .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/github").permitAll()
                 .requestMatchers("/api/v1/internal/**").permitAll()
+                // AI Engine 내부 호출 전용 — InternalKeyFilter 에서 인증
+                .requestMatchers("/api/v1/cve/search").permitAll()
+                .requestMatchers("/api/v1/sbom/components").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(e -> e
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             )
+            // InternalKeyAuthFilter는 JWT 필터보다 먼저 실행되어 내부 경로를 선별 검증한다
+            .addFilterBefore(internalKeyAuthFilter, JwtAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

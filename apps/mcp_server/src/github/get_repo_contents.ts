@@ -54,7 +54,7 @@ interface GetFileContentArgs {
 export async function handleGetFileContent(
   args: Record<string, unknown>
 ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
-  const { owner, repo, path: filePath, ref, token } = args as GetFileContentArgs;
+  const { owner, repo, path: filePath, ref, token } = args as unknown as GetFileContentArgs;
 
   try {
     const result = await getContents(owner, repo, filePath, ref, token);

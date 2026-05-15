@@ -1,8 +1,8 @@
 'use client';
 import { motion } from 'framer-motion';
 import {
-  Shield, LayoutDashboard, Code2, Github,
-  FolderOpen, Loader2, ChevronDown, ChevronRight, Clock, AlertTriangle,
+  Shield, LayoutDashboard, Code2,
+  FolderOpen, FolderPlus, Loader2, ChevronDown, ChevronRight, Clock, AlertTriangle, X,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
@@ -203,25 +203,29 @@ function EmptyWorkspace({ onOpen, status, progress }: {
 }
 
 export function AppSidebar() {
-  const sidebarOpen     = useSecureStore((s) => s.sidebarOpen);
-  const sidebarWidth    = useSecureStore((s) => s.sidebarWidth);
-  const viewMode        = useSecureStore((s) => s.viewMode);
-  const setViewMode     = useSecureStore((s) => s.setViewMode);
-  const selectedPath    = useSecureStore((s) => s.selectedPath);
-  const setSelectedPath = useSecureStore((s) => s.setSelectedPath);
-  const openTab         = useSecureStore((s) => s.openTab);
-  const workspaceId     = useSecureStore((s) => s.workspaceId);
-  const workspaceName   = useSecureStore((s) => s.workspaceName);
-  const workspaceTree   = useSecureStore((s) => s.workspaceTree);
-  const projectId       = useSecureStore((s) => s.projectId);
-  const setProjectId    = useSecureStore((s) => s.setProjectId);
-  const vulns           = useSecureStore((s) => s.vulns);
+  const sidebarOpen          = useSecureStore((s) => s.sidebarOpen);
+  const sidebarWidth         = useSecureStore((s) => s.sidebarWidth);
+  const viewMode             = useSecureStore((s) => s.viewMode);
+  const setViewMode          = useSecureStore((s) => s.setViewMode);
+  const selectedPath         = useSecureStore((s) => s.selectedPath);
+  const setSelectedPath      = useSecureStore((s) => s.setSelectedPath);
+  const openTab              = useSecureStore((s) => s.openTab);
+  const workspaceId          = useSecureStore((s) => s.workspaceId);
+  const workspaceName        = useSecureStore((s) => s.workspaceName);
+  const workspaceTree        = useSecureStore((s) => s.workspaceTree);
+  const extraWorkspaces      = useSecureStore((s) => s.extraWorkspaces);
+  const removeExtraWorkspace = useSecureStore((s) => s.removeExtraWorkspace);
+  const setActiveWorkspaceId = useSecureStore((s) => s.setActiveWorkspaceId);
+  const projectId            = useSecureStore((s) => s.projectId);
+  const setProjectId         = useSecureStore((s) => s.setProjectId);
+  const vulns                = useSecureStore((s) => s.vulns);
 
-  const { openFolder, status: wsStatus, progress: wsProgress } = useWorkspace();
+  const { openFolder, addFolder, status: wsStatus, progress: wsProgress } = useWorkspace();
   const { projects, loading: projectsLoading } = useProjects();
 
-  const [workspaceExpanded, setWorkspaceExpanded] = useState(true);
-  const [activeTreeExpanded, setActiveTreeExpanded] = useState(true);
+  const [workspaceExpanded, setWorkspaceExpanded]     = useState(true);
+  const [activeTreeExpanded, setActiveTreeExpanded]   = useState(true);
+  const [extraExpanded, setExtraExpanded]             = useState<Record<string, boolean>>({});
 
   const vulnCountMap: Record<string, number> = {};
   for (const v of vulns) {
@@ -240,7 +244,8 @@ export function AppSidebar() {
   const showLocalTree = hasLocalWorkspace;
   const showVirtualTree = !hasLocalWorkspace && hasVirtualTree;
 
-  const handleSelectFile = (path: string) => {
+  const handleSelectFile = (path: string, wsId?: string) => {
+    if (wsId !== undefined) setActiveWorkspaceId(wsId);
     setSelectedPath(path);
     openTab(path, path.split('/').pop() ?? path);
     setViewMode('editor');
@@ -275,22 +280,39 @@ export function AppSidebar() {
         </span>
       </div>
 
-      {/* ── 로컬 폴더 열기 버튼 (워크스페이스 있을 때) ── */}
+      {/* ── 로컬 폴더 버튼 (워크스페이스 있을 때: 교체 + 추가) ── */}
       {hasLocalWorkspace && (
-        <div style={{ padding: '8px 8px 4px', flexShrink: 0 }}>
+        <div style={{ padding: '8px 8px 4px', flexShrink: 0, display: 'flex', gap: 4 }}>
+          {/* 기본 워크스페이스 교체 버튼 */}
           <button
             onClick={openFolder}
             disabled={busy}
+            title={workspaceName ?? '폴더 열기'}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6, width: '100%',
-              padding: '5px 10px', fontSize: 10, fontWeight: 600,
+              flex: 1, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0,
+              padding: '5px 8px', fontSize: 10, fontWeight: 600,
               background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.18)',
               borderRadius: 6, color: 'rgba(249,115,22,0.65)', cursor: busy ? 'not-allowed' : 'pointer',
-              opacity: busy ? 0.6 : 1,
+              opacity: busy ? 0.6 : 1, overflow: 'hidden',
             }}
           >
-            {busy ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <FolderOpen size={11} />}
-            {busy ? wsProgress : (workspaceName ?? '폴더 열기')}
+            {busy
+              ? <><Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wsProgress}</span></>
+              : <><FolderOpen size={11} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workspaceName ?? '폴더 열기'}</span></>}
+          </button>
+          {/* 추가 워크스페이스 버튼 */}
+          <button
+            onClick={addFolder}
+            disabled={busy}
+            title="워크스페이스에 폴더 추가"
+            style={{
+              flexShrink: 0, padding: '5px 8px', fontSize: 10,
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 6, color: 'rgba(255,255,255,0.35)', cursor: busy ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center',
+            }}
+          >
+            <FolderPlus size={11} />
           </button>
         </div>
       )}
@@ -386,6 +408,68 @@ export function AppSidebar() {
       {/* ── 빈 폴더 상태 (프로젝트 없고 로컬 없음) ── */}
       {!hasLocalWorkspace && projects.length === 0 && !projectsLoading && (
         <EmptyWorkspace onOpen={openFolder} status={wsStatus} progress={wsProgress} />
+      )}
+
+      {/* ── 추가 워크스페이스 목록 ── */}
+      {extraWorkspaces.length > 0 && (
+        <div style={{ flexShrink: 0, borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+          <div style={{
+            padding: '5px 12px 3px',
+            fontSize: 9, color: 'rgba(255,255,255,0.2)',
+            textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700,
+          }}>
+            추가 폴더
+          </div>
+          {extraWorkspaces.map((ws) => {
+            const isOpen = extraExpanded[ws.id] !== false;
+            return (
+              <div key={ws.id}>
+                {/* 섹션 헤더 */}
+                <div style={{ display: 'flex', alignItems: 'center', padding: '1px 4px 1px 8px' }}>
+                  <button
+                    onClick={() => setExtraExpanded((prev) => ({ ...prev, [ws.id]: !isOpen }))}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5, flex: 1, minWidth: 0,
+                      background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+                      padding: '3px 4px', borderRadius: 4,
+                    }}
+                  >
+                    {isOpen ? <ChevronDown size={9} color="rgba(255,255,255,0.25)" /> : <ChevronRight size={9} color="rgba(255,255,255,0.25)" />}
+                    <FolderOpen size={10} color="rgba(255,255,255,0.3)" />
+                    <span style={{
+                      fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.45)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {ws.name}
+                    </span>
+                  </button>
+                  {/* 워크스페이스 닫기 */}
+                  <button
+                    onClick={() => removeExtraWorkspace(ws.id)}
+                    title="워크스페이스 닫기"
+                    style={{
+                      flexShrink: 0, padding: '3px 5px', marginRight: 4,
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'rgba(255,255,255,0.2)', borderRadius: 3, display: 'flex',
+                    }}
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+                {/* 파일 트리 */}
+                {isOpen && ws.tree.length > 0 && (
+                  <div style={{ paddingLeft: 16, borderLeft: '1px solid rgba(255,255,255,0.06)', marginLeft: 10 }}>
+                    <FileTree
+                      tree={ws.tree}
+                      selectedPath={selectedPath}
+                      onSelect={(p) => handleSelectFile(p, ws.id)}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* ── 하단 액션 ── */}

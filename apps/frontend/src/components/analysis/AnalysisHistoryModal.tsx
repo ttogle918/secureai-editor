@@ -7,7 +7,7 @@ import type { Severity, VulnCategory, Vulnerability } from '@/lib/mockData';
 
 interface SessionItem {
   id: string;
-  status: string;
+  status: 'pending' | 'running' | 'completed' | 'error' | string;
   totalFiles: number;
   vulnCount: number;
   completedAt: string | null;
@@ -63,12 +63,12 @@ export function AnalysisHistoryModal({ onClose }: Props) {
       const perProject = await Promise.all(
         workspaceProjects.map(async (p) => {
           try {
+            // size=100으로 충분한 이력 조회 (completed 필터 제거 → 모든 분석 표시)
             const res = await apiClient.get<{ data: { content: Array<{
               id: string; status: string; totalFiles: number;
               vulnCount: number; completedAt: string | null; createdAt: string;
-            }> } }>(`/analysis/sessions?projectId=${p.id}&size=5`);
+            }> } }>(`/analysis/sessions?projectId=${p.id}&size=100`);
             return (res.data?.content ?? [])
-              .filter((s) => s.status === 'completed')
               .map((s) => ({ ...s, projectId: p.id, projectName: p.name }));
           } catch {
             return [];
@@ -76,9 +76,14 @@ export function AnalysisHistoryModal({ onClose }: Props) {
         }),
       );
 
+      // completed 우선, 나머지는 createdAt 역순
       const merged = perProject
         .flat()
-        .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
+        .sort((a, b) => {
+          if (a.status === 'completed' && b.status !== 'completed') return -1;
+          if (a.status !== 'completed' && b.status === 'completed') return 1;
+          return (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt);
+        });
       setSessions(merged);
 
       // 심각도 분포 병렬 조회
@@ -201,37 +206,46 @@ export function AnalysisHistoryModal({ onClose }: Props) {
           {loading ? (
             <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>불러오는 중...</div>
           ) : sessions.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>완료된 분석 세션이 없습니다.</div>
+            <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>분석 이력이 없습니다.</div>
           ) : (
             sessions.map((s, idx) => {
               const bd = breakdowns[s.id];
-              const isFirst = idx === 0;
+              const isCompleted = s.status === 'completed';
+              const isFirst = idx === 0 && isCompleted;
               const isCurrent = s.projectId === currentProjectId;
+              const canLoad = isCompleted;
+
+              const statusBadge: { label: string; color: string; bg: string } | null =
+                s.status === 'running'  ? { label: '분석 중',  color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' }
+                : s.status === 'pending'  ? { label: '대기 중',  color: '#a3a3a3', bg: 'rgba(163,163,163,0.1)' }
+                : s.status === 'error'    ? { label: '오류',     color: '#f87171', bg: 'rgba(248,113,113,0.12)' }
+                : null;
+
               return (
                 <button
                   key={s.id}
-                  onClick={() => handleLoad(s)}
-                  disabled={loadingId === s.id}
+                  onClick={() => canLoad && handleLoad(s)}
+                  disabled={loadingId === s.id || !canLoad}
                   style={{
                     width: '100%', padding: '14px 20px',
                     background: isFirst ? 'rgba(234,88,12,0.04)' : 'none',
                     border: 'none',
                     borderBottom: '1px solid rgba(255,255,255,0.05)',
-                    cursor: 'pointer', textAlign: 'left',
+                    cursor: canLoad ? 'pointer' : 'default', textAlign: 'left',
                     display: 'flex', alignItems: 'center', gap: 12,
-                    opacity: loadingId && loadingId !== s.id ? 0.4 : 1,
+                    opacity: (loadingId && loadingId !== s.id) || !canLoad ? 0.5 : 1,
                     transition: 'background 0.1s',
                   }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)'; }}
+                  onMouseEnter={(e) => { if (canLoad) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isFirst ? 'rgba(234,88,12,0.04)' : 'none'; }}
                 >
                   {/* 아이콘 */}
                   <div style={{
                     width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-                    background: isFirst ? 'rgba(234,88,12,0.12)' : 'rgba(255,255,255,0.04)',
+                    background: isFirst ? 'rgba(234,88,12,0.12)' : s.status === 'error' ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.04)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Shield size={16} color={isFirst ? '#ea580c' : 'rgba(255,255,255,0.3)'} />
+                    <Shield size={16} color={isFirst ? '#ea580c' : s.status === 'error' ? '#f87171' : 'rgba(255,255,255,0.3)'} />
                   </div>
 
                   {/* 정보 */}
@@ -260,27 +274,42 @@ export function AnalysisHistoryModal({ onClose }: Props) {
                           최신
                         </span>
                       )}
+                      {/* 진행 중 / 오류 상태 배지 */}
+                      {statusBadge && (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3,
+                          background: statusBadge.bg, color: statusBadge.color,
+                        }}>
+                          {statusBadge.label}
+                        </span>
+                      )}
                       <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginLeft: 'auto' }}>
-                        {relativeTime(s.completedAt)}
+                        {relativeTime(s.completedAt ?? s.createdAt)}
                       </span>
                     </div>
 
-                    {/* 심각도별 배지 */}
+                    {/* 심각도별 배지 (completed만) */}
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                      {bd ? (
-                        (['critical', 'high', 'medium', 'low'] as const).map((sev) =>
-                          bd[sev] > 0 && (
-                            <span key={sev} style={{
-                              fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-                              background: `${SEV_COLORS[sev]}15`, color: SEV_COLORS[sev],
-                              border: `0.5px solid ${SEV_COLORS[sev]}40`,
-                            }}>
-                              {sev.toUpperCase()} {bd[sev]}
-                            </span>
+                      {isCompleted ? (
+                        bd ? (
+                          (['critical', 'high', 'medium', 'low'] as const).map((sev) =>
+                            bd[sev] > 0 && (
+                              <span key={sev} style={{
+                                fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+                                background: `${SEV_COLORS[sev]}15`, color: SEV_COLORS[sev],
+                                border: `0.5px solid ${SEV_COLORS[sev]}40`,
+                              }}>
+                                {sev.toUpperCase()} {bd[sev]}
+                              </span>
+                            )
                           )
+                        ) : (
+                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>취약점 {s.vulnCount}개</span>
                         )
                       ) : (
-                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>취약점 {s.vulnCount}개</span>
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+                          {s.status === 'running' ? '분석이 진행 중입니다...' : s.status === 'error' ? '분석 중 오류가 발생했습니다' : '분석 대기 중'}
+                        </span>
                       )}
                     </div>
                   </div>

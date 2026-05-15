@@ -26,19 +26,23 @@ export function EditorLayout() {
   const dastLogs           = useSecureStore((s) => s.dastLogs);
   const vulns              = useSecureStore((s) => s.vulns);
   const workspaceId        = useSecureStore((s) => s.workspaceId);
+  const activeWorkspaceId  = useSecureStore((s) => s.activeWorkspaceId);
 
   const fileContents   = useSecureStore((s) => s.fileContents);
   const setFileContent = useSecureStore((s) => s.setFileContent);
 
+  // 추가 워크스페이스 파일을 선택하면 activeWorkspaceId가 변경됨
+  const effectiveWsId = activeWorkspaceId ?? workspaceId;
+
   useEffect(() => {
-    if (!workspaceId || !selectedPath || fileContents[selectedPath] !== undefined) return;
-    fetch(`${BACKEND}/api/workspace/${workspaceId}/file?path=${encodeURIComponent(selectedPath)}`)
+    if (!effectiveWsId || !selectedPath || fileContents[selectedPath] !== undefined) return;
+    fetch(`${BACKEND}/api/workspace/${effectiveWsId}/file?path=${encodeURIComponent(selectedPath)}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data?.content != null) setFileContent(selectedPath, data.content);
       })
       .catch(() => {});
-  }, [workspaceId, selectedPath]);
+  }, [effectiveWsId, selectedPath]);
 
   const onRightResize    = useCallback((d: number) => setRightPanelWidth((prev) => prev - d), [setRightPanelWidth]);
   const onTerminalResize = useCallback((d: number) => setTerminalHeight((prev) => prev - d), [setTerminalHeight]);

@@ -78,6 +78,13 @@ interface SecureStore {
   workspaceTree: FileNode[];
   setWorkspaceTree: (tree: FileNode[]) => void;
 
+  // ── 추가 워크스페이스 (다중 폴더) ──────────────────────
+  extraWorkspaces: Array<{ id: string; name: string; tree: FileNode[] }>;
+  addExtraWorkspace: (ws: { id: string; name: string; tree: FileNode[] }) => void;
+  removeExtraWorkspace: (id: string) => void;
+  activeWorkspaceId: string | null;
+  setActiveWorkspaceId: (id: string | null) => void;
+
   // ── 프로젝트 목록 (전역 캐시 — useProjects 훅이 설정) ────
   workspaceProjects: WorkspaceProject[];
   setWorkspaceProjects: (projects: WorkspaceProject[]) => void;
@@ -227,6 +234,13 @@ export const useSecureStore = create<SecureStore>()(
   setWorkspaceName: (name) => set({ workspaceName: name }),
   workspaceTree: [],
   setWorkspaceTree: (tree) => set({ workspaceTree: tree }),
+
+  // ── 추가 워크스페이스 (런타임만 — localStorage 미저장)
+  extraWorkspaces: [],
+  addExtraWorkspace: (ws) => set((s) => ({ extraWorkspaces: [...s.extraWorkspaces, ws] })),
+  removeExtraWorkspace: (id) => set((s) => ({ extraWorkspaces: s.extraWorkspaces.filter((w) => w.id !== id) })),
+  activeWorkspaceId: null,
+  setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id }),
 
   // ── 프로젝트 목록 캐시
   workspaceProjects: [],

@@ -52,6 +52,10 @@ dependencies {
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testAnnotationProcessor("org.projectlombok:lombok:1.18.36")
 
+	// Docker Java SDK — DAST 샌드박스 컨테이너 관리
+	implementation("com.github.docker-java:docker-java-core:3.3.6")
+	implementation("com.github.docker-java:docker-java-transport-httpclient5:3.3.6")
+
 	// Swagger / OpenAPI
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
 }

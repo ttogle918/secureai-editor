@@ -62,6 +62,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/webhooks/github").permitAll()
                 // 내부 통신 엔드포인트 — JWT 불필요, InternalKeyAuthFilter가 X-Internal-Key 헤더 검증
                 .requestMatchers("/api/v1/internal/**").permitAll()
+                // AI Engine 내부 호출 전용 — InternalKeyFilter 에서 인증
+                .requestMatchers("/api/v1/cve/search").permitAll()
+                .requestMatchers("/api/v1/sbom/components").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(e -> e

@@ -2,9 +2,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe } from 'lucide-react';
+import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe, Github, Copy, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
-import { apiClient } from '@/lib/api/client';
+import { apiClient, BASE_URL } from '@/lib/api/client';
 import { useSecureStore, type DisplayLanguage } from '@/store/useSecureStore';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -14,6 +14,19 @@ interface CreditSummary {
   hasByok: boolean;
   preferredModel: string;
   modelCosts: Record<string, number>;
+}
+
+interface PrReviewHistoryItem {
+  id: string;
+  repoOwner: string;
+  repoName: string;
+  prNumber: number;
+  headSha: string;
+  status: 'pending' | 'completed' | 'error';
+  vulnCount: number;
+  checkRunId: number | null;
+  createdAt: string;
+  completedAt: string | null;
 }
 
 const MODELS = [
@@ -45,6 +58,18 @@ export default function SettingsPage() {
 
   const [selectedModel, setSelectedModel] = useState('claude-haiku-4-5-20251001');
   const [modelStatus, setModelStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  // GitHub 설정 상태
+  const [blockMergeOnCritical, setBlockMergeOnCritical] = useState(false);
+  const [githubSettingStatus, setGithubSettingStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [webhookCopied, setWebhookCopied] = useState(false);
+
+  // PR 이력 조회 상태
+  const [prHistoryRepoOwner, setPrHistoryRepoOwner] = useState('');
+  const [prHistoryRepoName, setPrHistoryRepoName] = useState('');
+  const [prHistoryList, setPrHistoryList] = useState<PrReviewHistoryItem[]>([]);
+  const [prHistoryLoading, setPrHistoryLoading] = useState(false);
+  const [prHistoryError, setPrHistoryError] = useState('');
 
   useEffect(() => {
     if (isInitialized && !user) router.replace('/login');
@@ -103,6 +128,53 @@ export default function SettingsPage() {
       setTimeout(() => setModelStatus('idle'), 1500);
     } catch {
       setModelStatus('idle');
+    }
+  };
+
+  const handleToggleBlockMerge = async () => {
+    const next = !blockMergeOnCritical;
+    setBlockMergeOnCritical(next);
+    setGithubSettingStatus('saving');
+    try {
+      await apiClient.put('/users/me/github-settings', { blockMergeOnCritical: next });
+      setGithubSettingStatus('saved');
+      setTimeout(() => setGithubSettingStatus('idle'), 2000);
+    } catch {
+      // 실패 시 이전 상태로 복원
+      setBlockMergeOnCritical(!next);
+      setGithubSettingStatus('idle');
+    }
+  };
+
+  const handleCopyWebhookUrl = async () => {
+    const webhookUrl = `${BASE_URL}/webhooks/github`;
+    try {
+      await navigator.clipboard.writeText(webhookUrl);
+      setWebhookCopied(true);
+      setTimeout(() => setWebhookCopied(false), 2000);
+    } catch {
+      // clipboard API 미지원 환경 무시
+    }
+  };
+
+  const handleFetchPrHistory = async () => {
+    if (!prHistoryRepoOwner.trim() || !prHistoryRepoName.trim()) return;
+    setPrHistoryLoading(true);
+    setPrHistoryError('');
+    setPrHistoryList([]);
+    try {
+      const params = new URLSearchParams({
+        repoOwner: prHistoryRepoOwner.trim(),
+        repoName: prHistoryRepoName.trim(),
+      });
+      const res = await apiClient.get<{ data: PrReviewHistoryItem[] }>(
+        `/webhooks/github/history?${params.toString()}`
+      );
+      setPrHistoryList(res.data ?? []);
+    } catch {
+      setPrHistoryError('이력을 불러오지 못했습니다. 레포지토리 정보를 확인하세요.');
+    } finally {
+      setPrHistoryLoading(false);
     }
   };
 
@@ -228,6 +300,165 @@ export default function SettingsPage() {
               );
             })}
           </div>
+        </Section>
+
+        {/* ── GitHub 연동 ── */}
+        <Section icon={<Github size={16} />} title="GitHub 연동">
+          {/* blockMergeOnCritical 토글 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8ee', marginBottom: 4 }}>
+                Critical 취약점 발견 시 PR 머지 차단
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
+                활성화하면 Critical 수준 취약점이 발견된 PR의 머지가 차단됩니다.
+              </div>
+            </div>
+            <button
+              onClick={handleToggleBlockMerge}
+              disabled={githubSettingStatus === 'saving'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: blockMergeOnCritical ? '#22c55e' : 'rgba(255,255,255,0.25)',
+                flexShrink: 0, padding: 4,
+                opacity: githubSettingStatus === 'saving' ? 0.5 : 1,
+              }}
+              aria-label="blockMergeOnCritical 토글"
+            >
+              {blockMergeOnCritical
+                ? <ToggleRight size={36} />
+                : <ToggleLeft size={36} />}
+            </button>
+          </div>
+          {githubSettingStatus === 'saved' && (
+            <div style={{ fontSize: 12, color: '#22c55e', marginBottom: 16 }}>저장됨</div>
+          )}
+
+          {/* Webhook URL 표시 */}
+          <div style={{ marginTop: 4 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.55)', marginBottom: 8 }}>
+              Webhook URL
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                readOnly
+                value={`${BASE_URL}/webhooks/github`}
+                style={{
+                  flex: 1, padding: '9px 14px', borderRadius: 8,
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  color: 'rgba(255,255,255,0.5)',
+                  fontSize: 12, fontFamily: 'var(--font-mono)',
+                  outline: 'none', cursor: 'default',
+                }}
+              />
+              <button
+                onClick={handleCopyWebhookUrl}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '9px 16px', borderRadius: 8,
+                  background: webhookCopied ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
+                  border: `1px solid ${webhookCopied ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                  color: webhookCopied ? '#22c55e' : 'rgba(255,255,255,0.55)',
+                  fontSize: 13, cursor: 'pointer', flexShrink: 0,
+                }}
+              >
+                {webhookCopied ? <Check size={14} /> : <Copy size={14} />}
+                {webhookCopied ? '복사됨' : '복사'}
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', marginTop: 6, lineHeight: 1.5 }}>
+              GitHub 레포지토리 Settings → Webhooks에 위 URL을 등록하세요. Secret은 서버 환경변수로 관리됩니다.
+            </div>
+          </div>
+        </Section>
+
+        {/* ── PR 리뷰 이력 ── */}
+        <Section icon={<Github size={16} />} title="PR 리뷰 이력">
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            <input
+              value={prHistoryRepoOwner}
+              onChange={(e) => setPrHistoryRepoOwner(e.target.value)}
+              placeholder="레포지토리 소유자 (e.g. octocat)"
+              style={{
+                flex: 1, minWidth: 160, padding: '9px 14px', borderRadius: 8,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: '#e8e8ee', fontSize: 13, outline: 'none',
+              }}
+            />
+            <input
+              value={prHistoryRepoName}
+              onChange={(e) => setPrHistoryRepoName(e.target.value)}
+              placeholder="레포지토리 이름 (e.g. my-repo)"
+              style={{
+                flex: 1, minWidth: 160, padding: '9px 14px', borderRadius: 8,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: '#e8e8ee', fontSize: 13, outline: 'none',
+              }}
+            />
+            <button
+              onClick={handleFetchPrHistory}
+              disabled={prHistoryLoading || !prHistoryRepoOwner.trim() || !prHistoryRepoName.trim()}
+              style={{
+                padding: '9px 20px', borderRadius: 8,
+                background: '#ea580c', color: '#fff', border: 'none',
+                cursor: 'pointer', fontSize: 13, fontWeight: 700, flexShrink: 0,
+                opacity: prHistoryLoading || !prHistoryRepoOwner.trim() || !prHistoryRepoName.trim() ? 0.5 : 1,
+              }}
+            >
+              {prHistoryLoading ? '조회 중...' : '조회'}
+            </button>
+          </div>
+
+          {prHistoryError && (
+            <div style={{ fontSize: 13, color: '#e24b4b', marginBottom: 12 }}>{prHistoryError}</div>
+          )}
+
+          {prHistoryList.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    {['PR #', '브랜치 SHA', '상태', '취약점', '완료시각'].map((h) => (
+                      <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'rgba(255,255,255,0.3)', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {prHistoryList.map((row) => (
+                    <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <td style={{ padding: '10px 12px', color: '#e8e8ee', fontFamily: 'var(--font-mono)' }}>
+                        #{row.prNumber}
+                      </td>
+                      <td style={{ padding: '10px 12px', color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                        {row.headSha.slice(0, 7)}
+                      </td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <StatusBadge status={row.status} />
+                      </td>
+                      <td style={{ padding: '10px 12px', color: row.vulnCount > 0 ? '#f59e0b' : 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-mono)' }}>
+                        {row.vulnCount}
+                      </td>
+                      <td style={{ padding: '10px 12px', color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>
+                        {row.completedAt ? new Date(row.completedAt).toLocaleString('ko-KR') : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!prHistoryLoading && prHistoryList.length === 0 && !prHistoryError && (
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.2)', paddingTop: 4 }}>
+              레포지토리 소유자와 이름을 입력 후 조회하세요.
+            </div>
+          )}
         </Section>
 
         {/* ── Model Preference ── */}

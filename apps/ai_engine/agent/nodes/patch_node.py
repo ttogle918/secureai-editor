@@ -73,10 +73,10 @@ def _build_cache_key(vuln_type: str, file_path: str) -> str:
     return f"{_CACHE_PREFIX}{vuln_type}:{ext}"
 
 
-async def _call_claude(prompt: str) -> str:
-    client = _get_client()
+async def _call_claude(prompt: str, api_key: str | None = None, model: str | None = None) -> str:
+    client = AsyncAnthropic(api_key=api_key or settings.claude_api_key) if api_key else _get_client()
     response = await client.messages.create(
-        model=settings.claude_model,
+        model=model or settings.claude_model,
         max_tokens=2048,
         system=[
             {
@@ -90,7 +90,9 @@ async def _call_claude(prompt: str) -> str:
     return response.content[0].text
 
 
-async def _generate_patch_for_vuln(vuln: dict, file_path: str) -> dict | None:
+async def _generate_patch_for_vuln(
+    vuln: dict, file_path: str, api_key: str | None = None, model: str | None = None
+) -> dict | None:
     """취약점 하나에 대한 패치를 생성한다. 실패 시 None을 반환한다."""
     vuln_type = vuln.get("type", "UNKNOWN")
     language = _detect_language(file_path)
@@ -115,7 +117,7 @@ async def _generate_patch_for_vuln(vuln: dict, file_path: str) -> dict | None:
         language=language,
     )
 
-    raw = await _call_claude(prompt)
+    raw = await _call_claude(prompt, api_key=api_key, model=model)
     patch_result = parse_patch_response(raw, vuln, file_path)
     if patch_result is None:
         return None
@@ -135,6 +137,8 @@ async def patch_node(state: AgentState) -> dict:
     session_id = state["session_id"]
     project_id = state["project_id"]
     sast_results: list[dict] = state.get("sast_results", [])
+    user_api_key: str | None = state.get("user_api_key")
+    preferred_model: str | None = state.get("preferred_model")
 
     patch_results: list[dict] = []
     for file_result in sast_results:
@@ -142,7 +146,7 @@ async def patch_node(state: AgentState) -> dict:
         vulns = file_result.get("vulnerabilities", [])
         for vuln in vulns:
             try:
-                result = await _generate_patch_for_vuln(vuln, file_path)
+                result = await _generate_patch_for_vuln(vuln, file_path, api_key=user_api_key, model=preferred_model)
                 if result is not None:
                     patch_results.append(result)
             except Exception as exc:

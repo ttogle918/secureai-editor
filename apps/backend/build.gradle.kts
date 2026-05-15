@@ -52,6 +52,11 @@ dependencies {
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testAnnotationProcessor("org.projectlombok:lombok:1.18.36")
 
+	// TestContainers — Redis + PostgreSQL 통합 테스트
+	testImplementation("org.testcontainers:testcontainers:1.20.4")
+	testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+	testImplementation("org.testcontainers:postgresql:1.20.4")
+
 	// Docker Java SDK — DAST 샌드박스 컨테이너 관리
 	implementation("com.github.docker-java:docker-java-core:3.3.6")
 	implementation("com.github.docker-java:docker-java-transport-httpclient5:3.3.6")
@@ -62,4 +67,8 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	// 통합 테스트용 Redis 환경변수 전파 (make infra 또는 docker compose로 실행 중인 Redis 사용)
+	System.getenv("REDIS_PASSWORD")?.let { environment("REDIS_PASSWORD", it) }
+	System.getenv("REDIS_TEST_HOST")?.let { environment("REDIS_TEST_HOST", it) }
+	System.getenv("REDIS_TEST_PORT")?.let { environment("REDIS_TEST_PORT", it) }
 }

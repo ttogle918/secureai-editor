@@ -55,6 +55,7 @@ public class SecurityConfig {
                     "/error"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/reports/*/download").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/invitations/**").permitAll()
                 .requestMatchers("/webhooks/**").permitAll()
                 .requestMatchers("/api/v1/internal/**").permitAll()
                 .anyRequest().authenticated()

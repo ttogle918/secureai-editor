@@ -53,6 +53,17 @@ public enum ErrorCode {
 
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "리포트를 찾을 수 없습니다."),
 
+    ADMIN_SELF_MODIFICATION_DENIED(HttpStatus.FORBIDDEN, "자기 자신의 플랜 또는 상태를 변경할 수 없습니다."),
+    ADMIN_PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "플랜을 찾을 수 없습니다."),
+    ADMIN_CREDIT_DELTA_INVALID(HttpStatus.BAD_REQUEST, "크레딧 delta 범위가 유효하지 않습니다."),
+
+    ORG_NOT_FOUND(HttpStatus.NOT_FOUND, "조직을 찾을 수 없습니다."),
+    ORG_ACCESS_DENIED(HttpStatus.FORBIDDEN, "조직에 대한 접근 권한이 없습니다."),
+    ORG_ALREADY_MEMBER(HttpStatus.CONFLICT, "이미 조직 멤버입니다."),
+    ORG_SLUG_DUPLICATE(HttpStatus.CONFLICT, "이미 사용 중인 조직 슬러그입니다."),
+    INVITATION_NOT_FOUND(HttpStatus.NOT_FOUND, "초대를 찾을 수 없습니다."),
+    INVITATION_EXPIRED(HttpStatus.GONE, "만료된 초대입니다."),
+
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "입력값이 유효하지 않습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");
 

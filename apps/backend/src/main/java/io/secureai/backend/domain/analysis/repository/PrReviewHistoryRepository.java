@@ -15,4 +15,9 @@ public interface PrReviewHistoryRepository extends JpaRepository<PrReviewHistory
     List<PrReviewHistory> findByRepoOwnerAndRepoNameAndPrNumber(
             String repoOwner, String repoName, int prNumber
     );
+
+    /**
+     * 특정 레포지토리의 전체 PR 리뷰 이력을 조회한다.
+     */
+    List<PrReviewHistory> findByRepoOwnerAndRepoName(String repoOwner, String repoName);
 }

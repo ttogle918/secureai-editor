@@ -81,4 +81,19 @@ public class UserController {
         userService.removeApiKey(userId);
         return ResponseEntity.ok(ApiResponse.success(Map.of("hasByok", false)));
     }
+
+    // ── GitHub 연동 설정 ───────────────────────────────────────────────────
+
+    /**
+     * GitHub 연동 설정(blockMergeOnCritical)을 저장한다.
+     * PUT /api/v1/users/me/github-settings
+     */
+    @PutMapping("/me/github-settings")
+    public ResponseEntity<ApiResponse<Map<String, Boolean>>> saveGithubSettings(
+            @AuthenticationPrincipal UUID userId,
+            @Valid @RequestBody GitHubSettingsRequest request) {
+        userService.saveGithubSettings(userId, request);
+        return ResponseEntity.ok(ApiResponse.success(Map.of("blockMergeOnCritical", request.blockMergeOnCritical())));
+    }
+
 }

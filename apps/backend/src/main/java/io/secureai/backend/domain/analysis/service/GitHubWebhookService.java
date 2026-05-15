@@ -372,4 +372,16 @@ public class GitHubWebhookService {
         }
         return String.format("총 %d개의 보안 취약점이 발견되었습니다. (결론: %s)", vulnCount, conclusion);
     }
+
+    @Transactional(readOnly = true)
+    public List<io.secureai.backend.domain.analysis.dto.PrReviewHistoryResponse> getPrReviewHistory(
+            String repoOwner, String repoName, Integer prNumber) {
+        var histories = (prNumber != null)
+                ? prReviewHistoryRepository.findByRepoOwnerAndRepoNameAndPrNumber(repoOwner, repoName, prNumber)
+                : prReviewHistoryRepository.findByRepoOwnerAndRepoName(repoOwner, repoName);
+        return histories.stream()
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .map(io.secureai.backend.domain.analysis.dto.PrReviewHistoryResponse::from)
+                .toList();
+    }
 }

@@ -58,8 +58,8 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/reports/*/download").permitAll()
                 .requestMatchers("/webhooks/**").permitAll()
-                // GitHub Webhook — HMAC 서명으로 인증하므로 JWT 불필요
-                .requestMatchers("/api/v1/webhooks/**").permitAll()
+                // GitHub Webhook 수신 — HMAC 서명으로 인증하므로 JWT 불필요
+                .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/github").permitAll()
                 .requestMatchers("/api/v1/internal/**").permitAll()
                 // AI Engine 내부 호출 전용 — InternalKeyFilter 에서 인증
                 .requestMatchers("/api/v1/cve/search").permitAll()

@@ -2,13 +2,18 @@ package io.secureai.backend.domain.analysis.controller;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.secureai.backend.domain.analysis.dto.PrReviewHistoryResponse;
 import io.secureai.backend.domain.analysis.service.GitHubWebhookService;
+import io.secureai.backend.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * GitHub Webhook 수신 컨트롤러.
@@ -54,6 +59,21 @@ public class GitHubWebhookController {
         }
 
         return ResponseEntity.accepted().build();
+    }
+
+    /**
+     * PR 리뷰 이력을 조회한다.
+     * GET /api/v1/webhooks/github/history?repoOwner=&repoName=[&prNumber=]
+     * prNumber 생략 시 해당 레포지토리 전체 이력 반환.
+     */
+    @GetMapping("/github/history")
+    public ResponseEntity<ApiResponse<List<PrReviewHistoryResponse>>> getHistory(
+            @AuthenticationPrincipal UUID userId,
+            @RequestParam String repoOwner,
+            @RequestParam String repoName,
+            @RequestParam(required = false) Integer prNumber) {
+        return ResponseEntity.ok(ApiResponse.success(
+                webhookService.getPrReviewHistory(repoOwner, repoName, prNumber)));
     }
 
     private Map<String, Object> parsePayload(String rawBody) {

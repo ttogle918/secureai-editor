@@ -98,6 +98,10 @@ interface SecureStore {
   } | null;
   setLastTokenUsage: (usage: NonNullable<SecureStore['lastTokenUsage']> | null) => void;
 
+  // ── 파일 내용 (에디터 + 패치 적용용) ────────────────────
+  fileContents: Record<string, string>;
+  setFileContent: (path: string, content: string) => void;
+
   // ── 패치 ────────────────────────────────────────────────
   patches: PatchSuggestion[];
   setPatches: (patches: PatchSuggestion[]) => void;
@@ -224,15 +228,37 @@ export const useSecureStore = create<SecureStore>()(
   lastTokenUsage: null,
   setLastTokenUsage: (usage) => set({ lastTokenUsage: usage }),
 
+  // ── 파일 내용
+  fileContents: {},
+  setFileContent: (path, content) =>
+    set((s) => ({ fileContents: { ...s.fileContents, [path]: content } })),
+
   // ── 패치
   patches: [],
   setPatches: (patches) => set({ patches }),
   applyPatch: (vulnId) =>
-    set((s) => ({
-      vulns: s.vulns.map((v) =>
-        v.id === vulnId ? { ...v, status: 'patched' as const } : v
-      ),
-    })),
+    set((s) => {
+      const vuln  = s.vulns.find((v) => v.id === vulnId);
+      const patch = s.patches.find((p) =>
+        (p.vulnId && p.vulnId === vulnId) ||
+        (vuln && p.filePath === vuln.filePath && p.vulnType === vuln.type)
+      );
+
+      const newContents = { ...s.fileContents };
+      if (patch && patch.originalCode && newContents[patch.filePath] !== undefined) {
+        newContents[patch.filePath] = newContents[patch.filePath].replace(
+          patch.originalCode,
+          patch.patchedCode,
+        );
+      }
+
+      return {
+        fileContents: newContents,
+        vulns: s.vulns.map((v) =>
+          v.id === vulnId ? { ...v, status: 'patched' as const } : v
+        ),
+      };
+    }),
 
   // ── 필터
   severityFilter: 'all',

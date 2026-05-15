@@ -1,7 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
 import {
-  Shield, Play, LayoutDashboard, Code2, Github, RefreshCw,
+  Shield, LayoutDashboard, Code2, Github,
   FolderOpen, Loader2, ChevronDown, ChevronRight, Clock, AlertTriangle,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -9,7 +9,6 @@ import { useState } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
 import type { FileNode } from '@/lib/mockData';
 import { useWorkspace } from '@/hooks/useWorkspace';
-import { useStartAnalysis } from '@/hooks/useStartAnalysis';
 import { useProjects, type ProjectSummary } from '@/hooks/useProjects';
 
 const FileTree = dynamic(() => import('@/components/editor/FileTree').then((m) => m.FileTree), {
@@ -153,7 +152,6 @@ export function AppSidebar() {
   const setProjectId    = useSecureStore((s) => s.setProjectId);
   const vulns           = useSecureStore((s) => s.vulns);
 
-  const { startAnalysis, isAnalyzing } = useStartAnalysis();
   const { openFolder, status: wsStatus, progress: wsProgress } = useWorkspace();
   const { projects, loading: projectsLoading } = useProjects();
 
@@ -287,29 +285,6 @@ export function AppSidebar() {
         padding: 10, borderTop: '1px solid rgba(255,255,255,0.06)',
         display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0,
       }}>
-        <button
-          id="btn-sidebar-analyze"
-          onClick={startAnalysis}
-          disabled={isAnalyzing || !hasWorkspace}
-          aria-label="전체 프로젝트 보안 분석 시작"
-          style={{
-            width: '100%', padding: '9px 0',
-            background: isAnalyzing || !hasWorkspace ? '#1a1008' : '#ea580c',
-            border: isAnalyzing || !hasWorkspace ? '1px solid rgba(255,255,255,0.06)' : 'none',
-            borderRadius: 7,
-            color: isAnalyzing || !hasWorkspace ? 'rgba(255,255,255,0.2)' : '#fff',
-            fontSize: 11, fontWeight: 700,
-            cursor: isAnalyzing || !hasWorkspace ? 'not-allowed' : 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            boxShadow: isAnalyzing || !hasWorkspace ? 'none' : '0 3px 12px rgba(234,88,12,0.3)',
-            transition: 'all 0.15s',
-          }}
-        >
-          {isAnalyzing
-            ? <><RefreshCw size={11} style={{ animation: 'spin 0.85s linear infinite' }} /> 분석 중...</>
-            : <><Play size={11} /> 전체 프로젝트 분석</>}
-        </button>
-
         <button
           onClick={() => setViewMode((v) => (v === 'editor' ? 'dashboard' : 'editor'))}
           style={{

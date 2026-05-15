@@ -267,20 +267,18 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           {viewMode === 'editor' ? '대시보드' : '에디터'}
         </button>
 
-        {projectId && (
-          <button
-            onClick={() => setShowHistory(true)}
-            title="분석 이력"
-            style={{
-              fontSize: 11, fontWeight: 700, padding: '6px 10px', borderRadius: 6,
-              background: '#1a1a1c', color: 'rgba(255,255,255,0.45)',
-              border: '1px solid #2d2d30', cursor: 'pointer',
-              display: 'flex', alignItems: 'center',
-            }}
-          >
-            <History size={14} />
-          </button>
-        )}
+        <button
+          onClick={() => setShowHistory(true)}
+          title="분석 이력 (전체 프로젝트)"
+          style={{
+            fontSize: 11, fontWeight: 700, padding: '6px 10px', borderRadius: 6,
+            background: '#1a1a1c', color: 'rgba(255,255,255,0.45)',
+            border: '1px solid #2d2d30', cursor: 'pointer',
+            display: 'flex', alignItems: 'center',
+          }}
+        >
+          <History size={14} />
+        </button>
 
         <button
           onClick={startAnalysis}
@@ -297,11 +295,8 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           {isAnalyzing ? '분석 중...' : '분석 시작'}
         </button>
 
-        {showHistory && projectId && (
-          <AnalysisHistoryModal
-            projectId={projectId}
-            onClose={() => setShowHistory(false)}
-          />
+        {showHistory && (
+          <AnalysisHistoryModal onClose={() => setShowHistory(false)} />
         )}
 
         {onExportJSON && (

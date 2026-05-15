@@ -14,6 +14,14 @@ export type ViewMode       = 'editor' | 'dashboard';
 export type RightTab       = 'vulns' | 'chat' | 'progress';
 export type DisplayLanguage = 'ko' | 'en';
 
+// 프로젝트 요약 — useProjects 훅과 공유 (순환 의존성 방지를 위해 인라인 정의)
+export interface WorkspaceProject {
+  id: string;
+  name: string;
+  lastAnalyzedAt: string | null;
+  vulnCount: number;
+}
+
 // 진행률 단계 타입 — ProgressPanel과 순환 의존성 방지를 위해 인라인 정의
 export interface ProgressStep {
   stepName: string;
@@ -70,9 +78,23 @@ interface SecureStore {
   workspaceTree: FileNode[];
   setWorkspaceTree: (tree: FileNode[]) => void;
 
+  // ── 프로젝트 목록 (전역 캐시 — useProjects 훅이 설정) ────
+  workspaceProjects: WorkspaceProject[];
+  setWorkspaceProjects: (projects: WorkspaceProject[]) => void;
+
   // ── 프로젝트 ─────────────────────────────────────────────
   projectId: string | null;
+  /** 일반 프로젝트 전환. lockedSessionId를 초기화하여 자동 재로드를 허용한다. */
   setProjectId: (id: string | null) => void;
+  /**
+   * 분석 이력 모달에서 다른 프로젝트의 특정 세션을 불러올 때 사용.
+   * lockedSessionId를 설정하여 useLoadLatestResults 자동 재로드를 억제한다.
+   */
+  switchProjectFromHistory: (projectId: string, sessionId: string) => void;
+
+  // ── 이력 세션 잠금 (자동 재로드 충돌 방지) ───────────────
+  lockedSessionId: string | null;
+  clearLockedSession: () => void;
 
   // ── 취약점 ──────────────────────────────────────────────
   vulns: Vulnerability[];
@@ -202,9 +224,19 @@ export const useSecureStore = create<SecureStore>()(
   workspaceTree: [],
   setWorkspaceTree: (tree) => set({ workspaceTree: tree }),
 
+  // ── 프로젝트 목록 캐시
+  workspaceProjects: [],
+  setWorkspaceProjects: (projects) => set({ workspaceProjects: projects }),
+
   // ── 프로젝트
   projectId: null,
-  setProjectId: (id) => set({ projectId: id }),
+  setProjectId: (id) => set({ projectId: id, lockedSessionId: null }),
+  switchProjectFromHistory: (projectId, sessionId) =>
+    set({ projectId, lockedSessionId: sessionId }),
+
+  // ── 이력 세션 잠금
+  lockedSessionId: null,
+  clearLockedSession: () => set({ lockedSessionId: null }),
 
   // ── 취약점
   vulns: [],

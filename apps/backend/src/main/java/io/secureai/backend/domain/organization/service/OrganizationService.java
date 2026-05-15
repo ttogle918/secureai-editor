@@ -7,6 +7,7 @@ import io.secureai.backend.domain.organization.entity.TeamInvitation;
 import io.secureai.backend.domain.organization.repository.OrgMemberRepository;
 import io.secureai.backend.domain.organization.repository.OrganizationRepository;
 import io.secureai.backend.domain.organization.repository.TeamInvitationRepository;
+import io.secureai.backend.domain.plan.Plan;
 import io.secureai.backend.domain.plan.PlanRepository;
 import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.repository.UserRepository;
@@ -14,7 +15,6 @@ import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +40,7 @@ public class OrganizationService {
     private final TeamInvitationRepository teamInvitationRepository;
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
-    private final JdbcTemplate jdbcTemplate;
+    private final OrgAnalyticsService orgAnalyticsService;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -246,10 +246,10 @@ public class OrganizationService {
 
         // org 소속 멤버 userId로 해당 멤버들이 생성한 세션/취약점 집계
         // Project에 orgId 컬럼이 없으므로 org 멤버 소유 프로젝트 기준으로 집계
-        long totalScans = countSessionsByOrgMembers(org.getId());
-        long totalVulns = countVulnsByOrgMembers(org.getId());
+        long totalScans = orgAnalyticsService.countSessionsByOrgMembers(org.getId());
+        long totalVulns = orgAnalyticsService.countVulnsByOrgMembers(org.getId());
         long totalCreditsUsed = 0L; // TODO: credit_transactions 테이블 연동 후 집계 가능
-        long projectCount = countProjectsByOrgMembers(org.getId());
+        long projectCount = orgAnalyticsService.countProjectsByOrgMembers(org.getId());
 
         return new OrgUsageResponse(
                 org.getId(),
@@ -260,6 +260,20 @@ public class OrganizationService {
                 (int) memberCount,
                 (int) projectCount
         );
+    }
+
+    /**
+     * 초대 토큰으로 유효한 초대 정보를 반환한다.
+     * InvitationController의 public GET 엔드포인트에서 호출된다.
+     */
+    @Transactional(readOnly = true)
+    public TeamInvitation getInvitationInfo(String token) {
+        TeamInvitation invitation = teamInvitationRepository.findByTokenAndAcceptedAtIsNull(token)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVITATION_NOT_FOUND));
+        if (invitation.isExpired()) {
+            throw new BusinessException(ErrorCode.INVITATION_EXPIRED);
+        }
+        return invitation;
     }
 
     // ── 공개 헬퍼 메서드 (SpEL @PreAuthorize 에서 사용) ────────────────────
@@ -341,44 +355,4 @@ public class OrganizationService {
         );
     }
 
-    private long countSessionsByOrgMembers(UUID orgId) {
-        String sql = """
-                SELECT COUNT(s.id)
-                FROM analysis_sessions s
-                WHERE s.user_id IN (
-                    SELECT user_id FROM org_members
-                    WHERE org_id = ? AND accepted_at IS NOT NULL
-                )
-                """;
-        Long count = jdbcTemplate.queryForObject(sql, Long.class, orgId);
-        return count != null ? count : 0L;
-    }
-
-    private long countVulnsByOrgMembers(UUID orgId) {
-        String sql = """
-                SELECT COUNT(v.id)
-                FROM vulnerabilities v
-                JOIN analysis_sessions s ON s.id = v.session_id
-                WHERE s.user_id IN (
-                    SELECT user_id FROM org_members
-                    WHERE org_id = ? AND accepted_at IS NOT NULL
-                )
-                """;
-        Long count = jdbcTemplate.queryForObject(sql, Long.class, orgId);
-        return count != null ? count : 0L;
-    }
-
-    private long countProjectsByOrgMembers(UUID orgId) {
-        String sql = """
-                SELECT COUNT(DISTINCT p.id)
-                FROM projects p
-                WHERE p.owner_id IN (
-                    SELECT user_id FROM org_members
-                    WHERE org_id = ? AND accepted_at IS NOT NULL
-                )
-                AND p.deleted_at IS NULL
-                """;
-        Long count = jdbcTemplate.queryForObject(sql, Long.class, orgId);
-        return count != null ? count : 0L;
-    }
 }

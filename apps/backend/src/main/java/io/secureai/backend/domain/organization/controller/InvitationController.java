@@ -1,10 +1,7 @@
 package io.secureai.backend.domain.organization.controller;
 
 import io.secureai.backend.domain.organization.entity.TeamInvitation;
-import io.secureai.backend.domain.organization.repository.TeamInvitationRepository;
 import io.secureai.backend.domain.organization.service.OrganizationService;
-import io.secureai.backend.global.exception.BusinessException;
-import io.secureai.backend.global.exception.ErrorCode;
 import io.secureai.backend.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +16,6 @@ import java.util.UUID;
 public class InvitationController {
 
     private final OrganizationService organizationService;
-    private final TeamInvitationRepository teamInvitationRepository;
 
     /**
      * 초대 토큰 유효성 확인 (비인증 허용).
@@ -28,13 +24,7 @@ public class InvitationController {
     @GetMapping("/{token}")
     public ResponseEntity<ApiResponse<InvitationInfoResponse>> getInvitationInfo(
             @PathVariable String token) {
-        TeamInvitation invitation = teamInvitationRepository.findByTokenAndAcceptedAtIsNull(token)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVITATION_NOT_FOUND));
-
-        if (invitation.isExpired()) {
-            throw new BusinessException(ErrorCode.INVITATION_EXPIRED);
-        }
-
+        TeamInvitation invitation = organizationService.getInvitationInfo(token);
         InvitationInfoResponse response = new InvitationInfoResponse(
                 invitation.getOrgId(),
                 invitation.getProjectId(),

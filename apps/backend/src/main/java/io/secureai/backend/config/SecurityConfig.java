@@ -1,5 +1,6 @@
 package io.secureai.backend.config;
 
+import io.secureai.backend.global.security.InternalKeyAuthFilter;
 import io.secureai.backend.global.security.JwtAuthenticationFilter;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final InternalKeyAuthFilter internalKeyAuthFilter;
 
     @Value("${secureai.cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
@@ -56,13 +58,16 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/reports/*/download").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/invitations/**").permitAll()
-                .requestMatchers("/webhooks/**").permitAll()
+                // GitHub 웹훅 인바운드만 공개 — GET /history 등 나머지는 JWT 필요
+                .requestMatchers(HttpMethod.POST, "/webhooks/github").permitAll()
+                // 내부 통신 엔드포인트 — JWT 불필요, InternalKeyAuthFilter가 X-Internal-Key 헤더 검증
                 .requestMatchers("/api/v1/internal/**").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(e -> e
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             )
+            .addFilterBefore(internalKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

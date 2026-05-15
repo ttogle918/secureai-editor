@@ -24,6 +24,8 @@ interface UserMeData {
   email: string;
   username: string;
   displayName: string;
+  avatarUrl: string | null;
+  isAdmin: boolean;
   githubLogin: string | null;
   plan: { id: number; name: string; displayName: string; allowDast: boolean; allowMonitoring: boolean };
   usage: { sastUsageThisMonth: number; sastMonthlyLimit: number; sastResetAt: string };
@@ -89,6 +91,9 @@ export function useAuth() {
         username: u.username,
         plan: u.plan.name as 'free' | 'pro' | 'team',
         githubConnected: !!u.githubLogin,
+        isAdmin: u.isAdmin ?? false,
+        avatarUrl: u.avatarUrl ?? null,
+        displayName: u.displayName ?? null,
       });
     } catch {
       storeLogout();
@@ -106,7 +111,7 @@ export function useAuth() {
       const { accessToken: token, user: u } = res.data;
       setAccessToken(token);
       storeSetToken(token);
-      setUser({ id: u.id, email: u.email, username: u.username, plan: u.planName as 'free' | 'pro' | 'team', githubConnected: false });
+      setUser({ id: u.id, email: u.email, username: u.username, plan: u.planName as 'free' | 'pro' | 'team', githubConnected: false, isAdmin: false, avatarUrl: null, displayName: null });
       router.push('/editor');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '로그인에 실패했습니다.';

@@ -4,11 +4,12 @@
 import { useState } from 'react';
 import {
   PanelLeftClose, PanelLeftOpen, ChevronRight,
-  FileJson, Play, LayoutDashboard, Code2, Settings, History,
+  FileJson, Play, LayoutDashboard, Code2, Settings, History, Users,
 } from 'lucide-react';
 import { AnalysisHistoryModal } from '@/components/analysis/AnalysisHistoryModal';
 import Link from 'next/link';
 import { useSecureStore, type SeverityFilter } from '@/store/useSecureStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/constants/severity';
 import { useSse, type SseStatus } from '@/hooks/useSse';
 import { useToastStore } from '@/hooks/useToast';
@@ -33,6 +34,7 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ onExportJSON }: AppHeaderProps) {
+  const { user: authUser } = useAuthStore();
   const projectId          = useSecureStore((s) => s.projectId);
   const sidebarOpen        = useSecureStore((s) => s.sidebarOpen);
   const setSidebarOpen     = useSecureStore((s) => s.setSidebarOpen);
@@ -324,6 +326,40 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
             hasResults={vulns.length > 0}
           />
         </div>
+
+        {authUser?.isAdmin && (
+          <Link
+            href="/admin/users"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '5px 10px', borderRadius: 6,
+              fontSize: 11, fontWeight: 700,
+              color: '#ea580c',
+              background: 'rgba(234,88,12,0.10)',
+              border: '1px solid rgba(234,88,12,0.25)',
+              textDecoration: 'none',
+              marginLeft: 4,
+            }}
+            title="Admin Console"
+          >
+            Admin
+          </Link>
+        )}
+
+        <Link
+          href="/team"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 32, height: 32, borderRadius: 6,
+            color: 'rgba(255,255,255,0.35)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            transition: 'color 0.15s',
+            marginLeft: 4,
+          }}
+          title="팀"
+        >
+          <Users size={16} />
+        </Link>
 
         <Link
           href="/settings"

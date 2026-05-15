@@ -9,6 +9,9 @@ export type AuthUser = {
   username: string;
   plan: UserPlan;
   githubConnected: boolean;
+  isAdmin: boolean;
+  avatarUrl: string | null;
+  displayName: string | null;
 };
 
 interface AuthStore {

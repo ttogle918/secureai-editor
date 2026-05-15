@@ -1,6 +1,8 @@
 package io.secureai.backend.domain.user.repository;
 
 import io.secureai.backend.domain.user.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -31,4 +33,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("SELECT u FROM User u JOIN FETCH u.plan WHERE u.id = :id AND u.deletedAt IS NULL")
     Optional<User> findByIdWithPlan(@Param("id") UUID id);
+
+    @Query("""
+            SELECT u FROM User u JOIN FETCH u.plan
+            WHERE u.deletedAt IS NULL
+            AND (:search IS NULL OR u.email LIKE %:search% OR u.username LIKE %:search%)
+            AND (:planId IS NULL OR u.plan.id = :planId)
+            AND (:isActive IS NULL OR u.isActive = :isActive)
+            """)
+    Page<User> searchUsers(@Param("search") String search,
+                           @Param("planId") Short planId,
+                           @Param("isActive") Boolean isActive,
+                           Pageable pageable);
 }

@@ -92,6 +92,20 @@ public class User extends BaseTimeEntity {
 
     @Column(nullable = false)
     @Builder.Default
+    private Boolean isAdmin = false;
+
+    @Column(length = 500)
+    private String avatarUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean publicProfile = false;
+
+    @Column(nullable = false)
+    @Builder.Default
     private Integer creditBalance = 100;
 
     @Convert(converter = AesEncryptionConverter.class)
@@ -101,6 +115,11 @@ public class User extends BaseTimeEntity {
     @Column(length = 60, nullable = false)
     @Builder.Default
     private String preferredModel = ModelConstants.HAIKU;
+
+    /** Critical 취약점 발견 시 GitHub PR 머지 차단 여부 */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean githubBlockMergeOnCritical = false;
 
     @Override
     @PrePersist

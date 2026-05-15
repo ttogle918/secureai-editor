@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { X, Clock, Shield, ChevronRight } from 'lucide-react';
+import { X, Clock, Shield, ChevronRight, Layers } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import { useSecureStore } from '@/store/useSecureStore';
 import type { Severity, VulnCategory, Vulnerability } from '@/lib/mockData';
@@ -12,16 +12,16 @@ interface SessionItem {
   vulnCount: number;
   completedAt: string | null;
   createdAt: string;
+  projectId: string;
+  projectName: string;
 }
 
-interface VulnBreakdown {
-  critical: number;
-  high: number;
-  medium: number;
-  low: number;
-}
+interface VulnBreakdown { critical: number; high: number; medium: number; low: number }
 
 const SEV_COLORS = { critical: '#e24b4b', high: '#f59e0b', medium: '#eab308', low: '#22c55e' };
+
+const VALID_SEV: Severity[] = ['critical', 'high', 'medium', 'low'];
+const VALID_CAT: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
 
 function relativeTime(iso: string | null): string {
   if (!iso) return '—';
@@ -40,68 +40,91 @@ function formatDate(iso: string | null): string {
   return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
-interface Props {
-  projectId: string;
-  onClose: () => void;
-}
+interface Props { onClose: () => void }
 
-export function AnalysisHistoryModal({ projectId, onClose }: Props) {
+export function AnalysisHistoryModal({ onClose }: Props) {
   const [sessions, setSessions]       = useState<SessionItem[]>([]);
   const [breakdowns, setBreakdowns]   = useState<Record<string, VulnBreakdown>>({});
   const [loading, setLoading]         = useState(true);
   const [loadingId, setLoadingId]     = useState<string | null>(null);
 
-  const addVuln    = useSecureStore((s) => s.addVuln);
-  const clearVulns = useSecureStore((s) => s.clearVulns);
-  const setPatches = useSecureStore((s) => s.setPatches);
+  const workspaceProjects       = useSecureStore((s) => s.workspaceProjects);
+  const currentProjectId        = useSecureStore((s) => s.projectId);
+  const switchProjectFromHistory = useSecureStore((s) => s.switchProjectFromHistory);
+  const setProjectId             = useSecureStore((s) => s.setProjectId);
+  const addVuln                  = useSecureStore((s) => s.addVuln);
+  const clearVulns               = useSecureStore((s) => s.clearVulns);
+  const setPatches               = useSecureStore((s) => s.setPatches);
 
   useEffect(() => {
-    apiClient.get<{ data: { content: SessionItem[] } }>(
-      `/analysis/sessions?projectId=${projectId}&size=20`,
-    ).then((res) => {
-      const items = (res.data?.content ?? []).filter((s) => s.status === 'completed');
-      setSessions(items);
+    if (workspaceProjects.length === 0) { setLoading(false); return; }
 
-      // 각 세션의 심각도별 취약점 수 조회
-      Promise.all(items.map(async (s) => {
-        try {
-          const vRes = await apiClient.get<{ data: { content: Array<{ severity: string }> } }>(
-            `/vulnerabilities?sessionId=${s.id}&size=500`,
-          );
-          const vulns = vRes.data?.content ?? [];
-          const bd: VulnBreakdown = { critical: 0, high: 0, medium: 0, low: 0 };
-          for (const v of vulns) {
-            const sev = v.severity?.toLowerCase() as keyof VulnBreakdown;
-            if (sev in bd) bd[sev]++;
+    async function loadAll() {
+      const perProject = await Promise.all(
+        workspaceProjects.map(async (p) => {
+          try {
+            const res = await apiClient.get<{ data: { content: Array<{
+              id: string; status: string; totalFiles: number;
+              vulnCount: number; completedAt: string | null; createdAt: string;
+            }> } }>(`/analysis/sessions?projectId=${p.id}&size=5`);
+            return (res.data?.content ?? [])
+              .filter((s) => s.status === 'completed')
+              .map((s) => ({ ...s, projectId: p.id, projectName: p.name }));
+          } catch {
+            return [];
           }
-          return [s.id, bd] as const;
-        } catch {
-          return [s.id, { critical: 0, high: 0, medium: 0, low: 0 }] as const;
-        }
-      })).then((results) => {
-        setBreakdowns(Object.fromEntries(results));
-        setLoading(false);
-      });
-    }).catch(() => setLoading(false));
-  }, [projectId]);
+        }),
+      );
 
-  const handleLoad = async (sessionId: string) => {
-    setLoadingId(sessionId);
+      const merged = perProject
+        .flat()
+        .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
+      setSessions(merged);
+
+      // 심각도 분포 병렬 조회
+      const bdResults = await Promise.all(
+        merged.map(async (s) => {
+          try {
+            const vRes = await apiClient.get<{ data: { content: Array<{ severity: string }> } }>(
+              `/vulnerabilities?sessionId=${s.id}&size=500`,
+            );
+            const bd: VulnBreakdown = { critical: 0, high: 0, medium: 0, low: 0 };
+            for (const v of (vRes.data?.content ?? [])) {
+              const sev = v.severity?.toLowerCase() as keyof VulnBreakdown;
+              if (sev in bd) bd[sev]++;
+            }
+            return [s.id, bd] as const;
+          } catch {
+            return [s.id, { critical: 0, high: 0, medium: 0, low: 0 }] as const;
+          }
+        }),
+      );
+      setBreakdowns(Object.fromEntries(bdResults));
+      setLoading(false);
+    }
+
+    loadAll();
+  }, [workspaceProjects]);
+
+  const handleLoad = async (session: SessionItem) => {
+    setLoadingId(session.id);
     try {
-      const VALID_SEV: Severity[] = ['critical', 'high', 'medium', 'low'];
-      const VALID_CAT: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
-
       const [vulnRes, patchRes] = await Promise.all([
         apiClient.get<{ data: { content: Array<{
           id: string; filePath: string; lineNumber: number | null; vulnType: string;
           severity: string; category: string | null; cwe: string | null;
           owasp: string | null; description: string | null;
-        }> } }>(`/vulnerabilities?sessionId=${sessionId}&size=500`),
+        }> } }>(`/vulnerabilities?sessionId=${session.id}&size=500`),
         apiClient.get<{ data: Array<{
           id: string; vulnId: string | null; filePath: string; vulnType: string;
           originalSnippet: string | null; patchedSnippet: string | null; explanation: string | null;
-        }> }>(`/sessions/${sessionId}/patches`).catch(() => ({ data: [] as never[] })),
+        }> }>(`/sessions/${session.id}/patches`).catch(() => ({ data: [] as never[] })),
       ]);
+
+      // 다른 프로젝트 세션이면 switchProjectFromHistory로 자동 재로드 억제
+      if (session.projectId !== currentProjectId) {
+        switchProjectFromHistory(session.projectId, session.id);
+      }
 
       clearVulns();
       for (const v of (vulnRes.data?.content ?? [])) {
@@ -109,18 +132,16 @@ export function AnalysisHistoryModal({ projectId, onClose }: Props) {
         const severity: Severity = VALID_SEV.includes(rawSev) ? rawSev : 'low';
         const rawCat = (v.category ?? 'SECURITY') as VulnCategory;
         const category: VulnCategory = VALID_CAT.includes(rawCat) ? rawCat : 'SECURITY';
-        const vuln: Vulnerability = {
+        addVuln({
           id: v.id, type: v.vulnType, severity, category,
           lineStart: v.lineNumber ?? 0, lineEnd: v.lineNumber ?? 0,
           filePath: v.filePath, description: v.description ?? '',
           cweId: v.cwe ?? '', owaspCategory: v.owasp ?? '', status: 'open',
-        };
-        addVuln(vuln);
+        } as Vulnerability);
       }
       setPatches((patchRes.data ?? []).map((p) => ({
         vulnId: p.vulnId ?? undefined,
-        filePath: p.filePath,
-        vulnType: p.vulnType,
+        filePath: p.filePath, vulnType: p.vulnType,
         originalCode: p.originalSnippet ?? '',
         patchedCode: p.patchedSnippet ?? '',
         explanation: p.explanation ?? '',
@@ -130,6 +151,8 @@ export function AnalysisHistoryModal({ projectId, onClose }: Props) {
       setLoadingId(null);
     }
   };
+
+  const multiProject = workspaceProjects.length > 1;
 
   return (
     <div
@@ -144,7 +167,7 @@ export function AnalysisHistoryModal({ projectId, onClose }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        width: 560, maxHeight: '80vh', borderRadius: 14,
+        width: 580, maxHeight: '80vh', borderRadius: 14,
         background: '#111114', border: '1px solid rgba(255,255,255,0.1)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
         boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
@@ -157,11 +180,18 @@ export function AnalysisHistoryModal({ projectId, onClose }: Props) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Clock size={15} color="#ea580c" />
             <span style={{ fontSize: 14, fontWeight: 700, color: '#e8e8ee' }}>분석 이력</span>
+            {multiProject && (
+              <span style={{
+                fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+                background: 'rgba(129,140,248,0.12)', color: '#818cf8',
+                border: '0.5px solid rgba(129,140,248,0.3)',
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}>
+                <Layers size={10} /> 전체 프로젝트
+              </span>
+            )}
           </div>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex' }}
-          >
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex' }}>
             <X size={16} />
           </button>
         </div>
@@ -169,30 +199,28 @@ export function AnalysisHistoryModal({ projectId, onClose }: Props) {
         {/* Body */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>
-              불러오는 중...
-            </div>
+            <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>불러오는 중...</div>
           ) : sessions.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>
-              완료된 분석 세션이 없습니다.
-            </div>
+            <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>완료된 분석 세션이 없습니다.</div>
           ) : (
             sessions.map((s, idx) => {
               const bd = breakdowns[s.id];
               const isFirst = idx === 0;
+              const isCurrent = s.projectId === currentProjectId;
               return (
                 <button
                   key={s.id}
-                  onClick={() => handleLoad(s.id)}
+                  onClick={() => handleLoad(s)}
                   disabled={loadingId === s.id}
                   style={{
                     width: '100%', padding: '14px 20px',
-                    borderBottom: '1px solid rgba(255,255,255,0.05)',
                     background: isFirst ? 'rgba(234,88,12,0.04)' : 'none',
-                    border: 'none', cursor: 'pointer', textAlign: 'left',
+                    border: 'none',
+                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                    cursor: 'pointer', textAlign: 'left',
                     display: 'flex', alignItems: 'center', gap: 12,
-                    transition: 'background 0.1s',
                     opacity: loadingId && loadingId !== s.id ? 0.4 : 1,
+                    transition: 'background 0.1s',
                   }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isFirst ? 'rgba(234,88,12,0.04)' : 'none'; }}
@@ -208,7 +236,19 @@ export function AnalysisHistoryModal({ projectId, onClose }: Props) {
 
                   {/* 정보 */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
+                      {/* 프로젝트 배지 (멀티 프로젝트 모드에서만) */}
+                      {multiProject && (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
+                          background: isCurrent ? 'rgba(249,115,22,0.12)' : 'rgba(255,255,255,0.06)',
+                          color: isCurrent ? '#f97316' : 'rgba(255,255,255,0.35)',
+                          border: `0.5px solid ${isCurrent ? 'rgba(249,115,22,0.3)' : 'rgba(255,255,255,0.12)'}`,
+                          maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {s.projectName}
+                        </span>
+                      )}
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#e8e8ee' }}>
                         {formatDate(s.completedAt)}
                       </span>
@@ -226,24 +266,21 @@ export function AnalysisHistoryModal({ projectId, onClose }: Props) {
                     </div>
 
                     {/* 심각도별 배지 */}
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                       {bd ? (
-                        (['critical', 'high', 'medium', 'low'] as const).map((sev) => (
+                        (['critical', 'high', 'medium', 'low'] as const).map((sev) =>
                           bd[sev] > 0 && (
                             <span key={sev} style={{
                               fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-                              background: `${SEV_COLORS[sev]}15`,
-                              color: SEV_COLORS[sev],
+                              background: `${SEV_COLORS[sev]}15`, color: SEV_COLORS[sev],
                               border: `0.5px solid ${SEV_COLORS[sev]}40`,
                             }}>
                               {sev.toUpperCase()} {bd[sev]}
                             </span>
                           )
-                        ))
+                        )
                       ) : (
-                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
-                          취약점 {s.vulnCount}개
-                        </span>
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>취약점 {s.vulnCount}개</span>
                       )}
                     </div>
                   </div>

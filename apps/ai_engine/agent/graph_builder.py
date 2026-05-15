@@ -12,6 +12,7 @@ from agent.agent_state import AgentState
 from agent.nodes.aggregate_node import aggregate_node
 from agent.nodes.cache_check_node import cache_check_node
 from agent.nodes.next_file_node import next_file_node
+from agent.nodes.patch_node import patch_node
 from agent.nodes.sast_node import sast_node
 from agent.nodes.scan_files_node import scan_files_node
 from agent.security_audit_graph import route_after_cache, route_after_next, route_after_scan
@@ -29,6 +30,7 @@ def _build_graph(checkpointer=None):
     builder.add_node("sast_node", sast_node)
     builder.add_node("next_file_node", next_file_node)
     builder.add_node("aggregate_node", aggregate_node)
+    builder.add_node("patch_node", patch_node)
 
     builder.set_entry_point("scan_files_node")
 
@@ -48,7 +50,8 @@ def _build_graph(checkpointer=None):
         route_after_next,
         {"cache_check_node": "cache_check_node", "aggregate_node": "aggregate_node"},
     )
-    builder.add_edge("aggregate_node", END)
+    builder.add_edge("aggregate_node", "patch_node")
+    builder.add_edge("patch_node", END)
 
     return builder.compile(checkpointer=checkpointer)
 

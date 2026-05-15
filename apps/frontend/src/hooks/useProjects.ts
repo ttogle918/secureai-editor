@@ -1,14 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api/client';
-import { useSecureStore } from '@/store/useSecureStore';
+import { useSecureStore, type WorkspaceProject } from '@/store/useSecureStore';
 
-export interface ProjectSummary {
-  id: string;
-  name: string;
-  lastAnalyzedAt: string | null;
-  vulnCount: number;
-}
+export type ProjectSummary = WorkspaceProject;
 
 interface ProjectItem {
   id: string;
@@ -26,8 +21,9 @@ export function useProjects() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading]   = useState(true);
 
-  const projectId    = useSecureStore((s) => s.projectId);
-  const setProjectId = useSecureStore((s) => s.setProjectId);
+  const projectId           = useSecureStore((s) => s.projectId);
+  const setProjectId        = useSecureStore((s) => s.setProjectId);
+  const setWorkspaceProjects = useSecureStore((s) => s.setWorkspaceProjects);
 
   useEffect(() => {
     async function load() {
@@ -55,6 +51,7 @@ export function useProjects() {
         );
 
         setProjects(summaries);
+        setWorkspaceProjects(summaries); // 전역 캐시 업데이트
 
         // projectId가 없으면 가장 최근 분석 프로젝트 자동 선택
         if (!projectId && summaries.length > 0) {

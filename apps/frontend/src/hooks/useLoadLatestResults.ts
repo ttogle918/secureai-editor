@@ -40,6 +40,7 @@ const VALID_CAT: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
 export function useLoadLatestResults() {
   const projectId       = useSecureStore((s) => s.projectId);
   const isAnalyzing     = useSecureStore((s) => s.isAnalyzing);
+  const lockedSessionId = useSecureStore((s) => s.lockedSessionId);
   const addVuln         = useSecureStore((s) => s.addVuln);
   const clearVulns      = useSecureStore((s) => s.clearVulns);
   const clearProgressSteps = useSecureStore((s) => s.clearProgressSteps);
@@ -50,6 +51,12 @@ export function useLoadLatestResults() {
 
   useEffect(() => {
     if (!projectId || isAnalyzing) return;
+    if (lockedSessionId) {
+      // 이력 모달에서 특정 세션을 로드 중 — 자동 재로드를 건너뛰되
+      // loadedRef를 갱신해 두어 lock 해제 후에도 중복 로드가 발생하지 않도록 한다.
+      loadedRef.current = projectId;
+      return;
+    }
     if (loadedRef.current === projectId) return;
 
     loadedRef.current = projectId;
@@ -117,5 +124,5 @@ export function useLoadLatestResults() {
     }
 
     load();
-  }, [projectId, isAnalyzing, addVuln, clearVulns, clearProgressSteps, setPatches]);
+  }, [projectId, isAnalyzing, lockedSessionId, addVuln, clearVulns, clearProgressSteps, setPatches]);
 }

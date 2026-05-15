@@ -532,3 +532,20 @@ function StatCard({ label, value, highlight, positive }: { label: string; value:
     </div>
   );
 }
+
+function StatusBadge({ status }: { status: 'pending' | 'completed' | 'error' }) {
+  const map = {
+    pending:   { label: '대기중',  bg: 'rgba(249,115,22,0.12)', color: '#f97316', border: 'rgba(249,115,22,0.3)' },
+    completed: { label: '완료',    bg: 'rgba(34,197,94,0.10)',  color: '#22c55e', border: 'rgba(34,197,94,0.3)'  },
+    error:     { label: '오류',    bg: 'rgba(226,75,75,0.10)',  color: '#e24b4b', border: 'rgba(226,75,75,0.3)'  },
+  };
+  const s = map[status] ?? map.error;
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4,
+      background: s.bg, color: s.color, border: `0.5px solid ${s.border}`,
+    }}>
+      {s.label}
+    </span>
+  );
+}

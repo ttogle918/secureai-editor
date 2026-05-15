@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestClient;
@@ -52,23 +53,11 @@ class CommitSecretServiceTest {
         session = AnalysisSession.builder().project(project).build();
         ReflectionTestUtils.setField(session, "id", sessionId);
 
-        // agentRestClient를 mock RestClient로 교체해 실제 네트워크 호출 방지
-        RestClient mockRestClient = mock(RestClient.class);
+        // RETURNS_DEEP_STUBS — RestClient 체이닝 전체를 null 없이 자동 목킹
+        // header() varargs 매처 불일치로 인한 NPE를 방지하며, 각 체인 단계의 개별 stub이 불필요
+        RestClient mockRestClient = mock(RestClient.class, Mockito.RETURNS_DEEP_STUBS);
         ReflectionTestUtils.setField(service, "agentRestClient", mockRestClient);
         ReflectionTestUtils.setField(service, "internalApiKey", "test-internal-key");
-
-        // RestClient 체이닝 mock 설정
-        RestClient.RequestBodyUriSpec uriSpec = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.RequestBodySpec bodySpec = mock(RestClient.RequestBodySpec.class);
-        RestClient.ResponseSpec responseSpec = mock(RestClient.ResponseSpec.class);
-
-        when(mockRestClient.post()).thenReturn(uriSpec);
-        when(uriSpec.uri(anyString())).thenReturn(bodySpec);
-        when(bodySpec.contentType(any())).thenReturn(bodySpec);
-        when(bodySpec.header(anyString(), anyString())).thenReturn(bodySpec);
-        when(bodySpec.body(any())).thenReturn(bodySpec);
-        when(bodySpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.toBodilessEntity()).thenReturn(null);
     }
 
     // ── TC-1: 존재하지 않는 세션 → SESSION_NOT_FOUND 예외 ────────────────────

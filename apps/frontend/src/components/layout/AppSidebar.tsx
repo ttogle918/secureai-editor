@@ -37,8 +37,7 @@ function buildVirtualTree(vulns: Vulnerability[]): FileNode[] {
   }
 
   // 중간 트리: number = leaf(파일), object = dir
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  type Branch = Record<string, any>;
+  type Branch = { [key: string]: number | Branch };
   const root: Branch = {};
 
   for (const [path, rank] of Object.entries(fileMap)) {

@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
 import type { FileNode } from '@/lib/mockData';
+import type { Vulnerability } from '@/lib/mockData';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { useStartAnalysis } from '@/hooks/useStartAnalysis';
 import { useProjects, type ProjectSummary } from '@/hooks/useProjects';
@@ -26,6 +27,51 @@ function injectVulnCount(nodes: FileNode[], map: Record<string, number>): FileNo
   }));
 }
 
+/** 취약점 파일 경로로 가상 파일 트리를 구성한다. */
+function buildVirtualTree(vulns: Vulnerability[]): FileNode[] {
+  if (vulns.length === 0) return [];
+
+  const fileMap: Record<string, number> = {};
+  for (const v of vulns) {
+    const rank = severityRank[v.severity] ?? 0;
+    fileMap[v.filePath] = Math.max(fileMap[v.filePath] ?? 0, rank);
+  }
+
+  // 중간 트리: number = leaf(파일), object = dir
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type Branch = Record<string, any>;
+  const root: Branch = {};
+
+  for (const [path, rank] of Object.entries(fileMap)) {
+    const parts = path.split('/').filter(Boolean);
+    let cur = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const seg = parts[i];
+      if (typeof cur[seg] !== 'object') cur[seg] = {};
+      cur = cur[seg] as Branch;
+    }
+    const fileName = parts[parts.length - 1] ?? path;
+    cur[fileName] = rank;
+  }
+
+  function toNodes(branch: Branch, prefix: string): FileNode[] {
+    return Object.entries(branch)
+      .map(([name, val]) => {
+        const path = prefix ? `${prefix}/${name}` : name;
+        if (typeof val === 'number') {
+          return { type: 'file' as const, name, path, vulnCount: val };
+        }
+        return { type: 'dir' as const, name, path, children: toNodes(val as Branch, path) };
+      })
+      .sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+  }
+
+  return toNodes(root, '');
+}
+
 function relativeTime(iso: string | null): string {
   if (!iso) return '분석 없음';
   const diff = Date.now() - new Date(iso).getTime();
@@ -40,53 +86,74 @@ function relativeTime(iso: string | null): string {
 function ProjectRow({
   project,
   active,
+  expanded,
   onSelect,
+  onToggleExpand,
 }: {
   project: ProjectSummary;
   active: boolean;
+  expanded: boolean;
   onSelect: () => void;
+  onToggleExpand: () => void;
 }) {
   return (
-    <button
-      onClick={onSelect}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        width: '100%', padding: '6px 10px',
-        background: active ? 'rgba(249,115,22,0.1)' : 'transparent',
-        border: 'none', borderRadius: 5,
-        cursor: 'pointer', textAlign: 'left',
-        transition: 'background 0.1s',
-      }}
-    >
-      <div style={{
-        width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-        background: project.vulnCount > 0 ? '#f04141' : '#22c55e',
-      }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 11, fontWeight: 600,
-          color: active ? '#f97316' : '#c8c8d0',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {project.name}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-          <Clock size={9} color="#555560" />
-          <span style={{ fontSize: 9, color: '#555560', fontFamily: 'var(--font-mono)' }}>
-            {relativeTime(project.lastAnalyzedAt)}
-          </span>
-          {project.vulnCount > 0 && (
-            <>
-              <span style={{ color: '#333340', fontSize: 9 }}>·</span>
-              <AlertTriangle size={9} color="#f59e0b" />
-              <span style={{ fontSize: 9, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>
-                {project.vulnCount}
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {/* 펼치기 토글 (활성 프로젝트만) */}
+        <button
+          onClick={active ? onToggleExpand : onSelect}
+          style={{
+            display: 'flex', alignItems: 'center', padding: '2px 4px',
+            background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.25)',
+            flexShrink: 0,
+          }}
+        >
+          {active
+            ? (expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />)
+            : <ChevronRight size={10} style={{ opacity: 0 }} />}
+        </button>
+
+        <button
+          onClick={onSelect}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', gap: 7,
+            padding: '5px 6px 5px 2px',
+            background: active ? 'rgba(249,115,22,0.1)' : 'transparent',
+            border: 'none', borderRadius: 5, cursor: 'pointer', textAlign: 'left',
+            transition: 'background 0.1s', minWidth: 0,
+          }}
+        >
+          <div style={{
+            width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+            background: project.vulnCount > 0 ? '#f04141' : '#22c55e',
+          }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: 11, fontWeight: 600,
+              color: active ? '#f97316' : '#c8c8d0',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {project.name}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+              <Clock size={9} color="#555560" />
+              <span style={{ fontSize: 9, color: '#555560', fontFamily: 'var(--font-mono)' }}>
+                {relativeTime(project.lastAnalyzedAt)}
               </span>
-            </>
-          )}
-        </div>
+              {project.vulnCount > 0 && (
+                <>
+                  <span style={{ color: '#333340', fontSize: 9 }}>·</span>
+                  <AlertTriangle size={9} color="#f59e0b" />
+                  <span style={{ fontSize: 9, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>
+                    {project.vulnCount}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -127,7 +194,6 @@ function EmptyWorkspace({ onOpen, status, progress }: {
           background: busy ? 'rgba(249,115,22,0.1)' : 'rgba(249,115,22,0.15)',
           border: '1px solid rgba(249,115,22,0.35)',
           borderRadius: 8, color: '#f97316', cursor: busy ? 'not-allowed' : 'pointer',
-          transition: 'all 0.15s',
         }}
       >
         {busy
@@ -157,17 +223,31 @@ export function AppSidebar() {
   const { openFolder, status: wsStatus, progress: wsProgress } = useWorkspace();
   const { projects, loading: projectsLoading } = useProjects();
 
-  const [projectsExpanded, setProjectsExpanded] = useState(true);
+  const [workspaceExpanded, setWorkspaceExpanded] = useState(true);
+  const [activeTreeExpanded, setActiveTreeExpanded] = useState(true);
 
   const vulnCountMap: Record<string, number> = {};
   for (const v of vulns) {
     const rank = severityRank[v.severity] ?? 0;
     vulnCountMap[v.filePath] = Math.max(vulnCountMap[v.filePath] ?? 0, rank);
   }
-  const tree = injectVulnCount(workspaceTree, vulnCountMap);
 
-  const hasWorkspace = !!workspaceId && workspaceTree.length > 0;
+  const hasLocalWorkspace = !!workspaceId && workspaceTree.length > 0;
   const busy = wsStatus === 'reading' || wsStatus === 'uploading';
+
+  // 활성 프로젝트의 파일 트리 결정:
+  // 로컬 폴더가 열려 있으면 로컬 트리, 없으면 취약점 경로로 재구성한 가상 트리
+  const localTree = injectVulnCount(workspaceTree, vulnCountMap);
+  const virtualTree = buildVirtualTree(vulns);
+  const hasVirtualTree = virtualTree.length > 0;
+  const showLocalTree = hasLocalWorkspace;
+  const showVirtualTree = !hasLocalWorkspace && hasVirtualTree;
+
+  const handleSelectFile = (path: string) => {
+    setSelectedPath(path);
+    openTab(path, path.split('/').pop() ?? path);
+    setViewMode('editor');
+  };
 
   return (
     <motion.aside
@@ -181,7 +261,7 @@ export function AppSidebar() {
         overflow: 'hidden',
         flexShrink: 0,
       }}
-      aria-label="파일 탐색기 사이드바"
+      aria-label="워크스페이스 사이드바"
     >
       {/* ── Logo ── */}
       <div style={{
@@ -198,8 +278,8 @@ export function AppSidebar() {
         </span>
       </div>
 
-      {/* ── 워크스페이스 열려있을 때만 상단에 작게 표시 ── */}
-      {hasWorkspace && (
+      {/* ── 로컬 폴더 열기 버튼 (워크스페이스 있을 때) ── */}
+      {hasLocalWorkspace && (
         <div style={{ padding: '8px 8px 4px', flexShrink: 0 }}>
           <button
             onClick={openFolder}
@@ -218,46 +298,76 @@ export function AppSidebar() {
         </div>
       )}
 
-      {/* ── 프로젝트 목록 ── */}
+      {/* ── Workspace 프로젝트 목록 ── */}
       {!projectsLoading && projects.length > 0 && (
         <div style={{ flexShrink: 0 }}>
+          {/* 섹션 헤더 */}
           <button
-            onClick={() => setProjectsExpanded((v) => !v)}
+            onClick={() => setWorkspaceExpanded((v) => !v)}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              width: '100%', padding: '5px 12px 5px 12px',
+              width: '100%', padding: '5px 12px',
               background: 'none', border: 'none', cursor: 'pointer',
-              borderBottom: projectsExpanded ? 'none' : '1px solid rgba(255,255,255,0.04)',
+              borderBottom: workspaceExpanded ? 'none' : '1px solid rgba(255,255,255,0.04)',
             }}
           >
             <span style={{
               fontSize: 9, color: 'rgba(255,255,255,0.2)',
               textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700,
             }}>
-              Projects
+              Workspace
             </span>
-            {projectsExpanded
+            {workspaceExpanded
               ? <ChevronDown size={11} color="rgba(255,255,255,0.2)" />
               : <ChevronRight size={11} color="rgba(255,255,255,0.2)" />}
           </button>
 
-          {projectsExpanded && (
-            <div style={{ padding: '3px 6px 6px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-              {projects.map((p) => (
-                <ProjectRow
-                  key={p.id}
-                  project={p}
-                  active={p.id === projectId}
-                  onSelect={() => setProjectId(p.id)}
-                />
-              ))}
+          {workspaceExpanded && (
+            <div style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+              {projects.map((p) => {
+                const isActive = p.id === projectId;
+                return (
+                  <div key={p.id}>
+                    <ProjectRow
+                      project={p}
+                      active={isActive}
+                      expanded={isActive && activeTreeExpanded}
+                      onSelect={() => {
+                        if (!isActive) setProjectId(p.id);
+                        setActiveTreeExpanded(true);
+                      }}
+                      onToggleExpand={() => setActiveTreeExpanded((v) => !v)}
+                    />
+
+                    {/* 활성 프로젝트의 파일 트리 (인라인 삽입) */}
+                    {isActive && activeTreeExpanded && (showLocalTree || showVirtualTree) && (
+                      <div style={{ paddingLeft: 18, borderLeft: '1px solid rgba(255,255,255,0.06)', marginLeft: 10 }}>
+                        {showVirtualTree && (
+                          <div style={{
+                            padding: '3px 8px 2px',
+                            fontSize: 9, color: 'rgba(255,255,255,0.18)',
+                            fontStyle: 'italic',
+                          }}>
+                            분석 기반 파일 트리
+                          </div>
+                        )}
+                        <FileTree
+                          tree={showLocalTree ? localTree : virtualTree}
+                          selectedPath={selectedPath}
+                          onSelect={handleSelectFile}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       )}
 
-      {/* ── 파일 트리 or 빈 상태 ── */}
-      {hasWorkspace ? (
+      {/* ── 로컬 폴더 열려 있을 때 독립 파일 트리 섹션 (프로젝트 목록이 없을 때만) ── */}
+      {showLocalTree && projects.length === 0 && (
         <>
           <div style={{
             padding: '5px 12px', fontSize: 9, color: 'rgba(255,255,255,0.18)',
@@ -268,40 +378,39 @@ export function AppSidebar() {
           </div>
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <FileTree
-              tree={tree}
+              tree={localTree}
               selectedPath={selectedPath}
-              onSelect={(p) => {
-                setSelectedPath(p);
-                openTab(p, p.split('/').pop() ?? p);
-                setViewMode('editor');
-              }}
+              onSelect={handleSelectFile}
             />
           </div>
         </>
-      ) : (
+      )}
+
+      {/* ── 빈 폴더 상태 (프로젝트 없고 로컬 없음) ── */}
+      {!hasLocalWorkspace && projects.length === 0 && !projectsLoading && (
         <EmptyWorkspace onOpen={openFolder} status={wsStatus} progress={wsProgress} />
       )}
 
       {/* ── 하단 액션 ── */}
       <div style={{
         padding: 10, borderTop: '1px solid rgba(255,255,255,0.06)',
-        display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0,
+        display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, marginTop: 'auto',
       }}>
         <button
           id="btn-sidebar-analyze"
           onClick={startAnalysis}
-          disabled={isAnalyzing || !hasWorkspace}
+          disabled={isAnalyzing || (!hasLocalWorkspace && !projectId)}
           aria-label="전체 프로젝트 보안 분석 시작"
           style={{
             width: '100%', padding: '9px 0',
-            background: isAnalyzing || !hasWorkspace ? '#1a1008' : '#ea580c',
-            border: isAnalyzing || !hasWorkspace ? '1px solid rgba(255,255,255,0.06)' : 'none',
+            background: isAnalyzing || (!hasLocalWorkspace && !projectId) ? '#1a1008' : '#ea580c',
+            border: isAnalyzing || (!hasLocalWorkspace && !projectId) ? '1px solid rgba(255,255,255,0.06)' : 'none',
             borderRadius: 7,
-            color: isAnalyzing || !hasWorkspace ? 'rgba(255,255,255,0.2)' : '#fff',
+            color: isAnalyzing || (!hasLocalWorkspace && !projectId) ? 'rgba(255,255,255,0.2)' : '#fff',
             fontSize: 11, fontWeight: 700,
-            cursor: isAnalyzing || !hasWorkspace ? 'not-allowed' : 'pointer',
+            cursor: isAnalyzing || (!hasLocalWorkspace && !projectId) ? 'not-allowed' : 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            boxShadow: isAnalyzing || !hasWorkspace ? 'none' : '0 3px 12px rgba(234,88,12,0.3)',
+            boxShadow: isAnalyzing || (!hasLocalWorkspace && !projectId) ? 'none' : '0 3px 12px rgba(234,88,12,0.3)',
             transition: 'all 0.15s',
           }}
         >
@@ -324,16 +433,6 @@ export function AppSidebar() {
             : <><Code2 size={11} /> 에디터</>}
         </button>
 
-        <button
-          style={{
-            width: '100%', padding: '7px 0',
-            background: 'transparent', border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: 7, color: 'rgba(255,255,255,0.3)', fontSize: 11,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-          }}
-        >
-          <Github size={11} /> GitHub 연동
-        </button>
       </div>
     </motion.aside>
   );

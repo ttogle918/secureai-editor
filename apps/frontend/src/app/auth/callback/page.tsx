@@ -36,6 +36,9 @@ function CallbackHandler() {
           username: u.username,
           plan: u.plan.name as 'free' | 'pro' | 'team',
           githubConnected: !!u.githubLogin,
+          isAdmin: false,
+          avatarUrl: null,
+          displayName: null,
         });
         router.push('/editor');
       })

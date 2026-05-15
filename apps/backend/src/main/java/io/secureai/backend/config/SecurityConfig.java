@@ -57,9 +57,10 @@ public class SecurityConfig {
                     "/error"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/reports/*/download").permitAll()
-                .requestMatchers("/webhooks/**").permitAll()
-                // GitHub Webhook 수신 — HMAC 서명으로 인증하므로 JWT 불필요
-                .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/github").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/invitations/**").permitAll()
+                // GitHub 웹훅 인바운드만 공개 — GET /history 등 나머지는 JWT 필요
+                .requestMatchers(HttpMethod.POST, "/webhooks/github").permitAll()
+                // 내부 통신 엔드포인트 — JWT 불필요, InternalKeyAuthFilter가 X-Internal-Key 헤더 검증
                 .requestMatchers("/api/v1/internal/**").permitAll()
                 // AI Engine 내부 호출 전용 — InternalKeyFilter 에서 인증
                 .requestMatchers("/api/v1/cve/search").permitAll()
@@ -69,8 +70,7 @@ public class SecurityConfig {
             .exceptionHandling(e -> e
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             )
-            // InternalKeyAuthFilter는 JWT 필터보다 먼저 실행되어 내부 경로를 선별 검증한다
-            .addFilterBefore(internalKeyAuthFilter, JwtAuthenticationFilter.class)
+            .addFilterBefore(internalKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

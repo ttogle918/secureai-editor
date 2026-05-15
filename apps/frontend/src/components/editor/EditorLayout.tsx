@@ -1,6 +1,6 @@
 'use client';
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
 import { EditorTabs } from '@/components/editor/EditorTabs';
 import DastTerminal from '@/components/analysis/DastTerminal';
@@ -27,16 +27,15 @@ export function EditorLayout() {
   const vulns              = useSecureStore((s) => s.vulns);
   const workspaceId        = useSecureStore((s) => s.workspaceId);
 
-  const [wsFileCache, setWsFileCache] = useState<Record<string, string>>({});
+  const fileContents   = useSecureStore((s) => s.fileContents);
+  const setFileContent = useSecureStore((s) => s.setFileContent);
 
   useEffect(() => {
-    if (!workspaceId || !selectedPath || wsFileCache[selectedPath] !== undefined) return;
+    if (!workspaceId || !selectedPath || fileContents[selectedPath] !== undefined) return;
     fetch(`${BACKEND}/api/workspace/${workspaceId}/file?path=${encodeURIComponent(selectedPath)}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        if (data?.content != null) {
-          setWsFileCache((prev) => ({ ...prev, [selectedPath]: data.content }));
-        }
+        if (data?.content != null) setFileContent(selectedPath, data.content);
       })
       .catch(() => {});
   }, [workspaceId, selectedPath]);
@@ -44,7 +43,7 @@ export function EditorLayout() {
   const onRightResize    = useCallback((d: number) => setRightPanelWidth((prev) => prev - d), [setRightPanelWidth]);
   const onTerminalResize = useCallback((d: number) => setTerminalHeight((prev) => prev - d), [setTerminalHeight]);
 
-  const code = wsFileCache[selectedPath] ?? (selectedPath ? '// 파일 로딩 중...' : '// 파일을 선택하세요');
+  const code = fileContents[selectedPath] ?? (selectedPath ? '// 파일 로딩 중...' : '// 파일을 선택하세요');
 
   const lang = selectedPath.endsWith('.java') ? 'java'
     : /\.(tsx?|jsx?)$/.test(selectedPath) ? 'typescript'

@@ -36,8 +36,9 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
 
   const { translate, translating } = useTranslate();
 
-  const patches = useSecureStore((s) => s.patches);
-  const isOpen  = expandedVulnId === vuln.id;
+  const patches    = useSecureStore((s) => s.patches);
+  const applyPatch = useSecureStore((s) => s.applyPatch);
+  const isOpen     = expandedVulnId === vuln.id;
 
   useEffect(() => {
     if (!isOpen || displayLanguage !== 'ko' || !vuln.description) return;
@@ -60,10 +61,11 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
 
   const handleFix = () => {
     setIsFixing(true);
+    applyPatch(vuln.id);
     setTimeout(() => {
       setIsFixing(false);
       setPatchApplied(true);
-    }, 1400);
+    }, 300);
   };
 
   return (

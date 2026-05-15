@@ -50,8 +50,9 @@ class SbomServiceSaveTest {
         session   = mock(AnalysisSession.class);
         project   = mock(Project.class);
 
-        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
+        // 세션·프로젝트 기본 stub — 일부 테스트(unknownSession 케이스)에서 사용 안 되므로 lenient() 적용
+        lenient().when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
+        lenient().when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
     }
 
     @Test

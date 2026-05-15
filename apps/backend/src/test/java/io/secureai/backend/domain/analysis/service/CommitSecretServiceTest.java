@@ -57,18 +57,19 @@ class CommitSecretServiceTest {
         ReflectionTestUtils.setField(service, "agentRestClient", mockRestClient);
         ReflectionTestUtils.setField(service, "internalApiKey", "test-internal-key");
 
-        // RestClient 체이닝 mock 설정
+        // RestClient 체이닝 mock 설정 — 조기 예외(SESSION_NOT_FOUND 등)를 던지는 테스트에서는
+        // RestClient까지 도달하지 않아 stub이 사용되지 않으므로 lenient() 적용
         RestClient.RequestBodyUriSpec uriSpec = mock(RestClient.RequestBodyUriSpec.class);
         RestClient.RequestBodySpec bodySpec = mock(RestClient.RequestBodySpec.class);
         RestClient.ResponseSpec responseSpec = mock(RestClient.ResponseSpec.class);
 
-        when(mockRestClient.post()).thenReturn(uriSpec);
-        when(uriSpec.uri(anyString())).thenReturn(bodySpec);
-        when(bodySpec.contentType(any())).thenReturn(bodySpec);
-        when(bodySpec.header(anyString(), anyString())).thenReturn(bodySpec);
-        when(bodySpec.body(any())).thenReturn(bodySpec);
-        when(bodySpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.toBodilessEntity()).thenReturn(null);
+        lenient().when(mockRestClient.post()).thenReturn(uriSpec);
+        lenient().when(uriSpec.uri(anyString())).thenReturn(bodySpec);
+        lenient().when(bodySpec.contentType(any())).thenReturn(bodySpec);
+        lenient().when(bodySpec.header(anyString(), anyString())).thenReturn(bodySpec);
+        lenient().when(bodySpec.body(any())).thenReturn(bodySpec);
+        lenient().when(bodySpec.retrieve()).thenReturn(responseSpec);
+        lenient().when(responseSpec.toBodilessEntity()).thenReturn(null);
     }
 
     // ── TC-1: 존재하지 않는 세션 → SESSION_NOT_FOUND 예외 ────────────────────

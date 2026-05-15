@@ -333,7 +333,7 @@ export function AppSidebar() {
                       active={isActive}
                       expanded={isActive && activeTreeExpanded}
                       onSelect={() => {
-                        setProjectId(p.id);
+                        if (!isActive) setProjectId(p.id);
                         setActiveTreeExpanded(true);
                       }}
                       onToggleExpand={() => setActiveTreeExpanded((v) => !v)}
@@ -364,11 +364,6 @@ export function AppSidebar() {
             </div>
           )}
         </div>
-      )}
-
-      {/* ── 로컬 폴더 미열림 + 가상 트리도 없을 때 빈 상태 ── */}
-      {!hasLocalWorkspace && !hasVirtualTree && projects.length === 0 && (
-        <EmptyWorkspace onOpen={openFolder} status={wsStatus} progress={wsProgress} />
       )}
 
       {/* ── 로컬 폴더 열려 있을 때 독립 파일 트리 섹션 (프로젝트 목록이 없을 때만) ── */}
@@ -438,17 +433,6 @@ export function AppSidebar() {
             : <><Code2 size={11} /> 에디터</>}
         </button>
 
-        <button
-          onClick={openFolder}
-          style={{
-            width: '100%', padding: '7px 0',
-            background: 'transparent', border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: 7, color: 'rgba(255,255,255,0.3)', fontSize: 11,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-          }}
-        >
-          <FolderOpen size={11} /> 폴더 열기
-        </button>
       </div>
     </motion.aside>
   );

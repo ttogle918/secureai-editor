@@ -36,7 +36,6 @@ export function RightPanel() {
         flexDirection: 'column',
         overflow: 'hidden',
         height: '100%',
-        padding: '16px 0'
       }}
     >
       {/* Tab headers */}

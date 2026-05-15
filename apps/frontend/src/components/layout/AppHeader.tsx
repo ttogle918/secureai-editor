@@ -165,7 +165,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
 
   const currentFile =
     viewMode === 'editor'
-      ? selectedPath.split('/').pop()
+      ? (selectedPath.split('/').pop() || '에디터')
       : 'Security Dashboard';
 
   return (

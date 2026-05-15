@@ -119,3 +119,12 @@ Stage 3 (순차)
 ## 구현 완료 기록
 
 <!-- Stage 완료 시 아래에 추가 -->
+
+### FEAT-SEC-006 Vector DB (pgvector) 완료
+- Flyway V028: `CREATE EXTENSION IF NOT EXISTS vector` + `embedding vector(384)` 컬럼 추가
+- `embedding_service.py`: fastembed BAAI/bge-small-en-v1.5 (384차원, ONNX, API 키 불필요)
+- `guidelines_client.py`: `search_guidelines_by_vuln_type()` 추가 (기존 `load_guidelines` 유지)
+- `sync_guidelines.py`: MD 파일 → DB 동기화 + 임베딩 생성 스크립트
+
+**주의**: PostgreSQL에 pgvector 익스텐션 필요.
+docker-compose.yml의 postgres 이미지를 `pgvector/pgvector:pg15` 또는 `pgvector/pgvector:pg16`으로 변경 필요.

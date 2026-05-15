@@ -39,11 +39,12 @@ public class DockerSandboxManager {
      * @param command 실행할 명령
      * @return 생성된 컨테이너 ID
      */
-    public String createAndStart(ContainerConfig config, List<String> command) {
+    public String createAndStart(ContainerConfig config, List<String> command, List<String> envVars) {
         HostConfig hostConfig = buildSecureHostConfig(config);
 
         CreateContainerResponse container = dockerClient.createContainerCmd(config.image())
                 .withCmd(command)
+                .withEnv(envVars)
                 .withHostConfig(hostConfig)
                 .exec();
 

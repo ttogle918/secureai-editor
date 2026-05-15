@@ -1,0 +1,121 @@
+package io.secureai.backend.domain.dast.controller;
+
+import io.secureai.backend.domain.dast.dto.DastExecuteRequest;
+import io.secureai.backend.domain.dast.dto.DastExecuteResponse;
+import io.secureai.backend.domain.dast.dto.DastStartRequest;
+import io.secureai.backend.domain.dast.entity.ExploitResult;
+import io.secureai.backend.domain.dast.service.DastExecutionService;
+import io.secureai.backend.domain.dast.service.DomainVerificationService;
+import io.secureai.backend.global.exception.BusinessException;
+import io.secureai.backend.global.exception.ErrorCode;
+import io.secureai.backend.global.response.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * DAST 관련 REST 엔드포인트.
+ * - /api/v1/internal/dast/execute : AI Engine 전용 내부 엔드포인트
+ *   (InternalKeyAuthFilter 가 X-Internal-Key 헤더 검증 — SecurityConfig에서 permitAll)
+ * - /api/v1/dast/start            : Frontend → Backend DAST 시작 요청
+ * - /api/v1/dast/results/{id}     : DAST 결과 조회
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/v1")
+@RequiredArgsConstructor
+public class DastController {
+
+    private final DastExecutionService dastExecutionService;
+    private final DomainVerificationService domainVerificationService;
+
+    // ── 내부 엔드포인트 (AI Engine → Backend) ────────────────────────────────
+
+    /**
+     * AI Engine이 호출하는 DAST 익스플로잇 실행 엔드포인트.
+     * X-Internal-Key 헤더 검증은 InternalKeyAuthFilter(글로벌 필터)가 담당한다.
+     * targetUrl, params 는 절대 로그에 출력하지 않는다.
+     */
+    @PostMapping("/internal/dast/execute")
+    public ResponseEntity<DastExecuteResponse> executeInSandbox(
+            @Valid @RequestBody DastExecuteRequest req
+    ) {
+        log.info("DAST execute requested: vulnType={} vulnId={}", req.vulnType(), req.vulnId());
+        DastExecuteResponse response = dastExecutionService.execute(req);
+        return ResponseEntity.ok(response);
+    }
+
+    // ── 공개 엔드포인트 (Frontend → Backend) ─────────────────────────────────
+
+    /**
+     * DAST 스캔 시작 요청.
+     * 도메인 소유권 확인 + Rate Limit + 분산 락을 검증한 뒤 AI Engine에 위임한다.
+     * consentGiven 이 false 이면 즉시 403을 반환한다.
+     */
+    @PostMapping("/dast/start")
+    public ResponseEntity<Void> startDast(
+            @AuthenticationPrincipal UserDetails user,
+            @Valid @RequestBody DastStartRequest req,
+            HttpServletRequest httpReq
+    ) {
+        if (!req.consentGiven()) {
+            throw new BusinessException(ErrorCode.DAST_CONSENT_REQUIRED,
+                    "consentGiven 이 true 여야 합니다.");
+        }
+
+        UUID projectId = extractProjectId(user);
+        String clientIp = resolveClientIp(httpReq);
+
+        log.info("DAST start requested: sessionId={} vulnId={} domain={}",
+                req.sessionId(), req.vulnId(), req.domain());
+
+        // 도메인 소유권 확인 + Rate Limit + 분산 락 통합 검증
+        domainVerificationService.assertDastAllowed(projectId, req.domain(), clientIp);
+
+        return ResponseEntity.accepted().build();
+    }
+
+    /**
+     * 세션 ID에 속한 DAST 익스플로잇 결과를 조회한다.
+     */
+    @GetMapping("/dast/results/{sessionId}")
+    public ResponseEntity<ApiResponse<List<ExploitResult>>> getResults(
+            @PathVariable UUID sessionId
+    ) {
+        List<ExploitResult> results = dastExecutionService.getResultsBySessionId(sessionId);
+        return ResponseEntity.ok(ApiResponse.success(results));
+    }
+
+    // ── private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * UserDetails의 username을 UUID projectId로 파싱한다.
+     * 실제 프로젝트 소속 검증은 서비스 레이어에서 수행한다.
+     */
+    private UUID extractProjectId(UserDetails user) {
+        try {
+            return UUID.fromString(user.getUsername());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND, "인증 정보가 유효하지 않습니다.");
+        }
+    }
+
+    /**
+     * 요청 IP를 추출한다. clientIp 는 법적 증거 보존 데이터이므로 로그에 출력하지 않는다.
+     */
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+}

@@ -19,6 +19,10 @@ public class UserMeResponse {
     private String githubLogin;
     private String timezone;
     private String locale;
+    private boolean isAdmin;
+    private String avatarUrl;
+    private String bio;
+    private boolean publicProfile;
     private PlanInfo plan;
     private UsageInfo usage;
     private CreditInfo credits;
@@ -34,6 +38,10 @@ public class UserMeResponse {
                 .githubLogin(user.getGithubLogin())
                 .timezone(user.getTimezone())
                 .locale(user.getLocale())
+                .isAdmin(Boolean.TRUE.equals(user.getIsAdmin()))
+                .avatarUrl(user.getAvatarUrl())
+                .bio(user.getBio())
+                .publicProfile(Boolean.TRUE.equals(user.getPublicProfile()))
                 .plan(PlanInfo.from(plan))
                 .usage(new UsageInfo(
                         user.getSastUsageThisMonth(),

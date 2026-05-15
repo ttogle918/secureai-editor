@@ -92,6 +92,20 @@ public class User extends BaseTimeEntity {
 
     @Column(nullable = false)
     @Builder.Default
+    private Boolean isAdmin = false;
+
+    @Column(length = 500)
+    private String avatarUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean publicProfile = false;
+
+    @Column(nullable = false)
+    @Builder.Default
     private Integer creditBalance = 100;
 
     @Convert(converter = AesEncryptionConverter.class)

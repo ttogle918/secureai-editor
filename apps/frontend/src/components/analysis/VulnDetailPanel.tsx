@@ -4,14 +4,115 @@
 import { useEffect, useState } from 'react';
 import {
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle,
-  Zap, Info, Layers, RefreshCw,
+  Zap, Info, Layers, RefreshCw, Play,
 } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
+import { useToastStore } from '@/hooks/useToast';
 import { useVulnFilter } from '@/hooks/useVulnFilter';
 import { useTranslate } from '@/hooks/useTranslate';
 import { CallChainView } from '@/components/analysis/CallChainView';
 import FilterBar from '@/components/ui/FilterBar';
 import type { Vulnerability } from '@/lib/mockData';
+
+const AI_ENGINE = process.env.NEXT_PUBLIC_AI_ENGINE_URL ?? 'http://localhost:8000';
+
+// ── DAST 실행 섹션 ────────────────────────────────────────────
+function DastRunSection({ vuln }: { vuln: Vulnerability }) {
+  const setDastSessionId = useSecureStore((s) => s.setDastSessionId);
+  const dastSessionId    = useSecureStore((s) => s.dastSessionId);
+  const addToast         = useToastStore((s) => s.addToast);
+
+  const [targetUrl, setTargetUrl] = useState(vuln.apiEndpoint ?? '');
+  const [consent,   setConsent]   = useState(false);
+  const [running,   setRunning]   = useState(false);
+
+  const isGlobalRunning = dastSessionId !== null;
+  const canRun = consent && targetUrl.trim() !== '' && !running && !isGlobalRunning;
+
+  const handleRun = async () => {
+    if (!canRun) return;
+    setRunning(true);
+    try {
+      let parsedUrl: URL;
+      try { parsedUrl = new URL(targetUrl.trim()); }
+      catch { addToast('올바른 URL을 입력해주세요.', 'error'); setRunning(false); return; }
+
+      const dastId = crypto.randomUUID();
+      const res = await fetch(`${AI_ENGINE}/agent/dast/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: dastId,
+          vuln_id:    vuln.id,
+          vuln_type:  vuln.type,
+          target_url: parsedUrl.origin + parsedUrl.pathname,
+          endpoint:   parsedUrl.pathname,
+          params:     Object.fromEntries(new URLSearchParams(parsedUrl.search)),
+        }),
+      });
+      if (!res.ok) throw new Error(`DAST 시작 실패: ${res.status}`);
+      setDastSessionId(dastId);
+      addToast('DAST 분석을 시작했습니다. 하단 터미널에서 진행 상황을 확인하세요.', 'info');
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : 'DAST 시작에 실패했습니다.', 'error');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div>
+      <SectionLabel icon={<Play size={10} color="#f97316" />} text="동적 분석 (DAST)" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <input
+          type="url"
+          placeholder="Target URL (예: http://localhost:8080/api/users)"
+          value={targetUrl}
+          onChange={(e) => setTargetUrl(e.target.value)}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 6, padding: '6px 10px',
+            fontSize: 11, color: '#e8e8ee', fontFamily: 'var(--font-mono)',
+            outline: 'none',
+          }}
+        />
+        <label style={{
+          display: 'flex', alignItems: 'flex-start', gap: 7,
+          fontSize: 10, color: 'rgba(255,255,255,0.45)', cursor: 'pointer', lineHeight: 1.5,
+        }}>
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+            style={{ marginTop: 2, cursor: 'pointer', accentColor: '#f97316' }}
+          />
+          이 대상에 대한 보안 테스트 수행에 동의합니다 (반드시 테스트 환경만 사용)
+        </label>
+        <button
+          onClick={handleRun}
+          disabled={!canRun}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+            padding: '6px 12px', fontSize: 11, fontWeight: 700, borderRadius: 6,
+            background: canRun ? 'rgba(249,115,22,0.2)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${canRun ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.08)'}`,
+            color: canRun ? '#f97316' : 'rgba(255,255,255,0.2)',
+            cursor: canRun ? 'pointer' : 'not-allowed',
+          }}
+        >
+          {running ? (
+            <><RefreshCw size={11} style={{ animation: 'spin 0.85s linear infinite' }} /> 시작 중...</>
+          ) : isGlobalRunning ? (
+            <><Play size={11} /> DAST 실행 중...</>
+          ) : (
+            <><Play size={11} /> DAST 실행</>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ── 심각도별 색상 ──────────────────────────────────────────────
 const SEV_COLOR: Record<string, string> = {
@@ -253,6 +354,9 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
               ))}
             </div>
           </div>
+
+          {/* DAST 실행 */}
+          <DastRunSection vuln={vuln} />
 
           {/* DAST 결과 */}
           {vuln.dastResult && (

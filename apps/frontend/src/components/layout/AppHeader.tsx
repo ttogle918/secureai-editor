@@ -140,12 +140,34 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
 
         setRightTab('vulns'); // 완료 시 취약점 탭으로 자동 전환
         setIsAnalyzing(false);
-      } else if (event.type === 'progress' && event.node === 'sast' && event.file) {
-        // 파일별 SAST 진행률 업데이트
+      } else if (event.type === 'started') {
         addProgressStep({
-          stepName: 'SAST 분석',
-          stepOrder: event.current ?? 0,
-          target: event.file,
+          stepName: '분석 시작',
+          stepOrder: Date.now(),
+          target: '초기화 중...',
+          status: 'completed',
+        });
+      } else if (event.type === 'progress') {
+        if (event.file) {
+          addProgressStep({
+            stepName: event.node === 'sast' ? 'SAST 분석' : (event.node ?? '분석 중'),
+            stepOrder: Date.now(),
+            target: event.file,
+            status: 'completed',
+          });
+        } else if (event.message) {
+          addProgressStep({
+            stepName: event.node ?? '진행 중',
+            stepOrder: Date.now(),
+            target: event.message,
+            status: 'completed',
+          });
+        }
+      } else if (event.type === 'scan_complete') {
+        addProgressStep({
+          stepName: '스캔 완료',
+          stepOrder: Date.now(),
+          target: `취약점 ${event.vuln_count ?? 0}개 발견`,
           status: 'completed',
         });
       } else if (event.type === 'error') {

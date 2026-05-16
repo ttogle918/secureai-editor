@@ -27,6 +27,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ChatServiceTest {
 
+    @Mock AiChatClient aiChatClient;
     @Mock AnalysisSessionRepository sessionRepository;
     @Mock TeamMemberRepository teamMemberRepository;
 
@@ -49,20 +50,8 @@ class ChatServiceTest {
         session = AnalysisSession.builder().project(project).build();
         ReflectionTestUtils.setField(session, "id", sessionId);
 
-        // ChatService 는 RestClient 를 내부에서 생성하므로 직접 인스턴스화한다.
-        // executor 는 가상 스레드를 사용하나 relay 로직은 별도 테스트에서 검증한다.
-        chatService = new ChatService(
-                "http://localhost:8000",   // agentUrl — 실제 호출 없음
-                "test-internal-key",
-                sessionRepository,
-                teamMemberRepository,
-                new ObjectMapper()
-        );
+        chatService = new ChatService(aiChatClient, sessionRepository, teamMemberRepository, new ObjectMapper());
     }
-
-    // -----------------------------------------------------------------------
-    // TC-1: 세션이 존재하고 권한이 있을 때 SseEmitter 반환
-    // -----------------------------------------------------------------------
 
     @Test
     @DisplayName("정상 요청 → SseEmitter 반환")
@@ -70,36 +59,25 @@ class ChatServiceTest {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
         when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
 
-        ChatRequest request = new ChatRequest("취약점 설명해줘", List.of());
-
-        SseEmitter emitter = chatService.streamChat(userId, sessionId, request);
+        SseEmitter emitter = chatService.streamChat(userId, sessionId, new ChatRequest("취약점 설명해줘", List.of()));
 
         assertThat(emitter).isNotNull();
-        // AI Engine 호출은 비동기 executor 에 위임되므로 여기서는 emitter 생성만 확인
+        // AI Engine 호출은 비동기 executor에 위임 — 여기서는 emitter 생성만 확인
     }
-
-    // -----------------------------------------------------------------------
-    // TC-2: 세션이 없을 때 SESSION_NOT_FOUND 예외
-    // -----------------------------------------------------------------------
 
     @Test
     @DisplayName("존재하지 않는 sessionId → SESSION_NOT_FOUND 예외")
     void streamChat_throwsWhenSessionNotFound() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.empty());
 
-        ChatRequest request = new ChatRequest("질문", List.of());
-
-        assertThatThrownBy(() -> chatService.streamChat(userId, sessionId, request))
+        assertThatThrownBy(() -> chatService.streamChat(userId, sessionId, new ChatRequest("질문", List.of())))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.SESSION_NOT_FOUND);
 
         verifyNoInteractions(teamMemberRepository);
+        verifyNoInteractions(aiChatClient);
     }
-
-    // -----------------------------------------------------------------------
-    // TC-3: 팀 멤버가 아닐 때 PROJECT_ACCESS_DENIED 예외
-    // -----------------------------------------------------------------------
 
     @Test
     @DisplayName("팀 멤버가 아닌 userId → PROJECT_ACCESS_DENIED 예외")
@@ -107,11 +85,11 @@ class ChatServiceTest {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
         when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(false);
 
-        ChatRequest request = new ChatRequest("질문", List.of());
-
-        assertThatThrownBy(() -> chatService.streamChat(userId, sessionId, request))
+        assertThatThrownBy(() -> chatService.streamChat(userId, sessionId, new ChatRequest("질문", List.of())))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
+
+        verifyNoInteractions(aiChatClient);
     }
 }

@@ -210,3 +210,19 @@ docker-compose.yml의 postgres 이미지를 `pgvector/pgvector:pg15` 또는 `pgv
 - ANSI 파싱을 `DastTerminal` 내부 순수 함수로 구현 — 외부 의존성 없이 단순 유지
 
 **테스트**: 프론트엔드 17개 전부 통과 (useSse 오탈자 수정 포함). 수동 검증 항목(SSE 실시간, ANSI 렌더링, 자동 스크롤, 배지)은 DVWA 시연(M4) 시 검증 예정
+
+---
+
+### DAST E2E 안정화 완료 (2026-05-16 야간)
+
+**커밋**: `fix(dast): DAST E2E 엔드투엔드 안정화 — race condition·500 오류·배지 색상·Windows Docker 호환`
+
+#### 수정 내용
+- `notify_node.py`: Redis SETEX(TTL 300s) + PUBLISH 이중 쓰기 — SSE race condition 방어
+- `api/routes/dast.py`: subscribe 직후 캐시 키 확인 → 완료된 결과 즉시 반환
+- `DastExecutionService.java`: `saveInitial()` try-catch 래핑 + `safelyPersistFailure()` 추가 → HTTP 500 차단
+- `DastExecutionService.java`: `log.error(e)` → `log.warn(e.getMessage())` — 스택트레이스 제거
+- `DockerClientConfig.java` + `docker-compose.yml`: `DOCKER_HOST` 환경변수 오버라이드 지원 (Windows TCP 호환)
+- `VulnDetailPanel.tsx`: `setDastSessionId()` fetch 전 호출로 SSE 선구독; 배지 색상 — 초록 "DAST 안전" / 빨강 "EXPLOITED ✓"
+- `apps/dast_runner/Dockerfile`: `secureai/dast-runner:latest` 최소 이미지 (python:3.12-slim + httpx)
+- `Makefile`: `make dast-runner` 빌드 타겟 추가

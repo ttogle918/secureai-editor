@@ -246,3 +246,57 @@ VS Code 스타일로 fixed-position div + `document.addEventListener('mousedown'
 - [ ] DVWA M4 수동 시연 (DAST 엔드투엔드)
 - [ ] 백엔드 `POST /api/v1/dast/start` AI Engine 프록시 연결 (스텁 제거)
 - [ ] Sprint 7 계획 (`/sprint 7`)
+
+---
+
+## 9. DAST E2E 안정화 세션 (2026-05-16 야간)
+
+**작업 범위**: DAST 엔드투엔드 데모 플로우 안정화 — race condition·500 오류·Windows Docker 호환·배지 색상
+
+### 완료 작업
+
+| 항목 | 주요 파일 | 커밋 |
+|------|---------|------|
+| Redis SETEX+PUBLISH 이중 쓰기 (race condition 방어) | `notify_node.py` | `18f23c2` |
+| SSE generator 캐시 키 선확인 (race condition 방어) | `api/routes/dast.py` | `18f23c2` |
+| saveInitial() try-catch + safelyPersistFailure() (500 차단) | `DastExecutionService.java` | `18f23c2` |
+| log.error → log.warn (스택트레이스 제거) | `DastExecutionService.java` | `18f23c2` |
+| DOCKER_HOST 환경변수 오버라이드 (Windows 호환) | `DockerClientConfig.java`, `docker-compose.yml` | `18f23c2` |
+| SSE 구독 먼저 열고 fetch 호출 (순서 교정) | `VulnDetailPanel.tsx` | `18f23c2` |
+| 배지 색상 변경 (초록 "DAST 안전" / 빨강 "EXPLOITED ✓") | `VulnDetailPanel.tsx` | `18f23c2` |
+| secureai/dast-runner:latest Dockerfile 추가 | `apps/dast_runner/Dockerfile` | `18f23c2` |
+| make dast-runner 빌드 타겟 추가 | `Makefile` | `18f23c2` |
+
+### 의논 내용 & 결정 맥락
+
+#### race condition: DAST 완료 시 SSE 이벤트 유실
+DAST 그래프가 <1ms 내 완료되면 `notify_node`의 Redis PUBLISH 시점에 EventSource 연결이 없어
+이벤트가 nobody에게 전달됨. 두 가지 방어층 추가:
+1. **서버 측** (`notify_node.py`): SETEX(TTL 300s)로 결과를 캐시에 저장 후 PUBLISH
+2. **서버 측** (`dast.py`): SSE generator가 `await pubsub.subscribe()` 직후 캐시 키 확인 → 이미 결과 있으면 즉시 반환
+3. **클라이언트 측** (`VulnDetailPanel.tsx`): `setDastSessionId(dastId)` 를 fetch 호출보다 먼저 실행해 EventSource 구독 선착 보장
+
+#### HTTP 500 근본 원인 두 가지
+- `saveInitial()` 이 try 블록 밖에 있어 FK 위반 시 uncaught exception → 500 전파. try 블록 안으로 이동.
+- catch 블록 내 `saveFailed()` 가 스스로 throw 시 원래 DAST 오류를 덮어써 500 전파.
+  `safelyPersistFailure()`로 persist 실패 격리.
+
+#### Windows Docker 호환
+Windows Docker Desktop 컨테이너 안에서 `unix:///var/run/docker.sock` 마운트는 지원 안 됨.
+`DOCKER_HOST=tcp://host.docker.internal:2375` + Docker Desktop "Expose daemon on TCP" 설정으로 DooD(Docker-out-of-Docker) 가능.
+`DockerClientConfig.java`가 환경변수를 읽도록 변경 → Linux/Mac은 소켓, Windows는 TCP 자동 전환.
+
+#### dast-runner 이미지 별도 빌드 이유
+`ai_engine` 컨테이너는 전체 AI 파이프라인 환경이지만 DAST 샌드박스 컨테이너는 `httpx` + executor 코드만 필요.
+최소 이미지(`python:3.12-slim` + `httpx==0.28.1`)로 격리 — 공격 표면 축소, 이미지 크기 절감.
+`make dast-runner` 로 빌드 후 재사용.
+
+#### 배지 UX 설계
+"not-exploited"는 DAST가 검사를 완료했으나 뚫리지 않았다는 의미 → 안전을 직관적으로 전달하기 위해 초록색.
+"exploited"는 실제 공격 성공 → 위험 경고를 위해 빨간색.
+기존 회색("DAST ✗")은 상태를 직관적으로 전달하지 못한다는 사용자 피드백으로 색상 전환.
+
+### 다음 세션에서 할 것
+- [ ] Docker Desktop TCP API 활성화 후 실제 DAST 샌드박스 컨테이너 실행 검증
+- [ ] DVWA M4 수동 시연 (SQLi DAST 엔드투엔드)
+- [ ] Sprint 7 계획 (`/sprint 7`)

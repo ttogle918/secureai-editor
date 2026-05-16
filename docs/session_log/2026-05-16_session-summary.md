@@ -190,3 +190,59 @@ docker network create --internal dast-isolated-net
 # 익스플로잇 성공/실패 배지 확인
 # AuditLog: make infra 후 로그인 → audit_logs 테이블 행 생성 확인
 ```
+
+---
+
+## 8. UX 버그 수정 세션 (2026-05-16 오후)
+
+**작업 범위**: 분석 시작 오류, 사이드바 프로젝트 목록, 이력 모달, 진행률 패널, DAST 트리거, Rate Limit 초과, 우클릭 컨텍스트 메뉴
+
+### 완료 작업
+
+| 항목 | 주요 파일 | 커밋 |
+|------|---------|------|
+| 분석 시작 오류 복구 (`PROJECT_DUPLICATE_NAME` / `SESSION_ALREADY_RUNNING`) | `useStartAnalysis.ts`, `AnalysisService.java`, `StartAnalysisRequest.java` | `d74a33b` |
+| 사이드바 WORKSPACE 목록 미표시 수정 | `useProjects.ts`, `useStartAnalysis.ts` | `2491b4c`, `b61248d` |
+| 진행률 SSE 이벤트 확장 (`started` / `scan_complete` 핸들링) | `AppHeader.tsx` | `07bf7f1` |
+| DAST 실행 버튼 추가 (`DastRunSection`) | `VulnDetailPanel.tsx` | `07bf7f1` |
+| Toast `warning` severity + action 버튼 지원 | `useToast.ts`, `Toast.tsx` | `07bf7f1` |
+| Rate Limit 근본 원인 수정: 이력 모달 N병렬 요청 제거 | `AnalysisHistoryModal.tsx` | `1a0be23` |
+| Rate Limit 플랜 한도 상향 (free 300 / pro 600 / team 1200) | `V033__increase_plan_rate_limits.sql` | `1a0be23` |
+| 사이드바 WORKSPACE 우클릭 컨텍스트 메뉴 | `AppSidebar.tsx` | `a8d07f7` |
+
+### 의논 내용 & 결정 맥락
+
+#### PageImpl 직렬화 근본 원인
+`GET /projects` Spring Data 응답이 `{ data: { content: [...], pageable: {...} } }` 형태인데
+`res.data.map()` / `res.data.find()` 직접 호출 → TypeError → catch → `setProjects([])` 악순환.
+`res.data?.content ?? (res.data as any) ?? []` 패턴으로 일관성 있게 수정.
+같은 패턴이 `useProjects.ts`와 `useStartAnalysis.ts` 두 곳에 있어 양쪽 동시 수정.
+
+#### 분석 시작 중복 오류 복구 전략
+`PROJECT_DUPLICATE_NAME` → 기존 프로젝트 ID 조회 후 새 세션 생성(force=false).
+`SESSION_ALREADY_RUNNING` → 사용자에게 "강제 재시작" 액션 버튼이 있는 `warning` 토스트 표시.
+force=true 전달 시 `AnalysisService`가 실행 중 세션을 `INTERRUPTED`로 마킹 후 새 세션 시작.
+양쪽 모두 사용자 confirm 없이 자동 처리하는 대안도 있었으나,
+SESSION_ALREADY_RUNNING은 사용자 의사 확인이 필요한 파괴적 작업이어서 액션 버튼으로 결정.
+
+#### Rate Limit 근본 원인 — 병렬 N개 요청
+이력 모달이 열릴 때 세션 목록의 각 항목에 대해 `/vulnerabilities?sessionId=...` 를 N개 병렬로 요청.
+free 플랜 기본값(10/min)이 즉시 초과됨. 수정 방향 두 가지:
+1. **병렬 제거**: `handleLoad` 클릭 시점에만 취약점 조회 (선택)
+2. **한도 상향**: V033 마이그레이션으로 free 300, pro 600, team 1200 (선택 + 보완)
+두 방법 모두 적용. 병렬 제거가 근본 수정, 한도 상향은 다른 유스케이스 대비 여유분.
+
+#### DAST 트리거 갭
+백엔드 `POST /api/v1/dast/start`가 스텁 상태(AI Engine 미연동).
+AI Engine에는 `POST /agent/dast/start`가 완전 구현됨.
+프론트엔드에서 AI Engine 직접 호출(`DastRunSection`)으로 우회. 추후 백엔드 프록시로 전환 가능.
+
+#### 우클릭 컨텍스트 메뉴 설계
+VS Code 스타일로 fixed-position div + `document.addEventListener('mousedown')` 외부 클릭 닫힘.
+화면 경계 처리: `Math.min(clientX, vw - menuW - 8)` 로 메뉴가 화면 밖으로 나가지 않게 보정.
+"최신 분석 결과 불러오기": completed 세션 조회 → 취약점 bulk 로드 → `buildVirtualTree(vulns)` 자동 갱신.
+
+### 다음 세션에서 할 것 (업데이트)
+- [ ] DVWA M4 수동 시연 (DAST 엔드투엔드)
+- [ ] 백엔드 `POST /api/v1/dast/start` AI Engine 프록시 연결 (스텁 제거)
+- [ ] Sprint 7 계획 (`/sprint 7`)

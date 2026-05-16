@@ -6,6 +6,7 @@ import io.secureai.backend.domain.dast.dto.DastStartRequest;
 import io.secureai.backend.domain.dast.entity.ExploitResult;
 import io.secureai.backend.domain.dast.entity.ScanStatus;
 import io.secureai.backend.domain.dast.service.DastExecutionService;
+import io.secureai.backend.domain.dast.service.DastResultQueryService;
 import io.secureai.backend.domain.dast.service.DomainVerificationService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
@@ -17,8 +18,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.List;
 import java.util.Map;
@@ -39,16 +38,19 @@ class DastControllerTest {
     private DastExecutionService dastExecutionService;
 
     @Mock
+    private DastResultQueryService dastResultQueryService;
+
+    @Mock
     private DomainVerificationService domainVerificationService;
 
     private DastController controller;
 
     private static final UUID SESSION_ID = UUID.randomUUID();
-    private static final UUID VULN_ID = UUID.randomUUID();
+    private static final UUID VULN_ID    = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        controller = new DastController(dastExecutionService, domainVerificationService);
+        controller = new DastController(dastExecutionService, dastResultQueryService, domainVerificationService);
     }
 
     // ── 내부 엔드포인트 ───────────────────────────────────────────────────────
@@ -83,12 +85,11 @@ class DastControllerTest {
     @DisplayName("startDast - consentGiven=false 이면 BusinessException(DAST_CONSENT_REQUIRED) 발생")
     void startDast_whenConsentNotGiven_throwsBusinessException() {
         // given
-        DastStartRequest req = new DastStartRequest(SESSION_ID, VULN_ID, "example.com", false);
-        UserDetails user = buildUser(UUID.randomUUID().toString());
+        DastStartRequest req = buildStartRequest("example.com", false);
         MockHttpServletRequest httpReq = new MockHttpServletRequest();
 
         // when / then
-        assertThatThrownBy(() -> controller.startDast(user, req, httpReq))
+        assertThatThrownBy(() -> controller.startDast(null, req, httpReq))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -102,36 +103,34 @@ class DastControllerTest {
     @DisplayName("startDast - consentGiven=true 이면 assertDastAllowed 호출 후 202 반환")
     void startDast_whenConsentGiven_callsVerificationAndReturns202() {
         // given
-        UUID projectId = UUID.randomUUID();
-        DastStartRequest req = new DastStartRequest(SESSION_ID, VULN_ID, "example.com", true);
-        UserDetails user = buildUser(projectId.toString());
+        UUID userId = UUID.randomUUID();
+        DastStartRequest req = buildStartRequest("example.com", true);
         MockHttpServletRequest httpReq = new MockHttpServletRequest();
         httpReq.setRemoteAddr("10.0.0.1");
 
-        doNothing().when(domainVerificationService).assertDastAllowed(eq(projectId), eq("example.com"), any());
+        doNothing().when(domainVerificationService).assertDastAllowed(eq(userId), eq("example.com"), any());
 
         // when
-        ResponseEntity<Void> response = controller.startDast(user, req, httpReq);
+        ResponseEntity<Void> response = controller.startDast(userId, req, httpReq);
 
         // then
         assertThat(response.getStatusCode().value()).isEqualTo(202);
-        verify(domainVerificationService).assertDastAllowed(eq(projectId), eq("example.com"), any());
+        verify(domainVerificationService).assertDastAllowed(eq(userId), eq("example.com"), any());
     }
 
     @Test
     @DisplayName("startDast - DomainNotVerifiedException 발생 시 그대로 전파")
     void startDast_whenDomainNotVerified_propagatesException() {
         // given
-        UUID projectId = UUID.randomUUID();
-        DastStartRequest req = new DastStartRequest(SESSION_ID, VULN_ID, "example.com", true);
-        UserDetails user = buildUser(projectId.toString());
+        UUID userId = UUID.randomUUID();
+        DastStartRequest req = buildStartRequest("example.com", true);
         MockHttpServletRequest httpReq = new MockHttpServletRequest();
 
         doThrow(new BusinessException(ErrorCode.DAST_DOMAIN_NOT_VERIFIED))
                 .when(domainVerificationService).assertDastAllowed(any(), any(), any());
 
         // when / then
-        assertThatThrownBy(() -> controller.startDast(user, req, httpReq))
+        assertThatThrownBy(() -> controller.startDast(userId, req, httpReq))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -143,23 +142,22 @@ class DastControllerTest {
     @DisplayName("startDast - X-Forwarded-For 헤더 존재 시 첫 번째 IP 사용")
     void startDast_withXForwardedFor_usesFirstIp() {
         // given
-        UUID projectId = UUID.randomUUID();
-        DastStartRequest req = new DastStartRequest(SESSION_ID, VULN_ID, "example.com", true);
-        UserDetails user = buildUser(projectId.toString());
+        UUID userId = UUID.randomUUID();
+        DastStartRequest req = buildStartRequest("example.com", true);
         MockHttpServletRequest httpReq = new MockHttpServletRequest();
         httpReq.addHeader("X-Forwarded-For", "203.0.113.10, 10.0.0.1");
 
         // when
-        controller.startDast(user, req, httpReq);
+        controller.startDast(userId, req, httpReq);
 
-        // then: 예외 없이 호출됨 — domainVerificationService 는 clientIp 를 로그에 출력하지 않아 캡처 불필요
-        verify(domainVerificationService).assertDastAllowed(eq(projectId), eq("example.com"), eq("203.0.113.10"));
+        // then: clientIp 는 로그에 출력하지 않으므로 전달값만 검증
+        verify(domainVerificationService).assertDastAllowed(eq(userId), eq("example.com"), eq("203.0.113.10"));
     }
 
     // ── 결과 조회 ─────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("getResults - DastExecutionService.getResultsBySessionId 결과를 ApiResponse 로 래핑하여 반환")
+    @DisplayName("getResults - DastResultQueryService.getResultsBySessionId 결과를 ApiResponse 로 래핑하여 반환")
     void getResults_wrapsResultsInApiResponse() {
         // given
         ExploitResult result = ExploitResult.builder()
@@ -169,7 +167,7 @@ class DastControllerTest {
                 .targetUrl("encrypted")
                 .status(ScanStatus.SUCCESS)
                 .build();
-        when(dastExecutionService.getResultsBySessionId(SESSION_ID)).thenReturn(List.of(result));
+        when(dastResultQueryService.getResultsBySessionId(SESSION_ID)).thenReturn(List.of(result));
 
         // when
         var response = controller.getResults(SESSION_ID);
@@ -178,14 +176,14 @@ class DastControllerTest {
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getData()).hasSize(1);
-        assertThat(response.getBody().getData().get(0).getVulnType()).isEqualTo("SQL_INJECTION");
+        assertThat(response.getBody().getData().get(0).vulnType()).isEqualTo("SQL_INJECTION");
     }
 
     @Test
     @DisplayName("getResults - 결과 없으면 빈 리스트 반환")
     void getResults_whenEmpty_returnsEmptyList() {
         // given
-        when(dastExecutionService.getResultsBySessionId(SESSION_ID)).thenReturn(List.of());
+        when(dastResultQueryService.getResultsBySessionId(SESSION_ID)).thenReturn(List.of());
 
         // when
         var response = controller.getResults(SESSION_ID);
@@ -197,7 +195,10 @@ class DastControllerTest {
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    private UserDetails buildUser(String username) {
-        return User.withUsername(username).password("").authorities("ROLE_USER").build();
+    private DastStartRequest buildStartRequest(String domain, boolean consent) {
+        return new DastStartRequest(
+                SESSION_ID, VULN_ID, domain, consent,
+                "SQL_INJECTION", "https://target.example.com", "/api/login", Map.of()
+        );
     }
 }

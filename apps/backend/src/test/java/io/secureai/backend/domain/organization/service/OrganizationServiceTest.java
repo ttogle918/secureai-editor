@@ -1,5 +1,6 @@
 package io.secureai.backend.domain.organization.service;
 
+import io.secureai.backend.domain.auth.service.EmailService;
 import io.secureai.backend.domain.organization.dto.*;
 import io.secureai.backend.domain.organization.entity.OrgMember;
 import io.secureai.backend.domain.organization.entity.Organization;
@@ -41,6 +42,7 @@ class OrganizationServiceTest {
     @Mock UserRepository userRepository;
     @Mock PlanRepository planRepository;
     @Mock JdbcTemplate jdbcTemplate;
+    @Mock EmailService emailService;
 
     @InjectMocks OrganizationService organizationService;
 

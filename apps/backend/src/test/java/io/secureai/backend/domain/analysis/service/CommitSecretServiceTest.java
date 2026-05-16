@@ -15,10 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.client.RestClient;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +30,7 @@ class CommitSecretServiceTest {
     @Mock AnalysisSessionRepository sessionRepository;
     @Mock VulnerabilityRepository vulnerabilityRepository;
     @Mock TeamMemberRepository teamMemberRepository;
+    @Mock AiAgentClient aiAgentClient;
 
     @InjectMocks CommitSecretService service;
 
@@ -39,7 +38,6 @@ class CommitSecretServiceTest {
     private UUID sessionId;
     private UUID projectId;
     private AnalysisSession session;
-    private Project project;
 
     @BeforeEach
     void setUp() {
@@ -47,17 +45,11 @@ class CommitSecretServiceTest {
         sessionId = UUID.randomUUID();
         projectId = UUID.randomUUID();
 
-        project = Project.builder().name("test-project").build();
+        Project project = Project.builder().name("test-project").build();
         ReflectionTestUtils.setField(project, "id", projectId);
 
         session = AnalysisSession.builder().project(project).build();
         ReflectionTestUtils.setField(session, "id", sessionId);
-
-        // RETURNS_DEEP_STUBS — RestClient 체이닝 전체를 null 없이 자동 목킹
-        // header() varargs 매처 불일치로 인한 NPE를 방지하며, 각 체인 단계의 개별 stub이 불필요
-        RestClient mockRestClient = mock(RestClient.class, Mockito.RETURNS_DEEP_STUBS);
-        ReflectionTestUtils.setField(service, "agentRestClient", mockRestClient);
-        ReflectionTestUtils.setField(service, "internalApiKey", "test-internal-key");
     }
 
     // ── TC-1: 존재하지 않는 세션 → SESSION_NOT_FOUND 예외 ────────────────────
@@ -147,14 +139,11 @@ class CommitSecretServiceTest {
         when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
         when(vulnerabilityRepository.countBySessionIdAndVulnType(sessionId, "SECRET_EXPOSURE")).thenReturn(0L);
 
-        // RestClient 체이닝을 예외 발생하도록 재설정
-        RestClient mockRestClient = mock(RestClient.class);
-        ReflectionTestUtils.setField(service, "agentRestClient", mockRestClient);
-        when(mockRestClient.post()).thenThrow(new org.springframework.web.client.RestClientException("connection refused"));
+        doThrow(new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE))
+                .when(aiAgentClient).startCommitScan(any(), any(), any(), any());
 
         CommitScanRequest req = new CommitScanRequest("owner", "repo", null, 30, null, null);
 
-        // 예외가 전파되지 않고 error 상태를 반환해야 한다
         CommitScanResponse response = service.triggerScan(userId, sessionId, req, null);
 
         assertThat(response.status()).isEqualTo("error");

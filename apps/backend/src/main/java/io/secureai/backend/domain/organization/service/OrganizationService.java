@@ -1,5 +1,6 @@
 package io.secureai.backend.domain.organization.service;
 
+import io.secureai.backend.domain.auth.service.EmailService;
 import io.secureai.backend.domain.organization.dto.*;
 import io.secureai.backend.domain.organization.entity.OrgMember;
 import io.secureai.backend.domain.organization.entity.Organization;
@@ -41,6 +42,7 @@ public class OrganizationService {
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
     private final OrgAnalyticsService orgAnalyticsService;
+    private final EmailService emailService;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -206,7 +208,7 @@ public class OrganizationService {
                 .build();
         teamInvitationRepository.save(invitation);
 
-        // TODO: 이메일 발송 — EmailService.sendOrgInvitation(request.email(), token, org.getName())
+        emailService.sendOrgInvitation(request.email(), token, org.getName());
         log.info("org invitation created: orgId={}, email={}", org.getId(), request.email());
     }
 

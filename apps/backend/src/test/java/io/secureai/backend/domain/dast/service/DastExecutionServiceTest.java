@@ -1,6 +1,7 @@
 package io.secureai.backend.domain.dast.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.secureai.backend.domain.analysis.service.AiAgentClient;
 import io.secureai.backend.domain.dast.dto.DastExecuteRequest;
 import io.secureai.backend.domain.dast.dto.DastExecuteResponse;
 import io.secureai.backend.domain.dast.entity.ExploitResult;
@@ -33,6 +34,9 @@ class DastExecutionServiceTest {
     @Mock
     private ExploitResultRepository exploitResultRepository;
 
+    @Mock
+    private AiAgentClient aiAgentClient;
+
     private DastExecutionService service;
 
     private static final String CONTAINER_ID = "abc123container";
@@ -42,7 +46,7 @@ class DastExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DastExecutionService(dockerSandboxManager, exploitResultPersister, exploitResultRepository, new ObjectMapper());
+        service = new DastExecutionService(dockerSandboxManager, exploitResultPersister, exploitResultRepository, new ObjectMapper(), aiAgentClient);
 
         // saveInitial() 이 RUNNING 상태의 ExploitResult를 반환하도록 스텁
         ExploitResult initial = ExploitResult.builder()

@@ -6,9 +6,9 @@ import io.secureai.backend.domain.organization.entity.Organization;
 import io.secureai.backend.domain.organization.repository.OrgMemberRepository;
 import io.secureai.backend.domain.organization.repository.OrganizationRepository;
 import io.secureai.backend.domain.plan.Plan;
-import io.secureai.backend.domain.plan.PlanRepository;
+import io.secureai.backend.domain.plan.PlanService;
 import io.secureai.backend.domain.user.entity.User;
-import io.secureai.backend.domain.user.repository.UserRepository;
+import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +31,8 @@ public class OrganizationService {
 
     private final OrganizationRepository organizationRepository;
     private final OrgMemberRepository orgMemberRepository;
-    private final UserRepository userRepository;
-    private final PlanRepository planRepository;
+    private final UserService userService;
+    private final PlanService planService;
     private final OrgAnalyticsService orgAnalyticsService;
 
     @Transactional(readOnly = true)
@@ -54,12 +54,8 @@ public class OrganizationService {
             throw new BusinessException(ErrorCode.ORG_SLUG_DUPLICATE);
         }
 
-        User owner = userRepository.findById(ownerId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-
-        Plan plan = planRepository.findByName(DEFAULT_PLAN_NAME)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ADMIN_PLAN_NOT_FOUND,
-                        "기본 플랜을 찾을 수 없습니다: " + DEFAULT_PLAN_NAME));
+        User owner = userService.findOrThrow(ownerId);
+        Plan plan = planService.findByName(DEFAULT_PLAN_NAME);
 
         Organization org = Organization.builder()
                 .name(request.name())
@@ -110,7 +106,7 @@ public class OrganizationService {
 
         List<OrgMember> members = orgMemberRepository.findByOrgId(org.getId());
         List<UUID> userIds = members.stream().map(OrgMember::getUserId).toList();
-        List<User> users = userRepository.findAllById(userIds);
+        List<User> users = userService.findAllByIds(userIds);
 
         return members.stream()
                 .map(member -> {
@@ -127,8 +123,7 @@ public class OrganizationService {
         Organization org = loadOrgBySlug(slug);
         requireAdminOrAbove(org.getId(), requesterId);
 
-        userRepository.findById(targetUserId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        userService.findOrThrow(targetUserId);
 
         orgMemberRepository.findByOrgIdAndUserId(org.getId(), targetUserId).ifPresent(m -> {
             throw new BusinessException(ErrorCode.ORG_ALREADY_MEMBER);
@@ -143,7 +138,7 @@ public class OrganizationService {
                 .build();
         orgMemberRepository.save(member);
 
-        User targetUser = userRepository.findById(targetUserId).orElseThrow();
+        User targetUser = userService.findOrThrow(targetUserId);
         return toOrgMemberResponse(member, targetUser);
     }
 
@@ -161,8 +156,7 @@ public class OrganizationService {
         member.setRole(role);
         orgMemberRepository.save(member);
 
-        User targetUser = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User targetUser = userService.findOrThrow(targetUserId);
         return toOrgMemberResponse(member, targetUser);
     }
 

@@ -5,7 +5,7 @@ import io.secureai.backend.domain.analysis.dto.ChatRequest;
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.project.entity.Project;
-import io.secureai.backend.domain.project.repository.TeamMemberRepository;
+import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,7 +29,7 @@ class ChatServiceTest {
 
     @Mock AiChatClient aiChatClient;
     @Mock AnalysisSessionRepository sessionRepository;
-    @Mock TeamMemberRepository teamMemberRepository;
+    @Mock ProjectService projectService;
 
     private ChatService chatService;
 
@@ -50,14 +50,14 @@ class ChatServiceTest {
         session = AnalysisSession.builder().project(project).build();
         ReflectionTestUtils.setField(session, "id", sessionId);
 
-        chatService = new ChatService(aiChatClient, sessionRepository, teamMemberRepository, new ObjectMapper());
+        chatService = new ChatService(aiChatClient, sessionRepository, projectService, new ObjectMapper());
     }
 
     @Test
     @DisplayName("정상 요청 → SseEmitter 반환")
     void streamChat_returnsSseEmitterWhenAuthorized() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
 
         SseEmitter emitter = chatService.streamChat(userId, sessionId, new ChatRequest("취약점 설명해줘", List.of()));
 
@@ -75,7 +75,7 @@ class ChatServiceTest {
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.SESSION_NOT_FOUND);
 
-        verifyNoInteractions(teamMemberRepository);
+        verifyNoInteractions(projectService);
         verifyNoInteractions(aiChatClient);
     }
 
@@ -83,7 +83,7 @@ class ChatServiceTest {
     @DisplayName("팀 멤버가 아닌 userId → PROJECT_ACCESS_DENIED 예외")
     void streamChat_throwsWhenNoProjectAccess() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(false);
+        when(projectService.isMember(projectId, userId)).thenReturn(false);
 
         assertThatThrownBy(() -> chatService.streamChat(userId, sessionId, new ChatRequest("질문", List.of())))
                 .isInstanceOf(BusinessException.class)

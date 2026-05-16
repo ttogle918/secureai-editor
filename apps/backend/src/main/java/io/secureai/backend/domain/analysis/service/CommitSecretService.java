@@ -5,7 +5,7 @@ import io.secureai.backend.domain.analysis.dto.CommitScanResponse;
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.analysis.repository.VulnerabilityRepository;
-import io.secureai.backend.domain.project.repository.TeamMemberRepository;
+import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ public class CommitSecretService {
 
     private final AnalysisSessionRepository sessionRepository;
     private final VulnerabilityRepository vulnerabilityRepository;
-    private final TeamMemberRepository teamMemberRepository;
+    private final ProjectService projectService;
     private final AiAgentClient aiAgentClient;
 
     /**
@@ -54,9 +54,7 @@ public class CommitSecretService {
         AnalysisSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        boolean isMember = teamMemberRepository.existsByProjectIdAndUserId(
-                session.getProject().getId(), userId);
-        if (!isMember) {
+        if (!projectService.isMember(session.getProject().getId(), userId)) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
 
@@ -82,9 +80,7 @@ public class CommitSecretService {
         AnalysisSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        boolean isMember = teamMemberRepository.existsByProjectIdAndUserId(
-                session.getProject().getId(), userId);
-        if (!isMember) {
+        if (!projectService.isMember(session.getProject().getId(), userId)) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
 

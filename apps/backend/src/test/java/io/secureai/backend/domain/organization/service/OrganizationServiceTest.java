@@ -6,9 +6,9 @@ import io.secureai.backend.domain.organization.entity.Organization;
 import io.secureai.backend.domain.organization.repository.OrgMemberRepository;
 import io.secureai.backend.domain.organization.repository.OrganizationRepository;
 import io.secureai.backend.domain.plan.Plan;
-import io.secureai.backend.domain.plan.PlanRepository;
+import io.secureai.backend.domain.plan.PlanService;
 import io.secureai.backend.domain.user.entity.User;
-import io.secureai.backend.domain.user.repository.UserRepository;
+import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,8 +34,8 @@ class OrganizationServiceTest {
 
     @Mock OrganizationRepository organizationRepository;
     @Mock OrgMemberRepository orgMemberRepository;
-    @Mock UserRepository userRepository;
-    @Mock PlanRepository planRepository;
+    @Mock UserService userService;
+    @Mock PlanService planService;
 
     @InjectMocks OrganizationService organizationService;
 
@@ -110,8 +110,8 @@ class OrganizationServiceTest {
     @DisplayName("유효한 요청으로 조직을 생성하고 owner 멤버로 등록한다")
     void createOrg_validRequest_savesOrgAndOwnerMember() {
         when(organizationRepository.findBySlugAndDeletedAtIsNull("new-org")).thenReturn(Optional.empty());
-        when(userRepository.findById(ownerId)).thenReturn(Optional.of(owner));
-        when(planRepository.findByName("free")).thenReturn(Optional.of(plan));
+        when(userService.findOrThrow(ownerId)).thenReturn(owner);
+        when(planService.findByName("free")).thenReturn(plan);
         when(organizationRepository.save(any())).thenAnswer(inv -> {
             Organization saved = inv.getArgument(0);
             ReflectionTestUtils.setField(saved, "id", orgId);
@@ -176,7 +176,7 @@ class OrganizationServiceTest {
                 .orgId(orgId).userId(memberId).role("member").acceptedAt(OffsetDateTime.now()).build();
         when(organizationRepository.findBySlugAndDeletedAtIsNull("test-org")).thenReturn(Optional.of(org));
         when(orgMemberRepository.findByOrgIdAndUserId(orgId, ownerId)).thenReturn(Optional.of(ownerMember));
-        when(userRepository.findById(memberId)).thenReturn(Optional.of(owner));
+        when(userService.findOrThrow(memberId)).thenReturn(owner);
         when(orgMemberRepository.findByOrgIdAndUserId(orgId, memberId)).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> organizationService.addMember("test-org", memberId, "member", ownerId))

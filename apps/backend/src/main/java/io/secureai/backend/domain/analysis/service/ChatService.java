@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.secureai.backend.domain.analysis.dto.ChatRequest;
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
-import io.secureai.backend.domain.project.repository.TeamMemberRepository;
+import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
@@ -33,19 +33,19 @@ public class ChatService {
 
     private final AiChatClient aiChatClient;
     private final AnalysisSessionRepository sessionRepository;
-    private final TeamMemberRepository teamMemberRepository;
+    private final ProjectService projectService;
     private final ObjectMapper objectMapper;
     private final ExecutorService executor;
 
     public ChatService(
             AiChatClient aiChatClient,
             AnalysisSessionRepository sessionRepository,
-            TeamMemberRepository teamMemberRepository,
+            ProjectService projectService,
             ObjectMapper objectMapper
     ) {
         this.aiChatClient = aiChatClient;
         this.sessionRepository = sessionRepository;
-        this.teamMemberRepository = teamMemberRepository;
+        this.projectService = projectService;
         this.objectMapper = objectMapper;
         this.executor = Executors.newVirtualThreadPerTaskExecutor();
     }
@@ -54,7 +54,7 @@ public class ChatService {
         AnalysisSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        if (!teamMemberRepository.existsByProjectIdAndUserId(session.getProject().getId(), userId)) {
+        if (!projectService.isMember(session.getProject().getId(), userId)) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
 

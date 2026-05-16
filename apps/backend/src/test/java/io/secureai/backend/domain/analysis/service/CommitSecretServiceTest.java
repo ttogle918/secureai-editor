@@ -6,7 +6,7 @@ import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.analysis.repository.VulnerabilityRepository;
 import io.secureai.backend.domain.project.entity.Project;
-import io.secureai.backend.domain.project.repository.TeamMemberRepository;
+import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,7 +29,7 @@ class CommitSecretServiceTest {
 
     @Mock AnalysisSessionRepository sessionRepository;
     @Mock VulnerabilityRepository vulnerabilityRepository;
-    @Mock TeamMemberRepository teamMemberRepository;
+    @Mock ProjectService projectService;
     @Mock AiAgentClient aiAgentClient;
 
     @InjectMocks CommitSecretService service;
@@ -74,7 +74,7 @@ class CommitSecretServiceTest {
     @DisplayName("프로젝트 멤버가 아닌 사용자가 스캔 요청 시 PROJECT_ACCESS_DENIED 예외를 던진다")
     void triggerScan_nonMemberUser_throwsAccessDenied() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(false);
+        when(projectService.isMember(projectId, userId)).thenReturn(false);
 
         CommitScanRequest req = new CommitScanRequest("owner", "repo", null, 30, null, null);
 
@@ -90,7 +90,7 @@ class CommitSecretServiceTest {
     @DisplayName("유효한 멤버가 스캔 요청 시 accepted 상태와 현재 시크릿 수를 반환한다")
     void triggerScan_validMember_returnsAcceptedWithSecretCount() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
         when(vulnerabilityRepository.countBySessionIdAndVulnType(sessionId, "SECRET_EXPOSURE")).thenReturn(3L);
 
         CommitScanRequest req = new CommitScanRequest("octocat", "hello-world", "main", 30, null, null);
@@ -108,7 +108,7 @@ class CommitSecretServiceTest {
     @DisplayName("countSecrets 호출 시 멤버가 아닌 사용자는 PROJECT_ACCESS_DENIED를 던진다")
     void countSecrets_nonMember_throwsAccessDenied() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(false);
+        when(projectService.isMember(projectId, userId)).thenReturn(false);
 
         assertThatThrownBy(() -> service.countSecrets(userId, sessionId))
                 .isInstanceOf(BusinessException.class)
@@ -122,7 +122,7 @@ class CommitSecretServiceTest {
     @DisplayName("countSecrets 호출 시 SECRET_EXPOSURE 유형 취약점 수를 반환한다")
     void countSecrets_validMember_returnsCount() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
         when(vulnerabilityRepository.countBySessionIdAndVulnType(sessionId, "SECRET_EXPOSURE")).thenReturn(7L);
 
         long count = service.countSecrets(userId, sessionId);
@@ -136,7 +136,7 @@ class CommitSecretServiceTest {
     @DisplayName("AI Engine 호출이 실패해도 error 상태를 반환하고 예외를 전파하지 않는다")
     void triggerScan_agentCallFails_returnsErrorStatus() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
         when(vulnerabilityRepository.countBySessionIdAndVulnType(sessionId, "SECRET_EXPOSURE")).thenReturn(0L);
 
         doThrow(new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE))

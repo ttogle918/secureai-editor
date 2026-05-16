@@ -6,10 +6,8 @@ import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.entity.SessionStatus;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.project.entity.Project;
-import io.secureai.backend.domain.project.repository.ProjectRepository;
-import io.secureai.backend.domain.project.repository.TeamMemberRepository;
+import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.domain.user.entity.User;
-import io.secureai.backend.domain.user.repository.UserRepository;
 import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
@@ -28,19 +26,16 @@ import java.util.UUID;
 public class AnalysisService {
 
     private final AnalysisSessionRepository sessionRepository;
-    private final ProjectRepository projectRepository;
-    private final TeamMemberRepository teamMemberRepository;
-    private final UserRepository userRepository;
+    private final ProjectService projectService;
     private final AiAgentClient aiAgentClient;
     private final GitHubApiService gitHubApiService;
     private final UserService userService;
 
     @Transactional
     public AnalysisSessionResponse startAnalysis(UUID userId, StartAnalysisRequest request) {
-        Project project = projectRepository.findById(request.projectId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+        Project project = projectService.findOrThrow(request.projectId());
 
-        if (!teamMemberRepository.existsByProjectIdAndUserId(request.projectId(), userId)) {
+        if (!projectService.isMember(request.projectId(), userId)) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
 
@@ -55,8 +50,7 @@ public class AnalysisService {
                             s.getId(), SessionStatus.INTERRUPTED, SessionStatus.RUNNING));
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userService.findOrThrow(userId);
 
         AnalysisSession session = AnalysisSession.builder()
                 .project(project)
@@ -96,7 +90,7 @@ public class AnalysisService {
 
     @Transactional(readOnly = true)
     public Page<AnalysisSessionResponse> listSessions(UUID userId, UUID projectId, Pageable pageable) {
-        if (!teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)) {
+        if (!projectService.isMember(projectId, userId)) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
         return sessionRepository.findByProjectIdOrderByCreatedAtDesc(projectId, pageable)

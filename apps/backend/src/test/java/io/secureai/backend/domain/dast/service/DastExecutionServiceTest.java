@@ -36,6 +36,7 @@ class DastExecutionServiceTest {
     private DastExecutionService service;
 
     private static final String CONTAINER_ID = "abc123container";
+    private static final String SESSION_ID = UUID.randomUUID().toString();
     private static final String VULN_ID = UUID.randomUUID().toString();
     private static final String VULN_TYPE = "SQL_INJECTION";
 
@@ -204,6 +205,7 @@ class DastExecutionServiceTest {
 
     private DastExecuteRequest buildRequest(Map<String, String> params) {
         return new DastExecuteRequest(
+                SESSION_ID,
                 VULN_ID,
                 VULN_TYPE,
                 "https://target.example.com/login",

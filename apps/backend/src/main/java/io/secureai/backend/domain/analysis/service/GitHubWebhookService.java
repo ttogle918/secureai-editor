@@ -9,6 +9,7 @@ import io.secureai.backend.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.lang.Nullable;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +43,7 @@ public class GitHubWebhookService {
     private static final String SIGNATURE_PREFIX = "sha256=";
     private static final String CHECK_RUN_NAME = "SecureAI Security Review";
 
+    @Nullable
     private final Mac webhookMac;
     private final GitHubConfig gitHubConfig;
     private final PrReviewHistoryRepository prReviewHistoryRepository;
@@ -50,7 +52,7 @@ public class GitHubWebhookService {
     private final ObjectMapper objectMapper;
 
     public GitHubWebhookService(
-            @Qualifier("webhookMac") Mac webhookMac,
+            @Qualifier("webhookMac") @Nullable Mac webhookMac,
             GitHubConfig gitHubConfig,
             PrReviewHistoryRepository prReviewHistoryRepository,
             AiAgentClient aiAgentClient,

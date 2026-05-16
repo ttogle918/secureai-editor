@@ -58,6 +58,7 @@ class DastControllerTest {
     void executeInSandbox_callsServiceAndReturns200() {
         // given
         DastExecuteRequest req = new DastExecuteRequest(
+                UUID.randomUUID().toString(),
                 VULN_ID.toString(), "SQL_INJECTION",
                 "https://target.example.com", "/api/login", Map.of("id", "1")
         );

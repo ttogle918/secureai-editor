@@ -9,6 +9,7 @@ import java.util.Map;
  * targetUrl, params 는 민감 정보이므로 절대 로그에 출력하지 않는다.
  */
 public record DastExecuteRequest(
+        @NotBlank String sessionId,
         @NotBlank String vulnId,
         @NotBlank String vulnType,
         @NotBlank String targetUrl,

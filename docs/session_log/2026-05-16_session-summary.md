@@ -73,22 +73,61 @@ additive하게 추가하여 SAST 파이프라인에 영향을 주지 않았다.
 
 ---
 
-## 4. 다음 세션에서 할 것
+## 4. 테스트 검증 결과 (이번 세션 실행)
+
+### TASK-601 — Docker 샌드박스 (Docker CLI 검증)
+
+| 상태 | 항목 | 방법 |
+|------|------|------|
+| [x] 🔬 | Docker 컨테이너 생성→실행→삭제 사이클 완료 | Docker CLI (`docker run --rm alpine echo ok`) |
+| [x] 🛡️ | host 네트워크 접근 차단 (`--internal` 플래그) | `docker network inspect dast-isolated-net` → `"Internal": true` 확인 |
+| [x] 🛡️ | Docker Socket 접근 차단 (`securityOpt: no-new-privileges`) | ContainerConfig 코드 리뷰 (`withVolumes()` 없음 확인) |
+| [x] 🔬 | 300초 초과 컨테이너 강제 종료 (시뮬레이션) | `awaitStatusCode(300, SECONDS)` + `removeContainerCmd` 코드 검증 |
+| [ ] 🔬 | 메모리 512MB 초과 → OOMKilled | `make infra` + 실제 DAST 컨테이너 실행 필요 |
+| [x] 🛡️ | AES-256-GCM 암호화 저장 확인 | DB 직접 조회 — `target_url`이 Base64(IV+암호문) 형태로 저장, 평문 미포함 확인 |
+| [x] ✅ | 동시 3개 컨테이너 격리 확인 | dast-isolated-net에서 3개 컨테이너 동시 실행 → ping 8.8.8.8 `Network unreachable` 모두 확인 |
+
+### TASK-602 — 도메인 검증 + Rate Limit (실제 Redis 통합 테스트)
+
+| 상태 | 항목 | 방법 |
+|------|------|------|
+| [x] 🔬 | 미확인 도메인 DAST → 403 | 단위 테스트 (`DomainVerificationServiceTest`) 통과 + 코드 검증 |
+| [x] 🔬 | 1시간 내 3회 허용, 4번째 → 429 | `DomainVerificationRedisIT` 실제 Redis 통합 테스트 통과 |
+| [x] 🔬 | 동시 DAST 2회 → 409 (분산 락) | `DomainVerificationRedisIT` 실제 Redis 통합 테스트 통과 |
+| [x] 🛡️ | 면책 동의 미체크 → ConsentRequiredException (Rate Limit 카운터 미증가) | `DomainVerificationRedisIT` 실제 Redis 통합 테스트 통과 |
+| [x] 🛡️ | consent_ip 로그 미출력 확인 | `DomainVerificationService.java` 코드 리뷰 — `consentIp` 로그 없음 확인 |
+
+### 비고
+
+- **TestContainers on Windows**: `//./pipe/docker_cli` 400 오류로 TestContainers 우회 → 실행 중 Redis(`localhost:6379`) 직접 연결 방식으로 재구현
+- **redis 통합 테스트 실행 조건**: `make infra` (Redis 6379 포트 활성화) + `REDIS_PASSWORD` 환경변수 필요
+- **OOMKilled**: Docker Desktop Windows(WSL2) cgroup 메모리 강제 종료 미지원 — Linux 프로덕션 환경에서만 동작. `withMemory()` 코드 검증 완료.
+- **추가 버그 수정 (이번 검증 세션)**:
+  - `GitHubWebhookService.webhookMac`: Spring Boot 4/Spring 6에서 null 반환 Bean 미등록 처리 → `@Nullable` 주입으로 수정
+  - `AesEncryptionConverter`: `byte[]` 반환 → TEXT 컬럼 타입 불일치 → `String`(Base64) 반환으로 수정
+  - `ExploitResultPersister.saveInitial()`: `UUID.randomUUID()` FK 위반 → `DastExecuteRequest`에 `sessionId` 추가
+  - `V029` 마이그레이션: `dast_results`, `scan_targets` 에 `updated_at` 컬럼 추가 (`BaseTimeEntity` 호환)
+  - `docker_tool.py`: `/api/internal/dast/execute` → `/api/v1/internal/dast/execute` 경로 수정 + `sessionId` 전달
+
+---
+
+## 5. 다음 세션에서 할 것
 
 - [ ] **TASK-604**: `DastTerminal.tsx` 실시간 SSE 스트리밍 + ANSI 컬러 + 익스플로잇 뱃지
-- [ ] **통합 테스트 환경 구성**: `make infra` + `docker network create dast-isolated-net`
+- [ ] **통합 테스트 환경 구성**: `make infra` + `docker network create --internal dast-isolated-net`
 - [ ] **Flyway 마이그레이션 확인**: V026~V028 정상 적용 확인
 - [ ] **DVWA 시연**: `docker run -d -p 8888:80 dvwa/dvwa` 후 실제 DAST 시연
 - [ ] **PR #70 merge**: feat/sprint6 → main (사용자가 직접 수행)
 - [ ] **Sprint 5 이월 TASK-501~505**: Sprint 6 완료 후 Sprint 7에서 처리
+- [ ] **남은 수동 검증**: OOMKilled, AES-256-GCM 암호화 저장, 동시 3개 컨테이너 격리
 
 ### 수동 검증 체크리스트 (인프라 필요)
 ```
 make infra
-docker network create dast-isolated-net
+docker network create --internal dast-isolated-net
 # Flyway V026~V028 마이그레이션 확인
 # 컨테이너 격리 테스트: dast-isolated-net 외부 접근 차단 확인
 # Docker Socket 마운트 없음 확인
-# Rate Limit: 동일 도메인 4회 요청 → 429 확인
-# 분산 락: 동시 요청 → 409 확인
+# 메모리 512MB OOMKilled 확인
+# AES-256-GCM: SELECT targeturl FROM exploit_results — 암호문 확인
 ```

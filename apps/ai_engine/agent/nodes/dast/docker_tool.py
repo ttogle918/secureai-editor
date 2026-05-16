@@ -13,7 +13,7 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 
 _INTERNAL_HEADERS = {"X-Internal-Key": settings.internal_api_key}
-_DAST_EXECUTE_PATH = "/api/internal/dast/execute"
+_DAST_EXECUTE_PATH = "/api/v1/internal/dast/execute"
 _TIMEOUT_SECONDS = 350.0
 
 
@@ -28,6 +28,7 @@ async def run_dast_in_sandbox(state: DastState) -> dict:
     실패 시 예외를 전파하지 않고 success=False 인 dict 를 반환한다.
     """
     payload_body = {
+        "sessionId": state["session_id"],
         "vulnId": state["vuln_id"],
         "vulnType": state["vuln_type"],
         "targetUrl": state["target_url"],   # 로그 출력 금지

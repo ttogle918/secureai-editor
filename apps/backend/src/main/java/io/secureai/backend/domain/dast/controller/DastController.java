@@ -38,6 +38,9 @@ public class DastController {
 
     private static final Set<String> LOCALHOST_DOMAINS = Set.of("localhost", "127.0.0.1", "0.0.0.0");
 
+    /** 신뢰할 수 있는 역방향 프록시(Nginx/LB) IP — X-Forwarded-For를 이 주소에서 온 경우에만 신뢰한다. */
+    private static final Set<String> TRUSTED_PROXY_EXACT = Set.of("127.0.0.1", "::1", "0:0:0:0:0:0:0:1");
+
     private final DastExecutionService dastExecutionService;
     private final DastResultQueryService dastResultQueryService;
     private final DomainVerificationService domainVerificationService;
@@ -140,12 +143,42 @@ public class DastController {
 
     /**
      * 요청 IP를 추출한다. clientIp 는 법적 증거 보존 데이터이므로 로그에 출력하지 않는다.
+     *
+     * X-Forwarded-For 는 직접 연결 IP(remoteAddr)가 신뢰할 수 있는 프록시일 때만 참조한다.
+     * 임의 클라이언트가 헤더를 위조해 consent_ip를 조작하는 IP Spoofing을 방지한다.
      */
     private String resolveClientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
+        String remoteAddr = request.getRemoteAddr();
+        if (!isTrustedProxy(remoteAddr)) {
+            return remoteAddr;
         }
-        return request.getRemoteAddr();
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded == null || forwarded.isBlank()) {
+            return remoteAddr;
+        }
+        String candidate = forwarded.split(",")[0].trim();
+        return isValidIp(candidate) ? candidate : remoteAddr;
+    }
+
+    /** 직접 연결이 신뢰할 수 있는 역방향 프록시(로컬호스트 또는 RFC 1918 사설 대역)인지 확인한다. */
+    private boolean isTrustedProxy(String addr) {
+        if (addr == null) return false;
+        if (TRUSTED_PROXY_EXACT.contains(addr)) return true;
+        if (addr.startsWith("10.") || addr.startsWith("192.168.")) return true;
+        if (addr.startsWith("172.")) {
+            try {
+                int second = Integer.parseInt(addr.split("\\.")[1]);
+                return second >= 16 && second <= 31;
+            } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /** 헤더 인젝션 방지를 위해 IPv4/IPv6 형식만 허용한다. */
+    private boolean isValidIp(String candidate) {
+        return candidate.matches("^(\\d{1,3}\\.){3}\\d{1,3}$")
+                || (candidate.contains(":") && candidate.matches("^[0-9a-fA-F:]+$"));
     }
 }

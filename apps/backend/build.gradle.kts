@@ -67,8 +67,4 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
-	// 통합 테스트용 Redis 환경변수 전파 (make infra 또는 docker compose로 실행 중인 Redis 사용)
-	System.getenv("REDIS_PASSWORD")?.let { environment("REDIS_PASSWORD", it) }
-	System.getenv("REDIS_TEST_HOST")?.let { environment("REDIS_TEST_HOST", it) }
-	System.getenv("REDIS_TEST_PORT")?.let { environment("REDIS_TEST_PORT", it) }
 }

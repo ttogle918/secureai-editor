@@ -131,3 +131,6 @@ CLAUDE.md
 # Tauri App Icon
 apps/frontend/src-tauri/icons/**/*.*
 docs/portfolio/*
+
+
+dvwa-source/

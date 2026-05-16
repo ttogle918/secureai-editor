@@ -4,6 +4,7 @@ import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -22,7 +23,11 @@ public class GitHubRestClient {
     private final RestClient restClient;
 
     public GitHubRestClient() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10_000);
+        factory.setReadTimeout(30_000);
         this.restClient = RestClient.builder()
+                .requestFactory(factory)
                 .baseUrl(GITHUB_API_BASE)
                 .defaultHeader("Accept", "application/vnd.github.v3+json")
                 .defaultHeader("User-Agent", "secureai-backend/1.0")

@@ -5,6 +5,7 @@ AI Engine → Backend GET /api/v1/cve/search?packageName=xxx&version=yyy 로
 CVE 정보를 조회하고 컴포넌트별 매칭 결과를 반환한다.
 
 X-Internal-Key 헤더로 인증한다.
+모듈 레벨 AsyncClient로 TCP 연결 풀을 재사용한다.
 """
 import logging
 
@@ -15,7 +16,12 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 
 _CVE_SEARCH_PATH = "/api/v1/cve/search"
-_HTTP_TIMEOUT = 10  # 초
+
+_client = httpx.AsyncClient(
+    base_url=settings.backend_internal_url,
+    timeout=10,
+    headers={"X-Internal-Key": settings.internal_api_key},
+)
 
 
 async def match_cve(components: list[dict], session_id: str) -> list[dict]:
@@ -37,46 +43,41 @@ async def match_cve(components: list[dict], session_id: str) -> list[dict]:
 
     results: list[dict] = []
 
-    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
-        for comp in components:
-            name = comp.get("name")
-            version = comp.get("version")
+    for comp in components:
+        name = comp.get("name")
+        version = comp.get("version")
 
-            if not name:
-                continue
+        if not name:
+            continue
 
-            try:
-                params: dict[str, str] = {"packageName": name}
-                if version:
-                    params["version"] = version
+        try:
+            params: dict[str, str] = {"packageName": name}
+            if version:
+                params["version"] = version
 
-                resp = await client.get(
-                    f"{settings.backend_internal_url}{_CVE_SEARCH_PATH}",
-                    params=params,
-                    headers={"X-Internal-Key": settings.internal_api_key},
+            resp = await _client.get(_CVE_SEARCH_PATH, params=params)
+            resp.raise_for_status()
+
+            data = resp.json()
+            cve_list: list[dict] = data.get("data", {}).get("cves", [])
+
+            if cve_list:
+                logger.info(
+                    "[cve-matcher] session=%s component=%s found=%d CVEs",
+                    session_id, name, len(cve_list),
                 )
-                resp.raise_for_status()
+                results.append({"component": comp, "cves": cve_list})
 
-                data = resp.json()
-                cve_list: list[dict] = data.get("data", {}).get("cves", [])
-
-                if cve_list:
-                    logger.info(
-                        "[cve-matcher] session=%s component=%s found=%d CVEs",
-                        session_id, name, len(cve_list),
-                    )
-                    results.append({"component": comp, "cves": cve_list})
-
-            except httpx.HTTPStatusError as exc:
-                logger.warning(
-                    "[cve-matcher] session=%s component=%s HTTP %d: %s",
-                    session_id, name, exc.response.status_code, exc,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "[cve-matcher] session=%s component=%s error: %s",
-                    session_id, name, exc,
-                )
+        except httpx.HTTPStatusError as exc:
+            logger.warning(
+                "[cve-matcher] session=%s component=%s HTTP %d: %s",
+                session_id, name, exc.response.status_code, exc,
+            )
+        except Exception as exc:
+            logger.warning(
+                "[cve-matcher] session=%s component=%s error: %s",
+                session_id, name, exc,
+            )
 
     logger.info(
         "[cve-matcher] session=%s total_components=%d matched=%d",

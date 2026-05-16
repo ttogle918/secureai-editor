@@ -1,5 +1,6 @@
 package io.secureai.backend.domain.analysis.service;
 
+import io.secureai.backend.domain.analysis.dto.CommitScanRequest;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -38,9 +40,12 @@ public class DefaultAiAgentClient implements AiAgentClient {
     ) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(10))
                 .build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
+        factory.setReadTimeout(Duration.ofSeconds(30));
         this.restClient = RestClient.builder()
-                .requestFactory(new JdkClientHttpRequestFactory(httpClient))
+                .requestFactory(factory)
                 .baseUrl(agentUrl)
                 .defaultHeader("X-Internal-Key", internalKey)
                 .build();
@@ -147,6 +152,64 @@ public class DefaultAiAgentClient implements AiAgentClient {
         } catch (RestClientException e) {
             log.warn("[agent-client] translate failed: {}", e.getMessage());
             return text;
+        }
+    }
+
+    @Override
+    public void startDast(UUID sessionId, UUID vulnId, String vulnType,
+                          String targetUrl, String endpoint, Map<String, Object> params) {
+        checkCircuit();
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("session_id", sessionId.toString());
+            body.put("vuln_id",    vulnId.toString());
+            body.put("vuln_type",  vulnType);
+            body.put("target_url", targetUrl);
+            body.put("endpoint",   endpoint != null ? endpoint : "");
+            body.put("params",     params != null ? params : Map.of());
+
+            restClient.post()
+                    .uri("/agent/dast/start")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .toBodilessEntity();
+
+            resetFailures();
+            log.info("[agent-client] startDast sessionId={} vulnType={}", sessionId, vulnType);
+        } catch (RestClientException e) {
+            recordFailure(e);
+            throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);
+        }
+    }
+
+    @Override
+    public void startCommitScan(UUID sessionId, UUID projectId, CommitScanRequest req, String githubToken) {
+        checkCircuit();
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("session_id", sessionId.toString());
+            body.put("project_id", projectId.toString());
+            body.put("owner",      req.owner());
+            body.put("repo",       req.repo());
+            body.put("per_page",   req.perPage());
+            if (req.ref() != null)            body.put("ref",             req.ref());
+            if (githubToken != null)           body.put("github_token",    githubToken);
+            if (req.preferredModel() != null)  body.put("preferred_model", req.preferredModel());
+            if (req.userApiKey() != null)      body.put("user_api_key",    req.userApiKey());
+
+            restClient.post()
+                    .uri("/agent/scan-commits")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .toBodilessEntity();
+
+            resetFailures();
+            log.info("[agent-client] startCommitScan sessionId={} owner={} repo={}", sessionId, req.owner(), req.repo());
+        } catch (RestClientException e) {
+            recordFailure(e);
+            throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);
         }
     }
 

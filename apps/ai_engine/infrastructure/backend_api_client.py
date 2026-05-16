@@ -3,6 +3,7 @@ Backend 내부 API 클라이언트.
 
 AI Engine → Spring Backend 방향의 내부 호출만 담당한다.
 X-Internal-Key 헤더로 인증한다.
+모듈 레벨 AsyncClient로 TCP 연결 풀을 재사용한다.
 """
 import hashlib
 import logging
@@ -12,6 +13,13 @@ import httpx
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+# 연결 풀 재사용을 위해 모듈 레벨 클라이언트 생성
+_client = httpx.AsyncClient(
+    base_url=settings.backend_internal_url,
+    timeout=15,
+    headers={"X-Internal-Key": settings.internal_api_key},
+)
 
 
 def _fingerprint(file_path: str, line_number, vuln_type: str) -> str:
@@ -54,16 +62,11 @@ async def save_vulnerabilities(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                f"{settings.backend_internal_url}/api/v1/internal/vulnerabilities",
-                json=payload,
-                headers={"X-Internal-Key": settings.internal_api_key},
-            )
-            resp.raise_for_status()
-            saved: int = resp.json().get("data", {}).get("saved", 0)
-            logger.info("[backend-api] saved=%d session=%s file=%s", saved, session_id, file_path)
-            return saved
+        resp = await _client.post("/api/v1/internal/vulnerabilities", json=payload)
+        resp.raise_for_status()
+        saved: int = resp.json().get("data", {}).get("saved", 0)
+        logger.info("[backend-api] saved=%d session=%s file=%s", saved, session_id, file_path)
+        return saved
     except Exception as exc:
         logger.error("[backend-api] save_vulnerabilities failed session=%s: %s", session_id, exc)
         return 0
@@ -85,16 +88,11 @@ async def save_patch_results(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                f"{settings.backend_internal_url}/api/v1/internal/patches",
-                json=payload,
-                headers={"X-Internal-Key": settings.internal_api_key},
-            )
-            resp.raise_for_status()
-            saved: int = resp.json().get("data", {}).get("saved", 0)
-            logger.info("[backend-api] patch saved=%d session=%s", saved, session_id)
-            return saved
+        resp = await _client.post("/api/v1/internal/patches", json=payload)
+        resp.raise_for_status()
+        saved: int = resp.json().get("data", {}).get("saved", 0)
+        logger.info("[backend-api] patch saved=%d session=%s", saved, session_id)
+        return saved
     except Exception as exc:
         logger.error("[backend-api] save_patch_results failed session=%s: %s", session_id, exc)
         return 0

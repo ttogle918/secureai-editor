@@ -3,20 +3,20 @@ package io.secureai.backend.domain.dast.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.secureai.backend.domain.analysis.service.AiAgentClient;
 import io.secureai.backend.domain.dast.dto.DastExecuteRequest;
 import io.secureai.backend.domain.dast.dto.DastExecuteResponse;
+import io.secureai.backend.domain.dast.dto.DastStartRequest;
 import io.secureai.backend.domain.dast.entity.ExploitResult;
 import io.secureai.backend.domain.dast.entity.ScanStatus;
 import io.secureai.backend.domain.dast.repository.ExploitResultRepository;
+import io.secureai.backend.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -36,6 +36,25 @@ public class DastExecutionService {
     private final ExploitResultPersister exploitResultPersister;
     private final ExploitResultRepository exploitResultRepository;
     private final ObjectMapper objectMapper;
+    private final AiAgentClient aiAgentClient;
+
+    /**
+     * DAST 분석을 AI Engine에 위임한다. Controller는 이 메서드만 호출한다.
+     * targetUrl, params 는 로그에 출력하지 않는다.
+     *
+     * @throws BusinessException AI_AGENT_UNAVAILABLE — AI Engine 호출 실패
+     */
+    public void initiateDastScan(DastStartRequest req) {
+        aiAgentClient.startDast(
+                req.sessionId(),
+                req.vulnId(),
+                req.vulnType(),
+                req.targetUrl(),
+                req.endpoint(),
+                req.params()
+        );
+        log.info("DAST scan delegated to AI Engine: sessionId={} vulnType={}", req.sessionId(), req.vulnType());
+    }
 
     /**
      * 지정된 취약점에 대해 Docker 샌드박스에서 익스플로잇을 실행한다.
@@ -97,30 +116,6 @@ public class DastExecutionService {
                 dockerSandboxManager.forceRemove(containerId);
             }
         }
-    }
-
-    public List<ExploitResult> getResultsBySessionId(UUID sessionId) {
-        return exploitResultRepository.findBySessionId(sessionId);
-    }
-
-    public Optional<ExploitResult> getLatestResultByVulnId(UUID vulnId) {
-        return exploitResultRepository.findTopByVulnIdOrderByExecutedAtDesc(vulnId);
-    }
-
-    /**
-     * vulnId 목록으로 각 취약점의 최신 완료 결과를 일괄 조회한다.
-     * 세션 ID와 독립적으로 vulnId 기준으로 조회하여 새로고침 후에도 복원 가능.
-     */
-    public List<ExploitResult> getLatestCompletedByVulnIds(List<UUID> vulnIds) {
-        if (vulnIds.isEmpty()) return List.of();
-        List<ScanStatus> completed = List.of(ScanStatus.SUCCESS, ScanStatus.FAILED);
-        List<ExploitResult> all = exploitResultRepository.findCompletedByVulnIdIn(vulnIds, completed);
-        // 이미 executedAt DESC 정렬 — vulnId당 첫 번째(최신)만 유지
-        Map<UUID, ExploitResult> latestPerVuln = new LinkedHashMap<>();
-        for (ExploitResult e : all) {
-            latestPerVuln.putIfAbsent(e.getVulnId(), e);
-        }
-        return new ArrayList<>(latestPerVuln.values());
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

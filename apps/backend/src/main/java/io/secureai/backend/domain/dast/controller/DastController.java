@@ -5,27 +5,21 @@ import io.secureai.backend.domain.dast.dto.DastExecuteResponse;
 import io.secureai.backend.domain.dast.dto.DastResultDto;
 import io.secureai.backend.domain.dast.dto.DastStartRequest;
 import io.secureai.backend.domain.dast.service.DastExecutionService;
+import io.secureai.backend.domain.dast.service.DastResultQueryService;
 import io.secureai.backend.domain.dast.service.DomainVerificationService;
 import io.secureai.backend.global.aop.AuditLog;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import io.secureai.backend.global.response.ApiResponse;
-import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestClient;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -45,20 +39,8 @@ public class DastController {
     private static final Set<String> LOCALHOST_DOMAINS = Set.of("localhost", "127.0.0.1", "0.0.0.0");
 
     private final DastExecutionService dastExecutionService;
+    private final DastResultQueryService dastResultQueryService;
     private final DomainVerificationService domainVerificationService;
-
-    @Value("${secureai.ai-agent.url}")
-    private String aiAgentUrl;
-
-    @Value("${secureai.internal-api-key}")
-    private String internalApiKey;
-
-    private RestClient aiEngineClient;
-
-    @PostConstruct
-    private void init() {
-        aiEngineClient = RestClient.builder().baseUrl(aiAgentUrl).build();
-    }
 
     // ── 내부 엔드포인트 (AI Engine → Backend) ────────────────────────────────
 
@@ -109,28 +91,7 @@ public class DastController {
             domainVerificationService.assertDastAllowed(userId, req.domain(), clientIp);
         }
 
-        // AI Engine 에 DAST 분석 위임 (X-Internal-Key 헤더 포함)
-        Map<String, Object> aiPayload = new HashMap<>();
-        aiPayload.put("session_id", req.sessionId().toString());
-        aiPayload.put("vuln_id",    req.vulnId().toString());
-        aiPayload.put("vuln_type",  req.vulnType());
-        aiPayload.put("target_url", req.targetUrl());
-        aiPayload.put("endpoint",   req.endpoint() != null ? req.endpoint() : "");
-        aiPayload.put("params",     req.params() != null ? req.params() : Map.of());
-
-        try {
-            aiEngineClient.post()
-                    .uri("/agent/dast/start")
-                    .header("X-Internal-Key", internalApiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(aiPayload)
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (Exception e) {
-            log.error("DAST AI Engine 위임 실패: sessionId={} error={}", req.sessionId(), e.getMessage());
-            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "DAST 분석 시작에 실패했습니다.");
-        }
-
+        dastExecutionService.initiateDastScan(req);
         return ResponseEntity.accepted().build();
     }
 
@@ -141,7 +102,7 @@ public class DastController {
     public ResponseEntity<ApiResponse<List<DastResultDto>>> getResults(
             @PathVariable UUID sessionId
     ) {
-        List<DastResultDto> results = dastExecutionService.getResultsBySessionId(sessionId)
+        List<DastResultDto> results = dastResultQueryService.getResultsBySessionId(sessionId)
                 .stream()
                 .filter(r -> r.getVulnId() != null)
                 .map(DastResultDto::from)
@@ -156,7 +117,7 @@ public class DastController {
     public ResponseEntity<ApiResponse<DastResultDto>> getResultByVulnId(
             @PathVariable UUID vulnId
     ) {
-        return dastExecutionService.getLatestResultByVulnId(vulnId)
+        return dastResultQueryService.getLatestResultByVulnId(vulnId)
                 .map(DastResultDto::from)
                 .map(dto -> ResponseEntity.ok(ApiResponse.success(dto)))
                 .orElse(ResponseEntity.ok(ApiResponse.success(null)));
@@ -170,7 +131,7 @@ public class DastController {
     public ResponseEntity<ApiResponse<List<DastResultDto>>> getResultsByVulnIds(
             @RequestBody List<UUID> vulnIds
     ) {
-        List<DastResultDto> results = dastExecutionService.getLatestCompletedByVulnIds(vulnIds)
+        List<DastResultDto> results = dastResultQueryService.getLatestCompletedByVulnIds(vulnIds)
                 .stream().map(DastResultDto::from).toList();
         return ResponseEntity.ok(ApiResponse.success(results));
     }

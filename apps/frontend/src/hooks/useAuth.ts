@@ -67,13 +67,19 @@ export function useAuth() {
           storeSetToken(token);
           if (!user) await loadUser();
         } else {
+          // 리프레시 토큰 만료 — 로그인 상태만 해제, 이후 API 호출에서 리다이렉트 처리
           storeLogout();
         }
-      } else {
+      } else if (res.status === 401) {
+        // 리프레시 쿠키 만료 — 조용히 처리 (로그인 페이지 강제 이동 없음)
         storeLogout();
+      } else {
+        // 서버 오류 등 — user 정보는 유지, 토큰만 초기화
+        setAccessToken(null);
       }
     } catch {
-      storeLogout();
+      // 네트워크 오류 — user 정보 유지, 연결 복구 후 재시도 가능
+      setAccessToken(null);
     } finally {
       setInitialized(true);
     }

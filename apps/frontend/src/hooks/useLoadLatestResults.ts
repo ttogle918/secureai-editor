@@ -133,22 +133,27 @@ export function useLoadLatestResults() {
         } catch {
           // 패치 조회 실패는 취약점 표시에 영향 없음
         }
-        // 4. 해당 세션의 DAST 결과 복원
+        // 4. DAST 결과 복원 — vulnId 기반 일괄 조회
+        // DAST 세션 ID는 프론트에서 별도 생성한 UUID로, SAST 세션 ID(latest.id)와 다름.
+        // vulnId 목록으로 조회해야 새로고침 후에도 결과를 복원할 수 있다.
         try {
-          const dastRes = await apiClient.get<{ data: DastResultItem[] }>(
-            `/dast/results/${latest.id}`,
-          );
-          for (const r of (dastRes.data ?? [])) {
-            if (!r.vulnId) continue;
-            if (r.status !== 'SUCCESS' && r.status !== 'FAILED') continue;
-            setDastExploitResult(r.vulnId, {
-              success: r.success,
-              evidence: r.evidence ?? '',
-              payload:  r.payload  ?? '',
-              responseSnippet: r.responseSnippet ?? '',
-              error: null,
-              logMessages: [],
-            });
+          const vulnIds = items.map((v) => v.id);
+          if (vulnIds.length > 0) {
+            const dastRes = await apiClient.post<{ data: DastResultItem[] }>(
+              '/dast/results/by-vuln-ids',
+              vulnIds,
+            );
+            for (const r of (dastRes.data ?? [])) {
+              if (!r.vulnId) continue;
+              setDastExploitResult(r.vulnId, {
+                success: r.success,
+                evidence: r.evidence ?? '',
+                payload:  r.payload  ?? '',
+                responseSnippet: r.responseSnippet ?? '',
+                error: null,
+                logMessages: [],
+              });
+            }
           }
         } catch {
           // DAST 결과 없어도 취약점 표시에 영향 없음

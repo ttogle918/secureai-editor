@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -103,6 +105,22 @@ public class DastExecutionService {
 
     public Optional<ExploitResult> getLatestResultByVulnId(UUID vulnId) {
         return exploitResultRepository.findTopByVulnIdOrderByExecutedAtDesc(vulnId);
+    }
+
+    /**
+     * vulnId 목록으로 각 취약점의 최신 완료 결과를 일괄 조회한다.
+     * 세션 ID와 독립적으로 vulnId 기준으로 조회하여 새로고침 후에도 복원 가능.
+     */
+    public List<ExploitResult> getLatestCompletedByVulnIds(List<UUID> vulnIds) {
+        if (vulnIds.isEmpty()) return List.of();
+        List<ScanStatus> completed = List.of(ScanStatus.SUCCESS, ScanStatus.FAILED);
+        List<ExploitResult> all = exploitResultRepository.findCompletedByVulnIdIn(vulnIds, completed);
+        // 이미 executedAt DESC 정렬 — vulnId당 첫 번째(최신)만 유지
+        Map<UUID, ExploitResult> latestPerVuln = new LinkedHashMap<>();
+        for (ExploitResult e : all) {
+            latestPerVuln.putIfAbsent(e.getVulnId(), e);
+        }
+        return new ArrayList<>(latestPerVuln.values());
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

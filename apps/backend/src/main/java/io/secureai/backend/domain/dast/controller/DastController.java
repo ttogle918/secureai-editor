@@ -162,6 +162,19 @@ public class DastController {
                 .orElse(ResponseEntity.ok(ApiResponse.success(null)));
     }
 
+    /**
+     * vulnId 목록으로 각 취약점의 최신 완료 DAST 결과를 일괄 조회한다.
+     * 세션 ID와 독립적이므로 새로고침 후에도 결과 복원 가능.
+     */
+    @PostMapping("/dast/results/by-vuln-ids")
+    public ResponseEntity<ApiResponse<List<DastResultDto>>> getResultsByVulnIds(
+            @RequestBody List<UUID> vulnIds
+    ) {
+        List<DastResultDto> results = dastExecutionService.getLatestCompletedByVulnIds(vulnIds)
+                .stream().map(DastResultDto::from).toList();
+        return ResponseEntity.ok(ApiResponse.success(results));
+    }
+
     // ── private helpers ───────────────────────────────────────────────────────
 
     /**

@@ -3,13 +3,20 @@ import { motion } from 'framer-motion';
 import {
   Shield, LayoutDashboard, Code2,
   FolderOpen, FolderCode, Loader2, ChevronDown, ChevronRight, Clock, AlertTriangle, X,
+  CheckCircle, Download,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
+import { useToastStore } from '@/hooks/useToast';
+import { apiClient } from '@/lib/api/client';
 import type { FileNode, Vulnerability } from '@/lib/mockData';
+import type { Severity, VulnCategory } from '@/lib/mockData';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { useProjects, type ProjectSummary } from '@/hooks/useProjects';
+
+const VALID_SEV: Severity[] = ['critical', 'high', 'medium', 'low'];
+const VALID_CAT: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
 
 const FileTree = dynamic(() => import('@/components/editor/FileTree').then((m) => m.FileTree), {
   ssr: false,
@@ -152,17 +159,84 @@ function WorkspaceRoot({
   );
 }
 
+// ── 컨텍스트 메뉴 ────────────────────────────────────────────────
+interface CtxMenu { project: ProjectSummary; x: number; y: number }
+
+function ProjectContextMenu({
+  menu, onActivate, onLoadLatest, onClose,
+}: {
+  menu: CtxMenu;
+  onActivate: (p: ProjectSummary) => void;
+  onLoadLatest: (p: ProjectSummary) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  const itemStyle: React.CSSProperties = {
+    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+    padding: '7px 12px', background: 'none', border: 'none',
+    cursor: 'pointer', textAlign: 'left', fontSize: 12,
+    color: 'rgba(255,255,255,0.8)', borderRadius: 4,
+    transition: 'background 0.1s',
+  };
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'fixed', left: menu.x, top: menu.y, zIndex: 9000,
+        background: '#1c1c1f', border: '1px solid rgba(255,255,255,0.12)',
+        borderRadius: 8, padding: 4, minWidth: 180,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+      }}
+    >
+      <div style={{ padding: '4px 12px 6px', fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>
+        {menu.project.name}
+      </div>
+      <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '0 4px 4px' }} />
+      <button
+        style={itemStyle}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(249,115,22,0.1)'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'none'; }}
+        onClick={() => { onActivate(menu.project); onClose(); }}
+      >
+        <CheckCircle size={13} color="#f97316" />
+        활성 프로젝트로 설정
+      </button>
+      <button
+        style={itemStyle}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'none'; }}
+        onClick={() => { onLoadLatest(menu.project); onClose(); }}
+      >
+        <Download size={13} color="rgba(255,255,255,0.5)" />
+        최신 분석 결과 불러오기
+      </button>
+    </div>
+  );
+}
+
 // ── API 프로젝트 행 ────────────────────────────────────────────────
 function ProjectRow({
-  project, active, onSelect,
+  project, active, onSelect, onContextMenu,
 }: {
   project: ProjectSummary;
   active: boolean;
   onSelect: () => void;
+  onContextMenu: (e: React.MouseEvent, p: ProjectSummary) => void;
 }) {
   return (
     <button
       onClick={onSelect}
+      onContextMenu={(e) => onContextMenu(e, project)}
       style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 7,
         padding: '5px 12px 5px 10px',
@@ -270,6 +344,10 @@ export function AppSidebar() {
   const setProjectId         = useSecureStore((s) => s.setProjectId);
   const vulns                = useSecureStore((s) => s.vulns);
 
+  const clearVulns = useSecureStore((s) => s.clearVulns);
+  const addVuln    = useSecureStore((s) => s.addVuln);
+  const addToast   = useToastStore((s) => s.addToast);
+
   const { openFolder, addFolder, status: wsStatus, progress: wsProgress } = useWorkspace();
   const { projects, loading: projectsLoading } = useProjects();
 
@@ -277,6 +355,7 @@ export function AppSidebar() {
   const [workspaceExpanded, setWorkspaceExpanded] = useState(true);
   const [primaryExpanded, setPrimaryExpanded]     = useState(true);
   const [extraExpanded, setExtraExpanded]         = useState<Record<string, boolean>>({});
+  const [ctxMenu, setCtxMenu]                     = useState<CtxMenu | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // 드롭다운 외부 클릭 시 닫기
@@ -314,6 +393,56 @@ export function AppSidebar() {
 
   const handlePickOpen = () => { openFolder(); setShowPickerMenu(false); };
   const handlePickAdd  = () => { addFolder();  setShowPickerMenu(false); };
+
+  const handleCtxMenu = useCallback((e: React.MouseEvent, p: ProjectSummary) => {
+    e.preventDefault();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const menuW = 188;
+    const menuH = 100;
+    const x = Math.min(e.clientX, vw - menuW - 8);
+    const y = Math.min(e.clientY, vh - menuH - 8);
+    setCtxMenu({ project: p, x, y });
+  }, []);
+
+  const handleCtxActivate = useCallback((p: ProjectSummary) => {
+    setProjectId(p.id);
+    addToast(`"${p.name}"을(를) 활성 프로젝트로 설정했습니다.`, 'info');
+  }, [setProjectId, addToast]);
+
+  const handleCtxLoadLatest = useCallback(async (p: ProjectSummary) => {
+    try {
+      const sessRes = await apiClient.get<{ data: { content: Array<{ id: string; status: string }> } }>(
+        `/analysis/sessions?projectId=${p.id}&size=20`,
+      );
+      const latest = (sessRes.data?.content ?? []).find((s) => s.status === 'completed');
+      if (!latest) { addToast('완료된 분석 이력이 없습니다.', 'error'); return; }
+
+      const vulnRes = await apiClient.get<{ data: { content: Array<{
+        id: string; filePath: string; lineNumber: number | null; vulnType: string;
+        severity: string; category: string | null; cwe: string | null;
+        owasp: string | null; description: string | null;
+      }> } }>(`/vulnerabilities?sessionId=${latest.id}&size=500`);
+
+      clearVulns();
+      for (const v of (vulnRes.data?.content ?? [])) {
+        const rawSev = (v.severity ?? 'low').toLowerCase() as Severity;
+        const severity: Severity = VALID_SEV.includes(rawSev) ? rawSev : 'low';
+        const rawCat = (v.category ?? 'SECURITY') as VulnCategory;
+        const category: VulnCategory = VALID_CAT.includes(rawCat) ? rawCat : 'SECURITY';
+        addVuln({
+          id: v.id, type: v.vulnType, severity, category,
+          lineStart: v.lineNumber ?? 0, lineEnd: v.lineNumber ?? 0,
+          filePath: v.filePath, description: v.description ?? '',
+          cweId: v.cwe ?? '', owaspCategory: v.owasp ?? '', status: 'open',
+        } as Vulnerability);
+      }
+      setProjectId(p.id);
+      addToast(`"${p.name}" 최신 분석 결과를 불러왔습니다.`, 'info');
+    } catch {
+      addToast('분석 결과 로드에 실패했습니다.', 'error');
+    }
+  }, [clearVulns, addVuln, setProjectId, addToast]);
 
   // ── 메뉴 아이템 공통 스타일 ─
   const menuItemStyle: React.CSSProperties = {
@@ -541,6 +670,7 @@ export function AppSidebar() {
                     project={p}
                     active={p.id === projectId}
                     onSelect={() => { if (p.id !== projectId) setProjectId(p.id); }}
+                    onContextMenu={handleCtxMenu}
                   />
                 ))}
               </div>
@@ -553,6 +683,16 @@ export function AppSidebar() {
           <EmptyWorkspace onOpen={openFolder} status={wsStatus} progress={wsProgress} />
         )}
       </div>
+
+      {/* ── 컨텍스트 메뉴 ── */}
+      {ctxMenu && (
+        <ProjectContextMenu
+          menu={ctxMenu}
+          onActivate={handleCtxActivate}
+          onLoadLatest={handleCtxLoadLatest}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
 
       {/* ── 하단 액션 ── */}
       <div style={{

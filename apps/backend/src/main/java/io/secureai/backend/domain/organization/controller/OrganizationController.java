@@ -1,6 +1,7 @@
 package io.secureai.backend.domain.organization.controller;
 
 import io.secureai.backend.domain.organization.dto.*;
+import io.secureai.backend.domain.organization.service.InvitationService;
 import io.secureai.backend.domain.organization.service.OrganizationService;
 import io.secureai.backend.global.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class OrganizationController {
 
     private final OrganizationService organizationService;
+    private final InvitationService invitationService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<OrgResponse>>> listMyOrgs(
@@ -99,7 +101,7 @@ public class OrganizationController {
             @PathVariable String slug,
             @AuthenticationPrincipal UUID userId,
             @Valid @RequestBody InviteMemberRequest request) {
-        organizationService.inviteByEmail(slug, request, userId);
+        invitationService.inviteByEmail(slug, request, userId);
         return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 

@@ -1,13 +1,10 @@
 package io.secureai.backend.domain.organization.service;
 
-import io.secureai.backend.domain.auth.service.EmailService;
 import io.secureai.backend.domain.organization.dto.*;
 import io.secureai.backend.domain.organization.entity.OrgMember;
 import io.secureai.backend.domain.organization.entity.Organization;
-import io.secureai.backend.domain.organization.entity.TeamInvitation;
 import io.secureai.backend.domain.organization.repository.OrgMemberRepository;
 import io.secureai.backend.domain.organization.repository.OrganizationRepository;
-import io.secureai.backend.domain.organization.repository.TeamInvitationRepository;
 import io.secureai.backend.domain.plan.Plan;
 import io.secureai.backend.domain.plan.PlanRepository;
 import io.secureai.backend.domain.user.entity.User;
@@ -19,9 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
 import java.time.OffsetDateTime;
-import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,19 +27,13 @@ import java.util.UUID;
 public class OrganizationService {
 
     private static final String DEFAULT_PLAN_NAME = "free";
-    private static final int INVITATION_TOKEN_BYTE_LENGTH = 48;
-    private static final int INVITATION_EXPIRES_HOURS = 72;
     private static final List<String> ADMIN_ROLES = List.of("owner", "admin");
 
     private final OrganizationRepository organizationRepository;
     private final OrgMemberRepository orgMemberRepository;
-    private final TeamInvitationRepository teamInvitationRepository;
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
     private final OrgAnalyticsService orgAnalyticsService;
-    private final EmailService emailService;
-
-    private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional(readOnly = true)
     public List<OrgResponse> listMyOrgs(UUID userId) {
@@ -191,54 +180,6 @@ public class OrganizationService {
         orgMemberRepository.delete(member);
     }
 
-    public void inviteByEmail(String slug, InviteMemberRequest request, UUID inviterId) {
-        Organization org = loadOrgBySlug(slug);
-        requireAdminOrAbove(org.getId(), inviterId);
-
-        String token = generateSecureToken();
-        OffsetDateTime expiresAt = OffsetDateTime.now().plusHours(INVITATION_EXPIRES_HOURS);
-
-        TeamInvitation invitation = TeamInvitation.builder()
-                .orgId(org.getId())
-                .email(request.email())
-                .role(request.role())
-                .token(token)
-                .invitedBy(inviterId)
-                .expiresAt(expiresAt)
-                .build();
-        teamInvitationRepository.save(invitation);
-
-        emailService.sendOrgInvitation(request.email(), token, org.getName());
-        log.info("org invitation created: orgId={}, email={}", org.getId(), request.email());
-    }
-
-    public void acceptInvitation(String token, UUID userId) {
-        TeamInvitation invitation = teamInvitationRepository.findByTokenAndAcceptedAtIsNull(token)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVITATION_NOT_FOUND));
-
-        if (invitation.isExpired()) {
-            throw new BusinessException(ErrorCode.INVITATION_EXPIRED);
-        }
-
-        if (invitation.getOrgId() != null) {
-            orgMemberRepository.findByOrgIdAndUserId(invitation.getOrgId(), userId).ifPresent(m -> {
-                throw new BusinessException(ErrorCode.ORG_ALREADY_MEMBER);
-            });
-
-            OrgMember member = OrgMember.builder()
-                    .orgId(invitation.getOrgId())
-                    .userId(userId)
-                    .role(invitation.getRole())
-                    .invitedBy(invitation.getInvitedBy())
-                    .acceptedAt(OffsetDateTime.now())
-                    .build();
-            orgMemberRepository.save(member);
-        }
-
-        invitation.accept();
-        teamInvitationRepository.save(invitation);
-    }
-
     @Transactional(readOnly = true)
     public OrgUsageResponse getOrgUsage(String slug, UUID requesterId) {
         Organization org = loadOrgBySlug(slug);
@@ -262,20 +203,6 @@ public class OrganizationService {
                 (int) memberCount,
                 (int) projectCount
         );
-    }
-
-    /**
-     * 초대 토큰으로 유효한 초대 정보를 반환한다.
-     * InvitationController의 public GET 엔드포인트에서 호출된다.
-     */
-    @Transactional(readOnly = true)
-    public TeamInvitation getInvitationInfo(String token) {
-        TeamInvitation invitation = teamInvitationRepository.findByTokenAndAcceptedAtIsNull(token)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVITATION_NOT_FOUND));
-        if (invitation.isExpired()) {
-            throw new BusinessException(ErrorCode.INVITATION_EXPIRED);
-        }
-        return invitation;
     }
 
     // ── 공개 헬퍼 메서드 (SpEL @PreAuthorize 에서 사용) ────────────────────
@@ -319,13 +246,6 @@ public class OrganizationService {
         if (!"owner".equals(member.getRole())) {
             throw new BusinessException(ErrorCode.ORG_ACCESS_DENIED, "owner 권한이 필요합니다.");
         }
-    }
-
-    private String generateSecureToken() {
-        byte[] bytes = new byte[INVITATION_TOKEN_BYTE_LENGTH];
-        secureRandom.nextBytes(bytes);
-        // URL-safe Base64로 인코딩하고 64자로 자름
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes).substring(0, 64);
     }
 
     private OrgResponse toOrgResponse(Organization org) {

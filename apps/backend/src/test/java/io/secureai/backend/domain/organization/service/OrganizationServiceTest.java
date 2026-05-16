@@ -1,13 +1,10 @@
 package io.secureai.backend.domain.organization.service;
 
-import io.secureai.backend.domain.auth.service.EmailService;
 import io.secureai.backend.domain.organization.dto.*;
 import io.secureai.backend.domain.organization.entity.OrgMember;
 import io.secureai.backend.domain.organization.entity.Organization;
-import io.secureai.backend.domain.organization.entity.TeamInvitation;
 import io.secureai.backend.domain.organization.repository.OrgMemberRepository;
 import io.secureai.backend.domain.organization.repository.OrganizationRepository;
-import io.secureai.backend.domain.organization.repository.TeamInvitationRepository;
 import io.secureai.backend.domain.plan.Plan;
 import io.secureai.backend.domain.plan.PlanRepository;
 import io.secureai.backend.domain.user.entity.User;
@@ -21,7 +18,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
@@ -38,11 +34,8 @@ class OrganizationServiceTest {
 
     @Mock OrganizationRepository organizationRepository;
     @Mock OrgMemberRepository orgMemberRepository;
-    @Mock TeamInvitationRepository teamInvitationRepository;
     @Mock UserRepository userRepository;
     @Mock PlanRepository planRepository;
-    @Mock JdbcTemplate jdbcTemplate;
-    @Mock EmailService emailService;
 
     @InjectMocks OrganizationService organizationService;
 
@@ -90,8 +83,6 @@ class OrganizationServiceTest {
                 .build();
     }
 
-    // ── listMyOrgs ──────────────────────────────────────────────────────────
-
     @Test
     @DisplayName("내가 속한 조직 목록을 반환한다")
     void listMyOrgs_validUser_returnsOrgList() {
@@ -104,15 +95,12 @@ class OrganizationServiceTest {
         assertThat(result.get(0).slug()).isEqualTo("test-org");
     }
 
-    // ── createOrg ───────────────────────────────────────────────────────────
-
     @Test
     @DisplayName("슬러그 중복 시 ORG_SLUG_DUPLICATE 예외가 발생한다")
     void createOrg_duplicateSlug_throwsBusinessException() {
-        CreateOrgRequest request = new CreateOrgRequest("Test Org", "test-org", null);
         when(organizationRepository.findBySlugAndDeletedAtIsNull("test-org")).thenReturn(Optional.of(org));
 
-        assertThatThrownBy(() -> organizationService.createOrg(ownerId, request))
+        assertThatThrownBy(() -> organizationService.createOrg(ownerId, new CreateOrgRequest("Test Org", "test-org", null)))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.ORG_SLUG_DUPLICATE);
@@ -121,7 +109,6 @@ class OrganizationServiceTest {
     @Test
     @DisplayName("유효한 요청으로 조직을 생성하고 owner 멤버로 등록한다")
     void createOrg_validRequest_savesOrgAndOwnerMember() {
-        CreateOrgRequest request = new CreateOrgRequest("New Org", "new-org", "설명");
         when(organizationRepository.findBySlugAndDeletedAtIsNull("new-org")).thenReturn(Optional.empty());
         when(userRepository.findById(ownerId)).thenReturn(Optional.of(owner));
         when(planRepository.findByName("free")).thenReturn(Optional.of(plan));
@@ -133,14 +120,12 @@ class OrganizationServiceTest {
         });
         when(orgMemberRepository.countByOrgIdAndAcceptedAtIsNotNull(any())).thenReturn(1L);
 
-        OrgResponse response = organizationService.createOrg(ownerId, request);
+        OrgResponse response = organizationService.createOrg(ownerId, new CreateOrgRequest("New Org", "new-org", "설명"));
 
         assertThat(response.slug()).isEqualTo("new-org");
         assertThat(response.name()).isEqualTo("New Org");
         verify(orgMemberRepository).save(argThat(m -> "owner".equals(m.getRole())));
     }
-
-    // ── updateOrg ───────────────────────────────────────────────────────────
 
     @Test
     @DisplayName("admin 권한이 없으면 updateOrg 시 ORG_ACCESS_DENIED 예외가 발생한다")
@@ -156,8 +141,6 @@ class OrganizationServiceTest {
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.ORG_ACCESS_DENIED);
     }
-
-    // ── deleteOrg ───────────────────────────────────────────────────────────
 
     @Test
     @DisplayName("owner가 아닌 사용자가 deleteOrg 시 ORG_ACCESS_DENIED 예외가 발생한다")
@@ -186,8 +169,6 @@ class OrganizationServiceTest {
         verify(organizationRepository).save(org);
     }
 
-    // ── addMember ───────────────────────────────────────────────────────────
-
     @Test
     @DisplayName("이미 멤버인 사용자를 추가하면 ORG_ALREADY_MEMBER 예외가 발생한다")
     void addMember_alreadyMember_throwsAlreadyMember() {
@@ -204,8 +185,6 @@ class OrganizationServiceTest {
                 .isEqualTo(ErrorCode.ORG_ALREADY_MEMBER);
     }
 
-    // ── removeMember ────────────────────────────────────────────────────────
-
     @Test
     @DisplayName("owner를 제거하려 하면 ORG_ACCESS_DENIED 예외가 발생한다")
     void removeMember_ownerTarget_throwsAccessDenied() {
@@ -217,66 +196,6 @@ class OrganizationServiceTest {
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.ORG_ACCESS_DENIED);
     }
-
-    // ── acceptInvitation ────────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("만료된 초대 토큰으로 수락 시 INVITATION_EXPIRED 예외가 발생한다")
-    void acceptInvitation_expiredToken_throwsExpired() {
-        TeamInvitation expired = TeamInvitation.builder()
-                .orgId(orgId)
-                .email("invite@example.com")
-                .role("member")
-                .token("valid-token")
-                .invitedBy(ownerId)
-                .expiresAt(OffsetDateTime.now().minusHours(1))
-                .build();
-        when(teamInvitationRepository.findByTokenAndAcceptedAtIsNull("valid-token"))
-                .thenReturn(Optional.of(expired));
-
-        assertThatThrownBy(() -> organizationService.acceptInvitation("valid-token", memberId))
-                .isInstanceOf(BusinessException.class)
-                .extracting(e -> ((BusinessException) e).getErrorCode())
-                .isEqualTo(ErrorCode.INVITATION_EXPIRED);
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 초대 토큰이면 INVITATION_NOT_FOUND 예외가 발생한다")
-    void acceptInvitation_notFound_throwsNotFound() {
-        when(teamInvitationRepository.findByTokenAndAcceptedAtIsNull("bad-token"))
-                .thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> organizationService.acceptInvitation("bad-token", memberId))
-                .isInstanceOf(BusinessException.class)
-                .extracting(e -> ((BusinessException) e).getErrorCode())
-                .isEqualTo(ErrorCode.INVITATION_NOT_FOUND);
-    }
-
-    @Test
-    @DisplayName("유효한 org 초대 수락 시 org_member가 저장되고 invitation이 수락된다")
-    void acceptInvitation_validOrgToken_savesOrgMemberAndAcceptsInvitation() {
-        TeamInvitation invitation = TeamInvitation.builder()
-                .orgId(orgId)
-                .email("invite@example.com")
-                .role("member")
-                .token("valid-token")
-                .invitedBy(ownerId)
-                .expiresAt(OffsetDateTime.now().plusHours(24))
-                .build();
-        when(teamInvitationRepository.findByTokenAndAcceptedAtIsNull("valid-token"))
-                .thenReturn(Optional.of(invitation));
-        when(orgMemberRepository.findByOrgIdAndUserId(orgId, memberId)).thenReturn(Optional.empty());
-
-        organizationService.acceptInvitation("valid-token", memberId);
-
-        verify(orgMemberRepository).save(argThat(m ->
-                m.getUserId().equals(memberId) && "member".equals(m.getRole()) && m.getAcceptedAt() != null
-        ));
-        assertThat(invitation.getAcceptedAt()).isNotNull();
-        verify(teamInvitationRepository).save(invitation);
-    }
-
-    // ── changeMemberRole ────────────────────────────────────────────────────
 
     @Test
     @DisplayName("owner 역할을 변경하려 하면 ORG_ACCESS_DENIED 예외가 발생한다")

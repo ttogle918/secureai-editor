@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { X, Clock, Shield, ChevronRight, Layers } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import { useSecureStore } from '@/store/useSecureStore';
+import { useToastStore } from '@/hooks/useToast';
 import type { Severity, VulnCategory, Vulnerability } from '@/lib/mockData';
 
 interface SessionItem {
@@ -55,6 +56,7 @@ export function AnalysisHistoryModal({ onClose }: Props) {
   const addVuln                  = useSecureStore((s) => s.addVuln);
   const clearVulns               = useSecureStore((s) => s.clearVulns);
   const setPatches               = useSecureStore((s) => s.setPatches);
+  const addToast                 = useToastStore((s) => s.addToast);
 
   useEffect(() => {
     if (workspaceProjects.length === 0) { setLoading(false); return; }
@@ -85,26 +87,7 @@ export function AnalysisHistoryModal({ onClose }: Props) {
           return (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt);
         });
       setSessions(merged);
-
-      // 심각도 분포 병렬 조회
-      const bdResults = await Promise.all(
-        merged.map(async (s) => {
-          try {
-            const vRes = await apiClient.get<{ data: { content: Array<{ severity: string }> } }>(
-              `/vulnerabilities?sessionId=${s.id}&size=500`,
-            );
-            const bd: VulnBreakdown = { critical: 0, high: 0, medium: 0, low: 0 };
-            for (const v of (vRes.data?.content ?? [])) {
-              const sev = v.severity?.toLowerCase() as keyof VulnBreakdown;
-              if (sev in bd) bd[sev]++;
-            }
-            return [s.id, bd] as const;
-          } catch {
-            return [s.id, { critical: 0, high: 0, medium: 0, low: 0 }] as const;
-          }
-        }),
-      );
-      setBreakdowns(Object.fromEntries(bdResults));
+      // breakdown은 세션 로드 시에만 개별 조회 (모달 열 때 일괄 조회 → rate limit 초과 방지)
       setLoading(false);
     }
 
@@ -151,9 +134,23 @@ export function AnalysisHistoryModal({ onClose }: Props) {
         patchedCode: p.patchedSnippet ?? '',
         explanation: p.explanation ?? '',
       })));
+
+      // breakdown 세트 — 로드한 취약점 기반으로 계산 (별도 API 호출 없음)
+      const bd: VulnBreakdown = { critical: 0, high: 0, medium: 0, low: 0 };
+      for (const v of (vulnRes.data?.content ?? [])) {
+        const sev = (v.severity ?? '').toLowerCase() as keyof VulnBreakdown;
+        if (sev in bd) bd[sev]++;
+      }
+      setBreakdowns((prev) => ({ ...prev, [session.id]: bd }));
+
       onClose();
-    } catch {
+    } catch (err) {
       setLoadingId(null);
+      const isRateLimit = err instanceof Error && err.message.includes('429');
+      addToast(
+        isRateLimit ? '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' : '분석 결과 로드에 실패했습니다.',
+        'error',
+      );
     }
   };
 

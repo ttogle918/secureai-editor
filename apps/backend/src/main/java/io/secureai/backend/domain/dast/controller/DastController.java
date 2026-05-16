@@ -6,6 +6,7 @@ import io.secureai.backend.domain.dast.dto.DastStartRequest;
 import io.secureai.backend.domain.dast.entity.ExploitResult;
 import io.secureai.backend.domain.dast.service.DastExecutionService;
 import io.secureai.backend.domain.dast.service.DomainVerificationService;
+import io.secureai.backend.global.aop.AuditLog;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import io.secureai.backend.global.response.ApiResponse;
@@ -60,6 +61,7 @@ public class DastController {
      * 도메인 소유권 확인 + Rate Limit + 분산 락을 검증한 뒤 AI Engine에 위임한다.
      * consentGiven 이 false 이면 즉시 403을 반환한다.
      */
+    @AuditLog(action = "DAST_START", resource = "dast")
     @PostMapping("/dast/start")
     public ResponseEntity<Void> startDast(
             @AuthenticationPrincipal UserDetails user,

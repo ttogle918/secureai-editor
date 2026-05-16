@@ -30,9 +30,9 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web:4.0.5")
 	implementation("org.springframework.boot:spring-boot-starter-mail:4.0.5")
 	
-	// Spring Boot 4.0.5에서 찾을 수 없는 스타터 대신 직접 의존성 추가
-	// implementation("org.springframework:spring-aspects:7.0.6")
-	// implementation("org.springframework:spring-aop:7.0.6")
+	// spring-aop + aspectjweaver 는 기존 스타터들의 전이 의존성으로 이미 포함됨
+	// AspectJ 프록시 활성화를 위해 spring-aspects만 추가
+	implementation("org.springframework:spring-aspects:7.0.6")
 	implementation("org.springframework.boot:spring-boot-starter-flyway")
 	implementation("org.flywaydb:flyway-database-postgresql")
 

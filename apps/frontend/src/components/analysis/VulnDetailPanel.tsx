@@ -1,10 +1,10 @@
 // components/analysis/VulnDetailPanel.tsx
 // 취약점 상세 아코디언 패널 — FilterBar 내장, useVulnFilter 훅 사용
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle,
-  Zap, Info, Layers, RefreshCw, Play,
+  Zap, Info, Layers, RefreshCw, Play, Server,
 } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
 import { useToastStore } from '@/hooks/useToast';
@@ -13,6 +13,7 @@ import { useTranslate } from '@/hooks/useTranslate';
 import { CallChainView } from '@/components/analysis/CallChainView';
 import FilterBar from '@/components/ui/FilterBar';
 import type { Vulnerability } from '@/lib/mockData';
+import { deriveEndpoint } from '@/lib/vulnUtils';
 
 const AI_ENGINE = process.env.NEXT_PUBLIC_AI_ENGINE_URL ?? 'http://localhost:8000';
 
@@ -20,11 +21,31 @@ const AI_ENGINE = process.env.NEXT_PUBLIC_AI_ENGINE_URL ?? 'http://localhost:800
 function DastRunSection({ vuln }: { vuln: Vulnerability }) {
   const setDastSessionId = useSecureStore((s) => s.setDastSessionId);
   const dastSessionId    = useSecureStore((s) => s.dastSessionId);
+  const dastBaseUrl      = useSecureStore((s) => s.dastBaseUrl);
+  const setDastBaseUrl   = useSecureStore((s) => s.setDastBaseUrl);
   const addToast         = useToastStore((s) => s.addToast);
 
-  const [targetUrl, setTargetUrl] = useState(vuln.apiEndpoint ?? '');
-  const [consent,   setConsent]   = useState(false);
-  const [running,   setRunning]   = useState(false);
+  const derivedPath = deriveEndpoint(vuln.filePath, vuln.description);
+
+  const buildTargetUrl = useCallback(
+    (base: string) => (base.trim() ? base.replace(/\/$/, '') + derivedPath : vuln.apiEndpoint ?? ''),
+    [derivedPath, vuln.apiEndpoint],
+  );
+
+  const [baseInput,  setBaseInput]  = useState(dastBaseUrl);
+  const [targetUrl,  setTargetUrl]  = useState(() => buildTargetUrl(dastBaseUrl));
+  const [consent,    setConsent]    = useState(false);
+  const [running,    setRunning]    = useState(false);
+
+  // base URL이 변경되면 target URL도 갱신
+  useEffect(() => {
+    setTargetUrl(buildTargetUrl(baseInput));
+  }, [baseInput, buildTargetUrl]);
+
+  const handleBaseBlur = () => {
+    const trimmed = baseInput.trim().replace(/\/$/, '');
+    setDastBaseUrl(trimmed);
+  };
 
   const isGlobalRunning = dastSessionId !== null;
   const canRun = consent && targetUrl.trim() !== '' && !running && !isGlobalRunning;
@@ -60,23 +81,46 @@ function DastRunSection({ vuln }: { vuln: Vulnerability }) {
     }
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: 6, padding: '6px 10px',
+    fontSize: 11, color: '#e8e8ee', fontFamily: 'var(--font-mono)',
+    outline: 'none',
+  };
+
   return (
     <div>
       <SectionLabel icon={<Play size={10} color="#f97316" />} text="동적 분석 (DAST)" />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+        {/* 테스트 서버 Base URL — 한 번 설정하면 기억됨 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Server size={10} color="rgba(255,255,255,0.3)" style={{ flexShrink: 0 }} />
+          <input
+            type="url"
+            placeholder="테스트 서버 주소 (예: http://localhost:8888)"
+            value={baseInput}
+            onChange={(e) => setBaseInput(e.target.value)}
+            onBlur={handleBaseBlur}
+            style={{ ...inputStyle, fontSize: 10, color: 'rgba(255,255,255,0.55)' }}
+          />
+        </div>
+
+        {/* 타겟 URL — base + 추론된 경로로 자동 완성 */}
         <input
           type="url"
-          placeholder="Target URL (예: http://localhost:8080/api/users)"
+          placeholder="Target URL"
           value={targetUrl}
           onChange={(e) => setTargetUrl(e.target.value)}
-          style={{
-            width: '100%', boxSizing: 'border-box',
-            background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 6, padding: '6px 10px',
-            fontSize: 11, color: '#e8e8ee', fontFamily: 'var(--font-mono)',
-            outline: 'none',
-          }}
+          style={inputStyle}
         />
+        {derivedPath && (
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', marginTop: -4, paddingLeft: 2 }}>
+            경로 자동 추론: <span style={{ fontFamily: 'var(--font-mono)', color: 'rgba(249,115,22,0.5)' }}>{derivedPath}</span>
+          </div>
+        )}
+
         <label style={{
           display: 'flex', alignItems: 'flex-start', gap: 7,
           fontSize: 10, color: 'rgba(255,255,255,0.45)', cursor: 'pointer', lineHeight: 1.5,

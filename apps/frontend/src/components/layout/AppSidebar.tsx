@@ -14,6 +14,7 @@ import type { FileNode, Vulnerability } from '@/lib/mockData';
 import type { Severity, VulnCategory } from '@/lib/mockData';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { useProjects, type ProjectSummary } from '@/hooks/useProjects';
+import { deriveApiGroup } from '@/lib/vulnUtils';
 
 const VALID_SEV: Severity[] = ['critical', 'high', 'medium', 'low'];
 const VALID_CAT: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
@@ -435,6 +436,7 @@ export function AppSidebar() {
           lineStart: v.lineNumber ?? 0, lineEnd: v.lineNumber ?? 0,
           filePath: v.filePath, description: v.description ?? '',
           cweId: v.cwe ?? '', owaspCategory: v.owasp ?? '', status: 'open',
+          apiGroup: deriveApiGroup(v.filePath),
         } as Vulnerability);
       }
       setProjectId(p.id);

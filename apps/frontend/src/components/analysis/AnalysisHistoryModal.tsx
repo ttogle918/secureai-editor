@@ -5,6 +5,7 @@ import { apiClient } from '@/lib/api/client';
 import { useSecureStore } from '@/store/useSecureStore';
 import { useToastStore } from '@/hooks/useToast';
 import type { Severity, VulnCategory, Vulnerability } from '@/lib/mockData';
+import { deriveApiGroup } from '@/lib/vulnUtils';
 
 interface SessionItem {
   id: string;
@@ -125,6 +126,7 @@ export function AnalysisHistoryModal({ onClose }: Props) {
           lineStart: v.lineNumber ?? 0, lineEnd: v.lineNumber ?? 0,
           filePath: v.filePath, description: v.description ?? '',
           cweId: v.cwe ?? '', owaspCategory: v.owasp ?? '', status: 'open',
+          apiGroup: deriveApiGroup(v.filePath),
         } as Vulnerability);
       }
       setPatches((patchRes.data ?? []).map((p) => ({

@@ -17,6 +17,7 @@ import { useStartAnalysis } from '@/hooks/useStartAnalysis';
 import { SseIndicator } from '@/components/ui/SseIndicator';
 import { apiClient } from '@/lib/api/client';
 import type { Severity, VulnCategory, Vulnerability, PatchSuggestion } from '@/lib/mockData';
+import { deriveApiGroup } from '@/lib/vulnUtils';
 
 const SEV_FILTERS: Array<'critical' | 'high' | 'medium' | 'low'> = ['critical', 'high', 'medium', 'low'];
 const VALID_CATS: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
@@ -87,6 +88,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
                 lineStart: v.lineNumber ?? 0, lineEnd: v.lineNumber ?? 0,
                 filePath: v.filePath, description: v.description ?? '',
                 cweId: v.cwe ?? '', owaspCategory: v.owasp ?? '', status: 'open',
+                apiGroup: deriveApiGroup(v.filePath),
               };
               addVuln(vuln);
             }

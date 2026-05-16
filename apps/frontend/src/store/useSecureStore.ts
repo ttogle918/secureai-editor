@@ -159,8 +159,10 @@ interface SecureStore {
   // ── DAST ────────────────────────────────────────────────
   dastLogs: DastLog[];
   dastSessionId: string | null;
+  dastBaseUrl: string;
   dastExploitResults: Record<string, DastExploitResult>;
   setDastSessionId: (id: string | null) => void;
+  setDastBaseUrl: (url: string) => void;
   clearDastLogs: () => void;
   addDastLog: (log: DastLog) => void;
   setDastExploitResult: (vulnId: string, result: DastExploitResult) => void;
@@ -335,8 +337,10 @@ export const useSecureStore = create<SecureStore>()(
   // ── DAST
   dastLogs: [],
   dastSessionId: null,
+  dastBaseUrl: '',
   dastExploitResults: {},
   setDastSessionId: (id) => set({ dastSessionId: id }),
+  setDastBaseUrl: (url) => set({ dastBaseUrl: url }),
   clearDastLogs: () => set({ dastLogs: [] }),
   addDastLog: (log) => set((s) => ({ dastLogs: [...s.dastLogs, log] })),
   setDastExploitResult: (vulnId, result) =>
@@ -397,6 +401,7 @@ export const useSecureStore = create<SecureStore>()(
         projectId:       state.projectId,
         lastTokenUsage:  state.lastTokenUsage,
         displayLanguage: state.displayLanguage,
+        dastBaseUrl:     state.dastBaseUrl,
       }),
     }
   )

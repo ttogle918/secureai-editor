@@ -3,6 +3,7 @@ package io.secureai.backend.domain.analysis.service;
 import io.secureai.backend.domain.analysis.dto.AnalysisSessionResponse;
 import io.secureai.backend.domain.analysis.dto.StartAnalysisRequest;
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
+import io.secureai.backend.domain.analysis.entity.SessionStatus;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.repository.ProjectRepository;
@@ -43,14 +44,15 @@ public class AnalysisService {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
 
-        if (sessionRepository.existsByProjectIdAndStatus(request.projectId(), "running")) {
+        if (sessionRepository.existsByProjectIdAndStatus(request.projectId(), SessionStatus.RUNNING)) {
             if (!request.isForce()) {
                 throw new BusinessException(ErrorCode.SESSION_ALREADY_RUNNING);
             }
             // force=true: 진행 중 세션을 interrupted 처리 후 새 세션 시작
-            sessionRepository.findAllRunning().stream()
+            sessionRepository.findAllByStatus(SessionStatus.RUNNING).stream()
                     .filter(s -> s.getProject().getId().equals(request.projectId()))
-                    .forEach(s -> sessionRepository.markInterrupted(s.getId()));
+                    .forEach(s -> sessionRepository.markInterrupted(
+                            s.getId(), SessionStatus.INTERRUPTED, SessionStatus.RUNNING));
         }
 
         User user = userRepository.findById(userId)
@@ -113,7 +115,7 @@ public class AnalysisService {
         AnalysisSession session = sessionRepository.findByIdAndUserId(sessionId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        if (!"interrupted".equals(session.getStatus())) {
+        if (SessionStatus.INTERRUPTED != session.getStatus()) {
             throw new BusinessException(ErrorCode.SESSION_NOT_RESUMABLE);
         }
 
@@ -129,11 +131,11 @@ public class AnalysisService {
         AnalysisSession session = sessionRepository.findByIdAndUserId(sessionId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        if (!"running".equals(session.getStatus()) && !"pending".equals(session.getStatus())) {
+        if (SessionStatus.RUNNING != session.getStatus() && SessionStatus.PENDING != session.getStatus()) {
             throw new BusinessException(ErrorCode.SESSION_NOT_RESUMABLE);
         }
 
-        session.setStatus("cancelled");
+        session.setStatus(SessionStatus.CANCELLED);
         sessionRepository.save(session);
         aiAgentClient.cancelAnalysis(sessionId);
         log.info("[analysis] cancelled sessionId={}", sessionId);

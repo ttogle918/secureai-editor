@@ -31,10 +31,10 @@ public class AnalysisSession extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    /** pending / running / completed / error / interrupted / cancelled */
+    @Convert(converter = SessionStatusConverter.class)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private String status = "pending";
+    private SessionStatus status = SessionStatus.PENDING;
 
     @Column(nullable = false)
     @Builder.Default
@@ -52,21 +52,21 @@ public class AnalysisSession extends BaseTimeEntity {
     private OffsetDateTime completedAt;
 
     public void markRunning() {
-        this.status = "running";
+        this.status = SessionStatus.RUNNING;
         this.startedAt = OffsetDateTime.now();
     }
 
     public void markCompleted() {
-        this.status = "completed";
+        this.status = SessionStatus.COMPLETED;
         this.completedAt = OffsetDateTime.now();
     }
 
     public void markError() {
-        this.status = "error";
+        this.status = SessionStatus.ERROR;
         this.completedAt = OffsetDateTime.now();
     }
 
     public void markInterrupted() {
-        this.status = "interrupted";
+        this.status = SessionStatus.INTERRUPTED;
     }
 }

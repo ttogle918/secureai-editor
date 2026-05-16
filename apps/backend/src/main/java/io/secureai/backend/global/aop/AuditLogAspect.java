@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.AfterThrowing;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.security.core.Authentication;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 /**
- * @AuditLog 어노테이션이 붙은 메서드 반환 후 감사 로그를 audit_logs 테이블에 저장한다.
+ * @AuditLog 어노테이션이 붙은 메서드의 성공/실패를 audit_logs 테이블에 저장한다.
  * 저장 실패는 원래 요청 처리에 영향을 주지 않는다 — try-catch로 격리.
  */
 @Slf4j
@@ -22,10 +23,22 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuditLogAspect {
 
+    private static final String OUTCOME_SUCCESS = "SUCCESS";
+    private static final String OUTCOME_FAILURE = "FAILURE";
+
     private final AuditLogRepository auditLogRepository;
 
     @AfterReturning("@annotation(io.secureai.backend.global.aop.AuditLog)")
-    public void logAudit(JoinPoint joinPoint) {
+    public void logAuditSuccess(JoinPoint joinPoint) {
+        saveAuditLog(joinPoint, OUTCOME_SUCCESS);
+    }
+
+    @AfterThrowing("@annotation(io.secureai.backend.global.aop.AuditLog)")
+    public void logAuditFailure(JoinPoint joinPoint) {
+        saveAuditLog(joinPoint, OUTCOME_FAILURE);
+    }
+
+    private void saveAuditLog(JoinPoint joinPoint, String outcome) {
         MethodSignature sig = (MethodSignature) joinPoint.getSignature();
         AuditLog annotation = sig.getMethod().getAnnotation(AuditLog.class);
 
@@ -37,13 +50,14 @@ public class AuditLogAspect {
                 .actorId(actorId != null ? UUID.fromString(actorId) : null)
                 .action(action)
                 .resource(resource)
+                .outcome(outcome)
                 .build();
 
         try {
             auditLogRepository.save(entry);
-            log.info("AUDIT actor={} action={} resource={}", actorId, action, resource);
+            log.info("AUDIT actor={} action={} resource={} outcome={}", actorId, action, resource, outcome);
         } catch (Exception e) {
-            log.warn("audit log save failed action={} error={}", action, e.getMessage());
+            log.warn("audit log save failed action={} outcome={} error={}", action, outcome, e.getMessage());
         }
     }
 

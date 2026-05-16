@@ -39,6 +39,10 @@ public class AuditLogEntry {
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
+    /** 요청 결과. SUCCESS(정상 반환) / FAILURE(예외 발생). */
+    @Column(name = "outcome", nullable = false, length = 10)
+    private String outcome;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

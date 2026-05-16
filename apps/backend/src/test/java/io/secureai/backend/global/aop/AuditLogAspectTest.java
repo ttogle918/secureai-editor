@@ -112,6 +112,41 @@ class AuditLogAspectTest {
         assertThat(saved.getActorId()).isNull();
     }
 
+    // ── outcome 구분 검증 ────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("정상 반환 시 outcome=SUCCESS 로 저장")
+    void logAudit_onSuccess_savesOutcomeSuccess() {
+        ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
+        when(auditLogRepository.save(captor.capture())).thenReturn(mock(AuditLogEntry.class));
+
+        proxyService.doAuditedAction();
+
+        assertThat(captor.getValue().getOutcome()).isEqualTo("SUCCESS");
+    }
+
+    @Test
+    @DisplayName("예외 발생 시 outcome=FAILURE 로 저장되고 예외는 그대로 전파")
+    void logAudit_onException_savesOutcomeFailureAndRethrows() {
+        ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
+        when(auditLogRepository.save(captor.capture())).thenReturn(mock(AuditLogEntry.class));
+
+        assertThatThrownBy(() -> proxyService.doAuditedActionThatThrows())
+                .isInstanceOf(RuntimeException.class);
+
+        assertThat(captor.getValue().getOutcome()).isEqualTo("FAILURE");
+    }
+
+    @Test
+    @DisplayName("예외 발생 시 audit 저장이 실패해도 원래 예외가 전파됨")
+    void logAudit_onException_auditSaveFailureDoesNotMaskOriginalException() {
+        doThrow(new RuntimeException("DB down")).when(auditLogRepository).save(any());
+
+        assertThatThrownBy(() -> proxyService.doAuditedActionThatThrows())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("business error");
+    }
+
     // ── 저장 실패 시 예외 전파 금지 ───────────────────────────────────────────
 
     @Test
@@ -190,6 +225,11 @@ class AuditLogAspectTest {
         @AuditLog
         public void doActionWithNoExplicitAction() {
             // action = "" (기본값), resource = "" (기본값)
+        }
+
+        @AuditLog(action = "TEST_FAIL", resource = "test-resource")
+        public void doAuditedActionThatThrows() {
+            throw new IllegalStateException("business error");
         }
     }
 }

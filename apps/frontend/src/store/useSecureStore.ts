@@ -14,6 +14,15 @@ export type ViewMode       = 'editor' | 'dashboard';
 export type RightTab       = 'vulns' | 'chat' | 'progress';
 export type DisplayLanguage = 'ko' | 'en';
 
+export interface DastExploitResult {
+  success: boolean;
+  evidence: string;
+  payload: string;
+  responseSnippet: string;
+  error: string | null;
+  logMessages: string[];
+}
+
 // 프로젝트 요약 — useProjects 훅과 공유 (순환 의존성 방지를 위해 인라인 정의)
 export interface WorkspaceProject {
   id: string;
@@ -147,8 +156,14 @@ interface SecureStore {
   isAnalyzing: boolean;
   setIsAnalyzing: (v: boolean) => void;
 
-  // ── DAST 로그 ───────────────────────────────────────────
+  // ── DAST ────────────────────────────────────────────────
   dastLogs: DastLog[];
+  dastSessionId: string | null;
+  dastExploitResults: Record<string, DastExploitResult>;
+  setDastSessionId: (id: string | null) => void;
+  clearDastLogs: () => void;
+  addDastLog: (log: DastLog) => void;
+  setDastExploitResult: (vulnId: string, result: DastExploitResult) => void;
 
   // ── 진행률 ──────────────────────────────────────────────
   progressSteps: ProgressStep[];
@@ -319,6 +334,13 @@ export const useSecureStore = create<SecureStore>()(
 
   // ── DAST
   dastLogs: [],
+  dastSessionId: null,
+  dastExploitResults: {},
+  setDastSessionId: (id) => set({ dastSessionId: id }),
+  clearDastLogs: () => set({ dastLogs: [] }),
+  addDastLog: (log) => set((s) => ({ dastLogs: [...s.dastLogs, log] })),
+  setDastExploitResult: (vulnId, result) =>
+    set((s) => ({ dastExploitResults: { ...s.dastExploitResults, [vulnId]: result } })),
 
   // ── 진행률
   progressSteps: [],

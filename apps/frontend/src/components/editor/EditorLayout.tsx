@@ -23,7 +23,6 @@ export function EditorLayout() {
   const setRightPanelWidth = useSecureStore((s) => s.setRightPanelWidth);
   const terminalHeight     = useSecureStore((s) => s.terminalHeight);
   const setTerminalHeight  = useSecureStore((s) => s.setTerminalHeight);
-  const dastLogs           = useSecureStore((s) => s.dastLogs);
   const vulns              = useSecureStore((s) => s.vulns);
   const workspaceId        = useSecureStore((s) => s.workspaceId);
   const activeWorkspaceId  = useSecureStore((s) => s.activeWorkspaceId);
@@ -80,7 +79,7 @@ export function EditorLayout() {
         <ResizeHandle onResize={onTerminalResize} direction="vertical" />
 
         <div style={{ height: terminalHeight, flexShrink: 0, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <DastTerminal logs={dastLogs} />
+          <DastTerminal />
         </div>
       </div>
 

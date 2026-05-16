@@ -24,6 +24,8 @@ const SEV_COLOR: Record<string, string> = {
 // ── 개별 취약점 카드 ───────────────────────────────────────────
 function VulnCard({ vuln }: { vuln: Vulnerability }) {
   const expandedVulnId    = useSecureStore((s) => s.expandedVulnId);
+  const dastExploitResults = useSecureStore((s) => s.dastExploitResults);
+  const exploitResult      = dastExploitResults[vuln.id];
   const setExpandedVulnId = useSecureStore((s) => s.setExpandedVulnId);
   const selectedPath      = useSecureStore((s) => s.selectedPath);
   const setSelectedPath   = useSecureStore((s) => s.setSelectedPath);
@@ -154,6 +156,17 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
             border: '0.5px solid rgba(234,88,12,0.3)', letterSpacing: '0.04em',
           }}>
             PATCHED
+          </span>
+        ) : null}
+
+        {/* DAST 익스플로잇 결과 배지 */}
+        {exploitResult?.success === true ? (
+          <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded font-bold" style={{ flexShrink: 0 }}>
+            EXPLOITED
+          </span>
+        ) : exploitResult && !exploitResult.success ? (
+          <span className="bg-gray-600 text-white text-xs px-2 py-0.5 rounded" style={{ flexShrink: 0 }}>
+            DAST ✗
           </span>
         ) : null}
 

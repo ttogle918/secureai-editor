@@ -14,8 +14,7 @@ import { CallChainView } from '@/components/analysis/CallChainView';
 import FilterBar from '@/components/ui/FilterBar';
 import type { Vulnerability } from '@/lib/mockData';
 import { deriveEndpoint } from '@/lib/vulnUtils';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1';
+import { BASE_URL, getAccessToken } from '@/lib/api/client';
 
 // ── DAST 실행 섹션 ────────────────────────────────────────────
 function DastRunSection({ vuln }: { vuln: Vulnerability }) {
@@ -59,10 +58,14 @@ function DastRunSection({ vuln }: { vuln: Vulnerability }) {
       catch { addToast('올바른 URL을 입력해주세요.', 'error'); setRunning(false); return; }
 
       const dastId = crypto.randomUUID();
-      const res = await fetch(`${API_BASE}/dast/start`, {
+      const token = getAccessToken();
+      const res = await fetch(`${BASE_URL}/dast/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           sessionId:    dastId,
           vulnId:       vuln.id,
@@ -74,7 +77,10 @@ function DastRunSection({ vuln }: { vuln: Vulnerability }) {
           params:       Object.fromEntries(new URLSearchParams(parsedUrl.search)),
         }),
       });
-      if (!res.ok) throw new Error(`DAST 시작 실패: ${res.status}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error?.message ?? err?.message ?? `DAST 시작 실패: ${res.status}`);
+      }
       setDastSessionId(dastId);
       addToast('DAST 분석을 시작했습니다. 하단 터미널에서 진행 상황을 확인하세요.', 'info');
     } catch (e) {

@@ -188,3 +188,25 @@ Stage 3 (순차)
 
 **주의**: PostgreSQL에 pgvector 익스텐션 필요.
 docker-compose.yml의 postgres 이미지를 `pgvector/pgvector:pg15` 또는 `pgvector/pgvector:pg16`으로 변경 필요.
+
+---
+
+### Stage 3 완료 (2026-05-16)
+
+**커밋**: `feat(frontend): DAST 터미널 SSE 스트리밍 + ANSI 컬러 + 익스플로잇 배지 추가`
+
+#### TASK-604: DAST 터미널 UI & 결과 표시
+
+- `useSecureStore.ts`: `DastExploitResult` 인터페이스 추가, `dastSessionId`/`dastExploitResults` 상태 및 `setDastSessionId`/`addDastLog`/`clearDastLogs`/`setDastExploitResult` 액션 추가. persist partialize에서 런타임 상태 제외 — 세션 간 오염 방지
+- `useDastStream.ts` (신규): EventSource로 `GET /agent/dast/logs/{sessionId}` 구독. `dast_result` → `logMessages` 각 줄 addDastLog + `setDastExploitResult` + `setDastSessionId(null)`. `dast_error`/onerror → 에러 로그 + 세션 종료. UUID 패턴 검증(Reviewer 지적)으로 경로 조작 방어
+- `DastTerminal.tsx`: props 제거 → store 직접 구독. `useDastStream()` 호출. `parseAnsi()` 함수로 ANSI 이스케이프 → React span 변환(dangerouslySetInnerHTML 미사용, XSS 안전). `dastSessionId` 유무에 따라 "실행 중" pulse 인디케이터 표시. `bottomRef` 자동 스크롤
+- `VulnDetailPanel.tsx`: `dastExploitResults[vuln.id]` 조회. success → 빨간 **EXPLOITED** 배지, 실패 → 회색 **DAST ✗** 배지
+- `EditorLayout.tsx`: `<DastTerminal logs={dastLogs} />` → `<DastTerminal />` (props 제거)
+- `useSse.test.ts`: `type: 'completed'` → `type: 'vuln_found'` 오탈자 수정 (기존 버그)
+
+**설계 결정**:
+- SSE 훅(`useDastStream`)과 렌더링 컴포넌트(`DastTerminal`) 분리 — SRP 준수
+- `dastSessionId`를 null로 초기화해 훅이 자동으로 연결 해제 — 명시적 cleanup 불필요
+- ANSI 파싱을 `DastTerminal` 내부 순수 함수로 구현 — 외부 의존성 없이 단순 유지
+
+**테스트**: 프론트엔드 17개 전부 통과 (useSse 오탈자 수정 포함). 수동 검증 항목(SSE 실시간, ANSI 렌더링, 자동 스크롤, 배지)은 DVWA 시연(M4) 시 검증 예정

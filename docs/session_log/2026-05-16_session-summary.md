@@ -111,23 +111,49 @@ additive하게 추가하여 SAST 파이프라인에 영향을 주지 않았다.
 
 ---
 
-## 5. 다음 세션에서 할 것
+## 5. Stage 3 완료 (이번 세션 추가)
 
-- [ ] **TASK-604**: `DastTerminal.tsx` 실시간 SSE 스트리밍 + ANSI 컬러 + 익스플로잇 뱃지
-- [ ] **통합 테스트 환경 구성**: `make infra` + `docker network create --internal dast-isolated-net`
-- [ ] **Flyway 마이그레이션 확인**: V026~V028 정상 적용 확인
-- [ ] **DVWA 시연**: `docker run -d -p 8888:80 dvwa/dvwa` 후 실제 DAST 시연
+### TASK-604 — DAST 터미널 UI & 결과 표시
+
+| 항목 | 주요 파일 |
+|------|---------|
+| SSE 구독 훅 | `apps/frontend/src/hooks/useDastStream.ts` (신규) |
+| 터미널 재작성 | `apps/frontend/src/components/analysis/DastTerminal.tsx` |
+| 익스플로잇 배지 | `apps/frontend/src/components/analysis/VulnDetailPanel.tsx` |
+| 스토어 확장 | `apps/frontend/src/store/useSecureStore.ts` |
+| props 제거 | `apps/frontend/src/components/editor/EditorLayout.tsx` |
+| 테스트 버그 수정 | `apps/frontend/src/hooks/__tests__/useSse.test.ts` |
+
+**커밋**: `feat(frontend): DAST 터미널 SSE 스트리밍 + ANSI 컬러 + 익스플로잇 배지 추가`
+
+### 이번 세션 결정 맥락
+
+#### UUID 검증 추가 (Reviewer 지적)
+`setDastSessionId`에 임의 문자열 유입 시 EventSource URL 경로 조작 가능성.
+`/^[0-9a-f]{8}-[0-9a-f]{4}-...$/i` 패턴으로 UUID 형식 사전 검증 후 연결.
+
+#### persist에서 런타임 상태 제외
+`dastLogs`, `dastSessionId`, `dastExploitResults`는 localStorage 영속화 대상에서 제외.
+DAST 실행 상태는 세션 간 공유 불필요 — partialize 목록에서 명시적으로 누락.
+
+#### ANSI 파싱 방식 선택
+`dangerouslySetInnerHTML` 대신 React span 엘리먼트 배열로 변환.
+외부 라이브러리(`ansi-to-react` 등) 없이 30줄 인라인 함수로 구현.
+XSS 안전 + 번들 크기 영향 없음.
+
+## 6. 다음 세션에서 할 것
+
+- [ ] **DVWA 시연 (M4)**: `docker run -d -p 8888:80 dvwa/dvwa` + 실제 DAST 엔드투엔드 시연
 - [ ] **PR #70 merge**: feat/sprint6 → main (사용자가 직접 수행)
-- [ ] **Sprint 5 이월 TASK-501~505**: Sprint 6 완료 후 Sprint 7에서 처리
-- [ ] **남은 수동 검증**: OOMKilled, AES-256-GCM 암호화 저장, 동시 3개 컨테이너 격리
+- [ ] **Sprint 5 이월 TASK-501~505**: Sprint 7에서 처리
+- [ ] **Sprint 7 계획**: PDF 리포트 + 대시보드 + Android MVP
 
 ### 수동 검증 체크리스트 (인프라 필요)
 ```
 make infra
 docker network create --internal dast-isolated-net
-# Flyway V026~V028 마이그레이션 확인
-# 컨테이너 격리 테스트: dast-isolated-net 외부 접근 차단 확인
-# Docker Socket 마운트 없음 확인
-# 메모리 512MB OOMKilled 확인
-# AES-256-GCM: SELECT targeturl FROM exploit_results — 암호문 확인
+# DVWA 실행: docker run -d -p 8888:80 dvwa/dvwa
+# DAST 터미널 실시간 스트리밍 확인
+# ANSI 컬러 렌더링 확인
+# 익스플로잇 성공/실패 배지 확인
 ```

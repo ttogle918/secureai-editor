@@ -34,7 +34,7 @@ export interface SastFileResult {
 
 export interface ProgressEvent {
   sessionId: string;
-  type: 'started' | 'progress' | 'completed' | 'error' | 'scan_complete' | 'cancelled';
+  type: 'started' | 'progress' | 'completed' | 'error' | 'scan_complete' | 'cancelled' | 'vuln_found';
   node?: string;
   file?: string;
   current?: number;

@@ -44,7 +44,13 @@ public class AnalysisService {
         }
 
         if (sessionRepository.existsByProjectIdAndStatus(request.projectId(), "running")) {
-            throw new BusinessException(ErrorCode.SESSION_ALREADY_RUNNING);
+            if (!request.isForce()) {
+                throw new BusinessException(ErrorCode.SESSION_ALREADY_RUNNING);
+            }
+            // force=true: 진행 중 세션을 interrupted 처리 후 새 세션 시작
+            sessionRepository.findAllRunning().stream()
+                    .filter(s -> s.getProject().getId().equals(request.projectId()))
+                    .forEach(s -> sessionRepository.markInterrupted(s.getId()));
         }
 
         User user = userRepository.findById(userId)

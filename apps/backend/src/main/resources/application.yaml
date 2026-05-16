@@ -7,7 +7,7 @@ spring:
       enabled: true
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/secureai}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/secureai}
     username: ${SPRING_DATASOURCE_USERNAME:secureai}
     password: ${SPRING_DATASOURCE_PASSWORD:secureai}
     driver-class-name: org.postgresql.Driver

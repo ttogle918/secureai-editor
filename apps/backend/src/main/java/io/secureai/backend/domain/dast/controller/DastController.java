@@ -2,8 +2,8 @@ package io.secureai.backend.domain.dast.controller;
 
 import io.secureai.backend.domain.dast.dto.DastExecuteRequest;
 import io.secureai.backend.domain.dast.dto.DastExecuteResponse;
+import io.secureai.backend.domain.dast.dto.DastResultDto;
 import io.secureai.backend.domain.dast.dto.DastStartRequest;
-import io.secureai.backend.domain.dast.entity.ExploitResult;
 import io.secureai.backend.domain.dast.service.DastExecutionService;
 import io.secureai.backend.domain.dast.service.DomainVerificationService;
 import io.secureai.backend.global.aop.AuditLog;
@@ -25,6 +25,7 @@ import org.springframework.web.client.RestClient;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -134,14 +135,31 @@ public class DastController {
     }
 
     /**
-     * 세션 ID에 속한 DAST 익스플로잇 결과를 조회한다.
+     * 세션 ID에 속한 DAST 익스플로잇 결과를 JSON DTO로 조회한다.
      */
     @GetMapping("/dast/results/{sessionId}")
-    public ResponseEntity<ApiResponse<List<ExploitResult>>> getResults(
+    public ResponseEntity<ApiResponse<List<DastResultDto>>> getResults(
             @PathVariable UUID sessionId
     ) {
-        List<ExploitResult> results = dastExecutionService.getResultsBySessionId(sessionId);
+        List<DastResultDto> results = dastExecutionService.getResultsBySessionId(sessionId)
+                .stream()
+                .filter(r -> r.getVulnId() != null)
+                .map(DastResultDto::from)
+                .toList();
         return ResponseEntity.ok(ApiResponse.success(results));
+    }
+
+    /**
+     * 취약점 ID로 최신 DAST 결과를 단건 조회한다.
+     */
+    @GetMapping("/dast/results/vuln/{vulnId}")
+    public ResponseEntity<ApiResponse<DastResultDto>> getResultByVulnId(
+            @PathVariable UUID vulnId
+    ) {
+        return dastExecutionService.getLatestResultByVulnId(vulnId)
+                .map(DastResultDto::from)
+                .map(dto -> ResponseEntity.ok(ApiResponse.success(dto)))
+                .orElse(ResponseEntity.ok(ApiResponse.success(null)));
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

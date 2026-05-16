@@ -34,6 +34,20 @@ interface PatchItem {
   explanation: string | null;
 }
 
+interface DastResultItem {
+  id: string;
+  vulnId: string | null;
+  vulnType: string;
+  status: string;
+  success: boolean;
+  evidence: string | null;
+  payload: string | null;
+  responseSnippet: string | null;
+  durationMs: number | null;
+  retryCount: number;
+  executedAt: string | null;
+}
+
 const VALID_SEV: Severity[] = ['critical', 'high', 'medium', 'low'];
 const VALID_CAT: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
 
@@ -41,10 +55,11 @@ export function useLoadLatestResults() {
   const projectId       = useSecureStore((s) => s.projectId);
   const isAnalyzing     = useSecureStore((s) => s.isAnalyzing);
   const lockedSessionId = useSecureStore((s) => s.lockedSessionId);
-  const addVuln         = useSecureStore((s) => s.addVuln);
-  const clearVulns      = useSecureStore((s) => s.clearVulns);
-  const clearProgressSteps = useSecureStore((s) => s.clearProgressSteps);
-  const setPatches      = useSecureStore((s) => s.setPatches);
+  const addVuln              = useSecureStore((s) => s.addVuln);
+  const clearVulns           = useSecureStore((s) => s.clearVulns);
+  const clearProgressSteps   = useSecureStore((s) => s.clearProgressSteps);
+  const setPatches           = useSecureStore((s) => s.setPatches);
+  const setDastExploitResult = useSecureStore((s) => s.setDastExploitResult);
 
   // 이미 로드한 projectId를 추적해 중복 요청 방지
   const loadedRef = useRef<string | null>(null);
@@ -118,11 +133,31 @@ export function useLoadLatestResults() {
         } catch {
           // 패치 조회 실패는 취약점 표시에 영향 없음
         }
+        // 4. 해당 세션의 DAST 결과 복원
+        try {
+          const dastRes = await apiClient.get<{ data: DastResultItem[] }>(
+            `/dast/results/${latest.id}`,
+          );
+          for (const r of (dastRes.data ?? [])) {
+            if (!r.vulnId) continue;
+            if (r.status !== 'SUCCESS' && r.status !== 'FAILED') continue;
+            setDastExploitResult(r.vulnId, {
+              success: r.success,
+              evidence: r.evidence ?? '',
+              payload:  r.payload  ?? '',
+              responseSnippet: r.responseSnippet ?? '',
+              error: null,
+              logMessages: [],
+            });
+          }
+        } catch {
+          // DAST 결과 없어도 취약점 표시에 영향 없음
+        }
       } catch {
         // 조회 실패 시 빈 상태 유지 — 사용자가 직접 분석 시작 가능
       }
     }
 
     load();
-  }, [projectId, isAnalyzing, lockedSessionId, addVuln, clearVulns, clearProgressSteps, setPatches]);
+  }, [projectId, isAnalyzing, lockedSessionId, addVuln, clearVulns, clearProgressSteps, setPatches, setDastExploitResult]);
 }

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -98,6 +99,10 @@ public class DastExecutionService {
 
     public List<ExploitResult> getResultsBySessionId(UUID sessionId) {
         return exploitResultRepository.findBySessionId(sessionId);
+    }
+
+    public Optional<ExploitResult> getLatestResultByVulnId(UUID vulnId) {
+        return exploitResultRepository.findTopByVulnIdOrderByExecutedAtDesc(vulnId);
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

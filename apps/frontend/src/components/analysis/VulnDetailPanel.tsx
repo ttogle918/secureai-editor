@@ -7,6 +7,7 @@ import {
   Zap, Info, Layers, RefreshCw, Play, Server,
 } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
+import type { DastExploitResult } from '@/store/useSecureStore';
 import { useToastStore } from '@/hooks/useToast';
 import { useVulnFilter } from '@/hooks/useVulnFilter';
 import { useTranslate } from '@/hooks/useTranslate';
@@ -165,6 +166,82 @@ function DastRunSection({ vuln }: { vuln: Vulnerability }) {
             <><Play size={11} /> DAST 실행</>
           )}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── DAST 결과 JSON 상세 컴포넌트 ────────────────────────────────
+function DastResultDetail({ result }: { result: DastExploitResult }) {
+  const [open, setOpen] = useState(false);
+  const isExploited = result.success === true;
+  const accentColor = isExploited ? '#f87171' : '#4ade80';
+  const bgColor     = isExploited ? 'rgba(220,38,38,0.06)' : 'rgba(34,197,94,0.06)';
+  const borderColor = isExploited ? 'rgba(220,38,38,0.2)' : 'rgba(34,197,94,0.2)';
+
+  const jsonObj = {
+    success:         result.success,
+    evidence:        result.evidence || null,
+    payload:         result.payload  || null,
+    responseSnippet: result.responseSnippet || null,
+    error:           result.error    || null,
+  };
+  const jsonStr = JSON.stringify(jsonObj, null, 2);
+
+  return (
+    <div>
+      <SectionLabel
+        icon={<AlertTriangle size={10} color={accentColor} />}
+        text={isExploited ? 'DAST 결과 — EXPLOITED' : 'DAST 결과 — 안전'}
+      />
+      <div style={{
+        borderRadius: 8, overflow: 'hidden',
+        border: `0.5px solid ${borderColor}`,
+        background: bgColor,
+      }}>
+        {/* 요약 행 */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '6px 10px',
+        }}>
+          <span style={{ fontSize: 11, color: accentColor, fontWeight: 700 }}>
+            {isExploited ? '⚡ 취약점 익스플로잇 성공' : '✓ 공격 차단됨'}
+          </span>
+          <button
+            onClick={() => setOpen((p) => !p)}
+            style={{
+              fontSize: 9, color: 'rgba(255,255,255,0.35)', background: 'none',
+              cursor: 'pointer', padding: '2px 6px',
+              borderRadius: 3, border: '0.5px solid rgba(255,255,255,0.08)',
+            }}
+          >
+            {open ? '접기 ▲' : 'JSON 보기 ▼'}
+          </button>
+        </div>
+
+        {/* evidence 요약 */}
+        {result.evidence && (
+          <div style={{
+            padding: '0 10px 8px', fontSize: 11,
+            color: 'rgba(255,255,255,0.55)', lineHeight: 1.6,
+          }}>
+            {result.evidence}
+          </div>
+        )}
+
+        {/* JSON 상세 (접기/펴기) */}
+        {open && (
+          <pre style={{
+            margin: 0, padding: '8px 10px',
+            borderTop: `0.5px solid ${borderColor}`,
+            fontSize: 10, fontFamily: 'var(--font-mono)',
+            color: accentColor, lineHeight: 1.7,
+            overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+            background: 'rgba(0,0,0,0.3)',
+          }}>
+            {jsonStr}
+          </pre>
+        )}
       </div>
     </div>
   );
@@ -422,8 +499,13 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
           {/* DAST 실행 */}
           <DastRunSection vuln={vuln} />
 
-          {/* DAST 결과 */}
-          {vuln.dastResult && (
+          {/* DAST 결과 JSON 상세 */}
+          {exploitResult && (
+            <DastResultDetail result={exploitResult} />
+          )}
+
+          {/* DAST 결과 (레거시 dastResult 필드) */}
+          {!exploitResult && vuln.dastResult && (
             <div>
               <SectionLabel icon={<AlertTriangle size={10} color="#f97316" />} text="공격 시나리오" />
               <div

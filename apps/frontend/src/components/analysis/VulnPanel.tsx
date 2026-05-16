@@ -1,5 +1,7 @@
 'use client';
+import { useState } from 'react';
 import type { Vulnerability, PatchSuggestion } from '@/lib/mockData';
+import { useSecureStore } from '@/store/useSecureStore';
 
 const severityLabel: Record<string, string> = {
   critical: 'Critical',
@@ -29,7 +31,19 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
+type DastFilter = 'all' | 'dast_done' | 'exploited' | 'safe';
+
+const FILTER_LABELS: Record<DastFilter, string> = {
+  all:       '전체',
+  dast_done: 'DAST 완료',
+  exploited: 'EXPLOITED',
+  safe:      'DAST 안전',
+};
+
 export default function VulnPanel({ vulns, patches, selectedId, onSelect }: Props) {
+  const dastExploitResults = useSecureStore((s) => s.dastExploitResults);
+  const [dastFilter, setDastFilter] = useState<DastFilter>('all');
+
   const selectedVuln = vulns.find((v) => v.id === selectedId);
   const patch = selectedVuln
     ? patches.find((p) =>
@@ -38,11 +52,61 @@ export default function VulnPanel({ vulns, patches, selectedId, onSelect }: Prop
       )
     : undefined;
 
+  const filteredVulns = vulns.filter((v) => {
+    if (dastFilter === 'all') return true;
+    const r = dastExploitResults[v.id];
+    if (dastFilter === 'dast_done') return !!r;
+    if (dastFilter === 'exploited') return r?.success === true;
+    if (dastFilter === 'safe')      return !!r && r.success === false;
+    return true;
+  });
+
+  const dastDoneCount   = vulns.filter((v) => !!dastExploitResults[v.id]).length;
+  const exploitedCount  = vulns.filter((v) => dastExploitResults[v.id]?.success === true).length;
+
   return (
     <div className="flex flex-col h-full">
+
+      {/* DAST 필터 태그 */}
+      <div style={{
+        display: 'flex', gap: 4, padding: '6px 10px',
+        borderBottom: '1px solid var(--border)', flexWrap: 'wrap',
+      }}>
+        {(['all', 'dast_done', 'exploited', 'safe'] as DastFilter[]).map((f) => {
+          const active = dastFilter === f;
+          const count = f === 'all' ? vulns.length
+            : f === 'dast_done'  ? dastDoneCount
+            : f === 'exploited'  ? exploitedCount
+            : dastDoneCount - exploitedCount;
+          const accentColor = f === 'exploited' ? '#f87171'
+            : f === 'safe'     ? '#4ade80'
+            : f === 'dast_done' ? '#f97316'
+            : 'rgba(255,255,255,0.5)';
+          return (
+            <button
+              key={f}
+              onClick={() => setDastFilter(f)}
+              style={{
+                fontSize: 9, fontWeight: active ? 700 : 500,
+                padding: '2px 7px', borderRadius: 4, cursor: 'pointer',
+                border: `0.5px solid ${active ? accentColor : 'rgba(255,255,255,0.1)'}`,
+                background: active ? `${accentColor}18` : 'transparent',
+                color: active ? accentColor : 'rgba(255,255,255,0.35)',
+                transition: 'all 0.15s',
+              }}
+            >
+              {FILTER_LABELS[f]}
+              {count > 0 && (
+                <span style={{ marginLeft: 4, opacity: 0.7 }}>({count})</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* 취약점 목록 */}
       <div className="overflow-y-auto" style={{ maxHeight: selectedVuln ? '45%' : '100%' }}>
-        {vulns.map((v) => (
+        {filteredVulns.map((v) => (
           <div
             key={v.id}
             onClick={() => onSelect(v.id)}
@@ -57,6 +121,18 @@ export default function VulnPanel({ vulns, patches, selectedId, onSelect }: Prop
                 {v.type}
               </span>
               <div className="flex items-center gap-1.5">
+                {/* DAST 결과 배지 */}
+                {(() => {
+                  const dr = dastExploitResults[v.id];
+                  if (dr?.success === true) return (
+                    <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 3, background: 'rgba(220,38,38,0.15)', color: '#f87171', border: '0.5px solid rgba(220,38,38,0.4)' }}>EXPLOITED</span>
+                  );
+                  if (dr && !dr.success) return (
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(34,197,94,0.12)', color: '#4ade80', border: '0.5px solid rgba(34,197,94,0.3)' }}>DAST 안전</span>
+                  );
+                  return null;
+                })()}
+                {/* 패치/해결 배지 */}
                 {(() => {
                   const p = patches.find((p) =>
                     (p.vulnId && p.vulnId === v.id) ||

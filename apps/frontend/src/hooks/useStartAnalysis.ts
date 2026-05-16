@@ -57,9 +57,10 @@ export function useStartAnalysis() {
           setProjectId(pid);
         } catch (err) {
           if (err instanceof ApiError && err.code === 'PROJECT_DUPLICATE_NAME') {
-            const listRes = await apiClient.get<{ data: ProjectData[] }>('/projects');
+            const listRes = await apiClient.get<{ data: { content: ProjectData[] } }>('/projects');
             const name = workspaceName ?? workspaceId;
-            const existing = listRes.data.find((p: any) => p.name === name);
+            const items: ProjectData[] = listRes.data?.content ?? (listRes.data as any) ?? [];
+            const existing = items.find((p: any) => p.name === name);
             if (!existing) throw err;
             pid = existing.id;
             setProjectId(pid);

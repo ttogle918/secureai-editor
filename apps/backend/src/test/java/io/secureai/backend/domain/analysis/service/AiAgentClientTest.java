@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.http.MediaType;
@@ -37,7 +38,7 @@ class AiAgentClientTest {
         responseSpec = mock(RestClient.ResponseSpec.class);
 
         ReflectionTestUtils.setField(client, "restClient", restClient);
-        ReflectionTestUtils.setField(client, "failureCount", 0);
+        ReflectionTestUtils.setField(client, "failureCount", new AtomicInteger(0));
         ReflectionTestUtils.setField(client, "circuitOpen", new AtomicBoolean(false));
         ReflectionTestUtils.setField(client, "circuitOpenTime", new AtomicLong(0L));
     }

@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 @SuppressWarnings("unchecked")
@@ -32,7 +33,7 @@ public class DefaultAiAgentClient implements AiAgentClient {
 
     private final AtomicBoolean circuitOpen = new AtomicBoolean(false);
     private final AtomicLong circuitOpenTime = new AtomicLong(0L);
-    private int failureCount = 0;
+    private final AtomicInteger failureCount = new AtomicInteger(0);
 
     public DefaultAiAgentClient(
             @Value("${secureai.ai-agent.url}") String agentUrl,
@@ -218,24 +219,24 @@ public class DefaultAiAgentClient implements AiAgentClient {
         long elapsed = System.currentTimeMillis() - circuitOpenTime.get();
         if (elapsed > RESET_TIMEOUT_MS) {
             circuitOpen.set(false);
-            failureCount = 0;
+            failureCount.set(0);
             log.info("[circuit] HALF-OPEN — retrying AI Agent");
         } else {
             throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);
         }
     }
 
-    private synchronized void recordFailure(Exception e) {
-        failureCount++;
-        log.warn("[circuit] failure count={} err={}", failureCount, e.getMessage());
-        if (failureCount >= FAILURE_THRESHOLD) {
+    private void recordFailure(Exception e) {
+        int count = failureCount.incrementAndGet();
+        log.warn("[circuit] failure count={} err={}", count, e.getMessage());
+        if (count >= FAILURE_THRESHOLD) {
             circuitOpen.set(true);
             circuitOpenTime.set(System.currentTimeMillis());
             log.error("[circuit] OPEN — AI Agent circuit breaker tripped");
         }
     }
 
-    private synchronized void resetFailures() {
-        failureCount = 0;
+    private void resetFailures() {
+        failureCount.set(0);
     }
 }

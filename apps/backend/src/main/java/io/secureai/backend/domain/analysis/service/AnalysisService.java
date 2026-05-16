@@ -34,58 +34,52 @@ public class AnalysisService {
     @Transactional
     public AnalysisSessionResponse startAnalysis(UUID userId, StartAnalysisRequest request) {
         Project project = projectService.findOrThrow(request.projectId());
-
         if (!projectService.isMember(request.projectId(), userId)) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
 
-        if (sessionRepository.existsByProjectIdAndStatus(request.projectId(), SessionStatus.RUNNING)) {
-            if (!request.isForce()) {
-                throw new BusinessException(ErrorCode.SESSION_ALREADY_RUNNING);
-            }
-            // force=true: 진행 중 세션을 interrupted 처리 후 새 세션 시작
-            sessionRepository.findAllByStatus(SessionStatus.RUNNING).stream()
-                    .filter(s -> s.getProject().getId().equals(request.projectId()))
-                    .forEach(s -> sessionRepository.markInterrupted(
-                            s.getId(), SessionStatus.INTERRUPTED, SessionStatus.RUNNING));
-        }
+        handleRunningSession(request.projectId(), request.isForce());
 
         User user = userService.findOrThrow(userId);
-
-        AnalysisSession session = AnalysisSession.builder()
-                .project(project)
-                .user(user)
-                .build();
+        AnalysisSession session = AnalysisSession.builder().project(project).user(user).build();
         sessionRepository.save(session);
-
         session.markRunning();
         sessionRepository.save(session);
 
-        // 사용자 모델 설정 및 BYOK 키 조회 (분석 전 해결)
         UserService.UserAnalysisSettings settings = userService.getAnalysisSettings(userId);
+        dispatchToAgent(session, project, userId, request, settings);
 
-        // AI Agent 비동기 호출 (Virtual Thread 에서 실행)
+        log.info("[analysis] started sessionId={} projectId={} sourceType={}",
+                session.getId(), project.getId(), request.effectiveSourceType());
+        return AnalysisSessionResponse.from(session);
+    }
+
+    private void handleRunningSession(UUID projectId, boolean force) {
+        if (!sessionRepository.existsByProjectIdAndStatus(projectId, SessionStatus.RUNNING)) return;
+        if (!force) throw new BusinessException(ErrorCode.SESSION_ALREADY_RUNNING);
+        sessionRepository.findAllByStatus(SessionStatus.RUNNING).stream()
+                .filter(s -> s.getProject().getId().equals(projectId))
+                .forEach(s -> sessionRepository.markInterrupted(
+                        s.getId(), SessionStatus.INTERRUPTED, SessionStatus.RUNNING));
+    }
+
+    private void dispatchToAgent(AnalysisSession session, Project project, UUID userId,
+                                 StartAnalysisRequest request, UserService.UserAnalysisSettings settings) {
         if ("github".equalsIgnoreCase(request.effectiveSourceType())) {
-            GitHubApiService.GithubRepoInfo info = gitHubApiService.resolveAndValidate(userId, request.githubRepoUrl(),
-                    request.githubRef());
-            // 토큰은 로그에 출력 금지
+            GitHubApiService.GithubRepoInfo info =
+                    gitHubApiService.resolveAndValidate(userId, request.githubRepoUrl(), request.githubRef());
             aiAgentClient.startAnalysis(
                     session.getId(), project.getId(), null,
                     "github", info.owner(), info.repo(), info.ref(), info.token(),
                     settings.preferredModel(), settings.apiKey());
         } else {
             String workspaceRoot = request.workspaceRoot() != null
-                    ? request.workspaceRoot()
-                    : "/workspace/" + project.getId();
+                    ? request.workspaceRoot() : "/workspace/" + project.getId();
             aiAgentClient.startAnalysis(
                     session.getId(), project.getId(), workspaceRoot,
                     "local", null, null, null, null,
                     settings.preferredModel(), settings.apiKey());
         }
-
-        log.info("[analysis] started sessionId={} projectId={} sourceType={}",
-                session.getId(), project.getId(), request.effectiveSourceType());
-        return AnalysisSessionResponse.from(session);
     }
 
     @Transactional(readOnly = true)

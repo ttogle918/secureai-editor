@@ -16,9 +16,12 @@ function normPath(p: string) {
 export function deriveApiGroup(filePath: string): string | undefined {
   const parts = normPath(filePath).split('/').filter(Boolean);
 
-  // DVWA 전용
+  // DVWA 전용 (dvwa/ 접두어 있는 경우 + docker cp로 추출된 경우)
   if (parts[0]?.toLowerCase() === 'dvwa' && parts[1] === 'vulnerabilities' && parts[2]) {
     return `/vulnerabilities/${parts[2]}`;
+  }
+  if (parts[0] === 'vulnerabilities' && parts[1]) {
+    return `/vulnerabilities/${parts[1]}`;
   }
 
   // Controller / Handler / Router 파일명 탐지
@@ -51,9 +54,12 @@ export function deriveApiGroup(filePath: string): string | undefined {
 export function deriveEndpoint(filePath: string, description?: string | null): string {
   const parts = normPath(filePath).split('/').filter(Boolean);
 
-  // DVWA
+  // DVWA (dvwa/ 접두어 있는 경우 + docker cp로 추출된 경우)
   if (parts[0]?.toLowerCase() === 'dvwa' && parts[1] === 'vulnerabilities' && parts[2]) {
     return `/dvwa/vulnerabilities/${parts[2]}/`;
+  }
+  if (parts[0] === 'vulnerabilities' && parts[1]) {
+    return `/dvwa/vulnerabilities/${parts[1]}/`;
   }
 
   // description에서 URL/path 추출

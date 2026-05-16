@@ -10,16 +10,23 @@ import io.secureai.backend.global.aop.AuditLog;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import io.secureai.backend.global.response.ApiResponse;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClient;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -35,8 +42,23 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DastController {
 
+    private static final Set<String> LOCALHOST_DOMAINS = Set.of("localhost", "127.0.0.1", "0.0.0.0");
+
     private final DastExecutionService dastExecutionService;
     private final DomainVerificationService domainVerificationService;
+
+    @Value("${secureai.ai-agent.url}")
+    private String aiAgentUrl;
+
+    @Value("${secureai.internal-api-key}")
+    private String internalApiKey;
+
+    private RestClient aiEngineClient;
+
+    @PostConstruct
+    private void init() {
+        aiEngineClient = RestClient.builder().baseUrl(aiAgentUrl).build();
+    }
 
     // ── 내부 엔드포인트 (AI Engine → Backend) ────────────────────────────────
 
@@ -73,14 +95,39 @@ public class DastController {
                     "consentGiven 이 true 여야 합니다.");
         }
 
-        UUID projectId = extractProjectId(user);
         String clientIp = resolveClientIp(httpReq);
+        boolean isLocalhost = LOCALHOST_DOMAINS.contains(req.domain());
 
         log.info("DAST start requested: sessionId={} vulnId={} domain={}",
                 req.sessionId(), req.vulnId(), req.domain());
 
-        // 도메인 소유권 확인 + Rate Limit + 분산 락 통합 검증
-        domainVerificationService.assertDastAllowed(projectId, req.domain(), clientIp);
+        // localhost/127.0.0.1 은 개발/데모 환경 — 도메인 소유권 검증 생략
+        if (!isLocalhost) {
+            UUID projectId = extractProjectId(user);
+            domainVerificationService.assertDastAllowed(projectId, req.domain(), clientIp);
+        }
+
+        // AI Engine 에 DAST 분석 위임 (X-Internal-Key 헤더 포함)
+        Map<String, Object> aiPayload = new HashMap<>();
+        aiPayload.put("session_id", req.sessionId().toString());
+        aiPayload.put("vuln_id",    req.vulnId().toString());
+        aiPayload.put("vuln_type",  req.vulnType());
+        aiPayload.put("target_url", req.targetUrl());
+        aiPayload.put("endpoint",   req.endpoint() != null ? req.endpoint() : "");
+        aiPayload.put("params",     req.params() != null ? req.params() : Map.of());
+
+        try {
+            aiEngineClient.post()
+                    .uri("/agent/dast/start")
+                    .header("X-Internal-Key", internalApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(aiPayload)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            log.error("DAST AI Engine 위임 실패: sessionId={} error={}", req.sessionId(), e.getMessage());
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "DAST 분석 시작에 실패했습니다.");
+        }
 
         return ResponseEntity.accepted().build();
     }

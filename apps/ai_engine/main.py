@@ -6,6 +6,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.middleware.internal_key_auth import InternalKeyAuthMiddleware
@@ -62,6 +63,14 @@ app = FastAPI(
 )
 
 app.add_middleware(InternalKeyAuthMiddleware)
+# CORSMiddleware는 InternalKeyAuth 바깥(outermost)에 위치해야 OPTIONS preflight가 먼저 처리됨
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(analyze_router)
 app.include_router(chat_router)

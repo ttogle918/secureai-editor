@@ -15,7 +15,7 @@ import FilterBar from '@/components/ui/FilterBar';
 import type { Vulnerability } from '@/lib/mockData';
 import { deriveEndpoint } from '@/lib/vulnUtils';
 
-const AI_ENGINE = process.env.NEXT_PUBLIC_AI_ENGINE_URL ?? 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1';
 
 // ── DAST 실행 섹션 ────────────────────────────────────────────
 function DastRunSection({ vuln }: { vuln: Vulnerability }) {
@@ -59,16 +59,19 @@ function DastRunSection({ vuln }: { vuln: Vulnerability }) {
       catch { addToast('올바른 URL을 입력해주세요.', 'error'); setRunning(false); return; }
 
       const dastId = crypto.randomUUID();
-      const res = await fetch(`${AI_ENGINE}/agent/dast/start`, {
+      const res = await fetch(`${API_BASE}/dast/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          session_id: dastId,
-          vuln_id:    vuln.id,
-          vuln_type:  vuln.type,
-          target_url: parsedUrl.origin + parsedUrl.pathname,
-          endpoint:   parsedUrl.pathname,
-          params:     Object.fromEntries(new URLSearchParams(parsedUrl.search)),
+          sessionId:    dastId,
+          vulnId:       vuln.id,
+          domain:       parsedUrl.hostname,
+          consentGiven: true,
+          vulnType:     vuln.type,
+          targetUrl:    parsedUrl.origin + parsedUrl.pathname,
+          endpoint:     parsedUrl.pathname,
+          params:       Object.fromEntries(new URLSearchParams(parsedUrl.search)),
         }),
       });
       if (!res.ok) throw new Error(`DAST 시작 실패: ${res.status}`);

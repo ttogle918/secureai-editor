@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestClient;
 
@@ -86,7 +85,7 @@ public class DastController {
     @AuditLog(action = "DAST_START", resource = "dast")
     @PostMapping("/dast/start")
     public ResponseEntity<Void> startDast(
-            @AuthenticationPrincipal UserDetails user,
+            @AuthenticationPrincipal UUID userId,
             @Valid @RequestBody DastStartRequest req,
             HttpServletRequest httpReq
     ) {
@@ -103,8 +102,10 @@ public class DastController {
 
         // localhost/127.0.0.1 은 개발/데모 환경 — 도메인 소유권 검증 생략
         if (!isLocalhost) {
-            UUID projectId = extractProjectId(user);
-            domainVerificationService.assertDastAllowed(projectId, req.domain(), clientIp);
+            if (userId == null) {
+                throw new BusinessException(ErrorCode.USER_NOT_FOUND, "인증 정보가 유효하지 않습니다.");
+            }
+            domainVerificationService.assertDastAllowed(userId, req.domain(), clientIp);
         }
 
         // AI Engine 에 DAST 분석 위임 (X-Internal-Key 헤더 포함)
@@ -144,18 +145,6 @@ public class DastController {
     }
 
     // ── private helpers ───────────────────────────────────────────────────────
-
-    /**
-     * UserDetails의 username을 UUID projectId로 파싱한다.
-     * 실제 프로젝트 소속 검증은 서비스 레이어에서 수행한다.
-     */
-    private UUID extractProjectId(UserDetails user) {
-        try {
-            return UUID.fromString(user.getUsername());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND, "인증 정보가 유효하지 않습니다.");
-        }
-    }
 
     /**
      * 요청 IP를 추출한다. clientIp 는 법적 증거 보존 데이터이므로 로그에 출력하지 않는다.

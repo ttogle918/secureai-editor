@@ -31,6 +31,8 @@ _EXT_TO_STACK: dict[str, str] = {
     ".tsx":  "frontend_react_nextjs",
     ".js":   "node_express_nestjs",
     ".go":   "go_gin_echo",
+    ".php":  "php_web",
+    ".rb":   "ruby_rails",
 }
 
 

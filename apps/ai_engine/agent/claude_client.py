@@ -52,7 +52,15 @@ Framework-aware rules (do NOT report these as HIGH/MEDIUM SECURITY):
 - React inline styles `style={{ color: val }}` are JS objects — NOT CSS injection
 - Mock/test data files (mockData.ts, fixtures, seeds) contain intentional demo patterns — mark CODE_QUALITY or skip
 - CSS class name generation in JS (e.g. tailwind, clsx) is NOT injection
-- `Date.now()` / `Math.random()` for non-security IDs is CODE_QUALITY, not CRITICAL\
+- `Date.now()` / `Math.random()` for non-security IDs is CODE_QUALITY, not CRITICAL
+
+PHP-specific patterns (ALWAYS report these as CRITICAL/HIGH SECURITY):
+- `$_GET`, `$_POST`, `$_REQUEST` used directly in SQL queries → SQL_INJECTION CRITICAL
+- `echo $_GET[...]` or `echo $_POST[...]` without htmlspecialchars → XSS HIGH
+- `include($_GET[...])` or `require($_GET[...])` → PATH_TRAVERSAL CRITICAL
+- `system()`, `exec()`, `shell_exec()` with user input → COMMAND_INJECTION CRITICAL
+- `mysql_query()` with unescaped user input → SQL_INJECTION CRITICAL
+- `$_FILES` without proper validation → UNRESTRICTED_FILE_UPLOAD HIGH\
 """
 
 

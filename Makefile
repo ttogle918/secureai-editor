@@ -1,4 +1,4 @@
-.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer help
+.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner help
 
 # ──────────────────────────────────────────────────────────────────
 # make dev        전체 서비스 (postgres, redis, backend, ai_engine, frontend)
@@ -42,6 +42,11 @@ logs-backend:
 rebuild:
 	docker compose up -d --build backend
 	@echo "✓ 백엔드 재빌드 완료"
+
+dast-runner:
+	@echo "▶ DAST 샌드박스 이미지 빌드 중..."
+	docker build -f apps/dast_runner/Dockerfile -t secureai/dast-runner:latest apps/ai_engine/
+	@echo "✓ secureai/dast-runner:latest 빌드 완료"
 
 backend:
 	cd apps/backend && ./gradlew bootRun

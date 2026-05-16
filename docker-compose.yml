@@ -93,6 +93,8 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       AI_AGENT_URL: http://ai-engine:8000
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      # Windows Docker Desktop: "Expose daemon on tcp://localhost:2375" 활성화 후 아래 주석 해제
+      DOCKER_HOST: tcp://host.docker.internal:2375
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - reports_data:/app/reports

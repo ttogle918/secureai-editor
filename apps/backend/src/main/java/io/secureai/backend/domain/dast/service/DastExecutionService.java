@@ -44,7 +44,14 @@ public class DastExecutionService {
      */
     public DastExecuteResponse execute(DastExecuteRequest req) {
         UUID vulnId = parseVulnId(req.vulnId());
-        ExploitResult result = exploitResultPersister.saveInitial(vulnId, req);
+
+        ExploitResult result;
+        try {
+            result = exploitResultPersister.saveInitial(vulnId, req);
+        } catch (Exception e) {
+            log.error("DAST initial save failed: vulnType={} error={}", req.vulnType(), e.getMessage());
+            return failureResponse("초기 상태 저장 실패: " + e.getMessage(), null);
+        }
 
         ContainerConfig config = buildContainerConfig();
         List<String> command = buildCommand();
@@ -72,14 +79,14 @@ public class DastExecutionService {
 
         } catch (DockerSandboxException e) {
             long durationMs = System.currentTimeMillis() - startMs;
-            exploitResultPersister.saveFailed(result, e.getStatus(), e.getMessage(), durationMs);
+            safelyPersistFailure(result, e.getStatus(), e.getMessage(), durationMs);
             log.error("DAST sandbox error: vulnType={} status={}", req.vulnType(), e.getStatus());
             return failureResponse(e.getMessage(), containerId);
 
         } catch (Exception e) {
             long durationMs = System.currentTimeMillis() - startMs;
-            exploitResultPersister.saveFailed(result, ScanStatus.FAILED, e.getMessage(), durationMs);
-            log.error("DAST execution unexpected error: vulnType={}", req.vulnType(), e);
+            safelyPersistFailure(result, ScanStatus.FAILED, e.getMessage(), durationMs);
+            log.warn("DAST execution failed: vulnType={} error={}", req.vulnType(), e.getMessage());
             return failureResponse(e.getMessage(), containerId);
 
         } finally {
@@ -181,6 +188,14 @@ public class DastExecutionService {
 
     private DastExecuteResponse failureResponse(String errorMessage, String containerId) {
         return new DastExecuteResponse(false, null, null, null, errorMessage, containerId);
+    }
+
+    private void safelyPersistFailure(ExploitResult result, ScanStatus status, String message, long durationMs) {
+        try {
+            exploitResultPersister.saveFailed(result, status, message, durationMs);
+        } catch (Exception persistEx) {
+            log.error("Failed to persist DAST failure result: {}", persistEx.getMessage());
+        }
     }
 
     private String toJsonString(Map<String, String> params) {

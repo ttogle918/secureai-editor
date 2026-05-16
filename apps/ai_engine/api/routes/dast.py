@@ -110,11 +110,19 @@ async def _publish_error(session_id: str, error_message: str) -> None:
 async def _sse_generator(session_id: str):
     """Redis SUBSCRIBE 를 통해 SSE 이벤트를 생성하는 제너레이터."""
     channel = f"{_DAST_CHANNEL_PREFIX}{session_id}"
+    result_key = f"secureai:dast:result:{session_id}"
     r = aioredis.from_url(settings.redis_url, decode_responses=True)
     pubsub = r.pubsub()
 
     try:
         await pubsub.subscribe(channel)
+
+        # 구독 전에 DAST가 이미 완료된 경우를 처리 (race condition 방어)
+        cached = await r.get(result_key)
+        if cached:
+            yield f"data: {cached}\n\n"
+            return
+
         idle_seconds = 0.0
 
         while True:

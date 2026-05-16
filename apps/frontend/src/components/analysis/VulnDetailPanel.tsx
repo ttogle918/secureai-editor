@@ -58,6 +58,9 @@ function DastRunSection({ vuln }: { vuln: Vulnerability }) {
       catch { addToast('올바른 URL을 입력해주세요.', 'error'); setRunning(false); return; }
 
       const dastId = crypto.randomUUID();
+      // SSE 구독을 먼저 열어 race condition 방어 (DAST가 즉시 완료될 수 있음)
+      setDastSessionId(dastId);
+
       const token = getAccessToken();
       const res = await fetch(`${BASE_URL}/dast/start`, {
         method: 'POST',
@@ -79,9 +82,9 @@ function DastRunSection({ vuln }: { vuln: Vulnerability }) {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
+        setDastSessionId(null);
         throw new Error(err?.error?.message ?? err?.message ?? `DAST 시작 실패: ${res.status}`);
       }
-      setDastSessionId(dastId);
       addToast('DAST 분석을 시작했습니다. 하단 터미널에서 진행 상황을 확인하세요.', 'info');
     } catch (e) {
       addToast(e instanceof Error ? e.message : 'DAST 시작에 실패했습니다.', 'error');
@@ -315,12 +318,20 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
 
         {/* DAST 익스플로잇 결과 배지 */}
         {exploitResult?.success === true ? (
-          <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded font-bold" style={{ flexShrink: 0 }}>
-            EXPLOITED
+          <span style={{
+            flexShrink: 0, fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 4,
+            background: 'rgba(220,38,38,0.15)', color: '#f87171',
+            border: '0.5px solid rgba(220,38,38,0.4)', letterSpacing: '0.04em',
+          }}>
+            EXPLOITED ✓
           </span>
         ) : exploitResult && !exploitResult.success ? (
-          <span className="bg-gray-600 text-white text-xs px-2 py-0.5 rounded" style={{ flexShrink: 0 }}>
-            DAST ✗
+          <span style={{
+            flexShrink: 0, fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+            background: 'rgba(34,197,94,0.12)', color: '#4ade80',
+            border: '0.5px solid rgba(34,197,94,0.3)', letterSpacing: '0.04em',
+          }}>
+            DAST 안전
           </span>
         ) : null}
 

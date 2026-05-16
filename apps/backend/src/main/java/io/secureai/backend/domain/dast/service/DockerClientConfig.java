@@ -13,16 +13,18 @@ import java.net.URI;
 @Configuration
 public class DockerClientConfig {
 
-    private static final String DOCKER_SOCKET = "unix:///var/run/docker.sock";
+    // DOCKER_HOST 환경변수로 오버라이드 가능 (Windows: tcp://host.docker.internal:2375)
+    private static final String DEFAULT_DOCKER_HOST = "unix:///var/run/docker.sock";
 
     @Bean
     public DockerClient dockerClient() {
+        String dockerHost = System.getenv().getOrDefault("DOCKER_HOST", DEFAULT_DOCKER_HOST);
         com.github.dockerjava.core.DockerClientConfig config =
                 DefaultDockerClientConfig.createDefaultConfigBuilder()
-                        .withDockerHost(DOCKER_SOCKET)
+                        .withDockerHost(dockerHost)
                         .build();
         DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
-                .dockerHost(URI.create(DOCKER_SOCKET))
+                .dockerHost(URI.create(dockerHost))
                 .build();
         return DockerClientImpl.getInstance(config, httpClient);
     }

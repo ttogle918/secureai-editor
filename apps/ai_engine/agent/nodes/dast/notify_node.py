@@ -39,9 +39,12 @@ async def notify_node(state: DastState) -> DastState:
     })
 
     channel = f"{_DAST_CHANNEL_PREFIX}{state['session_id']}"
+    result_key = f"secureai:dast:result:{state['session_id']}"
     try:
         r = aioredis.from_url(settings.redis_url, decode_responses=True)
         async with r:
+            # 늦게 구독한 SSE 클라이언트도 결과를 받을 수 있도록 키에 저장 (5분 TTL)
+            await r.setex(result_key, 300, message)
             await r.publish(channel, message)
         logger.info(
             "[notify_node] session=%s vuln_id=%s success=%s published",

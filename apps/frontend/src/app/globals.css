@@ -1,6 +1,8 @@
 /* ============================================================
-   SecureAI — Global Styles
+   Pagori — Global Styles
    Design System: Dark OLED + Orange (#f97316) Accent
+   v2 — brighter text tokens, --text-active added,
+   --tag-* filter palette, --high/medium/low aliases
    ============================================================ */
 
 /* ── 1. Motion Reduction (WCAG 2.1 AA) ─────────────────── */
@@ -24,29 +26,66 @@
   --bg-3: #161619;
   --bg-4: #1c1c20;
 
-  --border: #1f1f24;
-  --border-2: #2a2a30;
+  --surface-overlay: rgba(255,255,255,0.02);
+  --surface-hover:   rgba(255,255,255,0.04);
 
-  --text-primary: #e8e8ee;
-  --text-secondary: #9494a0;
-  --text-tertiary: #555560;
-  --text-disabled: #404048;
+  --border:    #1f1f24;
+  --border-2:  #2a2a30;
+  --border-3:  #3a3a44;
+  --hairline:  rgba(255,255,255,0.06);
 
-  /* Orange accent */
-  --orange: #f97316;
-  --orange-2: #ea580c;
-  --orange-dim: rgba(249, 115, 22, 0.12);
-  --orange-glow: rgba(249, 115, 22, 0.25);
+  /* ⬇︎ brighter than the v1 tokens so dark mode reads more clearly */
+  --text-primary:   #f1f1f6;
+  --text-secondary: #b4b4be;
+  --text-tertiary:  #74747e;
+  --text-disabled:  #54545e;
+  --text-active:    #ffffff;   /* highlighted / selected / hovered */
+  --text-on-bg:     #e6e6ec;   /* body text on dim cards */
 
-  /* Severity */
-  --red: #f04141;
-  --red-dim: rgba(240, 65, 65, 0.08);
-  --yellow: #f59e0b;
-  --yellow-dim: rgba(245, 158, 11, 0.08);
-  --amber: #eab308;
-  --green: #22c55e;
-  --green-dim: rgba(34, 197, 94, 0.08);
-  --blue: #569cd6;
+  /* Orange accent (locked) */
+  --orange:        #f97316;
+  --orange-2:      #ea580c;
+  --orange-dim:    rgba(249, 115, 22, 0.12);
+  --orange-glow:   rgba(249, 115, 22, 0.25);
+  --orange-shadow: 0 3px 12px rgba(234,88,12,0.30);
+
+  /* Severity — primary names (used by new code) */
+  --critical:      #f04141;
+  --critical-dim:  rgba(240, 65, 65, 0.10);
+  --critical-glow: rgba(240, 65, 65, 0.30);
+  --high:          #f59e0b;
+  --high-dim:      rgba(245, 158, 11, 0.10);
+  --medium:        #eab308;
+  --medium-dim:    rgba(234, 179, 8, 0.10);
+  --low:           #22c55e;
+  --low-dim:       rgba(34, 197, 94, 0.10);
+  --info:          #569cd6;
+  --info-dim:      rgba(86, 156, 214, 0.10);
+
+  /* Severity — legacy aliases for existing code (red/yellow/amber/green) */
+  --red:    var(--critical);
+  --red-dim: var(--critical-dim);
+  --yellow: var(--high);
+  --yellow-dim: var(--high-dim);
+  --amber:  var(--medium);
+  --green:  var(--low);
+  --green-dim: var(--low-dim);
+  --blue:   var(--info);
+
+  /* Filter tag palette — distinct hues for category filtering */
+  --tag-1: #818cf8;  /* indigo */
+  --tag-2: #f472b6;  /* pink */
+  --tag-3: #34d399;  /* emerald */
+  --tag-4: #fbbf24;  /* amber */
+  --tag-5: #60a5fa;  /* blue */
+  --tag-6: #a78bfa;  /* violet */
+
+  /* Layer chain */
+  --layer-frontend:   #378ADD;
+  --layer-controller: #7F77DD;
+  --layer-service:    #1D9E75;
+  --layer-repository: #E24B4A;
+  --layer-config:     #BA7517;
 
   /* Typography */
   --font-mono: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
@@ -89,136 +128,71 @@ body {
 }
 
 /* ── 5. Scrollbar (Webkit + Firefox) ────────────────────── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-1);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border-2);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #404050;
-}
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-2) var(--bg-1);
-}
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-1); }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-3); }
+* { scrollbar-width: thin; scrollbar-color: var(--border-2) var(--bg-1); }
 
 /* ── 6. Typography Utilities ────────────────────────────── */
-.font-mono {
-  font-family: var(--font-mono);
-}
+.font-mono { font-family: var(--font-mono); }
+.font-sans { font-family: var(--font-sans); }
 
 /* ── 7. Severity Colors (shared) ────────────────────────── */
-.text-critical {
-  color: var(--red);
-}
+.text-critical { color: var(--critical); }
+.text-high     { color: var(--high); }
+.text-medium   { color: var(--medium); }
+.text-low      { color: var(--low); }
 
-.text-high {
-  color: var(--yellow);
+/* ── 7.b Chip — uniform filter pill ─────────────────────── */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 20px; padding: 0 8px;
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  border-radius: 3px;
+  border: 1px solid var(--border-2);
+  background: var(--bg-3);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
+.chip:hover  { color: var(--text-primary); border-color: var(--border-3); }
+.chip-active { color: var(--text-active); border-color: var(--border-3); background: var(--bg-2); }
 
-.text-medium {
-  color: var(--amber);
-}
+.chip-critical { color: var(--critical); border-color: rgba(240,65,65,0.4); background: var(--critical-dim); }
+.chip-high     { color: var(--high);     border-color: rgba(245,158,11,0.4); background: var(--high-dim); }
+.chip-medium   { color: var(--medium);   border-color: rgba(234,179,8,0.4);  background: var(--medium-dim); }
+.chip-low      { color: var(--low);      border-color: rgba(34,197,94,0.4);  background: var(--low-dim); }
+.chip-info     { color: var(--info);     border-color: rgba(86,156,214,0.4); background: var(--info-dim); }
+.chip-orange   { color: var(--orange);   border-color: rgba(249,115,22,0.4); background: var(--orange-dim); }
 
-.text-low {
-  color: var(--green);
-}
+.severity-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 
 /* ── 8. Animation Keyframes ─────────────────────────────── */
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes pulse-scale { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes pulse-border { 0%,100% { box-shadow: 0 0 0 0 var(--orange-glow); } 50% { box-shadow: 0 0 0 3px var(--orange-glow); } }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.85); }
 }
-
-@keyframes blink {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.3;
-  }
-}
-
-@keyframes pulse-scale {
-
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.08);
-  }
-}
-
-@keyframes shimmer {
-  from {
-    background-position: 200% 0;
-  }
-
-  to {
-    background-position: -200% 0;
-  }
-}
-
-@keyframes fadein {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes pulse-border {
-
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 var(--orange-glow);
-  }
-
-  50% {
-    box-shadow: 0 0 0 3px var(--orange-glow);
-  }
+@keyframes ssePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
 }
 
 /* ── 9. Monaco Editor Vulnerability Decorations ─────────── */
+.vuln-critical-line { background: rgba(240, 65, 65, 0.07); }
+.vuln-high-line     { background: rgba(245, 158, 11, 0.06); }
+.vuln-medium-line   { background: rgba(234, 179, 8, 0.05); }
+.vuln-low-line      { background: rgba(34, 197, 94, 0.04); }
 
-/* 라인 배경 */
-.vuln-critical-line {
-  background: rgba(240, 65, 65, 0.07);
-}
-
-.vuln-high-line {
-  background: rgba(245, 158, 11, 0.06);
-}
-
-.vuln-medium-line {
-  background: rgba(234, 179, 8, 0.05);
-}
-
-.vuln-low-line {
-  background: rgba(34, 197, 94, 0.04);
-}
-
-/* Glyph margin — breakpoint 스타일 컬러 점 */
 .vuln-critical-glyph,
 .vuln-high-glyph,
 .vuln-medium-glyph,
@@ -230,25 +204,10 @@ body {
   margin-left: 2px;
 }
 
-.vuln-critical-glyph {
-  background: var(--red);
-  box-shadow: 0 0 6px rgba(240, 65, 65, 0.7);
-}
-
-.vuln-high-glyph {
-  background: var(--yellow);
-  box-shadow: 0 0 5px rgba(245, 158, 11, 0.6);
-}
-
-.vuln-medium-glyph {
-  background: var(--amber);
-  box-shadow: 0 0 4px rgba(234, 179, 8, 0.5);
-}
-
-.vuln-low-glyph {
-  background: var(--green);
-  box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
-}
+.vuln-critical-glyph { background: var(--critical); box-shadow: 0 0 6px rgba(240, 65, 65, 0.7); }
+.vuln-high-glyph     { background: var(--high);     box-shadow: 0 0 5px rgba(245, 158, 11, 0.6); }
+.vuln-medium-glyph   { background: var(--medium);   box-shadow: 0 0 4px rgba(234, 179, 8, 0.5); }
+.vuln-low-glyph      { background: var(--low);      box-shadow: 0 0 4px rgba(34, 197, 94, 0.4); }
 
 /* ── 10. Skeleton loading ────────────────────────────────── */
 .skeleton {
@@ -262,66 +221,24 @@ body {
 }
 
 /* ── 11. Responsive Layout Utilities ────────────────────── */
+.kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 600px)  { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1024px) { .kpi-grid { grid-template-columns: repeat(5, 1fr); } }
 
-/* Dashboard KPI 카드 그리드: 2열(모바일) → 3열(태블릿) → 5열(데스크탑) */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-@media (min-width: 600px) {
-  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
-}
-@media (min-width: 1024px) {
-  .kpi-grid { grid-template-columns: repeat(5, 1fr); }
-}
+.chart-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 768px) { .chart-grid { grid-template-columns: 1fr 1.6fr; } }
 
-/* Dashboard 차트 그리드: 1열(모바일) → 2열(태블릿+) */
-.chart-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-@media (min-width: 768px) {
-  .chart-grid { grid-template-columns: 1fr 1.6fr; }
-}
+.header-sev-filters    { display: none; }
+@media (min-width: 768px) { .header-sev-filters    { display: flex; gap: 4px; margin-right: 10px; } }
 
-/* AppHeader — 모바일에서 심각도 필터 숨김 */
-.header-sev-filters {
-  display: none;
-}
-@media (min-width: 768px) {
-  .header-sev-filters { display: flex; gap: 4px; margin-right: 10px; }
-}
+.header-pipeline-badges { display: none; }
+@media (min-width: 900px) { .header-pipeline-badges { display: flex; gap: 5px; margin-left: 10px; } }
 
-/* AppHeader — 모바일에서 파이프라인 배지 숨김 */
-.header-pipeline-badges {
-  display: none;
-}
-@media (min-width: 900px) {
-  .header-pipeline-badges { display: flex; gap: 5px; margin-left: 10px; }
-}
+.header-export-btn { display: none !important; }
+@media (min-width: 1100px) { .header-export-btn { display: flex !important; } }
 
-/* AppHeader — 모바일에서 export 버튼 숨김 */
-.header-export-btn {
-  display: none !important;
-}
-@media (min-width: 1100px) {
-  .header-export-btn { display: flex !important; }
-}
+.mobile-only { display: flex; }
+@media (min-width: 768px) { .mobile-only { display: none; } }
 
-/* MobileBottomNav — 모바일에서만 표시 */
-.mobile-only {
-  display: flex;
-}
-@media (min-width: 768px) {
-  .mobile-only { display: none; }
-}
-
-/* 모바일 하단 네비 공간 확보 (스크롤 영역이 nav에 가리지 않도록) */
-.pb-mobile-nav {
-  padding-bottom: 64px;
-}
-@media (min-width: 768px) {
-  .pb-mobile-nav { padding-bottom: 0; }
-}
+.pb-mobile-nav { padding-bottom: 64px; }
+@media (min-width: 768px) { .pb-mobile-nav { padding-bottom: 0; } }

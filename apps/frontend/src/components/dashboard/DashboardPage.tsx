@@ -1,7 +1,8 @@
 // components/dashboard/DashboardPage.tsx
 'use client';
 import { useMemo, useState } from 'react';
-import { BarChart2, PieChart, History } from 'lucide-react';
+import { BarChart2, PieChart, FileText } from 'lucide-react';
+import { PdfReportModal } from '@/components/analysis/PdfReportModal';
 import { useSecureStore } from '@/store/useSecureStore';
 import FilterBar            from '@/components/ui/FilterBar';
 import VulnDetailPanel      from '@/components/analysis/VulnDetailPanel';
@@ -111,8 +112,9 @@ function InlineEmpty({ label }: { label: string }) {
 }
 
 export default function DashboardPage() {
-  const [dateRange,  setDateRange]  = useState<DateRange>('7d');
-  const [dashView,   setDashView]   = useState<DashViewMode>('executive');
+  const [dateRange,       setDateRange]       = useState<DateRange>('7d');
+  const [dashView,        setDashView]        = useState<DashViewMode>('executive');
+  const [showPdfModal,    setShowPdfModal]    = useState(false);
 
   const vulns           = useSecureStore((s) => s.vulns);
   const severityFilter  = useSecureStore((s) => s.severityFilter);
@@ -213,7 +215,21 @@ export default function DashboardPage() {
 
         <DateRangeBar value={dateRange} onChange={setDateRange} />
         <ViewToggle value={dashView} onChange={setDashView} />
+
+        <button
+          onClick={() => setShowPdfModal(true)}
+          style={{
+            height: 28, padding: '0 12px', borderRadius: 6,
+            background: 'var(--bg-3)', border: '1px solid var(--border)',
+            color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          <FileText size={12} /> PDF 리포트
+        </button>
       </div>
+
+      {showPdfModal && <PdfReportModal onClose={() => setShowPdfModal(false)} />}
 
       <div
         className="pb-mobile-nav"

@@ -759,6 +759,42 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 | FEAT-COMP-002 | 컴플라이언스 매핑 리포트 | 🟡 Medium | 취약점을 ISO 27001, NIST CSF, PIMS, PCI-DSS 프레임워크에 매핑. 현재 OWASP Top 10만 지원 |
 | FEAT-COMP-003 | 감사 로그 불변성 보장 | 🟡 Medium | 로그 항목마다 이전 항목 해시 체이닝. 또는 AWS CloudTrail/Azure Monitor 외부 전송. 무결성 검증 API 추가 |
 
+### 프론트엔드 리팩토링 중 발견된 누락 API
+
+#### FEAT-FE-001 SBOM 컴포넌트 조회 API
+
+- **엔드포인트**: `GET /api/v1/sbom/components?sessionId={sessionId}&projectId={projectId}`
+- **필요 파일**:
+  - `apps/backend/src/main/java/io/secureai/backend/domain/sbom/controller/SbomController.java` (GET 엔드포인트 추가)
+  - `apps/backend/src/main/java/io/secureai/backend/domain/sbom/dto/SbomComponentResponse.java` (신규 DTO)
+  - `apps/backend/src/main/java/io/secureai/backend/domain/sbom/repository/DependencyComponentRepository.java` (findBySessionId 메서드 추가)
+  - `apps/frontend/src/components/analysis/SbomPage.tsx` (신규 — SBOM & CVE 화면)
+- **설명**: 현재 SBOM 컨트롤러는 저장(POST)만 지원. 프론트엔드 SBOM 화면이 세션별 의존성 목록(이름, 버전, 생태계, CVE ID 목록)을 조회하려면 GET 엔드포인트 필요. CVE 상세는 기존 `/api/v1/cve/search?packageName=` 재활용 가능.
+- **응답 예시**:
+  ```json
+  {
+    "data": [
+      {
+        "id": "uuid",
+        "name": "next-auth",
+        "version": "4.22.1",
+        "ecosystem": "npm",
+        "license": "ISC",
+        "cveIds": ["CVE-2024-22020"],
+        "isDirect": true
+      }
+    ]
+  }
+  ```
+
+#### FEAT-FE-002 GitHub 레포 스캔 트리거 API
+
+- **엔드포인트**: `POST /api/v1/projects/{projectId}/analysis/github-scan`
+- **필요 파일**:
+  - `apps/backend/src/main/java/io/secureai/backend/domain/analysis/controller/GitHubWebhookController.java` (직접 스캔 트리거 엔드포인트 추가)
+  - `apps/frontend/src/components/analysis/GitHubScanModal.tsx` (신규)
+- **설명**: GitHub 레포 URL + 브랜치를 입력받아 분석 세션을 생성하고 AI Engine에 위임. 현재 `GitHubWebhookController`는 웹훅 이벤트만 처리하므로 UI에서 직접 트리거하는 엔드포인트 추가 필요.
+
 ---
 
 *관련 문서: `08_CHECKPOINT_FLOW.md` (체크포인트 상세 설계), `00_ARCHITECTURE_DECISIONS.md` (아키텍처 결정 사항), `14_SECURITY_TEAM_FEATURES.md` (보안팀 전용 기능)*

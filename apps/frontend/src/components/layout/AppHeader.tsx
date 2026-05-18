@@ -13,10 +13,11 @@ import { useState } from 'react';
 import {
   PanelLeftClose, PanelLeftOpen, ChevronRight, ChevronDown,
   FileJson, Play, LayoutDashboard, Code2, Settings, History, Users,
-  Search, Bell,
+  Search, Bell, Key,
 } from 'lucide-react';
 import Link from 'next/link';
 import { PagoriLockup } from '@/components/brand/PagoriBrand';
+import { CommitSecretScanModal } from '@/components/analysis/CommitSecretScanModal';
 import { AnalysisHistoryModal } from '@/components/analysis/AnalysisHistoryModal';
 import { useSecureStore, type SeverityFilter } from '@/store/useSecureStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -58,8 +59,9 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const addToast             = useToastStore((s) => s.addToast);
   const { startAnalysis, isAnalyzing } = useStartAnalysis();
 
-  const [sseStatus, setSseStatus] = useState<SseStatus>('idle');
-  const [showHistory, setShowHistory] = useState(false);
+  const [sseStatus,         setSseStatus]         = useState<SseStatus>('idle');
+  const [showHistory,       setShowHistory]       = useState(false);
+  const [showCommitScan,    setShowCommitScan]    = useState(false);
 
   const VALID_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low'];
 
@@ -395,6 +397,19 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         </div>
 
         <button
+          onClick={() => setShowCommitScan(true)}
+          title="커밋 시크릿 스캔"
+          style={{
+            width: 28, height: 28, borderRadius: 6,
+            background: 'var(--bg-2)', color: 'var(--text-secondary)',
+            border: '1px solid var(--border)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Key size={14} />
+        </button>
+
+        <button
           onClick={() => setShowHistory(true)}
           title="분석 이력 (전체 프로젝트)"
           style={{
@@ -453,6 +468,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         </button>
 
         {showHistory && <AnalysisHistoryModal onClose={() => setShowHistory(false)} />}
+        {showCommitScan && <CommitSecretScanModal onClose={() => setShowCommitScan(false)} />}
 
         {onExportJSON && (
           <button

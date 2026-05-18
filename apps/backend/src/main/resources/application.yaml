@@ -89,3 +89,9 @@ secureai:
   internal-api-key: ${INTERNAL_API_KEY:dev-internal-key}
   nvd:
     api-key: ${NVD_API_KEY:}
+
+firebase:
+  # Firebase를 활성화하려면 true로 설정. 개발 환경에서는 false(no-op 동작).
+  enabled: false
+  # 서비스 계정 JSON 파일 경로 (firebase.enabled=true 일 때 필수)
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:}

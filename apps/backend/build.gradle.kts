@@ -66,6 +66,9 @@ dependencies {
 
 	// PDF 생성 — OpenPDF (LGPL)
 	implementation("com.github.librepdf:openpdf:1.3.30")
+
+	// Firebase Admin SDK — FCM Push 알림 (선택적 활성화)
+	implementation("com.google.firebase:firebase-admin:9.2.0")
 }
 
 tasks.withType<Test> {

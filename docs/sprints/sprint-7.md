@@ -203,6 +203,37 @@ Stage 4 (순차)
 
 ---
 
+### Stage 3 완료 (2026-05-19)
+
+**커밋**: `e39484e` — `feat(sprint7-stage3): FCM Push 백엔드 + 글로벌 CSS 유틸리티`
+
+#### TASK-701 (프론트엔드)
+- `PdfReportModal.tsx`: 프로젝트 선택 → PDF/JSON 포맷 선택 → 생성 요청 → 상태 폴링 → 다운로드 UI
+- 커밋 `c8cfcdb` (이전 세션) 포함
+
+#### TASK-702 (프론트엔드)
+- `SecurityScoreRing.tsx`, `SeverityBarChart.tsx`, `TrendLineChart.tsx`, `FileHeatmap.tsx`, `OwaspCoverageMatrix.tsx` — 차트 5종
+- `DashboardPage.tsx`: Executive/Analyst 뷰 토글 + 날짜 범위 선택 + KPI 카드 + PDF 리포트 버튼
+- `KpiCard.tsx`, `AppHeader.tsx` (V4 Hybrid), `EmptyState.tsx` 리뉴얼
+- `globals.css`: card/btn/field/progress-bar 유틸리티 클래스 추가
+- 커밋 `2f2da6b`, `c458bae`, `c8cfcdb`, `e39484e` 포함
+
+#### TASK-705 (백엔드)
+- Firebase Admin SDK 9.2.0 의존성 추가
+- `V036__create_device_tokens.sql`: device_tokens 테이블 (user_id FK, UNIQUE(user_id, token))
+- `notification` 도메인: `DeviceToken` 엔티티, Repository, `DeviceTokenService`
+- `DeviceTokenController`: `POST/DELETE /api/v1/fcm/device-tokens` (JWT 인증 필수)
+- `FcmPushPort` 인터페이스 (DIP) + `FcmPushService` (Firebase 활성 시) + `FcmPushServiceNoOp` (폴백)
+- `FcmConfig`: `firebase.enabled=true` 조건부 — 개발 환경 graceful degradation
+- `SessionCompletedEvent` + `SessionCompletedEventListener` (`@Async analysisExecutor`)
+- `RedisSubscriber`: `markCompleted()` 이후 `SessionCompletedEvent` 발행
+- FCM 페이로드: `{ sessionId, projectId, deeplink: "secureai://session/{id}" }`
+- **단위 테스트**: FcmPushServiceTest 4개 + DeviceTokenServiceTest 5개 통과
+
+**Reviewer 지적 사항**: `firebase-service-account.json` `.gitignore` 등록 누락 → `.gitignore` 에 추가로 해결
+
+---
+
 ## 완료 기준 (DoD)
 
 ```

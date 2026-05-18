@@ -70,8 +70,64 @@ Sprint 7 Stage 3 마무리 + 프론트엔드 디자인 갭 분석 + DashboardPag
 
 ---
 
+---
+
+## Stage 4 추가 기록 (같은 날 연속 세션)
+
+### 4. TASK-705 (Android) — FCM + SSE 이중 전략
+
+**구현 내용** (커밋 `0beb7ed`):
+- `SecureAiFcmService.kt`: Hilt EntryPoint 패턴, ProcessLifecycleOwner foreground 판단, background 알림 + 딥링크 PendingIntent, serviceJob.cancel() 정리
+- `SseClient.kt`: OkHttp callbackFlow SSE 파싱, `session.completed` 이벤트 → `SseResult.SessionCompleted` 변환, `close()` 명시적 채널 종료
+- `AnalysisViewModel.kt`: SSE(foreground)/FCM(background) 이중 전략, sessionId UUID_PATTERN(`[0-9a-f-]{36}`) 검증 + early return
+- `FcmTokenService.kt`: 비로그인 시 defer, 실패 비치명적, 토큰 값 로그 금지
+- `NavGraph.kt`: `Screen.Session` + deepLink uriPattern, `MainActivity.onNewIntent` 딥링크 처리
+
+**주요 설계 결정**:
+- `firebase-analytics` 제외 → Kotlin 2.0.21 메타데이터 충돌 회피. FCM만 사용하면 analytics 없이 동작함.
+- `callbackFlow` 내 `close()` + `awaitClose` 순서: 정상 종료 시 `close()`로 채널 즉시 종료, `awaitClose`는 외부 취소(ViewModel 소멸) 시 HTTP call 정리 역할로 분리
+- Foreground 판단 단일 지점: `ProcessLifecycleOwner` — `SecureAiFcmService.onMessageReceived`에서만 확인
+
+**Reviewer 지적 사항 (2건, 커밋 전 수정)**:
+1. `NetworkModule.kt` — `loggingInterceptor.redactHeader("Authorization")` 누락 (DEBUG BODY 레벨에서 Bearer 토큰 Logcat 노출 위험) → 추가
+2. `SseClient.kt` URL 삽입 전 sessionId 검증 없음 → `AnalysisViewModel.startSseObservation()`에 UUID_PATTERN 검증 추가
+
+**Tester 발견 버그**:
+- `SseClient.callbackFlow`에서 `close()` 누락 → Turbine `awaitComplete()` 3초 타임아웃. `trySend(Closed)` 직후 `close()` 추가로 해결.
+
+### 5. Redis 캐시 직렬화 버그 수정 (fix 커밋 `1fe4c14`)
+
+Docker 환경에서 대시보드 API 검증 중 발견.
+
+**원인**: `Jackson2JsonRedisSerializer<Object>` + `DefaultTyping.NON_FINAL` 조합.
+- `NON_FINAL`은 final 클래스(Java record 포함)를 타입 정보 없이 직렬화
+- 첫 번째 호출: DB 조회 후 Redis에 `{"securityScore":100,...}` 저장 (타입 정보 없음)
+- 두 번째 호출: Redis에서 읽을 때 `WRAPPER_ARRAY` 형식을 기대하지만 START_OBJECT 수신 → `MismatchedInputException`
+
+**수정**: `GenericJackson2JsonRedisSerializer` + `DefaultTyping.EVERYTHING` + `As.PROPERTY(@class)` 조합으로 교체. final 클래스(record) 포함 모든 타입에 타입 정보 포함.
+
+**검증 결과** (Docker 환경):
+- FCM 토큰 등록/삭제/멱등성/인증 차단: 전부 통과
+- 대시보드 캐시 히트 3회 연속: 통과
+- 타 사용자 프로젝트 접근 403 차단: 통과
+
+---
+
+## 전체 커밋 목록 (2026-05-19 전체 세션)
+
+| 커밋 | 내용 |
+|------|------|
+| `e39484e` | feat(sprint7-stage3): FCM Push 백엔드 + 글로벌 CSS 유틸리티 |
+| `28f28c3` | feat(dashboard): DashboardPage 백엔드 API 연결 + useDashboard 훅 |
+| `0d2dd73` | docs: Sprint 7 Stage 3 완료 기록 + 프론트엔드 디자인 갭 분석 |
+| `0beb7ed` | feat(sprint7-stage4): FCM Push + SSE 이중 전략 Android 구현 |
+| `72886e9` | docs: Sprint 7 Stage 4 완료 기록 + TASK-705 체크리스트 업데이트 |
+| `1fe4c14` | fix(redis): RedisCacheConfig Jackson 직렬화 버그 수정 |
+
+---
+
 ## 다음 우선순위
 
-- **Stage 4**: FCM Android 연동 (`google-services.json` Firebase Console 수동 등록 선행 필요)
-- **Sprint 8 검토**: 미구현 화면 7개 중 팀 관리·설정 우선 검토
-- **FEAT-FE-001 SBOM API**: 백엔드 GET 엔드포인트 추가 → SbomPage.tsx 구현
+- **Sprint 8 시작 전**: 에뮬레이터에서 FCM E2E 수동 검증 (딥링크, 알림, foreground/background 분기)
+- **Sprint 8**: 스케줄러 ShedLock, Circuit Breaker, 성능 목표, 2FA
+- **FEAT-FE-001 SBOM API**: 백엔드 GET 엔드포인트 추가 → SbomPage.tsx 구현 (Sprint 8 범위 후보)

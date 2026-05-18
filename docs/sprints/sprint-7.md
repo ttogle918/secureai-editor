@@ -217,6 +217,11 @@ Stage 4 (순차)
 - `KpiCard.tsx`, `AppHeader.tsx` (V4 Hybrid), `EmptyState.tsx` 리뉴얼
 - `globals.css`: card/btn/field/progress-bar 유틸리티 클래스 추가
 - 커밋 `2f2da6b`, `c458bae`, `c8cfcdb`, `e39484e` 포함
+- **DashboardPage 백엔드 API 연결** (커밋 `28f28c3`):
+  - `useDashboard.ts` 훅 신규 — `GET /api/v1/projects/{projectId}/dashboard` 조회
+  - trend `count` → 정규화 score(0~100), heatmap `count` → severity 버킷, `owaspCoverage` Map → `OwaspCell[]` 변환
+  - `ApiStatusChip` 컴포넌트: 로딩/에러/실시간 상태 표시 + 재조회 버튼
+  - `isApiLive` 플래그로 API 데이터 우선, 로컬 Zustand 스토어 폴백 하이브리드 전략
 
 #### TASK-705 (백엔드)
 - Firebase Admin SDK 9.2.0 의존성 추가

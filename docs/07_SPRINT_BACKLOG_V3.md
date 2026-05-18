@@ -759,6 +759,30 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 | FEAT-COMP-002 | 컴플라이언스 매핑 리포트 | 🟡 Medium | 취약점을 ISO 27001, NIST CSF, PIMS, PCI-DSS 프레임워크에 매핑. 현재 OWASP Top 10만 지원 |
 | FEAT-COMP-003 | 감사 로그 불변성 보장 | 🟡 Medium | 로그 항목마다 이전 항목 해시 체이닝. 또는 AWS CloudTrail/Azure Monitor 외부 전송. 무결성 검증 API 추가 |
 
+### 프론트엔드 Pagori 리디자인 구현 현황 (2026-05-19 분석)
+
+> `frontend-refactoring/Pagori Redesign.html` 기준 — `apps/frontend/src/` 구현 여부 대조
+
+| 화면 | 디자인 파일 컴포넌트 | 구현 상태 | 경로 |
+|------|---------------------|----------|------|
+| 대시보드 | Dashboard, KpiCard, SecurityScoreRing, SeverityBarChart, TrendLineChart, FileHeatmap, OwaspCoverageMatrix | ✅ 완료 | `components/dashboard/` |
+| 코드 에디터 | EditorLayout, FileTree, InlineHighlight, SuggestionPanel, SessionLog | ✅ 완료 | `components/editor/` |
+| 프로젝트 목록 | ProjectCard, CreateProjectModal | ✅ 완료 | `components/project/` |
+| 로그인 / 회원가입 | LoginForm, RegisterForm, GitHubOAuthButton | ✅ 완료 | `app/auth/` |
+| PDF 리포트 모달 | PdfReportModal (포맷 선택, 상태 폴링) | ✅ 완료 | `components/analysis/PdfReportModal.tsx` |
+| 커밋 시크릿 스캔 | CommitSecretScanModal | ✅ 완료 | `components/analysis/CommitSecretScanModal.tsx` |
+| SBOM & CVE | SbomPage (컴포넌트 테이블, CVE 매핑) | ❌ 미구현 | 신규 필요 (FEAT-FE-001) |
+| GitHub 레포 스캔 | GitHubScanModal (URL·브랜치 입력 → 직접 분석 트리거) | ❌ 미구현 | 신규 필요 (FEAT-FE-002) |
+| 컴플라이언스 리포트 | CompliancePage (ISO 27001 / NIST CSF 매핑 표) | ❌ 미구현 | 신규 필요 (FEAT-FE-003) |
+| 팀 관리 | TeamManagementPage (초대, 권한 설정) | ❌ 미구현 | 신규 필요 |
+| 설정 | SettingsPage (알림·플랜·API 키) | ❌ 미구현 | 신규 필요 |
+| 알림 센터 | NotificationsPage (FCM/In-App 알림 목록) | ❌ 미구현 | 신규 필요 |
+| 분석 비교 | DiffPage (두 세션 취약점 증감 비교) | ❌ 미구현 | FEAT-API-001 백엔드 선행 필요 |
+
+**미구현 화면 7개** — Sprint 8 이후 우선순위 결정 필요.
+
+---
+
 ### 프론트엔드 리팩토링 중 발견된 누락 API
 
 #### FEAT-FE-001 SBOM 컴포넌트 조회 API
@@ -794,6 +818,27 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - `apps/backend/src/main/java/io/secureai/backend/domain/analysis/controller/GitHubWebhookController.java` (직접 스캔 트리거 엔드포인트 추가)
   - `apps/frontend/src/components/analysis/GitHubScanModal.tsx` (신규)
 - **설명**: GitHub 레포 URL + 브랜치를 입력받아 분석 세션을 생성하고 AI Engine에 위임. 현재 `GitHubWebhookController`는 웹훅 이벤트만 처리하므로 UI에서 직접 트리거하는 엔드포인트 추가 필요.
+
+#### FEAT-FE-003 컴플라이언스 매핑 리포트 API
+
+- **엔드포인트**: `GET /api/v1/projects/{projectId}/compliance?framework=ISO27001`
+- **필요 파일**:
+  - `apps/backend/src/main/java/io/secureai/backend/domain/compliance/controller/ComplianceController.java` (신규)
+  - `apps/backend/src/main/java/io/secureai/backend/domain/compliance/service/ComplianceMappingService.java` (신규)
+  - `apps/frontend/src/components/compliance/CompliancePage.tsx` (신규)
+- **설명**: Pagori 디자인에 ISO 27001·NIST CSF 컨트롤별 준수 여부 표가 존재하나 백엔드/프론트엔드 모두 미구현. 현재 OWASP Top 10 매핑만 지원. 지원 프레임워크: ISO 27001, NIST CSF, PCI-DSS, PIMS.
+- **응답 예시**:
+  ```json
+  {
+    "data": {
+      "framework": "ISO27001",
+      "controls": [
+        { "controlId": "A.8.1", "name": "취약점 관리", "status": "compliant", "relatedVulnIds": [] },
+        { "controlId": "A.12.6", "name": "기술적 취약점 관리", "status": "non_compliant", "relatedVulnIds": ["uuid1"] }
+      ]
+    }
+  }
+  ```
 
 ---
 

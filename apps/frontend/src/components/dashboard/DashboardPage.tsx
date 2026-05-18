@@ -1,23 +1,21 @@
 // components/dashboard/DashboardPage.tsx
 'use client';
 import { useMemo, useState } from 'react';
-import { BarChart2, PieChart, FileText } from 'lucide-react';
-import { PdfReportModal } from '@/components/analysis/PdfReportModal';
-import { useSecureStore } from '@/store/useSecureStore';
-import FilterBar            from '@/components/ui/FilterBar';
-import VulnDetailPanel      from '@/components/analysis/VulnDetailPanel';
-import { KpiCard }             from '@/components/dashboard/KpiCard';
-import { SeverityBarChart }    from '@/components/dashboard/SeverityBarChart';
-import { TrendLineChart }      from '@/components/dashboard/TrendLineChart';
-import { FileHeatmap }         from '@/components/dashboard/FileHeatmap';
-import { OwaspCoverageMatrix } from '@/components/dashboard/OwaspCoverageMatrix';
+import { BarChart2, PieChart, FileText, RefreshCw } from 'lucide-react';
+import { PdfReportModal }         from '@/components/analysis/PdfReportModal';
+import { useSecureStore }         from '@/store/useSecureStore';
+import { useDashboard }           from '@/hooks/useDashboard';
+import FilterBar                  from '@/components/ui/FilterBar';
+import VulnDetailPanel            from '@/components/analysis/VulnDetailPanel';
+import { KpiCard }                from '@/components/dashboard/KpiCard';
+import { SeverityBarChart }       from '@/components/dashboard/SeverityBarChart';
+import { TrendLineChart }         from '@/components/dashboard/TrendLineChart';
+import { FileHeatmap }            from '@/components/dashboard/FileHeatmap';
+import { OwaspCoverageMatrix }    from '@/components/dashboard/OwaspCoverageMatrix';
 
-// ── 날짜 범위 타입 ──────────────────────────────────────────────
-type DateRange = '24h' | '7d' | '30d' | '90d' | 'all';
-// ── 뷰 모드 타입 ─────────────────────────────────────────────────
+type DateRange    = '24h' | '7d' | '30d' | '90d' | 'all';
 type DashViewMode = 'executive' | 'analyst';
 
-// ── 날짜 범위 선택 바 ────────────────────────────────────────────
 function DateRangeBar({ value, onChange }: { value: DateRange; onChange: (v: DateRange) => void }) {
   const ranges: Array<{ id: DateRange; label: string }> = [
     { id: '24h', label: '24h' },
@@ -31,7 +29,7 @@ function DateRangeBar({ value, onChange }: { value: DateRange; onChange: (v: Dat
       display: 'flex', height: 28, padding: 2,
       background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 7,
     }}>
-      {ranges.map(r => (
+      {ranges.map((r) => (
         <button
           key={r.id}
           onClick={() => onChange(r.id)}
@@ -51,7 +49,6 @@ function DateRangeBar({ value, onChange }: { value: DateRange; onChange: (v: Dat
   );
 }
 
-// ── 뷰 토글 (요약 / 상세) ────────────────────────────────────────
 function ViewToggle({ value, onChange }: { value: DashViewMode; onChange: (v: DashViewMode) => void }) {
   return (
     <div style={{
@@ -59,8 +56,8 @@ function ViewToggle({ value, onChange }: { value: DashViewMode; onChange: (v: Da
       background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 7,
     }}>
       {([
-        { id: 'executive' as DashViewMode, label: '요약', Icon: PieChart },
-        { id: 'analyst'   as DashViewMode, label: '상세', Icon: BarChart2 },
+        { id: 'executive' as DashViewMode, label: '요약',  Icon: PieChart },
+        { id: 'analyst'   as DashViewMode, label: '상세',  Icon: BarChart2 },
       ]).map(({ id, label, Icon }) => {
         const active = value === id;
         return (
@@ -111,16 +108,78 @@ function InlineEmpty({ label }: { label: string }) {
   );
 }
 
-export default function DashboardPage() {
-  const [dateRange,       setDateRange]       = useState<DateRange>('7d');
-  const [dashView,        setDashView]        = useState<DashViewMode>('executive');
-  const [showPdfModal,    setShowPdfModal]    = useState(false);
+// ── API 연결 상태 칩 ─────────────────────────────────────────────
+function ApiStatusChip({ isLoading, isLive, error, onRefetch }: {
+  isLoading: boolean;
+  isLive:    boolean;
+  error:     string | null;
+  onRefetch: () => void;
+}) {
+  if (isLoading) {
+    return (
+      <span style={{
+        display: 'flex', alignItems: 'center', gap: 5,
+        fontSize: 10, color: 'var(--text-tertiary)',
+        fontFamily: 'var(--font-mono)',
+      }}>
+        <span style={{
+          width: 6, height: 6, borderRadius: 3,
+          background: 'var(--orange-2)',
+          animation: 'pulse-dot 1.4s infinite',
+        }} />
+        불러오는 중
+      </span>
+    );
+  }
+  if (error) {
+    return (
+      <button
+        onClick={onRefetch}
+        title={error}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          fontSize: 10, color: 'var(--critical)',
+          fontFamily: 'var(--font-mono)',
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+        }}
+      >
+        <RefreshCw size={10} />
+        로드 실패 — 재시도
+      </button>
+    );
+  }
+  if (isLive) {
+    return (
+      <span style={{
+        display: 'flex', alignItems: 'center', gap: 5,
+        fontSize: 10, color: 'var(--low)',
+        fontFamily: 'var(--font-mono)',
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--low)' }} />
+        실시간
+      </span>
+    );
+  }
+  return null;
+}
 
+export default function DashboardPage() {
+  const [dateRange,    setDateRange]    = useState<DateRange>('7d');
+  const [dashView,     setDashView]     = useState<DashViewMode>('executive');
+  const [showPdfModal, setShowPdfModal] = useState(false);
+
+  // ── 로컬 스토어 (로컬 분석 결과 기반) ──────────────────────────
   const vulns           = useSecureStore((s) => s.vulns);
   const severityFilter  = useSecureStore((s) => s.severityFilter);
   const apiGroupFilter  = useSecureStore((s) => s.apiGroupFilter);
   const lastTokenUsage  = useSecureStore((s) => s.lastTokenUsage);
+  const projectId       = useSecureStore((s) => s.projectId);
 
+  // ── 백엔드 대시보드 API ─────────────────────────────────────────
+  const { data: apiData, isLoading, error, refetch } = useDashboard(projectId);
+  const isApiLive = !!apiData && !isLoading && !error;
+
+  // ── 필터링된 취약점 (취약점 상세 목록 용) ─────────────────────
   const filteredVulns = useMemo(() => {
     return vulns.filter((v) => {
       const sevOk = severityFilter === 'all' || v.severity === severityFilter;
@@ -133,31 +192,40 @@ export default function DashboardPage() {
     });
   }, [vulns, severityFilter, apiGroupFilter]);
 
-  // ── KPI 계산 ───────────────────────────────────────────────
-  const critical   = useMemo(() => vulns.filter((v) => v.severity === 'critical').length, [vulns]);
-  const high       = useMemo(() => vulns.filter((v) => v.severity === 'high').length,     [vulns]);
-  const medium     = useMemo(() => vulns.filter((v) => v.severity === 'medium').length,   [vulns]);
-  const low        = useMemo(() => vulns.filter((v) => v.severity === 'low').length,      [vulns]);
-  const totalVulns = vulns.length;
-  const patched    = useMemo(() => vulns.filter((v) => v.status === 'patched').length, [vulns]);
+  // ── KPI — API 우선, 없으면 로컬 store 계산값 ─────────────────
+  const localCritical = useMemo(() => vulns.filter((v) => v.severity === 'critical').length, [vulns]);
+  const localHigh     = useMemo(() => vulns.filter((v) => v.severity === 'high').length,     [vulns]);
+  const localMedium   = useMemo(() => vulns.filter((v) => v.severity === 'medium').length,   [vulns]);
+  const localLow      = useMemo(() => vulns.filter((v) => v.severity === 'low').length,      [vulns]);
+  const localTotal    = vulns.length;
+  const patched       = useMemo(() => vulns.filter((v) => v.status === 'patched').length, [vulns]);
 
-  const securityScore = useMemo(() => {
-    if (totalVulns === 0) return 100;
-    const penalty = critical * 15 + high * 5 + medium * 2 + low * 0.5;
+  const critical   = isApiLive ? apiData.critical   : localCritical;
+  const high       = isApiLive ? apiData.high        : localHigh;
+  const medium     = isApiLive ? apiData.medium      : localMedium;
+  const low        = isApiLive ? apiData.low         : localLow;
+  const totalVulns = isApiLive ? apiData.totalVulns  : localTotal;
+
+  const localScore = useMemo(() => {
+    if (localTotal === 0) return 100;
+    const penalty = localCritical * 15 + localHigh * 5 + localMedium * 2 + localLow * 0.5;
     return Math.max(0, Math.min(100, Math.round(100 - penalty)));
-  }, [critical, high, medium, low, totalVulns]);
+  }, [localCritical, localHigh, localMedium, localLow, localTotal]);
 
+  const securityScore = isApiLive ? apiData.securityScore : localScore;
   const scoreColor =
     securityScore >= 80 ? 'var(--low)' :
     securityScore >= 60 ? 'var(--orange)' :
     'var(--critical)';
 
-  // ── 파일 히트맵 ────────────────────────────────────────────
-  const heatmapCells = useMemo(() => {
+  // ── 파일 히트맵 — API 우선, 없으면 로컬 계산 ─────────────────
+  const localHeatmap = useMemo(() => {
     const map: Record<string, { critical: number; high: number; medium: number; low: number }> = {};
     for (const v of vulns) {
       if (!map[v.filePath]) map[v.filePath] = { critical: 0, high: 0, medium: 0, low: 0 };
-      map[v.filePath][v.severity]++;
+      if (v.severity === 'critical' || v.severity === 'high' || v.severity === 'medium' || v.severity === 'low') {
+        map[v.filePath][v.severity]++;
+      }
     }
     return Object.entries(map)
       .map(([file, counts]) => ({ file: file.split('/').pop() ?? file, ...counts }))
@@ -166,7 +234,9 @@ export default function DashboardPage() {
       .slice(0, 10);
   }, [vulns]);
 
-  // ── OWASP bar chart ────────────────────────────────────────
+  const heatmapCells = isApiLive ? apiData.fileHeatmap : localHeatmap;
+
+  // ── OWASP 바 차트 (로컬 store 기반) ──────────────────────────
   const owaspRows = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const v of vulns) {
@@ -187,6 +257,14 @@ export default function DashboardPage() {
       }));
   }, [vulns]);
 
+  // ── 트렌드 차트 — API 우선, 없으면 현재 점수 단일 포인트 ────
+  const trendData = isApiLive && apiData.trend.length > 0
+    ? apiData.trend
+    : [{ date: '현재', score: securityScore }];
+
+  // ── OWASP 커버리지 매트릭스 ──────────────────────────────────
+  const owaspCells = isApiLive ? apiData.owaspCells : undefined;
+
   const hasVulns = totalVulns > 0;
 
   return (
@@ -202,14 +280,18 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Security Dashboard</span>
           {hasVulns && (
-            <span
-              className="chip chip-critical"
-              style={{ height: 18, fontSize: 9 }}
-            >
+            <span className="chip chip-critical" style={{ height: 18, fontSize: 9 }}>
               {totalVulns}
             </span>
           )}
         </div>
+
+        <ApiStatusChip
+          isLoading={isLoading}
+          isLive={isApiLive}
+          error={error}
+          onRefetch={refetch}
+        />
 
         <div style={{ flex: 1 }} />
 
@@ -249,7 +331,7 @@ export default function DashboardPage() {
           </h1>
           <p style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
             {hasVulns
-              ? `취약점 ${totalVulns}개 감지됨 · 보안 점수 ${securityScore}`
+              ? `취약점 ${totalVulns}개 감지됨 · 보안 점수 ${securityScore}${isApiLive ? ' · 백엔드 집계' : ' · 로컬 분석'}`
               : '분석 결과가 없습니다 — 폴더를 열고 분석을 시작하세요'}
           </p>
         </div>
@@ -261,7 +343,7 @@ export default function DashboardPage() {
           <KpiCard value={high}          label="High"       color="var(--high)" />
           <KpiCard value={medium}        label="Medium"     color="var(--medium)" />
           <KpiCard
-            value={totalVulns > 0 ? `${Math.round((patched / totalVulns) * 100)}%` : '—'}
+            value={totalVulns > 0 ? `${Math.round((patched / localTotal) * 100)}%` : '—'}
             label="패치 완료율"
             color="var(--low)"
           />
@@ -274,14 +356,14 @@ export default function DashboardPage() {
               ? <SeverityBarChart rows={owaspRows} />
               : <InlineEmpty label="분석 후 OWASP 분포가 표시됩니다" />}
           </Card>
-          <Card title="보안 점수 트렌드">
-            {hasVulns
-              ? <TrendLineChart data={[{ date: '현재', score: securityScore }]} height={80} />
+          <Card title={isApiLive ? '일별 취약점 발생 추이 (7일)' : '보안 점수 트렌드'}>
+            {hasVulns || (isApiLive && trendData.length > 0)
+              ? <TrendLineChart data={trendData} height={80} />
               : <InlineEmpty label="분석 이력이 쌓이면 트렌드가 표시됩니다" />}
           </Card>
         </div>
 
-        {/* ── Analyst 뷰 전용: 파일별 히트맵 + OWASP 커버리지 ── */}
+        {/* ── Analyst 뷰 전용 ── */}
         {dashView === 'analyst' && (
           <>
             <Card title="파일별 취약점 히트맵">
@@ -291,7 +373,7 @@ export default function DashboardPage() {
             </Card>
 
             <Card title="OWASP Top 10 커버리지 (A01 ~ A10)">
-              <OwaspCoverageMatrix />
+              <OwaspCoverageMatrix cells={owaspCells} />
             </Card>
           </>
         )}

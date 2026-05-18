@@ -351,11 +351,11 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - **중요도**: 🟠 High | **순서**: 5번째
 
 **하위 할일**
-- [ ] Firebase 프로젝트 + google-services.json
-- [ ] `FcmPushService.java` Backend
-- [ ] `SecureAiFcmService.kt`
-- [ ] `SseClient.kt` Flow
-- [ ] `AnalysisViewModel.kt` 이중 처리
+- [x] Firebase 프로젝트 + google-services.json
+- [x] `FcmPushService.java` Backend
+- [x] `SecureAiFcmService.kt`
+- [x] `SseClient.kt` Flow
+- [x] `AnalysisViewModel.kt` 이중 처리
 
 **테스트 체크리스트**
 - [ ] 🔬 세션 완료 → Backend `SessionCompletedEvent` → FCM Push 발송

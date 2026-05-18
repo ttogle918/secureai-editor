@@ -239,6 +239,31 @@ Stage 4 (순차)
 
 ---
 
+### Stage 4 완료 (2026-05-19)
+
+**커밋**: `0beb7ed` — `feat(sprint7-stage4): FCM Push + SSE 이중 전략 Android 구현`
+
+#### TASK-705 (Android)
+- `libs.versions.toml`: firebase-bom 33.6.0, firebase-messaging-ktx, lifecycle-process, okhttp-mockwebserver 추가
+- `build.gradle.kts`: Firebase BOM + FCM 의존성 활성화 (analytics 제외 — Kotlin 2.0.21 호환)
+- `AndroidManifest.xml`: POST_NOTIFICATIONS 권한, FCM 서비스, `secureai://session/{sessionId}` 딥링크 intent-filter, launchMode="singleTop"
+- `SecureAiApplication.kt`: `createNotificationChannels()` — analysis_complete 채널(IMPORTANCE_HIGH) 앱 시작 시 등록
+- `SecureAiFcmService.kt`: Firebase 수신 서비스 — EntryPoint 패턴(Hilt), foreground 판단(ProcessLifecycleOwner), background 알림 표시 + 딥링크 PendingIntent. serviceJob.cancel() onDestroy 정리
+- `FcmTokenService.kt`: FCM 토큰 서버 등록 (`POST /api/v1/fcm/device-tokens`) — 비로그인 시 defer, 실패 비치명적
+- `FcmTokenApi.kt`: Retrofit 인터페이스
+- `SseClient.kt`: OkHttp callbackFlow 기반 SSE 파싱 — `session.completed` 이벤트 감지, close() 명시적 채널 종료
+- `AnalysisViewModel.kt`: SSE(foreground)/FCM(background) 이중 전략 상태 관리, sessionId UUID 검증([0-9a-f-]{36}) + early return
+- `NavGraph.kt`: `Screen.Session` 라우트 + deepLink uriPattern 추가
+- `MainActivity.kt`: `onNewIntent` 딥링크 처리 + UUID 검증
+- `NetworkModule.kt`: `redactHeader("Authorization")` — DEBUG BODY 레벨에서도 토큰 Logcat 노출 차단
+- **단위 테스트**: SseClientTest 5개 + AnalysisViewModelTest 7개 = 12개 통과
+
+**Reviewer 지적 사항 (수정 완료)**:
+1. `NetworkModule.kt` — `loggingInterceptor.redactHeader("Authorization")` 누락 → 추가
+2. `SseClient.kt` — sessionId URL 삽입 전 UUID 검증 없음 → `AnalysisViewModel.startSseObservation()`에 UUID_PATTERN.matches() + early return 추가
+
+---
+
 ## 완료 기준 (DoD)
 
 ```

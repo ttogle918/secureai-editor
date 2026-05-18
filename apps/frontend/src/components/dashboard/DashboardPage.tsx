@@ -1,6 +1,7 @@
 // components/dashboard/DashboardPage.tsx
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { BarChart2, PieChart, History } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
 import FilterBar            from '@/components/ui/FilterBar';
 import VulnDetailPanel      from '@/components/analysis/VulnDetailPanel';
@@ -10,25 +11,99 @@ import { TrendLineChart }      from '@/components/dashboard/TrendLineChart';
 import { FileHeatmap }         from '@/components/dashboard/FileHeatmap';
 import { OwaspCoverageMatrix } from '@/components/dashboard/OwaspCoverageMatrix';
 
+// ── 날짜 범위 타입 ──────────────────────────────────────────────
+type DateRange = '24h' | '7d' | '30d' | '90d' | 'all';
+// ── 뷰 모드 타입 ─────────────────────────────────────────────────
+type DashViewMode = 'executive' | 'analyst';
+
+// ── 날짜 범위 선택 바 ────────────────────────────────────────────
+function DateRangeBar({ value, onChange }: { value: DateRange; onChange: (v: DateRange) => void }) {
+  const ranges: Array<{ id: DateRange; label: string }> = [
+    { id: '24h', label: '24h' },
+    { id: '7d',  label: '7일' },
+    { id: '30d', label: '30일' },
+    { id: '90d', label: '90일' },
+    { id: 'all', label: '전체' },
+  ];
+  return (
+    <div style={{
+      display: 'flex', height: 28, padding: 2,
+      background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 7,
+    }}>
+      {ranges.map(r => (
+        <button
+          key={r.id}
+          onClick={() => onChange(r.id)}
+          style={{
+            padding: '0 12px', borderRadius: 5, border: 'none',
+            background: value === r.id ? 'var(--bg-1)' : 'transparent',
+            color: value === r.id ? 'var(--text-primary)' : 'var(--text-tertiary)',
+            fontSize: 11, fontWeight: 600, cursor: 'pointer',
+            boxShadow: value === r.id ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+            transition: 'background 0.12s, color 0.12s',
+          }}
+        >
+          {r.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── 뷰 토글 (요약 / 상세) ────────────────────────────────────────
+function ViewToggle({ value, onChange }: { value: DashViewMode; onChange: (v: DashViewMode) => void }) {
+  return (
+    <div style={{
+      display: 'flex', height: 28, padding: 2,
+      background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 7,
+    }}>
+      {([
+        { id: 'executive' as DashViewMode, label: '요약', Icon: PieChart },
+        { id: 'analyst'   as DashViewMode, label: '상세', Icon: BarChart2 },
+      ]).map(({ id, label, Icon }) => {
+        const active = value === id;
+        return (
+          <button
+            key={id}
+            onClick={() => onChange(id)}
+            style={{
+              padding: '0 12px', borderRadius: 5, border: 'none',
+              background: active ? 'var(--bg-1)' : 'transparent',
+              color: active ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+              boxShadow: active ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+              transition: 'background 0.12s, color 0.12s',
+            }}
+          >
+            <Icon size={11} />
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Card({ children, title }: { children: React.ReactNode; title?: string }) {
   return (
     <div style={{
-      background: '#111114', border: '1px solid #1f1f24',
+      background: 'var(--bg-2)', border: '1px solid var(--border)',
       borderRadius: 8, padding: '16px 20px',
     }}>
       {title && (
-        <div style={{ fontSize: 11, color: '#9494a0', marginBottom: 14 }}>{title}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 14 }}>{title}</div>
       )}
       {children}
     </div>
   );
 }
 
-function EmptyState({ label }: { label: string }) {
+function InlineEmpty({ label }: { label: string }) {
   return (
     <div style={{
       height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 11, color: '#404048', fontFamily: 'var(--font-mono)',
+      fontSize: 11, color: 'var(--text-disabled)', fontFamily: 'var(--font-mono)',
     }}>
       {label}
     </div>
@@ -36,6 +111,9 @@ function EmptyState({ label }: { label: string }) {
 }
 
 export default function DashboardPage() {
+  const [dateRange,  setDateRange]  = useState<DateRange>('7d');
+  const [dashView,   setDashView]   = useState<DashViewMode>('executive');
+
   const vulns           = useSecureStore((s) => s.vulns);
   const severityFilter  = useSecureStore((s) => s.severityFilter);
   const apiGroupFilter  = useSecureStore((s) => s.apiGroupFilter);
@@ -68,9 +146,9 @@ export default function DashboardPage() {
   }, [critical, high, medium, low, totalVulns]);
 
   const scoreColor =
-    securityScore >= 80 ? '#22c55e' :
-    securityScore >= 60 ? '#f97316' :
-    '#f04141';
+    securityScore >= 80 ? 'var(--low)' :
+    securityScore >= 60 ? 'var(--orange)' :
+    'var(--critical)';
 
   // ── 파일 히트맵 ────────────────────────────────────────────
   const heatmapCells = useMemo(() => {
@@ -95,7 +173,7 @@ export default function DashboardPage() {
       }
     }
     const maxCount = Math.max(1, ...Object.values(counts));
-    const palette = ['#f04141', '#f59e0b', '#eab308', '#f97316', '#a78bfa'];
+    const palette = ['var(--critical)', 'var(--high)', 'var(--medium)', 'var(--orange)', 'var(--tag-6)'];
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
@@ -110,7 +188,33 @@ export default function DashboardPage() {
   const hasVulns = totalVulns > 0;
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: '#0d0d0f', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-0)', display: 'flex', flexDirection: 'column' }}>
+
+      {/* ── 대시보드 탑바 ── */}
+      <div style={{
+        height: 48, flexShrink: 0,
+        background: 'var(--bg-1)',
+        borderBottom: '1px solid var(--hairline)',
+        display: 'flex', alignItems: 'center', padding: '0 24px', gap: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Security Dashboard</span>
+          {hasVulns && (
+            <span
+              className="chip chip-critical"
+              style={{ height: 18, fontSize: 9 }}
+            >
+              {totalVulns}
+            </span>
+          )}
+        </div>
+
+        <div style={{ flex: 1 }} />
+
+        <DateRangeBar value={dateRange} onChange={setDateRange} />
+        <ViewToggle value={dashView} onChange={setDashView} />
+      </div>
+
       <div
         className="pb-mobile-nav"
         style={{
@@ -120,14 +224,14 @@ export default function DashboardPage() {
         }}
       >
         {/* ── 헤더 ── */}
-        <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 16 }}>
+        <div style={{ borderBottom: '1px solid var(--hairline)', paddingBottom: 16 }}>
           <h1 style={{
-            fontSize: 22, fontWeight: 700, color: '#e8e8ee',
+            fontSize: 22, fontWeight: 700, color: 'var(--text-primary)',
             letterSpacing: '-0.02em', marginBottom: 4,
           }}>
             Security Audit Dashboard
           </h1>
-          <p style={{ fontSize: 11, color: '#555560', fontFamily: 'var(--font-mono)' }}>
+          <p style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
             {hasVulns
               ? `취약점 ${totalVulns}개 감지됨 · 보안 점수 ${securityScore}`
               : '분석 결과가 없습니다 — 폴더를 열고 분석을 시작하세요'}
@@ -137,13 +241,13 @@ export default function DashboardPage() {
         {/* ── KPI 카드 ── */}
         <div className="kpi-grid" aria-label="주요 보안 지표">
           <KpiCard value={securityScore} label="보안 점수"  color={scoreColor} isScore />
-          <KpiCard value={critical}      label="Critical"   color="#f04141" />
-          <KpiCard value={high}          label="High"       color="#f59e0b" />
-          <KpiCard value={medium}        label="Medium"     color="#eab308" />
+          <KpiCard value={critical}      label="Critical"   color="var(--critical)" />
+          <KpiCard value={high}          label="High"       color="var(--high)" />
+          <KpiCard value={medium}        label="Medium"     color="var(--medium)" />
           <KpiCard
             value={totalVulns > 0 ? `${Math.round((patched / totalVulns) * 100)}%` : '—'}
             label="패치 완료율"
-            color="#22c55e"
+            color="var(--low)"
           />
         </div>
 
@@ -152,47 +256,47 @@ export default function DashboardPage() {
           <Card title="OWASP 분류별 취약점">
             {owaspRows.length > 0
               ? <SeverityBarChart rows={owaspRows} />
-              : <EmptyState label="분석 후 OWASP 분포가 표시됩니다" />}
+              : <InlineEmpty label="분석 후 OWASP 분포가 표시됩니다" />}
           </Card>
           <Card title="보안 점수 트렌드">
             {hasVulns
               ? <TrendLineChart data={[{ date: '현재', score: securityScore }]} height={80} />
-              : <EmptyState label="분석 이력이 쌓이면 트렌드가 표시됩니다" />}
+              : <InlineEmpty label="분석 이력이 쌓이면 트렌드가 표시됩니다" />}
           </Card>
         </div>
 
-        {/* ── 파일별 히트맵 ── */}
-        <Card title="파일별 취약점 히트맵">
-          {heatmapCells.length > 0
-            ? <FileHeatmap cells={heatmapCells} />
-            : <EmptyState label="분석 후 파일별 분포가 표시됩니다" />}
-        </Card>
+        {/* ── Analyst 뷰 전용: 파일별 히트맵 + OWASP 커버리지 ── */}
+        {dashView === 'analyst' && (
+          <>
+            <Card title="파일별 취약점 히트맵">
+              {heatmapCells.length > 0
+                ? <FileHeatmap cells={heatmapCells} />
+                : <InlineEmpty label="분석 후 파일별 분포가 표시됩니다" />}
+            </Card>
 
-        {/* ── OWASP Coverage ── */}
-        <Card title="OWASP Top 10 커버리지 (A01 ~ A10)">
-          <OwaspCoverageMatrix />
-        </Card>
+            <Card title="OWASP Top 10 커버리지 (A01 ~ A10)">
+              <OwaspCoverageMatrix />
+            </Card>
+          </>
+        )}
 
         {/* ── 토큰 사용량 ── */}
         {lastTokenUsage && (
           <Card>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, color: '#9494a0' }}>토큰 사용량</span>
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>토큰 사용량</span>
                 <span style={{
                   fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3,
-                  background: 'rgba(99,102,241,0.12)', color: '#818cf8',
+                  background: 'rgba(99,102,241,0.12)', color: 'var(--tag-1)',
                   border: '0.5px solid rgba(99,102,241,0.25)',
                 }}>
                   {lastTokenUsage.modelId}
                 </span>
               </div>
-              <span style={{
-                fontSize: 15, fontWeight: 700,
-                color: '#e8e8ee',
-              }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
                 ${lastTokenUsage.estimatedCostUsd.toFixed(4)}
-                <span style={{ fontSize: 11, color: '#555560', marginLeft: 6 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', marginLeft: 6 }}>
                   (≈ ₩{Math.round(lastTokenUsage.estimatedCostUsd * 1380).toLocaleString()})
                 </span>
               </span>
@@ -202,24 +306,24 @@ export default function DashboardPage() {
               gridTemplateColumns: 'repeat(4, 1fr)', gap: 8,
             }}>
               {([
-                { label: '입력',     value: lastTokenUsage.inputTokens,      color: '#60a5fa' },
-                { label: '출력',     value: lastTokenUsage.outputTokens,     color: '#34d399' },
-                { label: '캐시 쓰기', value: lastTokenUsage.cacheWriteTokens, color: '#f59e0b' },
-                { label: '캐시 읽기', value: lastTokenUsage.cacheReadTokens,  color: '#a78bfa' },
+                { label: '입력',      value: lastTokenUsage.inputTokens,      color: 'var(--tag-5)' },
+                { label: '출력',      value: lastTokenUsage.outputTokens,     color: 'var(--tag-3)' },
+                { label: '캐시 쓰기', value: lastTokenUsage.cacheWriteTokens, color: 'var(--high)' },
+                { label: '캐시 읽기', value: lastTokenUsage.cacheReadTokens,  color: 'var(--tag-6)' },
               ] as const).map(({ label, value, color }) => (
                 <div key={label} style={{
-                  background: '#0d0d0f', borderRadius: 6, padding: '8px 12px',
-                  border: '1px solid #1f1f24',
+                  background: 'var(--bg-1)', borderRadius: 6, padding: '8px 12px',
+                  border: '1px solid var(--border)',
                 }}>
-                  <div style={{ fontSize: 9, color: '#555560', marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginBottom: 4 }}>{label}</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>
                     {value.toLocaleString()}
                   </div>
-                  <div style={{ fontSize: 9, color: '#404048', marginTop: 2 }}>tokens</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-disabled)', marginTop: 2 }}>tokens</div>
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 8, fontSize: 10, color: '#404048' }}>
+            <div style={{ marginTop: 8, fontSize: 10, color: 'var(--text-disabled)' }}>
               총 {(lastTokenUsage.inputTokens + lastTokenUsage.outputTokens + lastTokenUsage.cacheWriteTokens + lastTokenUsage.cacheReadTokens).toLocaleString()} 토큰
               · 가격 기준: 입력 $0.80 / 출력 $4.00 / 캐시쓰기 $1.00 / 캐시읽기 $0.08 (per MTok)
             </div>
@@ -227,13 +331,13 @@ export default function DashboardPage() {
         )}
 
         {/* ── 취약점 상세 목록 ── */}
-        <div style={{ background: '#111114', border: '1px solid #1f1f24', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
           <div style={{
-            padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+            padding: '12px 16px', borderBottom: '1px solid var(--hairline)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#e8e8ee' }}>취약점 상세 목록</span>
-            <span style={{ fontSize: 11, color: '#555560' }}>{filteredVulns.length}개 표시 중</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>취약점 상세 목록</span>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{filteredVulns.length}개 표시 중</span>
           </div>
           <FilterBar />
           <VulnDetailPanel />

@@ -63,6 +63,9 @@ dependencies {
 
 	// Swagger / OpenAPI
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
+
+	// PDF 생성 — OpenPDF (LGPL)
+	implementation("com.github.librepdf:openpdf:1.3.30")
 }
 
 tasks.withType<Test> {

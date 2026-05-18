@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    네트워크 보안 설정
+    - debug 빌드: 에뮬레이터 → 호스트(10.0.2.2) HTTP 통신 허용 (개발 전용)
+    - release 빌드: HTTPS 전용, cleartext 금지
+-->
+<network-security-config>
+    <debug-overrides>
+        <!-- 개발 중 에뮬레이터에서 로컬 백엔드(HTTP)에 접근하기 위해 cleartext 허용 -->
+        <domain-config cleartextTrafficPermitted="true">
+            <domain includeSubdomains="false">10.0.2.2</domain>
+            <domain includeSubdomains="false">localhost</domain>
+        </domain-config>
+    </debug-overrides>
+
+    <base-config cleartextTrafficPermitted="false">
+        <!-- release에서는 HTTPS만 허용 -->
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

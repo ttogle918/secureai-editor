@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -26,10 +26,12 @@ public class RedisCacheConfig {
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        // GenericJackson2JsonRedisSerializer: @class 프로퍼티로 타입 정보 보존.
+        // Jackson2JsonRedisSerializer<Object> + NON_FINAL 조합은 Java record(final class)를
+        // 타입 정보 없이 직렬화하여 역직렬화 시 WRAPPER_ARRAY 불일치 오류를 유발한다.
         ObjectMapper objectMapper = buildObjectMapper();
-        // Object 타입으로 직렬화해 모든 캐시 값 타입을 지원한다
-        Jackson2JsonRedisSerializer<Object> jsonSerializer =
-                new Jackson2JsonRedisSerializer<>(objectMapper, Object.class);
+        GenericJackson2JsonRedisSerializer jsonSerializer =
+                new GenericJackson2JsonRedisSerializer(objectMapper);
 
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(DEFAULT_TTL)
@@ -54,10 +56,13 @@ public class RedisCacheConfig {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        // 타입 정보를 포함해 역직렬화 시 올바른 클래스로 복원할 수 있도록 설정한다
-        mapper.activateDefaultTyping(
+        // @class 프로퍼티로 타입 정보 저장 — NON_FINAL은 final 클래스(record)를 제외하지만
+        // EVERYTHING은 record 포함 모든 타입의 역직렬화를 보장한다.
+        // As.PROPERTY 방식은 WRAPPER_ARRAY보다 안정적이며 중첩 객체에서도 정확하다.
+        mapper.activateDefaultTypingAsProperty(
                 mapper.getPolymorphicTypeValidator(),
-                ObjectMapper.DefaultTyping.NON_FINAL
+                ObjectMapper.DefaultTyping.EVERYTHING,
+                "@class"
         );
         return mapper;
     }

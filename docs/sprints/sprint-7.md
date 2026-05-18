@@ -138,6 +138,39 @@ Stage 4 (순차)
 
 ---
 
+## 구현 완료 기록
+
+### Stage 1 완료 (2026-05-18)
+
+**커밋**: `e01dd5e` — `feat(sprint7-stage1): PDF 리포트 백엔드 + Android 인증 기반`
+
+#### TASK-701 (백엔드)
+- `build.gradle.kts`: OpenPDF 1.3.30 (LGPL) 의존성 추가
+- `V035__create_reports.sql`: reports 테이블 (UUID PK, download_token UNIQUE, expires_at 90일)
+- `Report.java`: 엔티티 — `markGenerating()`, `markCompleted()`, `markFailed()` 도메인 메서드
+- `PdfReportGenerator.java`: Template Method — 표지→심각도 요약→취약점 목록→OWASP 매핑
+- `JsonReportGenerator.java`: CycloneDX 1.5 포맷
+- `ReportService.java`: 생성 요청, 상태 조회, 다운로드 — `REPORT_BASE_DIR.startsWith()` Path Traversal 방어
+- `ReportAsyncProcessor.java`: `@Async` 분리 — SRP (비동기 실행만 담당)
+- `ReportController.java`: POST/GET/다운로드 엔드포인트
+- **단위 테스트**: ReportServiceTest 10개 + PdfReportGeneratorTest 4개 = 14개 통과
+
+**Reviewer 지적 사항**: `readFileAsResource()`에 `REPORT_BASE_DIR` 기반 경로 검증 추가로 해결
+
+#### TASK-703 (Android)
+- `libs.versions.toml`: Compose BOM, Hilt, Retrofit, OkHttp, Room, Security-Crypto 등 세팅
+- `TokenStorage.kt`: EncryptedSharedPreferences + Android Keystore AES256_GCM
+- `NetworkModule.kt`: OkHttp (Authorization 인터셉터, DEBUG=BODY/release=NONE)
+- `AuthRepository.kt` (인터페이스) + `AuthRepositoryImpl.kt` — DIP
+- `AuthViewModel.kt`: `sealed interface AuthUiState`, SharedFlow 네비게이션 이벤트
+- `LoginScreen.kt`, `RegisterScreen.kt`: Compose UI
+- `NavGraph.kt`: `isLoggedIn()` 기반 startDestination 동적 결정
+- `RootDetector.kt`: su 바이너리 + 루트 패키지 감지
+- `network_security_config.xml`: release cleartext 차단, debug 10.0.2.2 예외
+- **단위 테스트**: AuthViewModelTest 8 + TokenStorageTest 8 + AuthRepositoryImplTest 6 = 22개 통과 (JVM 타겟 11 수정, Loading 중복 호출 방어 버그 수정 포함)
+
+---
+
 ## 완료 기준 (DoD)
 
 ```

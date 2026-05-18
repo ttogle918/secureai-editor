@@ -290,10 +290,10 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - **중요도**: 🟠 High | **순서**: 2번째
 
 **하위 할일**
-- [ ] SecurityScoreRing, SeverityBarChart, TrendLineChart, FileHeatmap, OwaspCoverageMatrix
-- [ ] `VulnerabilityQueryService` 집계 쿼리
-- [ ] `GET /projects/{id}/vulnerabilities/trend` API
-- [ ] `dashboard/page.tsx` 완성
+- [ ] SecurityScoreRing, SeverityBarChart, TrendLineChart, FileHeatmap, OwaspCoverageMatrix (Stage 3 FE)
+- [x] `VulnerabilityQueryService` 집계 쿼리 (4개 위임 메서드 추가)
+- [x] `GET /api/v1/projects/{id}/dashboard` 단일 엔드포인트 + Redis 캐시 5분
+- [ ] `dashboard/page.tsx` 완성 (Stage 3 FE)
 
 **테스트 체크리스트**
 - [ ] 🔬 trend API — 7일간 일별 집계 정확성
@@ -334,13 +334,13 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - **중요도**: 🟠 High | **순서**: 4번째
 
 **하위 할일**
-- [ ] DashboardScreen, VulnListScreen, VulnDetailScreen
-- [ ] `SecurityScoreGauge.kt` Canvas
-- [ ] Room DB 엔티티 + DAO
-- [ ] Repository (Remote + Room)
+- [x] DashboardScreen, VulnListScreen, VulnDetailScreen
+- [x] `SecurityScoreGauge.kt` Canvas
+- [x] Room DB 엔티티 + DAO (VulnerabilityEntity, DashboardCacheEntity)
+- [x] Repository (Remote + Room fallback) + ApiResponse 래퍼
 
 **테스트 체크리스트**
-- [ ] 🧪 Room DAO — 프로젝트 CRUD 정확성
+- [x] 🧪 Room DAO — upsert/중복방지/stale 삭제 (VulnerabilityDaoContractTest 4개)
 - [ ] 🔬 네트워크 끊김 → Room 캐시에서 마지막 데이터 표시
 - [ ] ✅ 대시보드 → 취약점 목록 → 상세 네비게이션 흐름
 - [ ] ✅ SecurityScoreGauge 애니메이션 부드러움

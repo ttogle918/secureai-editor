@@ -171,6 +171,38 @@ Stage 4 (순차)
 
 ---
 
+### Stage 2 완료 (2026-05-18)
+
+**커밋**: `b16fad0` — `feat(sprint7-stage2): 대시보드 집계 API + Android 대시보드·취약점 화면`
+
+#### TASK-702 (백엔드)
+- `DashboardQueryService.java`: 접근 권한 검증 전담
+- `DashboardCacheService.java`: `@Cacheable` 5분 TTL + 집계 로직 (self-invocation 방지 2-Bean 패턴)
+- `DashboardController.java`: `GET /api/v1/projects/{projectId}/dashboard`
+- `DashboardResponse.java`: record — SeverityCounts, TrendPoint, FileHeatPoint, OwaspCoverage
+- `RedisCacheConfig.java`: dashboard 5분, projectDetail 10분
+- `VulnerabilityQueryService.java`: 집계 위임 메서드 4개 추가 (도메인 간 Repository 직접 주입 제거)
+- `VulnerabilityRepository.java`: `countDailyByProjectId` JPQL → nativeQuery PostgreSQL `created_at::date`
+- **단위 테스트**: DashboardQueryServiceTest 17개 통과
+
+**Reviewer 지적 사항 (수정 완료)**:
+1. `DashboardCacheService`가 `VulnerabilityRepository` 직접 주입 → `VulnerabilityQueryService` 위임으로 BC 경계 준수
+2. `FUNCTION('date', v.createdAt)` JPQL → `nativeQuery=true` + `created_at::date` PostgreSQL 문법
+3. Android `DashboardApi` 반환 타입 `DashboardResponse` → `ApiResponse<DashboardResponse>` (백엔드 래퍼 불일치 수정)
+
+#### TASK-704 (Android)
+- `DashboardScreen.kt` + `SecurityScoreGauge.kt` (Canvas 원형 게이지)
+- `VulnListScreen.kt` + `VulnDetailScreen.kt`
+- `DashboardViewModel.kt` + `VulnListViewModel.kt` + `VulnDetailViewModel.kt`
+- `VulnerabilityEntity.kt` + `DashboardCacheEntity.kt` + DAO + `AppDatabase.kt`
+- `VulnRepository.kt` / `DashboardRepository.kt` 인터페이스 + 구현체 (네트워크 실패 시 Room 캐시 fallback)
+- `ApiResponse.kt` 래퍼 + `requireData()` 언래핑 메서드
+- `NavGraph.kt`: vulnList/{projectId}, vulnDetail/{projectId}/{vulnId} destination 추가
+- Kotlin 1.9.22 → 2.0.21, KSP 2.0.21-1.0.28 (firebase-bom 호환)
+- **단위 테스트**: DashboardViewModelTest 4개 + VulnerabilityDaoContractTest 4개 통과
+
+---
+
 ## 완료 기준 (DoD)
 
 ```

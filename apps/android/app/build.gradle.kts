@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     id("com.google.gms.google-services")
@@ -40,10 +41,6 @@ android {
         buildConfig = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -60,17 +57,11 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
 
-    // Import the Firebase BoM
-    implementation(platform("com.google.firebase:firebase-bom:34.13.0"))
-
-
-    // TODO: Add the dependencies for Firebase products you want to use
-    // When using the BoM, don't specify versions in Firebase dependencies
-    implementation("com.google.firebase:firebase-analytics")
-
-
-    // Add the dependencies for any other desired Firebase products
-    // https://firebase.google.com/docs/android/setup#available-libraries
+    // Firebase BoM + firebase-analytics는 Stage 4 FCM 구현 시 추가 예정.
+    // play-services-measurement-impl이 Kotlin 2.2.0 메타데이터를 요구하여
+    // 현재 프로젝트 Kotlin 2.0.21과 충돌 — Stage 4 때 Kotlin 2.2.x 업그레이드와 함께 활성화.
+    // implementation(platform("com.google.firebase:firebase-bom:34.13.0"))
+    // implementation("com.google.firebase:firebase-analytics")
 
     
 

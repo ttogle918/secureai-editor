@@ -32,7 +32,7 @@
 | 1 | **PDF 라이브러리** | iText7 Community = AGPL (상용 배포 시 라이선스 계약 필요). OpenPDF(LGPL)로 대체 가능 | ⬜ |
 | 2 | **Firebase Console 등록** | `google-services.json` + Admin SDK 서비스 계정 키 발급 (Stage 4 전 수동 작업) | ⬜ |
 | 3 | **`google-services.json` `.gitignore` 등록** | `apps/android/app/google-services.json` | ⬜ |
-| 4 | **대시보드 API 스키마** | `GET /projects/{id}/dashboard` 단일 엔드포인트 vs 차트별 다중 엔드포인트 | ⬜ |
+| 4 | **대시보드 API 스키마** | `GET /projects/{id}/dashboard` 단일 엔드포인트 — securityScore·severityCounts·trend(7일)·fileHeatmap·owaspCoverage 일괄 반환, Redis 캐시 1키 | ✅ |
 | 5 | **FCM 페이로드 스키마** | `data: { sessionId, projectId, deeplink: "secureai://session/{id}" }` (권장) | ⬜ |
 
 ---

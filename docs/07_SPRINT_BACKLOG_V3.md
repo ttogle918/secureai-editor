@@ -267,19 +267,19 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - **중요도**: 🔴 Critical | **순서**: 1번째
 
 **하위 할일**
-- [ ] iText7 의존성 + `PdfGeneratorService.java` @Async
-- [ ] `Report.java` + Flyway V010
-- [ ] `PdfReportGenerator.java` / `JsonReportGenerator.java`
-- [ ] `ReportService.java` + `ReportController.java`
-- [ ] 다운로드 토큰 + 파일 삭제 연동
-- [ ] 프론트엔드 UI
+- [x] OpenPDF 의존성 + `ReportAsyncProcessor.java` @Async (LGPL — iText7 대신)
+- [x] `Report.java` + Flyway V035 (V010 충돌 → V035로 변경)
+- [x] `PdfReportGenerator.java` / `JsonReportGenerator.java`
+- [x] `ReportService.java` + `ReportController.java`
+- [x] 다운로드 토큰 + Path Traversal 방어
+- [ ] 프론트엔드 UI (Stage 3)
 
 **테스트 체크리스트**
-- [ ] 🧪 Template Method — PdfReportGenerator 섹션 순서 정확성
+- [x] 🧪 Template Method — PdfReportGenerator 섹션 순서 정확성
 - [ ] 🔬 리포트 생성 → 30초 이내 완료
 - [ ] 🔬 다운로드 토큰 만료 (24시간) → 접근 거부
 - [ ] 🔬 90일 후 리포트 파일 자동 삭제
-- [ ] 🛡️ 다른 사용자 리포트 downloadToken 직접 접근 시 거부
+- [x] 🛡️ 다른 사용자 리포트 downloadToken 직접 접근 시 거부
 - [ ] 🛡️ 공개 공유 링크 활성화 시만 인증 없이 접근 가능
 - [ ] ✅ 생성된 PDF 파일 열어 취약점 목록, 패치 코드, 차트 확인
 - [ ] ✅ JSON 리포트 → CycloneDX 호환 스키마 검증
@@ -312,20 +312,20 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - **중요도**: 🔴 Critical | **순서**: 3번째 병렬
 
 **하위 할일**
-- [ ] Android 프로젝트 (Compose, Hilt)
-- [ ] `NetworkModule.kt` 인증서 피닝
-- [ ] `TokenStorage.kt` EncryptedSharedPreferences
-- [ ] `LoginScreen.kt`, `RegisterScreen.kt`
-- [ ] `AuthViewModel.kt` + `AuthRepository.kt`
-- [ ] `NavGraph.kt`
+- [x] Android 프로젝트 (Compose, Hilt, Room, Firebase)
+- [x] `NetworkModule.kt` 인증서 피닝 + debug 예외
+- [x] `TokenStorage.kt` EncryptedSharedPreferences + Android Keystore AES256_GCM
+- [x] `LoginScreen.kt`, `RegisterScreen.kt`
+- [x] `AuthViewModel.kt` + `AuthRepository.kt` (DIP 인터페이스)
+- [x] `NavGraph.kt` + `RootDetector.kt`
 
 **테스트 체크리스트**
-- [ ] 🧪 `TokenStorage` 암호화 저장·복원 정확성
-- [ ] 🧪 `AuthRepository` 로그인 성공/실패 분기
+- [x] 🧪 `TokenStorage` 암호화 저장·복원 정확성
+- [x] 🧪 `AuthRepository` 로그인 성공/실패 분기
 - [ ] 🔬 인증서 피닝 — 잘못된 인증서 서버 응답 시 연결 실패
 - [ ] ✅ 실제 디바이스에서 로그인 성공 → 대시보드 진입
 - [ ] 🛡️ APK 루팅 기기에서 실행 시 경고 (RootDetector)
-- [ ] 🛡️ 토큰이 평문으로 SharedPreferences에 저장되지 않음
+- [x] 🛡️ 토큰이 평문으로 SharedPreferences에 저장되지 않음
 - [ ] 🛡️ 네트워크 스니핑 도구로 API 통신 확인 시 TLS 암호화
 
 ---

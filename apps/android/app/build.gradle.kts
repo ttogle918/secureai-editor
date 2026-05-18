@@ -57,13 +57,12 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
 
-    // Firebase BoM + firebase-analytics는 Stage 4 FCM 구현 시 추가 예정.
-    // play-services-measurement-impl이 Kotlin 2.2.0 메타데이터를 요구하여
-    // 현재 프로젝트 Kotlin 2.0.21과 충돌 — Stage 4 때 Kotlin 2.2.x 업그레이드와 함께 활성화.
-    // implementation(platform("com.google.firebase:firebase-bom:34.13.0"))
-    // implementation("com.google.firebase:firebase-analytics")
+    // Firebase BOM 33.6.0 — analytics 제외, FCM만 사용하여 Kotlin 2.0.21 메타데이터 충돌 회피
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
-    
+    // ProcessLifecycleOwner — foreground/background 상태 판단
+    implementation(libs.lifecycle.process)
 
     // Compose BOM — 버전을 BOM이 일괄 관리
     implementation(platform(libs.compose.bom))
@@ -107,6 +106,7 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.turbine)
+    testImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

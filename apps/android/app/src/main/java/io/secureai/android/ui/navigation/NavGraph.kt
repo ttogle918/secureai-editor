@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import io.secureai.android.ui.auth.AuthViewModel
 import io.secureai.android.ui.auth.LoginScreen
 import io.secureai.android.ui.auth.RegisterScreen
@@ -31,6 +32,12 @@ sealed class Screen(val route: String) {
     }
     data object VulnDetail : Screen("vulnDetail/{projectId}/{vulnId}") {
         fun createRoute(projectId: String, vulnId: String) = "vulnDetail/$projectId/$vulnId"
+    }
+
+    /** FCM 딥링크 진입점 — secureai://session/{sessionId} */
+    data object Session : Screen("session/{sessionId}") {
+        fun createRoute(sessionId: String) = "session/$sessionId"
+        const val DEEP_LINK_URI = "secureai://session/{sessionId}"
     }
 }
 
@@ -137,6 +144,24 @@ fun AppNavGraph(
                 vulnId = vulnId,
                 onBack = { navController.popBackStack() }
             )
+        }
+
+        // FCM 딥링크 진입점: secureai://session/{sessionId}
+        // sessionId로 대시보드 화면으로 리다이렉트
+        composable(
+            route = Screen.Session.route,
+            arguments = listOf(
+                navArgument("sessionId") { type = NavType.StringType }
+            ),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = Screen.Session.DEEP_LINK_URI }
+            )
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
+            // 세션 ID로 직접 대시보드 이동 (projectId는 기본값 사용, 실제 구현에서는 세션 API로 조회)
+            navController.navigate(Screen.Dashboard.createRoute(DEFAULT_PROJECT_ID)) {
+                popUpTo(Screen.Session.route) { inclusive = true }
+            }
         }
     }
 }

@@ -7,6 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import io.secureai.android.BuildConfig
 import io.secureai.android.data.local.TokenStorage
 import io.secureai.android.data.remote.AuthApi
+import io.secureai.android.data.remote.api.FcmTokenApi
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -32,9 +33,10 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(tokenStorage: TokenStorage): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            // release 빌드에서 토큰·바디가 로그에 노출되지 않도록 NONE 레벨 적용
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
                     else HttpLoggingInterceptor.Level.NONE
+            // Authorization 헤더 값을 마스킹 — DEBUG BODY 레벨에서도 토큰이 Logcat에 노출되지 않음
+            redactHeader("Authorization")
         }
 
         return OkHttpClient.Builder()
@@ -64,4 +66,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideFcmTokenApi(retrofit: Retrofit): FcmTokenApi = retrofit.create(FcmTokenApi::class.java)
 }

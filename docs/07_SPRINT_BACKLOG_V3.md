@@ -100,7 +100,8 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ## Sprint 6 — 완료
 
 **기간**: 2026-05-15 ~ 2026-05-16  
-**브랜치**: `feat/sprint6` | **PR**: [#70](https://github.com/ttogle918/secureai-editor/pull/70)
+**브랜치**: `feat/sprint6` | **PR**: [#70](https://github.com/ttogle918/secureai-editor/pull/70)  
+**DVWA 시연**: 2026-05-19 — `localhost:8888` DVWA (MariaDB) + SQLi 엔드투엔드 완료, 재시도 루프·터미널 스트리밍·배지 전항목 확인
 
 ### TASK-601 🔴 Docker 샌드박스 DAST 컨테이너 ✅ 완료
 

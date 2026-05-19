@@ -11,8 +11,9 @@ import type { SeverityLevel } from '@/types';
 export type Severity       = 'critical' | 'high' | 'medium' | 'low';
 export type SeverityFilter = 'all' | Severity;
 export type ViewMode       = 'editor' | 'dashboard';
-export type RightTab       = 'vulns' | 'chat' | 'progress';
+export type RightTab       = 'vulns' | 'chat' | 'progress' | 'sbom';
 export type DisplayLanguage = 'ko' | 'en';
+export type AiTone = 'direct' | 'friendly' | 'expert' | 'teaching';
 
 export interface DastExploitResult {
   success: boolean;
@@ -177,6 +178,10 @@ interface SecureStore {
   // ── 언어 설정 ────────────────────────────────────────────
   displayLanguage: DisplayLanguage;
   setDisplayLanguage: (lang: DisplayLanguage) => void;
+
+  // ── AI 톤 설정 ───────────────────────────────────────────
+  aiTone: AiTone;
+  setAiTone: (tone: AiTone) => void;
 
   // ── 채팅 ────────────────────────────────────────────────
   chatMessages: ChatMessage[];
@@ -368,6 +373,10 @@ export const useSecureStore = create<SecureStore>()(
   displayLanguage: 'ko',
   setDisplayLanguage: (lang) => set({ displayLanguage: lang }),
 
+  // ── AI 톤
+  aiTone: 'direct',
+  setAiTone: (tone) => set({ aiTone: tone }),
+
   // ── 채팅
   chatMessages: [],
   addChatMessage: (m) => set((s) => ({ chatMessages: [...s.chatMessages, m] })),
@@ -402,6 +411,7 @@ export const useSecureStore = create<SecureStore>()(
         lastTokenUsage:  state.lastTokenUsage,
         displayLanguage: state.displayLanguage,
         dastBaseUrl:     state.dastBaseUrl,
+        aiTone:          state.aiTone,
       }),
     }
   )

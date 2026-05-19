@@ -5,10 +5,13 @@
 //      GET  /api/v1/reports/download/{token} — 파일 다운로드
 'use client';
 import { useState } from 'react';
-import { X, FileText, Download, Loader2, CheckCircle2 } from 'lucide-react';
+import { X, FileText, Download, Loader2, CheckCircle2, Lock, Copy, Mail } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import { useSecureStore } from '@/store/useSecureStore';
 import { useToastStore } from '@/hooks/useToast';
+
+type ReportLanguage = 'ko' | 'en';
+type ReportFormat   = 'pdf' | 'html' | 'md';
 
 interface ReportSection {
   id: string;
@@ -26,7 +29,10 @@ interface ReportStatusData {
 }
 
 interface PdfReportModalProps {
+  isOpen?: boolean;
   onClose: () => void;
+  projectName?: string;
+  analysisDate?: string;
 }
 
 const DEFAULT_SECTIONS: ReportSection[] = [
@@ -44,15 +50,25 @@ const DEFAULT_SECTIONS: ReportSection[] = [
 const MAX_POLL_COUNT = 10;
 const POLL_INTERVAL_MS = 3000;
 
-export function PdfReportModal({ onClose }: PdfReportModalProps) {
+export function PdfReportModal({
+  isOpen = true,
+  onClose,
+  projectName,
+  analysisDate,
+}: PdfReportModalProps) {
   const projectId    = useSecureStore((s) => s.projectId);
   const sseSessionId = useSecureStore((s) => s.sseSessionId);
   const addToast     = useToastStore((s) => s.addToast);
 
-  const [sections, setSections]     = useState<ReportSection[]>(DEFAULT_SECTIONS);
-  const [state, setState]           = useState<ModalState>('configure');
-  const [downloadToken, setToken]   = useState<string | null>(null);
-  const [fileName, setFileName]     = useState<string>('report.pdf');
+  const [sections, setSections]       = useState<ReportSection[]>(DEFAULT_SECTIONS);
+  const [state, setState]             = useState<ModalState>('configure');
+  const [downloadToken, setToken]     = useState<string | null>(null);
+  const [fileName, setFileName]       = useState<string>('report.pdf');
+  const [language, setLanguage]       = useState<ReportLanguage>('ko');
+  const [format,   setFormat]         = useState<ReportFormat>('pdf');
+  const [progress, setProgress]       = useState(0);
+
+  if (!isOpen) return null;
 
   const toggleSection = (id: string) => {
     setSections(prev =>
@@ -66,12 +82,14 @@ export function PdfReportModal({ onClose }: PdfReportModalProps) {
       return;
     }
     setState('generating');
+    setProgress(0);
 
     try {
       const res = await apiClient.post<{ data: { id: string } }>('/reports', {
         projectId,
         sessionId: sseSessionId ?? undefined,
-        format: 'PDF',
+        format: format.toUpperCase(),
+        language,
       });
 
       const reportId = res.data?.id;
@@ -89,6 +107,9 @@ export function PdfReportModal({ onClose }: PdfReportModalProps) {
         }
         pollCount++;
 
+        // 진행률 시각적 업데이트 (폴링 횟수 기반)
+        setProgress(Math.min(95, Math.round((pollCount / MAX_POLL_COUNT) * 100)));
+
         await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
         const statusRes = await apiClient.get<{ data: ReportStatusData }>(`/reports/${reportId}/status`);
         const status = statusRes.data?.status;
@@ -99,6 +120,7 @@ export function PdfReportModal({ onClose }: PdfReportModalProps) {
           if (token) {
             setToken(token);
             setFileName(name);
+            setProgress(100);
             setState('ready');
             addToast('PDF 리포트 생성이 완료되었습니다.', 'info');
           } else {
@@ -167,7 +189,11 @@ export function PdfReportModal({ onClose }: PdfReportModalProps) {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 700 }}>PDF 보안 리포트</div>
             <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-              {projectId ? `프로젝트 ID: ${projectId.slice(0, 8)}…` : '프로젝트를 선택하세요'}
+              {projectName
+                ? `${projectName}${analysisDate ? ` · ${analysisDate} 분석 기준` : ''}`
+                : projectId
+                  ? `프로젝트 ID: ${projectId.slice(0, 8)}…`
+                  : '프로젝트를 선택하세요'}
             </div>
           </div>
           <button
@@ -229,6 +255,50 @@ export function PdfReportModal({ onClose }: PdfReportModalProps) {
                 ))}
               </div>
 
+              {/* 언어 / 형식 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.06em', marginBottom: 6 }}>
+                    언어
+                  </div>
+                  <select
+                    value={language}
+                    onChange={e => setLanguage(e.target.value as ReportLanguage)}
+                    className="field"
+                  >
+                    <option value="ko">한국어</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.06em', marginBottom: 6 }}>
+                    형식
+                  </div>
+                  <select
+                    value={format}
+                    onChange={e => setFormat(e.target.value as ReportFormat)}
+                    className="field"
+                  >
+                    <option value="pdf">PDF</option>
+                    <option value="html">HTML</option>
+                    <option value="md">Markdown</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 다운로드 토큰 */}
+              <div style={{
+                padding: 12, background: 'var(--bg-3)', borderRadius: 8,
+                display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+              }}>
+                <Lock size={14} color="var(--text-secondary)" />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>다운로드 토큰</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>30분간 유효한 보안 토큰으로 다운로드</div>
+                </div>
+                <span className="chip chip-low" style={{ height: 18 }}>활성</span>
+              </div>
+
               {!projectId && (
                 <div style={{
                   padding: '10px 14px', borderRadius: 8,
@@ -256,7 +326,15 @@ export function PdfReportModal({ onClose }: PdfReportModalProps) {
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>리포트 생성 중</div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  AI가 분석 결과를 PDF로 정리하고 있습니다…
+                  AI가 분석 결과를 정리하고 있습니다…
+                </div>
+              </div>
+              <div style={{ width: '100%', maxWidth: 320 }}>
+                <div className="progress-track" style={{ height: 4, marginBottom: 6 }}>
+                  <div className="progress-fill" style={{ width: `${progress}%`, transition: 'width 0.4s ease' }} />
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                  {progress}%
                 </div>
               </div>
             </div>
@@ -268,31 +346,61 @@ export function PdfReportModal({ onClose }: PdfReportModalProps) {
               alignItems: 'center', gap: 16, textAlign: 'center',
             }}>
               <div style={{
-                width: 56, height: 56, borderRadius: 14,
-                background: 'var(--low-dim)', color: 'var(--low)',
+                width: 64, height: 64, borderRadius: 14,
+                background: 'linear-gradient(135deg, var(--orange), var(--orange-2))',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 8px 24px rgba(234,88,12,0.40)',
               }}>
-                <CheckCircle2 size={28} />
+                <CheckCircle2 size={28} color="#fff" />
               </div>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>생성 완료</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  {fileName} — 다운로드 준비가 되었습니다.
+                <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6 }}>
+                  리포트가 생성되었습니다
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                  {fileName}
                 </div>
               </div>
-              <button
-                onClick={handleDownload}
-                style={{
-                  height: 36, padding: '0 20px', borderRadius: 8,
-                  background: 'var(--orange-2)', color: '#fff',
-                  border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  boxShadow: 'var(--orange-shadow)',
-                }}
-              >
-                <Download size={14} />
-                PDF 다운로드
-              </button>
+
+              {/* 파일 정보 + 다운로드 */}
+              <div style={{
+                width: '100%',
+                padding: 14, borderRadius: 8,
+                background: 'var(--bg-3)', border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', gap: 12,
+              }}>
+                <FileText size={20} color="var(--orange)" />
+                <div style={{ flex: 1, textAlign: 'left' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{fileName}</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                    토큰 만료 30분 후 · 처음 다운로드 시 토큰 1회 소진
+                  </div>
+                </div>
+                <button
+                  onClick={handleDownload}
+                  className="btn btn-primary"
+                  style={{ height: 32 }}
+                >
+                  <Download size={12} />다운로드
+                </button>
+              </div>
+
+              {/* 공유 버튼 */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => {
+                    const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1';
+                    void navigator.clipboard.writeText(`${base}/reports/download/${downloadToken ?? ''}`);
+                    addToast('링크가 복사되었습니다.', 'info');
+                  }}
+                >
+                  <Copy size={11} />링크 복사
+                </button>
+                <button className="btn btn-sm btn-ghost">
+                  <Mail size={11} />이메일 전송
+                </button>
+              </div>
             </div>
           )}
         </div>

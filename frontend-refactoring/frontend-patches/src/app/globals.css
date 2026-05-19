@@ -1,0 +1,244 @@
+/* ============================================================
+   Pagori — Global Styles
+   Design System: Dark OLED + Orange (#f97316) Accent
+   v2 — brighter text tokens, --text-active added,
+   --tag-* filter palette, --high/medium/low aliases
+   ============================================================ */
+
+/* ── 1. Motion Reduction (WCAG 2.1 AA) ─────────────────── */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── 2. Color Tokens ────────────────────────────────────── */
+:root {
+  --bg-0: #080809;
+  --bg-1: #0d0d0f;
+  --bg-2: #111114;
+  --bg-3: #161619;
+  --bg-4: #1c1c20;
+
+  --surface-overlay: rgba(255,255,255,0.02);
+  --surface-hover:   rgba(255,255,255,0.04);
+
+  --border:    #1f1f24;
+  --border-2:  #2a2a30;
+  --border-3:  #3a3a44;
+  --hairline:  rgba(255,255,255,0.06);
+
+  /* ⬇︎ brighter than the v1 tokens so dark mode reads more clearly */
+  --text-primary:   #f1f1f6;
+  --text-secondary: #b4b4be;
+  --text-tertiary:  #74747e;
+  --text-disabled:  #54545e;
+  --text-active:    #ffffff;   /* highlighted / selected / hovered */
+  --text-on-bg:     #e6e6ec;   /* body text on dim cards */
+
+  /* Orange accent (locked) */
+  --orange:        #f97316;
+  --orange-2:      #ea580c;
+  --orange-dim:    rgba(249, 115, 22, 0.12);
+  --orange-glow:   rgba(249, 115, 22, 0.25);
+  --orange-shadow: 0 3px 12px rgba(234,88,12,0.30);
+
+  /* Severity — primary names (used by new code) */
+  --critical:      #f04141;
+  --critical-dim:  rgba(240, 65, 65, 0.10);
+  --critical-glow: rgba(240, 65, 65, 0.30);
+  --high:          #f59e0b;
+  --high-dim:      rgba(245, 158, 11, 0.10);
+  --medium:        #eab308;
+  --medium-dim:    rgba(234, 179, 8, 0.10);
+  --low:           #22c55e;
+  --low-dim:       rgba(34, 197, 94, 0.10);
+  --info:          #569cd6;
+  --info-dim:      rgba(86, 156, 214, 0.10);
+
+  /* Severity — legacy aliases for existing code (red/yellow/amber/green) */
+  --red:    var(--critical);
+  --red-dim: var(--critical-dim);
+  --yellow: var(--high);
+  --yellow-dim: var(--high-dim);
+  --amber:  var(--medium);
+  --green:  var(--low);
+  --green-dim: var(--low-dim);
+  --blue:   var(--info);
+
+  /* Filter tag palette — distinct hues for category filtering */
+  --tag-1: #818cf8;  /* indigo */
+  --tag-2: #f472b6;  /* pink */
+  --tag-3: #34d399;  /* emerald */
+  --tag-4: #fbbf24;  /* amber */
+  --tag-5: #60a5fa;  /* blue */
+  --tag-6: #a78bfa;  /* violet */
+
+  /* Layer chain */
+  --layer-frontend:   #378ADD;
+  --layer-controller: #7F77DD;
+  --layer-service:    #1D9E75;
+  --layer-repository: #E24B4A;
+  --layer-config:     #BA7517;
+
+  /* Typography */
+  --font-mono: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  --font-sans: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+}
+
+/* ── 3. Base Reset ──────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  color-scheme: dark;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-0);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  height: 100%;
+  min-height: 100vh;
+}
+
+/* ── 4. Focus Styles (Accessibility AA) ─────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── 5. Scrollbar (Webkit + Firefox) ────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-1); }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-3); }
+* { scrollbar-width: thin; scrollbar-color: var(--border-2) var(--bg-1); }
+
+/* ── 6. Typography Utilities ────────────────────────────── */
+.font-mono { font-family: var(--font-mono); }
+.font-sans { font-family: var(--font-sans); }
+
+/* ── 7. Severity Colors (shared) ────────────────────────── */
+.text-critical { color: var(--critical); }
+.text-high     { color: var(--high); }
+.text-medium   { color: var(--medium); }
+.text-low      { color: var(--low); }
+
+/* ── 7.b Chip — uniform filter pill ─────────────────────── */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 20px; padding: 0 8px;
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  border-radius: 3px;
+  border: 1px solid var(--border-2);
+  background: var(--bg-3);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.chip:hover  { color: var(--text-primary); border-color: var(--border-3); }
+.chip-active { color: var(--text-active); border-color: var(--border-3); background: var(--bg-2); }
+
+.chip-critical { color: var(--critical); border-color: rgba(240,65,65,0.4); background: var(--critical-dim); }
+.chip-high     { color: var(--high);     border-color: rgba(245,158,11,0.4); background: var(--high-dim); }
+.chip-medium   { color: var(--medium);   border-color: rgba(234,179,8,0.4);  background: var(--medium-dim); }
+.chip-low      { color: var(--low);      border-color: rgba(34,197,94,0.4);  background: var(--low-dim); }
+.chip-info     { color: var(--info);     border-color: rgba(86,156,214,0.4); background: var(--info-dim); }
+.chip-orange   { color: var(--orange);   border-color: rgba(249,115,22,0.4); background: var(--orange-dim); }
+
+.severity-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+/* ── 8. Animation Keyframes ─────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes pulse-scale { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes pulse-border { 0%,100% { box-shadow: 0 0 0 0 var(--orange-glow); } 50% { box-shadow: 0 0 0 3px var(--orange-glow); } }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.85); }
+}
+@keyframes ssePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+/* ── 9. Monaco Editor Vulnerability Decorations ─────────── */
+.vuln-critical-line { background: rgba(240, 65, 65, 0.07); }
+.vuln-high-line     { background: rgba(245, 158, 11, 0.06); }
+.vuln-medium-line   { background: rgba(234, 179, 8, 0.05); }
+.vuln-low-line      { background: rgba(34, 197, 94, 0.04); }
+
+.vuln-critical-glyph,
+.vuln-high-glyph,
+.vuln-medium-glyph,
+.vuln-low-glyph {
+  border-radius: 50%;
+  width: 9px;
+  height: 9px;
+  margin-top: 3px;
+  margin-left: 2px;
+}
+
+.vuln-critical-glyph { background: var(--critical); box-shadow: 0 0 6px rgba(240, 65, 65, 0.7); }
+.vuln-high-glyph     { background: var(--high);     box-shadow: 0 0 5px rgba(245, 158, 11, 0.6); }
+.vuln-medium-glyph   { background: var(--medium);   box-shadow: 0 0 4px rgba(234, 179, 8, 0.5); }
+.vuln-low-glyph      { background: var(--low);      box-shadow: 0 0 4px rgba(34, 197, 94, 0.4); }
+
+/* ── 10. Skeleton loading ────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg,
+      var(--bg-3) 25%,
+      var(--bg-4) 50%,
+      var(--bg-3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* ── 11. Responsive Layout Utilities ────────────────────── */
+.kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 600px)  { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1024px) { .kpi-grid { grid-template-columns: repeat(5, 1fr); } }
+
+.chart-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 768px) { .chart-grid { grid-template-columns: 1fr 1.6fr; } }
+
+.header-sev-filters    { display: none; }
+@media (min-width: 768px) { .header-sev-filters    { display: flex; gap: 4px; margin-right: 10px; } }
+
+.header-pipeline-badges { display: none; }
+@media (min-width: 900px) { .header-pipeline-badges { display: flex; gap: 5px; margin-left: 10px; } }
+
+.header-export-btn { display: none !important; }
+@media (min-width: 1100px) { .header-export-btn { display: flex !important; } }
+
+.mobile-only { display: flex; }
+@media (min-width: 768px) { .mobile-only { display: none; } }
+
+.pb-mobile-nav { padding-bottom: 64px; }
+@media (min-width: 768px) { .pb-mobile-nav { padding-bottom: 0; } }

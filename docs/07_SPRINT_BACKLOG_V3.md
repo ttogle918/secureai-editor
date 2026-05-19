@@ -383,14 +383,17 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ---
 
 #### TASK-801 🔴 스케줄러 전체 완성 & ShedLock
-- **중요도**: 🔴 Critical
+- **중요도**: 🔴 Critical | **Flyway**: V037
 
 **하위 할일**
-- [ ] ShedLock + Redis Provider
-- [ ] 6개 Job `@SchedulerLock` 적용
-- [ ] `ExpiredDataCleanupJob` 완성 (체크포인트 삭제 포함)
-- [ ] `PartitionMaintenanceJob`
-- [ ] `SastUsageResetJob`
+- [ ] `build.gradle.kts` 의존성: `net.javacrumbs.shedlock:shedlock-spring:6.x`, `shedlock-provider-redis-spring:6.x`
+- [ ] `V037__create_shedlock_table.sql` (Redis Provider 사용 시 DB 백업용 또는 생략 가능)
+- [ ] ShedLock + Redis Provider (Redis DB 0, 키 접두사 `shedlock:`)
+- [ ] 6개 Job 확정: `ExpiredDataCleanupJob`, `PartitionMaintenanceJob`, `SastUsageResetJob`, `NvdSyncJob`, `SessionInterruptionScheduler`, `RefreshTokenCleanupJob`
+- [ ] 각 Job `@SchedulerLock(name, lockAtMostFor, lockAtLeastFor)` 적용
+- [ ] `ExpiredDataCleanupJob` 완성 (체크포인트 24h, exploit_results 30일, reports 90일)
+- [ ] `PartitionMaintenanceJob` — 다음 달 파티션 미리 생성
+- [ ] `SastUsageResetJob` — 매월 1일 sast_usage_this_month 리셋
 
 **테스트 체크리스트**
 - [ ] 🧪 각 Job 실행 로직 단위 테스트
@@ -406,8 +409,10 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - **중요도**: 🔴 Critical
 
 **하위 할일**
-- [ ] `ResilienceConfig.java`
-- [ ] AI Agent / GitHub / NVD fallback
+- [ ] `build.gradle.kts` 의존성: `io.github.resilience4j:resilience4j-spring-boot3` (Spring Boot 4 호환 모듈)
+- [ ] `ResilienceConfig.java` — CircuitBreaker, TimeLimiter, Retry 설정
+- [ ] AI Agent / GitHub / NVD `@CircuitBreaker(fallbackMethod=)` + fallback 메서드
+- [ ] `AiAgentClient.isCircuitOpen()` Resilience4j `CircuitBreakerRegistry` 연결 (현재 stub 상태 — `SessionInterruptionScheduler`에서 이미 호출 중)
 - [ ] `CircuitBreakerTest.java`
 
 **테스트 체크리스트**
@@ -441,10 +446,11 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - **중요도**: 🟠 High
 
 **하위 할일**
-- [ ] Nginx 보안 헤더
-- [ ] DTO `@Valid` 전수 확인
-- [ ] OWASP ZAP 자체 스캔
-- [ ] Android cleartext 차단
+- [ ] Spring Security `headers()` 설정 — CSP, HSTS, X-Frame-Options, X-Content-Type (1단계: 앱 레벨)
+- [ ] DTO `@Valid` 전수 확인 (Controller 전체 점검 — 2FA·IP Allowlist 추가 후 수행)
+- [ ] OWASP ZAP 자체 스캔 (`ghcr.io/zaproxy/zaproxy:stable` Docker 이미지 로컬 실행)
+- [ ] Android cleartext HTTP 차단 (`networkSecurityConfig`)
+- [ ] **Nginx 보안 헤더는 TASK-805에서 통합 처리** (2단계: 인프라 레벨)
 
 **테스트 체크리스트**
 - [ ] 🛡️ OWASP ZAP Full Scan → Critical/High 0건
@@ -460,26 +466,27 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - **중요도**: 🟡 Medium
 
 **하위 할일**
-- [ ] `nginx.conf` 라우팅
-- [ ] `limit_req_zone`
-- [ ] Let's Encrypt
-- [ ] 보안 헤더
+- [ ] `nginx.conf` 라우팅 (`/api/*` → backend, `/ai/*` → ai_engine, 정적 → frontend)
+- [ ] `limit_req_zone` 분당 100회 제한
+- [ ] **개발/스테이징**: 자체 서명 인증서 (`openssl`) | **프로덕션**: Let's Encrypt + Certbot
+- [ ] 보안 헤더 통합 (TASK-804에서 Spring Security로 먼저 적용한 헤더를 Nginx로 이전)
+- [ ] `docker-compose.yml` Nginx + Certbot 서비스 추가 (Stage 1의 Jaeger와 충돌 없음)
 
 **테스트 체크리스트**
 - [ ] ✅ `/api/*` → backend 라우팅
 - [ ] ✅ HTTP → HTTPS 강제 리다이렉트
-- [ ] ✅ SSL 인증서 A 등급 (SSL Labs)
+- [ ] ✅ SSL 인증서 A 등급 (SSL Labs) — **프로덕션 배포 시에만 검증** (개발은 자체 서명 허용)
 - [ ] 🔬 분당 100회 초과 요청 시 Nginx 수준 차단
 
 ---
 
 #### TASK-806 🔴 2단계 인증 (2FA / TOTP)
-- **중요도**: 🔴 Critical | **출처**: FEAT-SEC-001
+- **중요도**: 🔴 Critical | **출처**: FEAT-SEC-001 | **Flyway**: V038 (V029 이미 사용됨)
 
 **하위 할일**
-- [ ] TOTP 라이브러리 (`dev.samstevens.totp`) 적용 — Google Authenticator 호환
-- [ ] 복구 코드 8개 생성 (1회용, AES-256 암호화 저장)
-- [ ] `V029__add_totp_fields.sql`: `users` 테이블 `totp_secret` (AES 암호화), `totp_enabled` 컬럼 + `totp_recovery_codes` 테이블
+- [ ] `build.gradle.kts` 의존성: `dev.samstevens.totp:totp-spring-boot-starter` (Google Authenticator 호환)
+- [ ] `V038__add_totp_fields.sql`: `users` 테이블 `totp_secret` (AES 암호화 TEXT), `totp_enabled` BOOLEAN 컬럼 + `totp_recovery_codes` 테이블
+- [ ] 복구 코드 8개 생성 (1회용, AES-256 암호화 저장, `@Lock(PESSIMISTIC_WRITE)` = `SELECT FOR UPDATE` 트랜잭션)
 - [ ] `POST /auth/2fa/setup`, `POST /auth/2fa/verify`, `DELETE /auth/2fa` API
 - [ ] Team 이상 플랜 강제 활성화 옵션 (Enterprise 관리자 설정)
 
@@ -493,11 +500,12 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ---
 
 #### TASK-807 🟠 IP 허용 목록 (IP Allowlist)
-- **중요도**: 🟠 High | **출처**: FEAT-SEC-002
+- **중요도**: 🟠 High | **출처**: FEAT-SEC-002 | **Flyway**: V039
 
 **하위 할일**
-- [ ] `team_settings` 테이블에 `allowed_ip_ranges CIDR[]` 컬럼 추가
-- [ ] Spring Security `OncePerRequestFilter`로 IP 검증
+- [ ] `V039__create_team_settings.sql` — `team_settings` 테이블 신규 생성 (현재 미존재) + `allowed_ip_ranges CIDR[]` 컬럼
+- [ ] Spring Security `OncePerRequestFilter`로 IP 검증 — `addFilterBefore(ipAllowlistFilter, JwtAuthenticationFilter.class)` (JWT 검증 전 IP 차단)
+- [ ] `application.yaml`에 `server.forward-headers-strategy: NATIVE` 추가 — Spoofing 방어 (Docker 내부 신뢰 프록시 IP만 X-Forwarded-For 허용)
 - [ ] CIDR 범위 지원 (`192.168.1.0/24`)
 - [ ] `PUT /admin/teams/{teamId}/ip-allowlist` API
 
@@ -512,9 +520,11 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - **중요도**: 🔴 Critical | **출처**: FEAT-OPS-001
 
 **하위 할일**
-- [ ] `opentelemetry-spring-boot-starter` 적용
-- [ ] Python AI Agent OTel SDK 연동
-- [ ] Jaeger 또는 Grafana Tempo로 트레이스 수집
+- [ ] `build.gradle.kts` 의존성: `opentelemetry-spring-boot-starter`
+- [ ] Python AI Agent `requirements.txt`: `opentelemetry-instrumentation-fastapi`, `opentelemetry-exporter-otlp`
+- [ ] **Jaeger 선택 확정** (Tempo는 Sprint 9 Grafana 스택과 함께) — `docker-compose.yml`에 `jaegertracing/all-in-one` 서비스 추가
+- [ ] LangGraph 노드별 수동 span 생성 (`with tracer.start_as_current_span`) — asyncio Task 경계에서 ContextVar 전파 단절 회피
+- [ ] `settings.py` 환경변수: `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`
 - [ ] 분석 파이프라인 각 단계별 Span 생성
 
 **테스트 체크리스트**
@@ -693,6 +703,49 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
+### TASK-MISC-002 🟠 보안 문서 자동 생성 (EPIC-SEC-DOC)
+- **브랜치**: `feat/sec-doc`
+- **현재 상태**: 미구현 — 2026-05-19 기획 확정
+- **대상 사용자**: 보안 전문가, 사내 보안 담당자, 바이브코더(상사 보고용)
+
+> SAST 분석 결과를 정부 제출 문서·사내 보고서·국제 표준 증적으로 자동 변환.  
+> Level 1(템플릿 매핑)부터 시작, Level 2(LangGraph 아키텍처 추출)로 확장.
+
+**Level 1 — 템플릿 기반 (SAST 결과 → 문서)** | **Flyway**: V040
+
+하위 할일
+- [ ] `build.gradle.kts` 의존성: `spring-boot-starter-thymeleaf` + `io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.0.20` (Flying Saucer 사용 금지 — HTML5 비호환). PDFBox 기반으로 안정적
+- [ ] `V040__create_security_doc_requests.sql` — 생성 이력, 다운로드 토큰
+- [ ] `GET /api/v1/projects/{id}/reports/security?type=ciso|hanafos|isms` 엔드포인트
+- [ ] `SecurityDocService.java` — SAST 결과 → 문서 필드 매핑 로직 (Thymeleaf → HTML → OpenHTMLtoPDF 파이프라인). 기존 `PdfReportGenerator.java`(OpenPDF) 건드리지 않음
+- [ ] `SecurityDocController.java`
+- [ ] Thymeleaf 템플릿 3종:
+  - `ciso-report.html` — 취약점 현황, 위험도 분포, 미조치 항목 (사내 CISO/팀장 보고)
+  - `hanafos-checklist.html` — 행안부 SW개발보안 가이드 43개 항목 매핑 (공공기관 제출)
+  - `isms-p-evidence.html` — ISMS-P 개발보안 통제항목 이행현황 (인증 심사 증적)
+- [ ] 프론트엔드: 문서 유형 선택 UI + 생성 상태 폴링 + 다운로드
+
+**Level 2 — LangGraph 아키텍처 추출 (코드 → 보안 아키텍처 문서)**
+
+> MCP Filesystem이 이미 소스 전체를 읽고 SAST 파이프라인이 보안 패턴을 추적하므로,  
+> `extract_security_architecture` 노드 추가만으로 구현 가능 (FEAT-AI-001 Taint Analysis와 시너지).
+
+하위 할일
+- [ ] LangGraph `security_arch_extractor` 노드 — 인증방식·암호화 알고리즘·접근통제·외부 API 호출·민감 데이터 흐름 추출
+- [ ] `SecurityArchDocument.java` 스키마 (AuthMethod, EncryptionUsage, NetworkBoundary, SensitiveDataFlow)
+- [ ] `security-arch-report.html` 템플릿 (접근통제 매트릭스, 암호화 현황, 아키텍처 다이어그램 텍스트)
+
+**테스트 체크리스트**
+- [ ] 🔬 CISO 보고서 — 취약점 severity 분포·미조치 수 정확성 검증
+- [ ] 🔬 행안부 체크리스트 — SAST 결과 → 43개 항목 매핑 정확성
+- [ ] 🔬 ISMS-P 증적 — 통제항목 준수/미준수 판정 로직
+- [ ] 🔬 문서 생성 → 30초 이내 PDF 완성
+- [ ] 🛡️ 타 사용자 프로젝트 문서 생성 요청 → 403 차단
+- [ ] ✅ 생성된 PDF — 행안부 양식 항목 누락 없음 육안 확인
+- [ ] ✅ CISO 보고서 — 경영진이 읽기 적합한 수준 가독성 확인
+
+---
+
 ### TASK-MISC-001 🟡 다국어 지원 (i18n)
 - **브랜치**: `feat/i18n`
 - **현재 상태**: 한국어/영어 번역 기능 구현 완료, main 미머지
@@ -787,7 +840,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 #### FEAT-FE-001 SBOM 컴포넌트 조회 API
 
-- **엔드포인트**: `GET /api/v1/sbom/components?sessionId={sessionId}&projectId={projectId}`
+- **엔드포인트**: `GET /api/v1/projects/{projectId}/sbom/components?sessionId={sessionId}` (인증 필수 — `/api/v1/sbom/*`는 현재 `permitAll()` 상태라 경로 분리)
 - **필요 파일**:
   - `apps/backend/src/main/java/io/secureai/backend/domain/sbom/controller/SbomController.java` (GET 엔드포인트 추가)
   - `apps/backend/src/main/java/io/secureai/backend/domain/sbom/dto/SbomComponentResponse.java` (신규 DTO)

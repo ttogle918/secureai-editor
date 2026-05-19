@@ -126,8 +126,34 @@ Docker 환경에서 대시보드 API 검증 중 발견.
 
 ---
 
+---
+
+## Stage 5 추가 기록 — 보안 문서 자동 생성 기능 기획
+
+### 6. EPIC-SEC-DOC 기획 확정
+
+**배경**: 바이브코더 외에 보안 전문가·사내 보안 담당자를 새 타겟 사용자로 추가하는 방향 논의.
+
+**확정 방향 (Level 1 먼저)**:
+
+| 문서 유형 | 대상 | 활용처 |
+|-----------|------|-------|
+| CISO 보고서 | 사내 CISO/팀장 | 주간·월간 보안 현황 보고 |
+| 행안부 개발보안 점검결과서 | 공공기관 납품/SI | 정부 제출 의무 문서 |
+| ISMS-P 이행현황 증적 | 인증 심사 대비 보안팀 | ISMS-P 인증 갱신 |
+
+**아키텍처 관찰**:
+- MCP Filesystem이 소스 전체를 이미 읽고, SAST 파이프라인이 인증 패턴·암호화 사용·SQL 처리를 추적
+- Level 1: SAST 결과 → Thymeleaf 템플릿 필드 매핑 → OpenPDF (기존 인프라 재활용)
+- Level 2: LangGraph에 `security_arch_extractor` 노드 추가 = "취약점 대신 아키텍처 요소를 출력하는 SAST" — 별도 코드 읽기 불필요
+
+**백로그 등록**: `docs/07_SPRINT_BACKLOG_V3.md` → EPIC-MISC `TASK-MISC-002` 추가 (Level 1·Level 2 하위 할일 + 테스트 체크리스트 포함)
+
+---
+
 ## 다음 우선순위
 
 - **Sprint 8 시작 전**: 에뮬레이터에서 FCM E2E 수동 검증 (딥링크, 알림, foreground/background 분기)
-- **Sprint 8**: 스케줄러 ShedLock, Circuit Breaker, 성능 목표, 2FA
+- **Sprint 8**: 스케줄러 ShedLock, Circuit Breaker, 성능 목표, 2FA, EPIC-SEC-DOC Level 1
 - **FEAT-FE-001 SBOM API**: 백엔드 GET 엔드포인트 추가 → SbomPage.tsx 구현 (Sprint 8 범위 후보)
+- **UI 설계**: EPIC-SEC-DOC 문서 생성 화면 — Claude design과 별도 의논 예정

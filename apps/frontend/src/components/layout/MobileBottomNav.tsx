@@ -1,23 +1,26 @@
 // components/layout/MobileBottomNav.tsx
 // 모바일 하단 탭 네비게이션
-// 와이어프레임: secureai-mobile.html 참조
+// 레퍼런스: ResponsiveScreens.jsx MobileTabBar
 'use client';
-import { LayoutDashboard, Search, Zap, MessageSquare, Settings } from 'lucide-react';
+import {
+  LayoutDashboard, ShieldAlert, Sparkles, Bell, User,
+} from 'lucide-react';
 
-export type MobileScreen = 'dashboard' | 'vulns' | 'scan' | 'chat' | 'settings';
+export type MobileScreen = 'home' | 'vulns' | 'chat' | 'notif' | 'me';
 
 interface NavItem {
   id: MobileScreen;
   label: string;
   icon: React.ReactNode;
+  badge?: number;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: '대시보드', icon: <LayoutDashboard size={22} /> },
-  { id: 'vulns',     label: '취약점',   icon: <Search size={22} /> },
-  { id: 'scan',      label: '분석',     icon: <Zap size={22} /> },
-  { id: 'chat',      label: 'AI 채팅',  icon: <MessageSquare size={22} /> },
-  { id: 'settings',  label: '설정',     icon: <Settings size={22} /> },
+  { id: 'home',  label: '홈',     icon: <LayoutDashboard size={20} /> },
+  { id: 'vulns', label: '취약점', icon: <ShieldAlert size={20} />,  badge: 10 },
+  { id: 'chat',  label: 'AI',    icon: <Sparkles size={20} /> },
+  { id: 'notif', label: '알림',   icon: <Bell size={20} />,          badge: 2 },
+  { id: 'me',    label: '내 정보', icon: <User size={20} /> },
 ];
 
 interface MobileBottomNavProps {
@@ -32,16 +35,16 @@ export function MobileBottomNav({ activeScreen, onNavigate }: MobileBottomNavPro
       style={{
         position: 'fixed',
         bottom: 0,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '100%',
-        maxWidth: 430,
-        background: 'rgba(13,13,15,0.95)',
-        backdropFilter: 'blur(20px)',
-        borderTop: '1px solid #1f1f24',
-        display: 'flex',
-        padding: '8px 0',
+        left: 0,
+        right: 0,
         zIndex: 100,
+        paddingBottom: 22,
+        paddingTop: 8,
+        background: 'rgba(8,8,9,0.85)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        borderTop: '1px solid var(--hairline)',
+        display: 'flex',
       }}
     >
       {NAV_ITEMS.map((item) => {
@@ -55,28 +58,52 @@ export function MobileBottomNav({ activeScreen, onNavigate }: MobileBottomNavPro
             aria-current={isActive ? 'page' : undefined}
             style={{
               flex: 1,
+              position: 'relative',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 3,
-              padding: 6,
-              background: 'none',
+              gap: 4,
               border: 'none',
+              background: 'transparent',
               cursor: 'pointer',
-              transition: 'opacity 0.15s',
-              color: isActive ? '#f97316' : '#555560',
+              color: isActive ? 'var(--orange)' : 'var(--text-tertiary)',
             }}
           >
-            <span
-              aria-hidden="true"
-              style={{
-                filter: isActive ? 'drop-shadow(0 0 4px rgba(249,115,22,0.6))' : 'none',
-                transition: 'filter 0.15s',
-              }}
-            >
-              {item.icon}
+            <span style={{ position: 'relative' }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'flex',
+                  strokeWidth: isActive ? 2 : 1.6,
+                  filter: isActive ? 'drop-shadow(0 0 4px rgba(249,115,22,0.6))' : 'none',
+                  transition: 'filter 0.15s',
+                }}
+              >
+                {item.icon}
+              </span>
+              {item.badge != null && item.badge > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: -3,
+                  right: -8,
+                  minWidth: 14,
+                  height: 14,
+                  borderRadius: 7,
+                  background: 'var(--critical)',
+                  color: '#fff',
+                  fontSize: 8,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 3px',
+                  border: '1.5px solid var(--bg-0)',
+                }}>
+                  {item.badge}
+                </span>
+              )}
             </span>
-            <span style={{ fontSize: 10, color: isActive ? '#f97316' : '#555560' }}>
+            <span style={{ fontSize: 10, fontWeight: 600 }}>
               {item.label}
             </span>
           </button>

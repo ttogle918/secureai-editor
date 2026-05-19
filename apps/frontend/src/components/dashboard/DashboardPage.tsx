@@ -337,7 +337,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── KPI 카드 ── */}
-        <div className="kpi-grid" aria-label="주요 보안 지표">
+        <div className="kpi-grid dashboard-kpi-grid" aria-label="주요 보안 지표">
           <KpiCard value={securityScore} label="보안 점수"  color={scoreColor} isScore />
           <KpiCard value={critical}      label="Critical"   color="var(--critical)" />
           <KpiCard value={high}          label="High"       color="var(--high)" />
@@ -350,7 +350,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── 차트 2열 ── */}
-        <div className="chart-grid">
+        <div className="chart-grid dashboard-chart-grid">
           <Card title="OWASP 분류별 취약점">
             {owaspRows.length > 0
               ? <SeverityBarChart rows={owaspRows} />

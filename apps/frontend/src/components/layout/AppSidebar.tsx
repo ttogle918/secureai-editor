@@ -455,6 +455,7 @@ export function AppSidebar() {
 
   return (
     <motion.aside
+      className="editor-sidebar"
       animate={{ width: sidebarOpen ? sidebarWidth : 0, opacity: sidebarOpen ? 1 : 0 }}
       transition={{ type: 'tween', duration: 0.15 }}
       style={{

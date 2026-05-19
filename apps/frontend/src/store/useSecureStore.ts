@@ -13,6 +13,8 @@ export type SeverityFilter = 'all' | Severity;
 export type ViewMode       = 'editor' | 'dashboard';
 export type RightTab       = 'vulns' | 'chat' | 'progress' | 'sbom';
 export type DisplayLanguage = 'ko' | 'en';
+export type PreferencesLanguage = 'ko' | 'en' | 'ja' | 'zh' | 'es' | 'de';
+export type PreferencesTheme = 'dark' | 'dim' | 'light';
 export type AiTone = 'direct' | 'friendly' | 'expert' | 'teaching';
 
 export interface DastExploitResult {
@@ -178,6 +180,12 @@ interface SecureStore {
   // ── 언어 설정 ────────────────────────────────────────────
   displayLanguage: DisplayLanguage;
   setDisplayLanguage: (lang: DisplayLanguage) => void;
+
+  // ── 초기 설정 페이지 — 언어/테마 ─────────────────────────
+  language: PreferencesLanguage;
+  setLanguage: (lang: PreferencesLanguage) => void;
+  theme: PreferencesTheme;
+  setTheme: (theme: PreferencesTheme) => void;
 
   // ── AI 톤 설정 ───────────────────────────────────────────
   aiTone: AiTone;
@@ -373,6 +381,12 @@ export const useSecureStore = create<SecureStore>()(
   displayLanguage: 'ko',
   setDisplayLanguage: (lang) => set({ displayLanguage: lang }),
 
+  // ── 초기 설정 — 언어/테마
+  language: 'ko',
+  setLanguage: (lang) => set({ language: lang }),
+  theme: 'dark',
+  setTheme: (theme) => set({ theme }),
+
   // ── AI 톤
   aiTone: 'direct',
   setAiTone: (tone) => set({ aiTone: tone }),
@@ -410,6 +424,8 @@ export const useSecureStore = create<SecureStore>()(
         projectId:       state.projectId,
         lastTokenUsage:  state.lastTokenUsage,
         displayLanguage: state.displayLanguage,
+        language:        state.language,
+        theme:           state.theme,
         dastBaseUrl:     state.dastBaseUrl,
         aiTone:          state.aiTone,
       }),

@@ -6,6 +6,7 @@ import { ArrowLeft, Users, Plus, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient } from '@/lib/api/client';
 import { Modal } from '@/components/ui/Modal';
+import { MOCK_ORGS } from '@/lib/uiMockData';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -38,8 +39,9 @@ export default function TeamPage() {
   const [form, setForm] = useState<CreateOrgPayload>({ name: '', slug: '' });
 
   useEffect(() => {
-    if (isInitialized && !user) router.replace('/login');
-  }, [isInitialized, user, router]);
+    // 인증되지 않은 경우에도 mock 모드로 진입 허용 (백엔드 없이 UI 확인)
+    if (isInitialized && !user) fetchOrgs();
+  }, [isInitialized, user]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchOrgs = useCallback(async () => {
     setLoading(true);
@@ -48,15 +50,16 @@ export default function TeamPage() {
       const res = await apiClient.get<{ data: Organization[] }>('/organizations');
       setOrgs(res.data ?? []);
     } catch {
-      setError('팀 목록을 불러올 수 없습니다.');
+      // API 실패 시 mock 데이터로 fallback
+      setOrgs(MOCK_ORGS as Organization[]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (user) fetchOrgs();
-  }, [user, fetchOrgs]);
+    fetchOrgs();
+  }, [fetchOrgs]);
 
   const handleNameChange = (name: string) => {
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -79,8 +82,6 @@ export default function TeamPage() {
       setCreating(false);
     }
   };
-
-  if (!isInitialized || !user) return null;
 
   return (
     <div style={{ minHeight: '100vh', background: '#0d0d0f', color: '#e8e8ee', fontFamily: 'var(--font-sans, system-ui)' }}>

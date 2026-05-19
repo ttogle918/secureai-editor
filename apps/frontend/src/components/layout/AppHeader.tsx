@@ -9,13 +9,14 @@
 //
 // 기존 로직(useSse, useStartAnalysis, AnalysisHistoryModal 등)은 그대로 유지.
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   PanelLeftClose, PanelLeftOpen, ChevronRight, ChevronDown,
   FileJson, Play, LayoutDashboard, Code2, Settings, History, Users,
-  Search, Bell, Key,
+  Search, Bell, Key, Github, X,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { PagoriLockup } from '@/components/brand/PagoriBrand';
 import { CommitSecretScanModal } from '@/components/analysis/CommitSecretScanModal';
 import { AnalysisHistoryModal } from '@/components/analysis/AnalysisHistoryModal';
@@ -37,7 +38,9 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ onExportJSON }: AppHeaderProps) {
+  const router               = useRouter();
   const { user: authUser }   = useAuthStore();
+  const searchInputRef       = useRef<HTMLInputElement>(null);
   const sidebarOpen          = useSecureStore((s) => s.sidebarOpen);
   const setSidebarOpen       = useSecureStore((s) => s.setSidebarOpen);
   const viewMode             = useSecureStore((s) => s.viewMode);
@@ -62,6 +65,31 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const [sseStatus,         setSseStatus]         = useState<SseStatus>('idle');
   const [showHistory,       setShowHistory]       = useState(false);
   const [showCommitScan,    setShowCommitScan]    = useState(false);
+  const [showSearchPalette, setShowSearchPalette] = useState(false);
+  const [searchQuery,       setSearchQuery]       = useState('');
+
+  // Cmd+K / Ctrl+K 글로벌 단축키
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearchPalette((v) => !v);
+        setSearchQuery('');
+      }
+      if (e.key === 'Escape') {
+        setShowSearchPalette(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // 팔레트 열릴 때 input focus
+  useEffect(() => {
+    if (showSearchPalette) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+  }, [showSearchPalette]);
 
   const VALID_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low'];
 
@@ -308,10 +336,10 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
 
       {/* ── Right ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {/* CMD+K search button (placeholder — wire up palette later) */}
+        {/* CMD+K search button — 팔레트 토글 */}
         <button
-          title="전역 검색"
-          onClick={() => addToast('전역 검색은 곧 출시됩니다 (⌘K)', 'info')}
+          title="전역 검색 (⌘K)"
+          onClick={() => { setShowSearchPalette(true); setSearchQuery(''); }}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
             height: 28, padding: '0 8px 0 10px',
@@ -487,6 +515,82 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         <div style={{ marginLeft: 4 }}>
           <SseIndicator status={sseStatus} isAnalyzing={isAnalyzing} hasResults={vulns.length > 0} />
         </div>
+
+        {/* 검색 팔레트 오버레이 */}
+        {showSearchPalette && (
+          <>
+            {/* backdrop */}
+            <div
+              onClick={() => setShowSearchPalette(false)}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 200,
+                background: 'rgba(0,0,0,0.55)',
+                backdropFilter: 'blur(3px)',
+              }}
+            />
+            {/* palette */}
+            <div style={{
+              position: 'fixed', top: '15%', left: '50%', transform: 'translateX(-50%)',
+              zIndex: 201, width: '100%', maxWidth: 560,
+              background: 'var(--bg-2, #1a1a1c)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 12, overflow: 'hidden',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+            }}>
+              {/* input row */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, gap: 10, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <Search size={16} color="rgba(255,255,255,0.35)" />
+                <input
+                  ref={searchInputRef}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="검색: 취약점 유형, 파일명, CVE ID…"
+                  style={{
+                    flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                    fontSize: 14, color: '#e8e8ee',
+                  }}
+                />
+                <button
+                  onClick={() => setShowSearchPalette(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', display: 'flex' }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              {/* quick actions */}
+              <div style={{ padding: '8px 0' }}>
+                {([
+                  { label: '분석 시작',    icon: <Play size={13} fill="currentColor" />, action: () => { setShowSearchPalette(false); startAnalysis(); } },
+                  { label: 'GitHub 스캔',  icon: <Github size={13} />,                  action: () => { setShowSearchPalette(false); router.push('/github-scan'); } },
+                  { label: 'PDF 다운로드', icon: <FileJson size={13} />,                action: () => { setShowSearchPalette(false); if (onExportJSON) onExportJSON(); } },
+                  { label: '설정',         icon: <Settings size={13} />,                action: () => { setShowSearchPalette(false); router.push('/settings'); } },
+                ] as const).map(({ label, icon, action }) => (
+                  <button
+                    key={label}
+                    onClick={action}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '10px 16px', background: 'none', border: 'none',
+                      cursor: 'pointer', color: 'rgba(255,255,255,0.65)', fontSize: 13,
+                      textAlign: 'left', transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(249,115,22,0.08)'; (e.currentTarget as HTMLElement).style.color = '#f97316'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'none'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.65)'; }}
+                  >
+                    <span style={{ opacity: 0.7 }}>{icon}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* hint */}
+              <div style={{ padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 12, fontSize: 10, color: 'rgba(255,255,255,0.2)' }}>
+                <span>↑↓ 탐색</span>
+                <span>Enter 실행</span>
+                <span>Esc 닫기</span>
+              </div>
+            </div>
+          </>
+        )}
 
         {authUser?.isAdmin && (
           <Link

@@ -12,6 +12,7 @@ import { SeverityBarChart }       from '@/components/dashboard/SeverityBarChart'
 import { TrendLineChart }         from '@/components/dashboard/TrendLineChart';
 import { FileHeatmap }            from '@/components/dashboard/FileHeatmap';
 import { OwaspCoverageMatrix }    from '@/components/dashboard/OwaspCoverageMatrix';
+import { EmptyState }             from '@/components/ui/EmptyState';
 
 type DateRange    = '24h' | '7d' | '30d' | '90d' | 'all';
 type DashViewMode = 'executive' | 'analyst';
@@ -426,6 +427,19 @@ export default function DashboardPage() {
               · 가격 기준: 입력 $0.80 / 출력 $4.00 / 캐시쓰기 $1.00 / 캐시읽기 $0.08 (per MTok)
             </div>
           </Card>
+        )}
+
+        {/* ── 취약점 없을 때 첫 프로젝트 안내 ── */}
+        {!hasVulns && !isLoading && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
+            <EmptyState
+              variant="first-project"
+              eyebrow="첫 진입"
+              title="프로젝트를 분석해 보세요"
+              description="사이드바에서 폴더를 열고 분석 시작 버튼을 누르면 취약점이 이 대시보드에 표시됩니다."
+              maxWidth={360}
+            />
+          </div>
         )}
 
         {/* ── 취약점 상세 목록 ── */}

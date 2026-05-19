@@ -8,6 +8,7 @@ import {
   Package, Download, RefreshCw, Search,
   ChevronRight, Zap, ExternalLink, Copy, Code,
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -453,6 +454,19 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
                 <span>수정 버전</span>
                 <span style={{ textAlign: 'right' }}>액션</span>
               </div>
+
+              {/* 필터 결과 없음 */}
+              {filteredDeps.length === 0 && (
+                <div style={{ padding: '32px 16px' }}>
+                  <EmptyState
+                    variant="filter-empty"
+                    eyebrow="필터 결과"
+                    title="일치하는 의존성 없음"
+                    description="검색어나 필터 조건을 변경해 보세요."
+                    maxWidth={300}
+                  />
+                </div>
+              )}
 
               {/* Rows */}
               {filteredDeps.map((d, di) => {

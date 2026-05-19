@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import type { Vulnerability, PatchSuggestion } from '@/lib/mockData';
 import { useSecureStore } from '@/store/useSecureStore';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 const severityLabel: Record<string, string> = {
   critical: 'Critical',
@@ -106,6 +107,28 @@ export default function VulnPanel({ vulns, patches, selectedId, onSelect }: Prop
 
       {/* 취약점 목록 */}
       <div className="overflow-y-auto" style={{ maxHeight: selectedVuln ? '45%' : '100%' }}>
+        {filteredVulns.length === 0 && vulns.length === 0 && (
+          <div style={{ padding: '24px 16px' }}>
+            <EmptyState
+              variant="scan-ready"
+              eyebrow="스캔 전"
+              title="분석을 시작하세요"
+              description="상단 분석 시작 버튼을 눌러 취약점을 탐지합니다."
+              maxWidth={280}
+            />
+          </div>
+        )}
+        {filteredVulns.length === 0 && vulns.length > 0 && (
+          <div style={{ padding: '24px 16px' }}>
+            <EmptyState
+              variant="no-vulns"
+              eyebrow="필터 결과"
+              title="해당 조건의 취약점 없음"
+              description="필터를 변경하면 더 많은 결과를 볼 수 있습니다."
+              maxWidth={280}
+            />
+          </div>
+        )}
         {filteredVulns.map((v) => (
           <div
             key={v.id}

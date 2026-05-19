@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import {
   Shield, LayoutDashboard, Code2,
   FolderOpen, FolderCode, Loader2, ChevronDown, ChevronRight, Clock, AlertTriangle, X,
-  CheckCircle, Download,
+  CheckCircle, Download, Github, Key, Rocket,
 } from 'lucide-react';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
@@ -700,8 +701,9 @@ export function AppSidebar() {
       {/* ── 하단 액션 ── */}
       <div style={{
         padding: 10, borderTop: '1px solid rgba(255,255,255,0.06)',
-        flexShrink: 0,
+        flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4,
       }}>
+        {/* 에디터/대시보드 토글 */}
         <button
           onClick={() => setViewMode((v) => (v === 'editor' ? 'dashboard' : 'editor'))}
           style={{
@@ -715,6 +717,37 @@ export function AppSidebar() {
             ? <><LayoutDashboard size={11} /> 대시보드</>
             : <><Code2 size={11} /> 에디터</>}
         </button>
+
+        {/* 사이드바 하단 페이지 링크 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+          {([
+            { href: '/github-scan',  Icon: Github,  label: 'GitHub 스캔' },
+            { href: '/commit-scan',  Icon: Key,     label: '커밋 스캔' },
+            { href: '/onboarding',   Icon: Rocket,  label: '온보딩' },
+          ] as const).map(({ href, Icon, label }) => (
+            <Link
+              key={href}
+              href={href}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                padding: '6px 10px', borderRadius: 6, textDecoration: 'none',
+                color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: 500,
+                background: 'transparent', transition: 'background 0.12s, color 0.12s',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(255,255,255,0.05)';
+                (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.7)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLAnchorElement).style.background = 'transparent';
+                (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.35)';
+              }}
+            >
+              <Icon size={12} />
+              {label}
+            </Link>
+          ))}
+        </div>
       </div>
     </motion.aside>
   );

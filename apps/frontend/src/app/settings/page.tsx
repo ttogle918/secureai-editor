@@ -6,6 +6,7 @@ import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe, Git
 import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient, BASE_URL } from '@/lib/api/client';
 import { useSecureStore, type DisplayLanguage, type AiTone } from '@/store/useSecureStore';
+import { MOCK_CREDITS } from '@/lib/uiMockData';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,8 @@ export default function SettingsPage() {
   const [prHistoryError, setPrHistoryError] = useState('');
 
   useEffect(() => {
-    if (isInitialized && !user) router.replace('/login');
+    // mock 모드 허용 — 로그인 없이도 설정 페이지 진입 가능
+    void router;
   }, [isInitialized, user, router]);
 
   const fetchCredits = useCallback(async () => {
@@ -83,15 +85,17 @@ export default function SettingsPage() {
       setCredits(res.data);
       setSelectedModel(res.data.preferredModel);
     } catch {
-      // ignore — user will see empty state
+      // API 실패 시 mock 데이터로 fallback
+      setCredits(MOCK_CREDITS as CreditSummary);
+      setSelectedModel(MOCK_CREDITS.preferredModel);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (user) fetchCredits();
-  }, [user, fetchCredits]);
+    fetchCredits();
+  }, [fetchCredits]);
 
   const handleSaveKey = async () => {
     if (!apiKey.trim()) return;
@@ -179,8 +183,6 @@ export default function SettingsPage() {
       setPrHistoryLoading(false);
     }
   };
-
-  if (!isInitialized || !user) return null;
 
   return (
     <div style={{ minHeight: '100vh', background: '#0d0d0f', color: '#e8e8ee', fontFamily: 'var(--font-sans, system-ui)' }}>

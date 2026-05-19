@@ -5,6 +5,7 @@
 import {
   LayoutDashboard, ShieldAlert, Sparkles, Bell, User,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export type MobileScreen = 'home' | 'vulns' | 'chat' | 'notif' | 'me';
 
@@ -13,14 +14,16 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   badge?: number;
+  /** 실제 라우팅 경로. 없으면 onNavigate 콜백만 호출 */
+  href?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'home',  label: '홈',     icon: <LayoutDashboard size={20} /> },
-  { id: 'vulns', label: '취약점', icon: <ShieldAlert size={20} />,  badge: 10 },
+  { id: 'home',  label: '홈',     icon: <LayoutDashboard size={20} />, href: '/editor?view=dashboard' },
+  { id: 'vulns', label: '취약점', icon: <ShieldAlert size={20} />,    badge: 10, href: '/editor?view=editor' },
   { id: 'chat',  label: 'AI',    icon: <Sparkles size={20} /> },
-  { id: 'notif', label: '알림',   icon: <Bell size={20} />,          badge: 2 },
-  { id: 'me',    label: '내 정보', icon: <User size={20} /> },
+  { id: 'notif', label: '알림',   icon: <Bell size={20} />,            badge: 2 },
+  { id: 'me',    label: '내 정보', icon: <User size={20} />,            href: '/profile' },
 ];
 
 interface MobileBottomNavProps {
@@ -29,6 +32,16 @@ interface MobileBottomNavProps {
 }
 
 export function MobileBottomNav({ activeScreen, onNavigate }: MobileBottomNavProps) {
+  const router = useRouter();
+
+  const handleTap = (item: NavItem) => {
+    if (item.href) {
+      router.push(item.href);
+    }
+    // 채팅/알림 패널은 onNavigate 콜백으로 처리
+    onNavigate(item.id);
+  };
+
   return (
     <nav
       aria-label="하단 네비게이션"
@@ -53,7 +66,7 @@ export function MobileBottomNav({ activeScreen, onNavigate }: MobileBottomNavPro
           <button
             key={item.id}
             id={`nav-${item.id}`}
-            onClick={() => onNavigate(item.id)}
+            onClick={() => handleTap(item)}
             aria-label={item.label}
             aria-current={isActive ? 'page' : undefined}
             style={{

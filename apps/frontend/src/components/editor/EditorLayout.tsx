@@ -59,7 +59,7 @@ export function EditorLayout() {
     <div style={{ display: 'flex', flex: 1, minWidth: 0, minHeight: '1px', overflow: 'hidden', padding: '16px' }}>
 
       {/* ── 코드 + 터미널 ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+      <div className="editor-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
 
         <EditorTabs
           tabs={openTabs}
@@ -86,7 +86,7 @@ export function EditorLayout() {
       <ResizeHandle onResize={onRightResize} direction="horizontal" />
 
       {/* ── 오른쪽 패널 ── */}
-      <div style={{
+      <div className="editor-right-panel" style={{
         width: rightPanelWidth,
         flexShrink: 0,
         background: '#0f0f0f',

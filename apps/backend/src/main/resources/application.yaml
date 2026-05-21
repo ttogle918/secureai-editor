@@ -69,14 +69,20 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 secureai:
   jwt:
-    secret: ${JWT_SECRET:bXktc3VwZXItc2VjcmV0LWtleS1mb3Itand0LXNpZ25pbmctbXVzdC1iZS0yNTYtYml0cy1sb25n}
+    secret: ${JWT_SECRET}
     access-token-expiry-seconds: 900
     refresh-token-expiry-seconds: 2592000
   encryption:
-    key: ${SECUREAI_ENCRYPTION_KEY:0000000000000000000000000000000000000000000000000000000000000000}
+    key: ${SECUREAI_ENCRYPTION_KEY}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
   frontend:
@@ -86,7 +92,7 @@ secureai:
     client-secret: ${GITHUB_CLIENT_SECRET:}
   ai-agent:
     url: ${AI_AGENT_URL:http://localhost:8000}
-  internal-api-key: ${INTERNAL_API_KEY:dev-internal-key}
+  internal-api-key: ${INTERNAL_API_KEY}
   nvd:
     api-key: ${NVD_API_KEY:}
 

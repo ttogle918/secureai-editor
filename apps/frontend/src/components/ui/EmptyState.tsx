@@ -3,9 +3,29 @@
 // eyebrow(카테고리 레이블) + SVG 일러스트 + title + body + actions 구조
 import type { ReactNode } from 'react';
 
+export type EmptyStateVariant =
+  | 'first-project'  // FirstProjectIllo — 쌓인 종이 SVG
+  | 'no-vulns'       // NoVulnsIllo — 초록 체크 원
+  | 'scan-ready'     // ScanReadyIllo — 코드 에디터 + play 버튼
+  | 'filter-empty'   // FilterEmptyIllo — 깔때기 + 돋보기
+  | 'search-empty'   // SearchEmptyIllo — 돋보기 원
+  | 'offline'        // OfflineIllo — wifi 슬래시
+  | 'default';       // 기존 fallback (icon prop 사용)
+
+const VARIANT_ILLO: Record<Exclude<EmptyStateVariant, 'default'>, ReactNode> = {
+  'first-project': <FirstProjectIllo />,
+  'no-vulns':      <NoVulnsIllo />,
+  'scan-ready':    <ScanReadyIllo />,
+  'filter-empty':  <FilterEmptyIllo />,
+  'search-empty':  <SearchEmptyIllo />,
+  'offline':       <OfflineIllo />,
+};
+
 interface EmptyStateProps {
-  /** SVG 일러스트 또는 아이콘 노드 */
+  /** SVG 일러스트 또는 아이콘 노드 (variant 지정 시 무시됨) */
   icon?: ReactNode;
+  /** 미리 정의된 SVG 일러스트 variant */
+  variant?: EmptyStateVariant;
   /** 소문자 카테고리 레이블 (예: "첫 진입", "스캔 전") */
   eyebrow?: string;
   title: string;
@@ -15,7 +35,10 @@ interface EmptyStateProps {
   maxWidth?: number;
 }
 
-export function EmptyState({ icon, eyebrow, title, description, action, maxWidth = 320 }: EmptyStateProps) {
+export function EmptyState({ icon, variant, eyebrow, title, description, action, maxWidth = 320 }: EmptyStateProps) {
+  const resolvedIcon = variant && variant !== 'default'
+    ? VARIANT_ILLO[variant]
+    : icon;
   return (
     <div
       role="status"
@@ -35,9 +58,9 @@ export function EmptyState({ icon, eyebrow, title, description, action, maxWidth
         margin: '0 auto',
       }}
     >
-      {icon && (
+      {resolvedIcon && (
         <span aria-hidden="true">
-          {icon}
+          {resolvedIcon}
         </span>
       )}
       {eyebrow && (

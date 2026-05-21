@@ -294,3 +294,45 @@ textarea.field { height: auto; padding: 8px 10px; font: 12px/1.5 var(--font-mono
   height: 100%; background: var(--orange-2);
   border-radius: 999px; transition: width 0.2s;
 }
+
+/* ── 16. Mobile responsive (< 768px) ────────────────────── */
+@media (max-width: 767px) {
+  /* 헤더 반응형 */
+  .app-header-filters { display: none !important; }
+  .app-header-search-text { display: none !important; }
+
+  /* 프로젝트 카드 그리드 (홈) */
+  .project-card-grid { grid-template-columns: 1fr !important; }
+
+  /* 에디터 레이아웃 — 사이드바 / 오른쪽 패널 숨김 */
+  .editor-sidebar { display: none !important; }
+  .editor-right-panel { display: none !important; }
+  .editor-main { width: 100% !important; }
+
+  /* 대시보드 */
+  .dashboard-kpi-grid { grid-template-columns: 1fr 1fr !important; }
+  .dashboard-chart-grid { grid-template-columns: 1fr !important; }
+
+  /* SBOM 페이지 */
+  .sbom-kpi-strip { flex-wrap: wrap !important; gap: 8px !important; }
+  .sbom-dep-table-license { display: none !important; }
+
+  /* 온보딩 */
+  .onboarding-container { padding: 20px 16px !important; }
+}
+
+/* ── ChatFAB — 데스크톱에서 숨김 ────────────────────────── */
+.chat-fab-container { display: flex; }
+@media (min-width: 768px) { .chat-fab-container { display: none; } }
+
+/* ── 17. Tablet responsive (768-1279px) ─────────────────── */
+@media (min-width: 768px) and (max-width: 1279px) {
+  /* 에디터 사이드바 slim rail */
+  .editor-sidebar { width: 48px !important; }
+  .editor-sidebar-label { display: none !important; }
+  .editor-sidebar-icon { margin: 0 auto !important; }
+
+  /* 대시보드 */
+  .dashboard-kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
+  .dashboard-chart-grid { grid-template-columns: 1.2fr 1fr !important; }
+}

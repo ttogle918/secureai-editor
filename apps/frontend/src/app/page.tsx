@@ -110,6 +110,14 @@ function Hero() {
             }}>
               무료로 시작하기
             </Link>
+            <Link href="/editor" style={{
+              padding: '12px 28px', borderRadius: 8,
+              background: 'rgba(249,115,22,0.12)', color: '#f97316',
+              border: '1px solid rgba(249,115,22,0.35)',
+              fontSize: 15, fontWeight: 700, textDecoration: 'none',
+            }}>
+              Demo로 시작하기
+            </Link>
             <Link href="/login" style={{
               padding: '12px 28px', borderRadius: 8,
               background: 'transparent', color: 'rgba(255,255,255,0.6)',

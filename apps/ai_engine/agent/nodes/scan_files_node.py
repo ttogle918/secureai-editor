@@ -1,11 +1,14 @@
 import logging
 
+from opentelemetry import trace
+
 from agent.agent_state import AgentState
 from agent.tools.mcp_filesystem_tools import list_scannable_files
 from agent.tools.mcp_github_tools import list_github_files
 from infrastructure.progress_log_client import log_completed, log_failed, log_started
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 _STEP_ORDER = 1
 
@@ -121,56 +124,60 @@ async def scan_files_node(state: AgentState) -> dict:
     source_type = state.get("source_type", "local")
     logger.info("[scan_files] session=%s source_type=%s", session_id, source_type)
 
-    await log_started(session_id, "scan_files", _STEP_ORDER)
+    with tracer.start_as_current_span("scan_files_node") as span:
+        span.set_attribute("session_id", session_id)
+        span.set_attribute("source_type", source_type)
 
-    try:
-        size_map: dict[str, int] = {}
+        await log_started(session_id, "scan_files", _STEP_ORDER)
 
-        if source_type == "github":
-            # github_token은 로그에 절대 출력 금지
-            files, size_map = await list_github_files(
-                session_id,
-                state["github_owner"],
-                state["github_repo"],
-                state.get("github_ref"),
-                state.get("github_token"),
+        try:
+            size_map: dict[str, int] = {}
+
+            if source_type == "github":
+                # github_token은 로그에 절대 출력 금지
+                files, size_map = await list_github_files(
+                    session_id,
+                    state["github_owner"],
+                    state["github_repo"],
+                    state.get("github_ref"),
+                    state.get("github_token"),
+                )
+            else:
+                files = await list_scannable_files(session_id)
+
+            # 1. 바이너리 확장자 필터
+            before_ext = len(files)
+            files = [f for f in files if not _should_skip_by_extension(f)]
+            skipped_ext = before_ext - len(files)
+            if skipped_ext:
+                logger.info("[scan_files] session=%s skipped_binary=%d", session_id, skipped_ext)
+
+            # 2. 파일 크기 필터 (GitHub 모드에서 size_map 활용)
+            if size_map:
+                files = filter_by_size(files, size_map)
+
+            # 3. 테스트/목 패턴 필터
+            before_excl = len(files)
+            files = [f for f in files if not _should_exclude(f)]
+            excluded = before_excl - len(files)
+            if excluded:
+                logger.info("[scan_files] session=%s excluded=%d test/mock files", session_id, excluded)
+
+            # 4. 우선순위 정렬
+            files = prioritize_files(files)
+
+            await log_completed(
+                session_id, "scan_files", _STEP_ORDER,
+                detail={
+                    "fileCount": len(files),
+                    "excluded": excluded,
+                    "skippedBinary": skipped_ext,
+                },
             )
-        else:
-            files = await list_scannable_files(session_id)
-
-        # 1. 바이너리 확장자 필터
-        before_ext = len(files)
-        files = [f for f in files if not _should_skip_by_extension(f)]
-        skipped_ext = before_ext - len(files)
-        if skipped_ext:
-            logger.info("[scan_files] session=%s skipped_binary=%d", session_id, skipped_ext)
-
-        # 2. 파일 크기 필터 (GitHub 모드에서 size_map 활용)
-        if size_map:
-            files = filter_by_size(files, size_map)
-
-        # 3. 테스트/목 패턴 필터
-        before_excl = len(files)
-        files = [f for f in files if not _should_exclude(f)]
-        excluded = before_excl - len(files)
-        if excluded:
-            logger.info("[scan_files] session=%s excluded=%d test/mock files", session_id, excluded)
-
-        # 4. 우선순위 정렬
-        files = prioritize_files(files)
-
-        await log_completed(
-            session_id, "scan_files", _STEP_ORDER,
-            detail={
-                "fileCount": len(files),
-                "excluded": excluded,
-                "skippedBinary": skipped_ext,
-            },
-        )
-    except Exception as exc:
-        logger.error("[scan_files] session=%s error=%s", session_id, exc)
-        await log_failed(session_id, "scan_files", _STEP_ORDER, detail={"error": str(exc)})
-        files = []
+        except Exception as exc:
+            logger.error("[scan_files] session=%s error=%s", session_id, exc)
+            await log_failed(session_id, "scan_files", _STEP_ORDER, detail={"error": str(exc)})
+            files = []
 
     logger.info("[scan_files] session=%s found=%d files", session_id, len(files))
     return {

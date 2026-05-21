@@ -14,6 +14,7 @@ import DashboardPage                 from '@/components/dashboard/DashboardPage'
 import ResizeHandle                  from '@/components/ui/ResizeHandle';
 import { ToastContainer }            from '@/components/ui/Toast';
 import { MobileBottomNav, type MobileScreen } from '@/components/layout/MobileBottomNav';
+import { ChatFAB } from '@/components/analysis/ChatFAB';
 
 export default function EditorPage() {
   const router        = useRouter();
@@ -36,9 +37,9 @@ export default function EditorPage() {
   const sidebarOpen     = useSecureStore((s) => s.sidebarOpen);
   const vulns           = useSecureStore((s) => s.vulns);
 
-  const mobileScreen: MobileScreen = viewMode === 'dashboard' ? 'dashboard' : 'vulns';
+  const mobileScreen: MobileScreen = viewMode === 'dashboard' ? 'home' : 'vulns';
   const handleMobileNav = useCallback((screen: MobileScreen) => {
-    if (screen === 'dashboard') setViewMode('dashboard');
+    if (screen === 'home') setViewMode('dashboard');
     else setViewMode('editor');
   }, [setViewMode]);
 
@@ -135,6 +136,7 @@ export default function EditorPage() {
       <div className="mobile-only">
         <MobileBottomNav activeScreen={mobileScreen} onNavigate={handleMobileNav} />
       </div>
+      <ChatFAB />
     </div>
   );
 }

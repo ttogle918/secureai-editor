@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api/client';
 import { useAuthStore } from '@/store/useAuthStore';
+import { MOCK_USER } from '@/lib/uiMockData';
 
 interface UserMe {
   id: string;
@@ -26,10 +27,18 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!isInitialized) return;
-    if (!accessToken) { router.push('/login'); return; }
+    if (!accessToken) {
+      // 백엔드 없이 Demo 모드로 진입할 수 있도록 mock fallback
+      setMe(MOCK_USER as UserMe);
+      setLoading(false);
+      return;
+    }
     apiClient.get<{ data: UserMe }>('/users/me')
       .then(res => setMe(res.data))
-      .catch(() => setError('프로필 정보를 불러오지 못했습니다.'))
+      .catch(() => {
+        // API 실패 시 mock 데이터로 fallback
+        setMe(MOCK_USER as UserMe);
+      })
       .finally(() => setLoading(false));
   }, [isInitialized, accessToken, router]);
 

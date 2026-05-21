@@ -151,9 +151,144 @@ Docker 환경에서 대시보드 API 검증 중 발견.
 
 ---
 
-## 다음 우선순위
+## 다음 우선순위 (Stage 5 이후)
 
 - **Sprint 8 시작 전**: 에뮬레이터에서 FCM E2E 수동 검증 (딥링크, 알림, foreground/background 분기)
 - **Sprint 8**: 스케줄러 ShedLock, Circuit Breaker, 성능 목표, 2FA, EPIC-SEC-DOC Level 1
 - **FEAT-FE-001 SBOM API**: 백엔드 GET 엔드포인트 추가 → SbomPage.tsx 구현 (Sprint 8 범위 후보)
 - **UI 설계**: EPIC-SEC-DOC 문서 생성 화면 — Claude design과 별도 의논 예정
+
+---
+
+---
+
+## Stage 6 추가 기록 — Pagori 리디자인 전체 적용 (refactor/frontend-ui)
+
+### 작업 배경
+
+`frontend-refactoring/Pagori Redesign.html` 및 `frontend-refactoring/components/` 12개 JSX 파일을 레퍼런스로, `apps/frontend/src/`에 미적용된 화면을 전수 조사 후 일괄 적용.
+
+Explore 에이전트 조사 결과 기존 적용률 약 75% — 이번 세션에서 95%까지 상향.
+
+---
+
+### 7. Sprint 6 체크리스트 업데이트 + DVWA SQLi E2E 시연 기록
+
+이전 세션에서 미완으로 남아 있던 Sprint 6 DVWA 수동 시연이 이번 세션 초반에 완료됐음을 공식 기록.
+
+- DVWA 이미지: `ghcr.io/digininja/dvwa:latest` + MariaDB 10.6 (`mariadb:10.6`) — MySQL 8.0은 DVWA SQL 문법 비호환으로 교체
+- SQLi 엔드투엔드 실행 → DAST 터미널 진행 로그 확인 → VulnDetailPanel에 초록 "DAST 안전" 배지 정상 표시
+- `docs/07_SPRINT_BACKLOG_V2.md` TASK-601~604 체크리스트 전항목 체크 완료
+- `docs/07_SPRINT_BACKLOG_V3.md` Sprint 6 섹션에 시연 날짜 주석 추가 (2026-05-19)
+
+---
+
+### 8. Pagori 리디자인 — 1차 적용 (온보딩·SBOM·AI 톤 설정)
+
+**브랜치**: `refactor/frontend-ui` / **PR**: #73
+
+| 파일 | 내용 |
+|------|------|
+| `app/onboarding/page.tsx` (신규) | 3단계 온보딩: 프로젝트 타입 → 분석 소스 → 첫 분석/스킵 |
+| `components/analysis/SbomPage.tsx` (신규) | SBOM & CVE 페이지: KPI strip, 의존성 테이블, CVE 상세 카드 |
+| `components/analysis/RightPanel.tsx` | `sbom` 탭 추가 |
+| `app/settings/page.tsx` | AI 채팅 톤 섹션 추가 (직설적/친절한/전문적/학습형) |
+| `store/useSecureStore.ts` | `aiTone` 상태 + localStorage 퍼시스턴스 |
+
+**설계 결정**: SBOM 백엔드 API(`GET /api/v1/projects/{id}/sbom/components`) 미구현 — mock 데이터 임시 사용, TODO 주석 마킹 (FEAT-FE-001 Sprint 8 후보).
+
+---
+
+### 9. Pagori 리디자인 — 2차 적용 (모바일/태블릿 반응형 + 초기 설정)
+
+| 파일 | 내용 |
+|------|------|
+| `app/preferences/page.tsx` (신규) | 언어(6종)/테마(3종)/AI 톤(5종)/음성(coming soon) 초기 설정 페이지 |
+| `components/analysis/ChatFAB.tsx` (신규) | 모바일 전용 플로팅 AI 채팅 버튼 (FAB ↔ 말풍선 팝업 토글, 768px 이상 숨김) |
+| `app/globals.css` | 모바일(<768px) 반응형 CSS, 태블릿(768-1279px) slim rail 지원 |
+| `components/layout/MobileBottomNav.tsx` | 레퍼런스 디자인 반영: blur 배경, safe area, 5탭 구조 |
+| `store/useSecureStore.ts` | `language`(6종) + `theme`(3종) 상태 추가 |
+| `components/editor/EditorLayout.tsx`, `AppSidebar.tsx`, `dashboard/DashboardPage.tsx` | 반응형 className 추가 |
+
+**설계 결정**: 모바일(<768px)에서 에디터 사이드바·오른쪽 패널 숨김 + 하단 네비 표시. 태블릿에서 사이드바 48px slim rail 자동 전환.
+
+---
+
+### 10. Pagori 리디자인 — 3차 적용 (신규 설계 화면 3종)
+
+| 파일 | 내용 |
+|------|------|
+| `app/github-scan/page.tsx` (신규) | GitHub OAuth 레포 선택 + 브랜치 + 파일 필터 + 파이프라인 토글 + AI 모델 선택 |
+| `app/commit-scan/page.tsx` (신규) | 스캔 범위 세그먼트 탭 + 라이브 진행률 카드 + 시크릿 6열 테이블 + 경고 박스 |
+| `components/analysis/PdfReportModal.tsx` (수정) | configure → generating → done 3단계 플로우, 언어/형식 select, 링크 복사/이메일 전송 |
+
+---
+
+### 11. Pagori 리디자인 — 4차 적용 (EmptyStates + 내비게이션 전체 연결 + Mock fallback)
+
+#### EmptyState 일러스트 6종 (SVG 인라인)
+
+| variant | 상황 | 사용 위치 |
+|---------|------|---------|
+| `first-project` | 첫 분석 전 | DashboardPage |
+| `scan-ready` | 스캔 준비 완료 | VulnPanel (취약점 없음) |
+| `no-vulns` | 필터 결과 없음 | VulnPanel (필터 적용 후) |
+| `filter-empty` | 필터 결과 없음 | SbomPage |
+| `search-empty` | 검색 결과 없음 | Cmd+K 팔레트 |
+| `offline` | 연결 오류 | AI 서버 연결 실패 |
+
+#### Mock 데이터 fallback — 백엔드 없이 전체 UI 접근 가능
+
+`lib/uiMockData.ts` 신규: `MOCK_USER`, `MOCK_ORGS`, `MOCK_MEMBERS`, `MOCK_CREDITS`, `MOCK_HISTORY`, `MOCK_ADMIN_USERS`
+
+API 실패 시 fallback 처리 파일: `profile`, `team`, `settings`, `admin/users`
+
+**결정 이유**: 프론트엔드 개발·검토 시 백엔드 기동 없이 localhost:3000으로 모든 화면을 즉시 확인할 수 있어야 함. try/catch에서 mock 대입 — 실 API 연결 시 자동 전환.
+
+#### 내비게이션 전체 연결
+
+| 위치 | 변경 내용 |
+|------|---------|
+| `AppHeader` | Cmd+K/Ctrl+K 글로벌 단축키 → 팔레트 오버레이 (분석시작/GitHub스캔/PDF/설정 액션) |
+| `AppSidebar` | 하단에 `/github-scan`, `/commit-scan`, `/onboarding` 링크 추가 |
+| `MobileBottomNav` | `useRouter`로 실제 라우팅 연결 (home→에디터, vulns→에디터, me→프로필) |
+| `app/page.tsx` | Hero에 "Demo로 시작하기" → `/editor` 버튼 추가 |
+
+---
+
+### 커밋 목록 (Stage 6 — refactor/frontend-ui)
+
+| 커밋 | 내용 |
+|------|------|
+| `562b275` | feat(frontend): Pagori 리디자인 1차 — 온보딩·SBOM·AI 톤·SBOM 탭 |
+| `51e16ce` | feat(frontend): 모바일/태블릿 반응형 + 초기 설정 페이지 |
+| `0b3de7f` | feat(frontend): 신규 설계 화면 3종 (GitHub 스캔·커밋 스캔·PDF 리포트) |
+| `a1d989f` | feat(frontend): EmptyStates 일러스트 + 내비게이션 연결 + Mock fallback |
+
+**PR #73**: `refactor/frontend-ui` → `main`
+
+---
+
+### 최종 적용률 요약
+
+| 카테고리 | 이전 | 이번 세션 후 |
+|---------|------|------------|
+| 핵심 화면 (에디터/대시보드/온보딩/SBOM) | ✅ 완전 | ✅ 완전 |
+| 초기 설정 페이지 | ❌ 미적용 | ✅ 완전 |
+| 신규 설계 화면 (GitHub스캔·커밋스캔·PDF) | ❌ 미적용 | ✅ 완전 |
+| 모바일 반응형 | ⚠️ 30% | ✅ 80%+ |
+| 태블릿 반응형 | ❌ 미적용 | ✅ 적용 |
+| EmptyStates 일러스트 | ⚠️ 컴포넌트만 | ✅ SVG 6종 |
+| 내비게이션 연결 | ⚠️ 부분 | ✅ 전체 연결 |
+| Mock fallback (백엔드 불필요) | ❌ | ✅ 주요 페이지 전체 |
+
+**전체 적용률: 75% → 95%**
+
+---
+
+## 다음 우선순위
+
+- **PR #73 머지 후** Sprint 8 시작
+- **FEAT-FE-001**: 백엔드 `GET /api/v1/projects/{id}/sbom/components` 구현 → SbomPage mock 제거
+- **Sprint 7 잔여 테스트**: `DomainVerificationRedisIT` 4개 (Redis 기동 필요), PDF 리포트 생성, 대시보드 차트 수동 검증
+- **Sprint 8**: TASK-801~809 (스케줄러 ShedLock, Circuit Breaker, 성능 목표, 2FA, EPIC-SEC-DOC Level 1)

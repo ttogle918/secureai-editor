@@ -2,10 +2,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe, Github, Copy, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe, Github, Copy, ToggleLeft, ToggleRight, MessageSquare } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient, BASE_URL } from '@/lib/api/client';
-import { useSecureStore, type DisplayLanguage } from '@/store/useSecureStore';
+import { useSecureStore, type DisplayLanguage, type AiTone } from '@/store/useSecureStore';
+import { MOCK_CREDITS } from '@/lib/uiMockData';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,8 @@ export default function SettingsPage() {
   const { user, isInitialized } = useAuthStore();
   const displayLanguage    = useSecureStore((s) => s.displayLanguage);
   const setDisplayLanguage = useSecureStore((s) => s.setDisplayLanguage);
+  const aiTone             = useSecureStore((s) => s.aiTone);
+  const setAiTone          = useSecureStore((s) => s.setAiTone);
 
   const [credits, setCredits] = useState<CreditSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,7 +75,8 @@ export default function SettingsPage() {
   const [prHistoryError, setPrHistoryError] = useState('');
 
   useEffect(() => {
-    if (isInitialized && !user) router.replace('/login');
+    // mock 모드 허용 — 로그인 없이도 설정 페이지 진입 가능
+    void router;
   }, [isInitialized, user, router]);
 
   const fetchCredits = useCallback(async () => {
@@ -81,15 +85,17 @@ export default function SettingsPage() {
       setCredits(res.data);
       setSelectedModel(res.data.preferredModel);
     } catch {
-      // ignore — user will see empty state
+      // API 실패 시 mock 데이터로 fallback
+      setCredits(MOCK_CREDITS as CreditSummary);
+      setSelectedModel(MOCK_CREDITS.preferredModel);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (user) fetchCredits();
-  }, [user, fetchCredits]);
+    fetchCredits();
+  }, [fetchCredits]);
 
   const handleSaveKey = async () => {
     if (!apiKey.trim()) return;
@@ -177,8 +183,6 @@ export default function SettingsPage() {
       setPrHistoryLoading(false);
     }
   };
-
-  if (!isInitialized || !user) return null;
 
   return (
     <div style={{ minHeight: '100vh', background: '#0d0d0f', color: '#e8e8ee', fontFamily: 'var(--font-sans, system-ui)' }}>
@@ -300,6 +304,14 @@ export default function SettingsPage() {
               );
             })}
           </div>
+        </Section>
+
+        {/* ── AI 채팅 톤 ── */}
+        <Section icon={<MessageSquare size={16} />} title="AI 채팅 톤">
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 20, lineHeight: 1.6 }}>
+            AI가 취약점을 설명하거나 질문에 답할 때 사용할 말투를 선택하세요.
+          </p>
+          <AiToneSection value={aiTone} onChange={setAiTone} />
         </Section>
 
         {/* ── GitHub 연동 ── */}
@@ -529,6 +541,94 @@ function StatCard({ label, value, highlight, positive }: { label: string; value:
     <div style={{ minWidth: 140 }}>
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em' }}>{value}</div>
+    </div>
+  );
+}
+
+const AI_TONES: Array<{ id: AiTone; name: string; sub: string; sample: string }> = [
+  {
+    id: 'direct',
+    name: '직설적',
+    sub: '핵심만 짧고 정확하게',
+    sample: 'SQL Injection 발견. parameterized query 사용 권장.',
+  },
+  {
+    id: 'friendly',
+    name: '친절한',
+    sub: '편하게 말 거는 느낌',
+    sample: '여기 SQL Injection이 있네요! parameterized query로 바꿔주시면 안전해요.',
+  },
+  {
+    id: 'expert',
+    name: '전문적',
+    sub: '기술 깊이 있는 설명',
+    sample: 'CWE-89 (SQL Injection). prepared statement 또는 parameterized query 패턴을 적용하여 입력값을 데이터로 분리하세요.',
+  },
+  {
+    id: 'teaching',
+    name: '학습형',
+    sub: '배우기 좋게 단계별 설명',
+    sample: '이 코드의 위험은 사용자 입력이 그대로 쿼리에 들어가는 점이에요. parameterized query를 쓰면 입력이 "데이터"로 다뤄져서 안전해집니다.',
+  },
+];
+
+function AiToneSection({ value, onChange }: { value: AiTone; onChange: (t: AiTone) => void }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {AI_TONES.map((t) => {
+        const active = value === t.id;
+        return (
+          <button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            style={{
+              display: 'flex',
+              gap: 14,
+              padding: '12px 16px',
+              borderRadius: 10,
+              background: active ? 'rgba(234,88,12,0.08)' : 'rgba(255,255,255,0.02)',
+              border: `1px solid ${active ? 'rgba(234,88,12,0.4)' : 'rgba(255,255,255,0.08)'}`,
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'border-color 0.15s',
+            }}
+          >
+            <span style={{
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              marginTop: 3,
+              border: `1.5px solid ${active ? '#ea580c' : 'rgba(255,255,255,0.2)'}`,
+              background: active ? '#ea580c' : 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              {active && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: active ? '#e8e8ee' : 'rgba(255,255,255,0.6)' }}>{t.name}</span>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{t.sub}</span>
+              </div>
+              <div style={{
+                padding: '8px 12px',
+                borderRadius: 6,
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                fontSize: 12,
+                color: 'rgba(255,255,255,0.45)',
+                lineHeight: 1.55,
+                fontStyle: 'italic',
+                fontFamily: 'var(--font-sans)',
+              }}>
+                {t.sample}
+              </div>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }

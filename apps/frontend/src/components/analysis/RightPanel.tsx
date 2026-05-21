@@ -1,12 +1,13 @@
 // components/analysis/RightPanel.tsx
-// 에디터 오른쪽 패널 — 취약점 상세 / AI 채팅 / 진행률 탭 전환
+// 에디터 오른쪽 패널 — 취약점 상세 / AI 채팅 / 진행률 / SBOM 탭 전환
 // VulnDetailPanel 이 FilterBar 를 내장하므로 여기서 별도 렌더링 불필요
 'use client';
-import { MessageSquare, ShieldAlert, CheckSquare } from 'lucide-react';
+import { MessageSquare, ShieldAlert, CheckSquare, Package } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
 import VulnDetailPanel from '@/components/analysis/VulnDetailPanel';
 import ChatPanel from '@/components/analysis/ChatPanel';
 import { ProgressPanel } from '@/components/ui/ProgressPanel';
+import { SbomPage } from '@/components/analysis/SbomPage';
 
 export function RightPanel() {
   const rightTab     = useSecureStore((s) => s.rightTab);
@@ -24,9 +25,10 @@ export function RightPanel() {
     : '진행률';
 
   const TABS = [
-    { id: 'vulns'    as const, label: `취약점 (${fileVulnCount})`, icon: <ShieldAlert  size={12} aria-hidden="true" />, pulsing: false },
+    { id: 'vulns'    as const, label: `취약점 (${fileVulnCount})`, icon: <ShieldAlert   size={12} aria-hidden="true" />, pulsing: false },
     { id: 'chat'     as const, label: 'AI 채팅',                   icon: <MessageSquare size={12} aria-hidden="true" />, pulsing: false },
     { id: 'progress' as const, label: progressLabel,               icon: <CheckSquare   size={12} aria-hidden="true" />, pulsing: isAnalyzing },
+    { id: 'sbom'     as const, label: 'SBOM',                      icon: <Package       size={12} aria-hidden="true" />, pulsing: false },
   ] as const;
 
   return (
@@ -122,6 +124,16 @@ export function RightPanel() {
           style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
         >
           <ProgressPanel />
+        </div>
+      )}
+      {rightTab === 'sbom' && (
+        <div
+          id="right-panel-sbom"
+          role="tabpanel"
+          aria-labelledby="right-tab-sbom"
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
+        >
+          <SbomPage />
         </div>
       )}
     </div>

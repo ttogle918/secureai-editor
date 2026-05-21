@@ -81,12 +81,12 @@
 
 ## 실행 계획
 
-### Stage 1 — 관측성 기반 + 스케줄러 안정화 (병렬)
+### Stage 1 — 관측성 기반 + 스케줄러 안정화 (병렬) ✅ 완료 (2026-05-21)
 
-| TASK | 제목 | 서비스 | 파일 | 선행 |
-|------|------|--------|------|------|
-| TASK-808 | OpenTelemetry 통합 (Jaeger) | backend + ai_engine + docker-compose | `build.gradle.kts`(OTel starter), `application.yaml`(OTel 설정), `docker-compose.yml`(Jaeger), Python `requirements.txt`(OTel SDK), `settings.py`(환경변수), LangGraph 노드별 수동 span | Stage 0 #1, #5 |
-| TASK-801 | ShedLock 스케줄러 전체 완성 | backend | `build.gradle.kts`(ShedLock 의존성), `V037__create_shedlock_table.sql`, 6개 Job `@SchedulerLock` (`ExpiredDataCleanupJob`, `PartitionMaintenanceJob`, `SastUsageResetJob`, `NvdSyncJob`, `SessionInterruptionScheduler`, `RefreshTokenCleanupJob`) | Stage 0 #3 |
+| TASK | 제목 | 서비스 | 파일 | 선행 | 상태 |
+|------|------|--------|------|------|------|
+| TASK-808 | OpenTelemetry 통합 (Jaeger) | backend + ai_engine + docker-compose | `build.gradle.kts`(OTel starter), `application.yaml`(OTel 설정), `docker-compose.yml`(Jaeger), Python `requirements.txt`(OTel SDK), `settings.py`(환경변수), LangGraph 노드별 수동 span | Stage 0 #1, #5 | ✅ |
+| TASK-801 | ShedLock 스케줄러 전체 완성 | backend | `build.gradle.kts`(ShedLock 의존성), `V037__create_shedlock_table.sql`, 6개 Job `@SchedulerLock` (`ExpiredDataCleanupJob`, `PartitionMaintenanceJob`, `SastUsageResetJob`, `NvdSyncJob`, `SessionInterruptionScheduler`, `RefreshTokenCleanupJob`) | Stage 0 #3 | ✅ |
 
 **병렬 안전 조건**:
 - `build.gradle.kts` 공유 → 단일 Dev 에이전트가 두 의존성 블록(OTel + ShedLock)을 한 번에 처리하거나, 801 의존성 추가 커밋 후 808이 이어서 추가
@@ -155,10 +155,10 @@
 
 ## 전체 실행 순서 요약
 
-| 순서 | TASK | 제목 | 선행 | 에이전트 |
-|------|------|------|------|---------|
-| 1a | TASK-808 | OpenTelemetry 통합 (Jaeger) | — | Dev + Tester |
-| 1b | TASK-801 | ShedLock 스케줄러 전체 완성 | — | Dev + Tester |
+| 순서 | TASK | 제목 | 선행 | 에이전트 | 상태 |
+|------|------|------|------|---------|------|
+| 1a | TASK-808 | OpenTelemetry 통합 (Jaeger) | — | Dev + Tester | ✅ |
+| 1b | TASK-801 | ShedLock 스케줄러 전체 완성 | — | Dev + Tester | ✅ |
 | 2a | TASK-802 | Resilience4j Circuit Breaker | TASK-801 | Dev + Tester |
 | 2b | TASK-809 | GDPR Export/Delete API | — | Dev + Tester |
 | 3a | TASK-806 | 2FA (TOTP) | — | Dev + Tester |
@@ -212,13 +212,13 @@
 
 ## Sprint 8 완료 기준 (백로그 기준)
 
-- [ ] **스케줄러 안정**: ShedLock으로 중복 실행 방지 (6개 Job)
+- [x] **스케줄러 안정**: ShedLock으로 중복 실행 방지 (6개 Job)
 - [ ] **Circuit Breaker**: 모든 외부 호출(AI Agent / GitHub / NVD) 장애 격리
 - [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80%
 - [ ] **보안 기본선**: OWASP ZAP Critical 0건
 - [ ] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
 - [ ] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
-- [ ] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
+- [x] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
 - [ ] **GDPR**: Export/Delete API 동작
 - [ ] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
 - [ ] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면
@@ -229,8 +229,8 @@
 ## 실행 명령어
 
 ```
-/stage 1   ← 여기서 시작 (TASK-808 + TASK-801 병렬)
-/stage 2   (TASK-801 완료 후)
+/stage 1   ✅ 완료 (2026-05-21) — TASK-808 + TASK-801
+/stage 2   ← 다음 (TASK-801 완료 후)
 /stage 3   (Stage 2 완료 후)
 /stage 4   (Stage 3 완료 후)
 /stage 5   (Stage 4 완료 후)

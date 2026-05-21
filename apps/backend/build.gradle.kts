@@ -75,6 +75,8 @@ dependencies {
 	implementation("net.javacrumbs.shedlock:shedlock-provider-redis-spring:6.3.0")
 
 	// OpenTelemetry — Micrometer OTLP 트레이싱 (Spring Boot 4 호환)
+	// spring-boot-micrometer-tracing: Spring Boot 4에서 트레이싱 자동구성이 별도 모듈로 분리됨
+	implementation("org.springframework.boot:spring-boot-micrometer-tracing:4.0.5")
 	implementation("io.micrometer:micrometer-tracing-bridge-otel")
 	implementation("io.opentelemetry:opentelemetry-exporter-otlp")
 }

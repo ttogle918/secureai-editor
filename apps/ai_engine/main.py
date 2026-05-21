@@ -78,10 +78,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# FastAPI OTel 계측 — 앱 생성 직후 미들웨어 등록 전에 적용
-if settings.otel_enabled:
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    FastAPIInstrumentor.instrument_app(app)
 
 app.add_middleware(InternalKeyAuthMiddleware)
 # CORSMiddleware는 InternalKeyAuth 바깥(outermost)에 위치해야 OPTIONS preflight가 먼저 처리됨

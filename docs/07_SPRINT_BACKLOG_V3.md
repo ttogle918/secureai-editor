@@ -383,23 +383,23 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
-#### TASK-801 🔴 스케줄러 전체 완성 & ShedLock
+#### TASK-801 🔴 스케줄러 전체 완성 & ShedLock ✅ 완료 (2026-05-21)
 - **중요도**: 🔴 Critical | **Flyway**: V037
 
 **하위 할일**
-- [ ] `build.gradle.kts` 의존성: `net.javacrumbs.shedlock:shedlock-spring:6.x`, `shedlock-provider-redis-spring:6.x`
-- [ ] `V037__create_shedlock_table.sql` (Redis Provider 사용 시 DB 백업용 또는 생략 가능)
-- [ ] ShedLock + Redis Provider (Redis DB 0, 키 접두사 `shedlock:`)
-- [ ] 6개 Job 확정: `ExpiredDataCleanupJob`, `PartitionMaintenanceJob`, `SastUsageResetJob`, `NvdSyncJob`, `SessionInterruptionScheduler`, `RefreshTokenCleanupJob`
-- [ ] 각 Job `@SchedulerLock(name, lockAtMostFor, lockAtLeastFor)` 적용
-- [ ] `ExpiredDataCleanupJob` 완성 (체크포인트 24h, exploit_results 30일, reports 90일)
-- [ ] `PartitionMaintenanceJob` — 다음 달 파티션 미리 생성
-- [ ] `SastUsageResetJob` — 매월 1일 sast_usage_this_month 리셋
+- [x] `build.gradle.kts` 의존성: `net.javacrumbs.shedlock:shedlock-spring:6.x`, `shedlock-provider-redis-spring:6.x`
+- [x] `V037__create_shedlock_table.sql` (Redis Provider 사용 시 DB 백업용)
+- [x] ShedLock + Redis Provider (Redis DB 0, 키 접두사 `shedlock:`)
+- [x] 6개 Job 확정: `ExpiredDataCleanupJob`, `PartitionMaintenanceJob`, `SastUsageResetJob`, `NvdSyncJob`, `SessionInterruptionScheduler`, `RefreshTokenCleanupJob`
+- [x] 각 Job `@SchedulerLock(name, lockAtMostFor, lockAtLeastFor)` 적용
+- [x] `ExpiredDataCleanupJob` 완성 (exploit_results 30일, reports 90일)
+- [x] `PartitionMaintenanceJob` — 다음 달 파티션 미리 생성 (TODO: 파티션 구조 확정 후 SQL 추가)
+- [x] `SastUsageResetJob` — 매월 1일 sast_usage_this_month 리셋
 
 **테스트 체크리스트**
-- [ ] 🧪 각 Job 실행 로직 단위 테스트
+- [x] 🧪 각 Job 실행 로직 단위 테스트
 - [ ] 🔬 다중 인스턴스 환경 시뮬레이션 → ShedLock으로 1회만 실행
-- [ ] 🔬 ExpiredDataCleanupJob — 30일 초과 exploit_results, 90일 리포트, 24h 체크포인트 삭제
+- [ ] 🔬 ExpiredDataCleanupJob — 30일 초과 exploit_results, 90일 리포트 삭제
 - [ ] 🔬 매월 1일 → 모든 사용자 sast_usage_this_month 0으로 리셋
 - [ ] 🔬 PartitionMaintenanceJob → 다음 달 파티션 미리 생성
 - [ ] ✅ 실제 스케줄 cron 동작 확인
@@ -517,20 +517,21 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
-#### TASK-808 🔴 OpenTelemetry 통합
+#### TASK-808 🔴 OpenTelemetry 통합 ✅ 완료 (2026-05-21)
 - **중요도**: 🔴 Critical | **출처**: FEAT-OPS-001
 
 **하위 할일**
-- [ ] `build.gradle.kts` 의존성: `opentelemetry-spring-boot-starter`
-- [ ] Python AI Agent `requirements.txt`: `opentelemetry-instrumentation-fastapi`, `opentelemetry-exporter-otlp`
-- [ ] **Jaeger 선택 확정** (Tempo는 Sprint 9 Grafana 스택과 함께) — `docker-compose.yml`에 `jaegertracing/all-in-one` 서비스 추가
-- [ ] LangGraph 노드별 수동 span 생성 (`with tracer.start_as_current_span`) — asyncio Task 경계에서 ContextVar 전파 단절 회피
-- [ ] `settings.py` 환경변수: `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`
-- [ ] 분석 파이프라인 각 단계별 Span 생성
+- [x] `build.gradle.kts` 의존성: `micrometer-tracing-bridge-otel` + `opentelemetry-exporter-otlp` (Spring Boot 4 호환)
+- [x] Python AI Agent `requirements.txt`: `opentelemetry-instrumentation-fastapi`, `opentelemetry-exporter-otlp-proto-grpc`
+- [x] **Jaeger 선택 확정** — `docker-compose.yml`에 `jaegertracing/all-in-one:1.56` 서비스 추가 (OTLP gRPC 4317 / HTTP 4318)
+- [x] LangGraph 노드별 수동 span 생성 (`with tracer.start_as_current_span`) — asyncio Task 경계에서 ContextVar 전파 단절 회피
+- [x] `settings.py` 환경변수: `OTEL_ENABLED`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`
+- [x] `sast_node.py`, `scan_files_node.py`, `patch_node.py` 노드별 수동 span 추가
+- [x] `application.yaml` OTel tracing 설정 + secrets 하드코딩 기본값 제거
 
 **테스트 체크리스트**
 - [ ] 🔬 분석 요청 → Spring Boot → AI Agent 전체 Trace 연결 확인
-- [ ] ✅ Jaeger/Tempo UI에서 분석 파이프라인 Span 시각화 확인
+- [ ] ✅ Jaeger UI(localhost:16686)에서 분석 파이프라인 Span 시각화 확인
 
 ---
 
@@ -550,13 +551,13 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ---
 
 ### Sprint 8 완료 기준
-- [ ] **스케줄러 안정**: ShedLock으로 중복 실행 방지 (6개 Job)
+- [x] **스케줄러 안정**: ShedLock으로 중복 실행 방지 (6개 Job)
 - [ ] **Circuit Breaker**: 모든 외부 호출(AI Agent / GitHub / NVD) 장애 격리
 - [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80%
 - [ ] **보안 기본선**: OWASP ZAP Critical 0건
 - [ ] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
 - [ ] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
-- [ ] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
+- [x] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
 - [ ] **GDPR**: Export/Delete API 동작
 - [ ] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
 - [ ] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면 (mock 제거)

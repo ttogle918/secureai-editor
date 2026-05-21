@@ -57,6 +57,9 @@ public enum ErrorCode {
     PATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "패치 제안을 찾을 수 없습니다."),
 
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "리포트를 찾을 수 없습니다."),
+    SECURITY_DOC_NOT_FOUND(HttpStatus.NOT_FOUND, "보안 문서 요청을 찾을 수 없습니다."),
+    SECURITY_DOC_TOKEN_EXPIRED(HttpStatus.GONE, "다운로드 토큰이 만료되었습니다."),
+    SECURITY_DOC_NOT_COMPLETED(HttpStatus.CONFLICT, "보안 문서 생성이 완료되지 않았습니다."),
 
     ADMIN_SELF_MODIFICATION_DENIED(HttpStatus.FORBIDDEN, "자기 자신의 플랜 또는 상태를 변경할 수 없습니다."),
     ADMIN_PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "플랜을 찾을 수 없습니다."),

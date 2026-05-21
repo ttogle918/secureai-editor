@@ -76,6 +76,8 @@ public class SecurityConfig {
                     "/error"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/reports/*/download").permitAll()
+                // 보안 문서 토큰 다운로드 — 다운로드 토큰 자체가 인증 수단
+                .requestMatchers(HttpMethod.GET, "/api/v1/reports/security/download").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/invitations/**").permitAll()
                 // GitHub 웹훅 인바운드만 공개 — GET /history 등 나머지는 JWT 필요
                 .requestMatchers(HttpMethod.POST, "/webhooks/github").permitAll()

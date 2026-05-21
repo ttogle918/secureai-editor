@@ -198,6 +198,26 @@ services:
     depends_on:
       - backend
 
+  # ── Nginx API Gateway ────────────────────────────────
+  # HTTP(80) → HTTPS(443) 강제 리다이렉트 + SSL 종단 + Rate Limiting
+  # 사전 준비: make ssl-cert  (개발용 자체 서명 인증서 생성)
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: secureai-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    networks:
+      - app-net
+    depends_on:
+      - backend
+      # frontend 서비스 활성화 시 아래 주석 해제
+      # - frontend
+
   # ── Next.js Frontend ──────────────────────────────────
   # 개발: cd apps/frontend && npm run dev  (로컬 실행)
   # 프로덕션 배포 시 아래 주석 해제

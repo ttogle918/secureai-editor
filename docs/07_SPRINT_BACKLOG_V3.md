@@ -464,15 +464,15 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
-#### TASK-805 🟡 Nginx API Gateway 완성 & SSL
+#### TASK-805 🟡 Nginx API Gateway 완성 & SSL ✅ 완료 (2026-05-22)
 - **중요도**: 🟡 Medium
 
 **하위 할일**
-- [ ] `nginx.conf` 라우팅 (`/api/*` → backend, `/ai/*` → ai_engine, 정적 → frontend)
-- [ ] `limit_req_zone` 분당 100회 제한
-- [ ] **개발/스테이징**: 자체 서명 인증서 (`openssl`) | **프로덕션**: Let's Encrypt + Certbot
-- [ ] 보안 헤더 통합 (TASK-804에서 Spring Security로 먼저 적용한 헤더를 Nginx로 이전)
-- [ ] `docker-compose.yml` Nginx + Certbot 서비스 추가 (Stage 1의 Jaeger와 충돌 없음)
+- [x] `nginx.conf` 라우팅 (`/api/*` → backend, `/ai/*` → ai_engine, 정적 → frontend)
+- [x] `limit_req_zone` 분당 100회 제한
+- [x] **개발/스테이징**: 자체 서명 인증서 (`openssl`, `make ssl-cert`) | **프로덕션**: Let's Encrypt + Certbot
+- [x] 보안 헤더 통합 (HSTS, X-Frame-Options, X-Content-Type, Referrer-Policy)
+- [x] `docker-compose.yml` Nginx 서비스 추가 (app-net 최소 권한, ports 80/443)
 
 **테스트 체크리스트**
 - [ ] ✅ `/api/*` → backend 라우팅
@@ -560,9 +560,9 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - [x] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
 - [x] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
 - [x] **GDPR**: Export/Delete API 동작
-- [ ] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
+- [x] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
 - [x] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면 (mock 제거)
-- [ ] **Nginx + SSL**: API Gateway 라우팅 + 보안 헤더 통합
+- [x] **Nginx + SSL**: API Gateway 라우팅 + 보안 헤더 통합
 
 ---
 
@@ -711,9 +711,9 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
-### TASK-MISC-002 🟠 보안 문서 자동 생성 (EPIC-SEC-DOC)
+### TASK-MISC-002 🟠 보안 문서 자동 생성 (EPIC-SEC-DOC) ✅ 완료 (2026-05-22, Level 1)
 - **브랜치**: `feat/sec-doc`
-- **현재 상태**: 미구현 — 2026-05-19 기획 확정
+- **현재 상태**: Level 1 완료 — 2026-05-22
 - **대상 사용자**: 보안 전문가, 사내 보안 담당자, 바이브코더(상사 보고용)
 
 > SAST 분석 결과를 정부 제출 문서·사내 보고서·국제 표준 증적으로 자동 변환.  
@@ -722,16 +722,16 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 **Level 1 — 템플릿 기반 (SAST 결과 → 문서)** | **Flyway**: V040
 
 하위 할일
-- [ ] `build.gradle.kts` 의존성: `spring-boot-starter-thymeleaf` + `io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.0.20` (Flying Saucer 사용 금지 — HTML5 비호환). PDFBox 기반으로 안정적
-- [ ] `V040__create_security_doc_requests.sql` — 생성 이력, 다운로드 토큰
-- [ ] `GET /api/v1/projects/{id}/reports/security?type=ciso|hanafos|isms` 엔드포인트
-- [ ] `SecurityDocService.java` — SAST 결과 → 문서 필드 매핑 로직 (Thymeleaf → HTML → OpenHTMLtoPDF 파이프라인). 기존 `PdfReportGenerator.java`(OpenPDF) 건드리지 않음
-- [ ] `SecurityDocController.java`
-- [ ] Thymeleaf 템플릿 3종:
+- [x] `build.gradle.kts` 의존성: `spring-boot-starter-thymeleaf` + `io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.37` (Flying Saucer 사용 금지 — HTML5 비호환). PDFBox 기반으로 안정적
+- [x] `V040__create_security_doc_requests.sql` — 생성 이력, 다운로드 토큰
+- [x] `POST /api/v1/projects/{id}/reports/security?docType=CISO|HANAFOS|ISMS` + `GET` 상태/다운로드 엔드포인트
+- [x] `SecurityDocService.java` + `SecurityDocAsyncProcessor.java` — SAST 결과 → Thymeleaf → OpenHTMLtoPDF. 기존 `PdfReportGenerator.java`(OpenPDF) 건드리지 않음
+- [x] `SecurityDocController.java`
+- [x] Thymeleaf 템플릿 3종:
   - `ciso-report.html` — 취약점 현황, 위험도 분포, 미조치 항목 (사내 CISO/팀장 보고)
   - `hanafos-checklist.html` — 행안부 SW개발보안 가이드 43개 항목 매핑 (공공기관 제출)
   - `isms-p-evidence.html` — ISMS-P 개발보안 통제항목 이행현황 (인증 심사 증적)
-- [ ] 프론트엔드: 문서 유형 선택 UI + 생성 상태 폴링 + 다운로드
+- [x] 프론트엔드: `SecurityDocPage.tsx` 문서 유형 선택 카드 + 생성 상태 폴링 + 다운로드
 
 **Level 2 — LangGraph 아키텍처 추출 (코드 → 보안 아키텍처 문서)**
 
@@ -744,11 +744,12 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - [ ] `security-arch-report.html` 템플릿 (접근통제 매트릭스, 암호화 현황, 아키텍처 다이어그램 텍스트)
 
 **테스트 체크리스트**
+- [x] 🧪 SecurityDocServiceTest — 10개 단위 테스트 통과 (소유권 거부, 만료 토큰, DocType 매핑 등)
+- [x] 🛡️ 타 사용자 프로젝트 문서 생성 요청 → 403 차단 (ProjectService.isMember 검증)
 - [ ] 🔬 CISO 보고서 — 취약점 severity 분포·미조치 수 정확성 검증
 - [ ] 🔬 행안부 체크리스트 — SAST 결과 → 43개 항목 매핑 정확성
 - [ ] 🔬 ISMS-P 증적 — 통제항목 준수/미준수 판정 로직
 - [ ] 🔬 문서 생성 → 30초 이내 PDF 완성
-- [ ] 🛡️ 타 사용자 프로젝트 문서 생성 요청 → 403 차단
 - [ ] ✅ 생성된 PDF — 행안부 양식 항목 누락 없음 육안 확인
 - [ ] ✅ CISO 보고서 — 경영진이 읽기 적합한 수준 가독성 확인
 

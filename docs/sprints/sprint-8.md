@@ -140,12 +140,12 @@
 
 ---
 
-### Stage 5 — 보안 문서 자동 생성 + Nginx 통합 (순차)
+### Stage 5 — 보안 문서 자동 생성 + Nginx 통합 (순차) ✅ 완료 (2026-05-22)
 
-| TASK | 제목 | 서비스 | 파일 | 선행 |
-|------|------|--------|------|------|
-| TASK-MISC-002 | 보안 문서 자동 생성 Level 1 | backend + frontend | `build.gradle.kts`(`spring-boot-starter-thymeleaf` + `openhtmltopdf-pdfbox:1.0.20`), `V040__create_security_doc_requests.sql`, `SecurityDocController.java`, `SecurityDocService.java`(Thymeleaf → HTML → OpenHTMLtoPDF 파이프라인), 템플릿 3종(`ciso-report.html`, `hanafos-checklist.html`, `isms-p-evidence.html`), 프론트엔드 문서 유형 선택 UI | Stage 1~4 완료 |
-| TASK-805 | Nginx API Gateway + SSL + 보안 헤더 통합 | nginx + docker-compose | `nginx.conf` 라우팅(`/api/*` → backend, `/ai/*` → ai_engine), `limit_req_zone` 분당 100회, 보안 헤더 통합(TASK-804의 Spring `.headers()` 설정을 Nginx `add_header`로 이전), 개발: 자체 서명 / 프로덕션: Let's Encrypt + Certbot, `docker-compose.yml` Nginx + Certbot 서비스 | TASK-808 (Jaeger와 `docker-compose.yml` 비충돌 확인) |
+| TASK | 제목 | 서비스 | 파일 | 선행 | 상태 |
+|------|------|--------|------|------|------|
+| TASK-MISC-002 | 보안 문서 자동 생성 Level 1 | backend + frontend | `build.gradle.kts`(`spring-boot-starter-thymeleaf` + `openhtmltopdf-pdfbox:1.1.37`), `V040__create_security_doc_requests.sql`, `SecurityDocController.java`, `SecurityDocService.java` + `SecurityDocAsyncProcessor.java`(Thymeleaf → HTML → OpenHTMLtoPDF, @Async, SecureRandom 토큰, Path Traversal 방어), 템플릿 3종, `SecurityDocPage.tsx` | Stage 1~4 완료 | ✅ |
+| TASK-805 | Nginx API Gateway + SSL + 보안 헤더 통합 | nginx + docker-compose | `nginx/nginx.conf`(HTTP→HTTPS 강제, TLSv1.2/1.3, limit_req 100r/m, app-net 최소 권한), `nginx/.gitignore`(키 파일 보호), `docker-compose.yml` nginx 서비스 추가, `Makefile` ssl-cert 타겟 | TASK-808 | ✅ |
 
 **구성 근거**: Nginx는 모든 엔드포인트 확정 후 라우팅 작성. 보안 헤더는 TASK-804에서 Spring Security로 1단계 적용된 상태에서 Nginx로 통합 이전.
 
@@ -166,8 +166,8 @@
 | 4a | TASK-803 | 성능 테스트 & 캐시 최적화 | TASK-808 | Dev + Tester | ✅ |
 | 4b | TASK-804 | 보안 강화 (헤더 + DTO + Android) | TASK-806·807 | Dev + Tester | ✅ |
 | 4c | FEAT-FE-001 | SBOM API + SbomPage.tsx | — | Dev + Tester | ✅ |
-| 5a | TASK-MISC-002 | 보안 문서 자동 생성 Level 1 | Stage 1~4 | Dev + Tester |
-| 5b | TASK-805 | Nginx + SSL + 보안 헤더 통합 | TASK-808, 5a | Dev + Tester |
+| 5a | TASK-MISC-002 | 보안 문서 자동 생성 Level 1 | Stage 1~4 | Dev + Tester | ✅ |
+| 5b | TASK-805 | Nginx + SSL + 보안 헤더 통합 | TASK-808, 5a | Dev + Tester | ✅ |
 
 ---
 
@@ -220,9 +220,9 @@
 - [x] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
 - [x] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
 - [x] **GDPR**: Export/Delete API 동작
-- [ ] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
+- [x] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
 - [x] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면
-- [ ] **Nginx + SSL**: API Gateway 라우팅 + 보안 헤더 통합
+- [x] **Nginx + SSL**: API Gateway 라우팅 + 보안 헤더 통합
 
 ---
 
@@ -233,7 +233,7 @@
 /stage 2   ✅ 완료 (2026-05-21) — TASK-802 + TASK-809
 /stage 3   ✅ 완료 (2026-05-22) — TASK-806 + TASK-807
 /stage 4   ✅ 완료 (2026-05-22) — TASK-803 + TASK-804 + FEAT-FE-001
-/stage 5   (Stage 4 완료 후)
+/stage 5   ✅ 완료 (2026-05-22) — TASK-MISC-002 + TASK-805
 ```
 
 권장 선행 작업: FCM E2E 에뮬레이터 수동 검증 (Sprint 7 잔여 매뉴얼 항목) — Sprint 8 진행과 병행 가능.

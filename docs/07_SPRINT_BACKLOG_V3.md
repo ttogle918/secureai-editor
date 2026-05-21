@@ -481,39 +481,39 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
-#### TASK-806 🔴 2단계 인증 (2FA / TOTP)
+#### TASK-806 🔴 2단계 인증 (2FA / TOTP) ✅ 완료 (2026-05-22)
 - **중요도**: 🔴 Critical | **출처**: FEAT-SEC-001 | **Flyway**: V038 (V029 이미 사용됨)
 
 **하위 할일**
-- [ ] `build.gradle.kts` 의존성: `dev.samstevens.totp:totp-spring-boot-starter` (Google Authenticator 호환)
-- [ ] `V038__add_totp_fields.sql`: `users` 테이블 `totp_secret` (AES 암호화 TEXT), `totp_enabled` BOOLEAN 컬럼 + `totp_recovery_codes` 테이블
-- [ ] 복구 코드 8개 생성 (1회용, AES-256 암호화 저장, `@Lock(PESSIMISTIC_WRITE)` = `SELECT FOR UPDATE` 트랜잭션)
-- [ ] `POST /auth/2fa/setup`, `POST /auth/2fa/verify`, `DELETE /auth/2fa` API
+- [x] `build.gradle.kts` 의존성: `dev.samstevens.totp:totp-spring-boot-starter` (Google Authenticator 호환)
+- [x] `V038__add_totp_fields.sql`: `users` 테이블 `totp_secret` (AES 암호화 TEXT), `totp_enabled` BOOLEAN 컬럼 + `totp_recovery_codes` 테이블
+- [x] 복구 코드 8개 생성 (1회용, BCrypt 해시 저장, `@Lock(PESSIMISTIC_WRITE)` = `SELECT FOR UPDATE` 트랜잭션, SecureRandom 64-bit 엔트로피)
+- [x] `POST /api/v1/auth/2fa/setup`, `POST /api/v1/auth/2fa/verify`, `DELETE /api/v1/auth/2fa` API
 - [ ] Team 이상 플랜 강제 활성화 옵션 (Enterprise 관리자 설정)
 
 **테스트 체크리스트**
-- [ ] 🧪 TOTP 코드 생성·검증 정확성
-- [ ] 🧪 복구 코드 1회 사용 후 used_at 기록, 재사용 거부
+- [x] 🧪 TOTP 코드 생성·검증 정확성
+- [x] 🧪 복구 코드 1회 사용 후 used_at 기록, 재사용 거부
 - [ ] 🔬 2FA 활성화 → 로그인 시 TOTP 코드 요구
-- [ ] 🛡️ `totp_secret` DB에 AES-256 암호화 저장 확인
+- [x] 🛡️ `totp_secret` DB에 AES-256-GCM 암호화 저장 확인 (AesEncryptionConverter)
 - [ ] ✅ Google Authenticator 앱으로 QR 코드 스캔 → 인증 성공
 
 ---
 
-#### TASK-807 🟠 IP 허용 목록 (IP Allowlist)
+#### TASK-807 🟠 IP 허용 목록 (IP Allowlist) ✅ 완료 (2026-05-22)
 - **중요도**: 🟠 High | **출처**: FEAT-SEC-002 | **Flyway**: V039
 
 **하위 할일**
-- [ ] `V039__create_team_settings.sql` — `team_settings` 테이블 신규 생성 (현재 미존재) + `allowed_ip_ranges CIDR[]` 컬럼
-- [ ] Spring Security `OncePerRequestFilter`로 IP 검증 — `addFilterBefore(ipAllowlistFilter, JwtAuthenticationFilter.class)` (JWT 검증 전 IP 차단)
-- [ ] `application.yaml`에 `server.forward-headers-strategy: NATIVE` 추가 — Spoofing 방어 (Docker 내부 신뢰 프록시 IP만 X-Forwarded-For 허용)
-- [ ] CIDR 범위 지원 (`192.168.1.0/24`)
-- [ ] `PUT /admin/teams/{teamId}/ip-allowlist` API
+- [x] `V039__create_team_settings.sql` — `team_settings` 테이블 신규 생성 + `allowed_ip_ranges TEXT[]` 컬럼
+- [x] Spring Security `OncePerRequestFilter`로 IP 검증 — `addFilterBefore(ipAllowlistFilter, JwtAuthenticationFilter.class)` (JWT 검증 전 IP 차단)
+- [x] `application.yaml`에 `server.forward-headers-strategy: NATIVE` 추가 — Spoofing 방어 (Docker 내부 신뢰 프록시 IP만 X-Forwarded-For 허용)
+- [x] CIDR 범위 지원 (`192.168.1.0/24`) — 순수 Java 비트 연산 구현
+- [x] `PUT /api/v1/admin/teams/{teamId}/ip-allowlist` API
 
 **테스트 체크리스트**
 - [ ] 🔬 허용 IP 외부에서 요청 → 403
 - [ ] 🔬 CIDR 범위 내 IP → 정상 통과
-- [ ] 🛡️ IP Spoofing 헤더 (`X-Forwarded-For`) 조작 시 원본 IP 기준으로 검증
+- [x] 🛡️ IP Spoofing 헤더 (`X-Forwarded-For`) 조작 시 원본 IP 기준으로 검증 (request.getRemoteAddr() + NATIVE strategy)
 
 ---
 
@@ -555,8 +555,8 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - [x] **Circuit Breaker**: 모든 외부 호출(AI Agent / NVD / DNS) 장애 격리
 - [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80%
 - [ ] **보안 기본선**: OWASP ZAP Critical 0건
-- [ ] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
-- [ ] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
+- [x] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
+- [x] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
 - [x] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
 - [ ] **GDPR**: Export/Delete API 동작
 - [ ] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성

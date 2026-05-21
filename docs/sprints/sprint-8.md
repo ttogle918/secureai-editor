@@ -109,12 +109,12 @@
 
 ---
 
-### Stage 3 — 보안 인증 강화 (순차: SecurityConfig.java 공유)
+### Stage 3 — 보안 인증 강화 (순차: SecurityConfig.java 공유) ✅ 완료 (2026-05-22)
 
-| TASK | 제목 | 서비스 | 파일 | 선행 |
-|------|------|--------|------|------|
-| TASK-806 | 2FA (TOTP) | backend | `build.gradle.kts`(`totp-spring-boot-starter`), `V038__add_totp_fields.sql`, `TotpService.java`, `RecoveryCodeService.java`(`@Lock(PESSIMISTIC_WRITE)`), `SecurityConfig.java` 2FA 필터, `/auth/2fa/*` 엔드포인트 | — |
-| TASK-807 | IP Allowlist | backend | `V039__create_team_settings.sql`(테이블 신규), `IpAllowlistFilter.java`(`OncePerRequestFilter`), `SecurityConfig.java`에 `addFilterBefore(ipAllowlistFilter, JwtAuthenticationFilter.class)`, `application.yaml`에 `server.forward-headers-strategy: NATIVE`, `PUT /admin/teams/{teamId}/ip-allowlist` API | TASK-806 |
+| TASK | 제목 | 서비스 | 파일 | 선행 | 상태 |
+|------|------|--------|------|------|------|
+| TASK-806 | 2FA (TOTP) | backend | `build.gradle.kts`(`totp-spring-boot-starter`), `V038__add_totp_fields.sql`, `TotpService.java`, `TotpController.java`(`@Lock(PESSIMISTIC_WRITE)`), `SecurityConfig.java` 2FA 경로 설정, `/api/v1/auth/2fa/*` 엔드포인트 | — | ✅ |
+| TASK-807 | IP Allowlist | backend | `V039__create_team_settings.sql`(테이블 신규), `IpAllowlistFilter.java`(`OncePerRequestFilter`), `SecurityConfig.java`에 `addFilterBefore(ipAllowlistFilter, JwtAuthenticationFilter.class)`, `application.yaml`에 `server.forward-headers-strategy: NATIVE`, `PUT /api/v1/admin/teams/{teamId}/ip-allowlist` API | TASK-806 | ✅ |
 
 **순차 강제 이유**: 두 태스크 모두 `SecurityConfig.java` 수정 → 806이 먼저 필터 체인 구조 확정 후 807이 IP 필터 삽입
 
@@ -161,8 +161,8 @@
 | 1b | TASK-801 | ShedLock 스케줄러 전체 완성 | — | Dev + Tester | ✅ |
 | 2a | TASK-802 | Resilience4j Circuit Breaker | TASK-801 | Dev + Tester | ✅ |
 | 2b | TASK-809 | GDPR Export/Delete API | — | Dev + Tester | ✅ |
-| 3a | TASK-806 | 2FA (TOTP) | — | Dev + Tester |
-| 3b | TASK-807 | IP Allowlist | TASK-806 | Dev + Tester |
+| 3a | TASK-806 | 2FA (TOTP) | — | Dev + Tester | ✅ |
+| 3b | TASK-807 | IP Allowlist | TASK-806 | Dev + Tester | ✅ |
 | 4a | TASK-803 | 성능 테스트 & 캐시 최적화 | TASK-808 | Dev + Tester |
 | 4b | TASK-804 | 보안 강화 (헤더 + DTO + Android) | TASK-806·807 | Dev + Tester |
 | 4c | FEAT-FE-001 | SBOM API + SbomPage.tsx | — | Dev + Tester |
@@ -217,9 +217,9 @@
 - [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80%
 - [ ] **보안 기본선**: OWASP ZAP Critical 0건
 - [ ] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
-- [ ] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
+- [x] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
 - [x] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
-- [ ] **GDPR**: Export/Delete API 동작
+- [x] **GDPR**: Export/Delete API 동작
 - [ ] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
 - [ ] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면
 - [ ] **Nginx + SSL**: API Gateway 라우팅 + 보안 헤더 통합
@@ -231,7 +231,7 @@
 ```
 /stage 1   ✅ 완료 (2026-05-21) — TASK-808 + TASK-801
 /stage 2   ✅ 완료 (2026-05-21) — TASK-802 + TASK-809
-/stage 3   ← 다음 (Stage 2 완료 후)
+/stage 3   ✅ 완료 (2026-05-22) — TASK-806 + TASK-807
 /stage 4   (Stage 3 완료 후)
 /stage 5   (Stage 4 완료 후)
 ```

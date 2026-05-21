@@ -550,12 +550,17 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ---
 
 ### Sprint 8 완료 기준
-- [ ] **스케줄러 안정**: ShedLock으로 중복 실행 방지
-- [ ] **Circuit Breaker**: 모든 외부 호출 장애 격리
+- [ ] **스케줄러 안정**: ShedLock으로 중복 실행 방지 (6개 Job)
+- [ ] **Circuit Breaker**: 모든 외부 호출(AI Agent / GitHub / NVD) 장애 격리
 - [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80%
 - [ ] **보안 기본선**: OWASP ZAP Critical 0건
-- [ ] **2FA**: TOTP 기반 2단계 인증 동작
-- [ ] **OpenTelemetry**: 분산 트레이싱 전체 연결
+- [ ] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
+- [ ] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
+- [ ] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
+- [ ] **GDPR**: Export/Delete API 동작
+- [ ] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
+- [ ] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면 (mock 제거)
+- [ ] **Nginx + SSL**: API Gateway 라우팅 + 보안 헤더 통합
 
 ---
 

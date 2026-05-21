@@ -1,5 +1,5 @@
 # Sprint 8 — 안정화 & 보안 강화 & 런칭 준비
-**기간**: 2026-06-01 ~ 2026-06-14 (Week 17–18)
+**기간**: 2026-05-21 ~ 2026-06-03 (Week 17–18, 실제 시작일 조정)
 **목표**: 관측성·복원성 기반 구축(OpenTelemetry + ShedLock + Circuit Breaker) → 보안 인증 강화(2FA + IP Allowlist) → 성능 최적화 + 보안 헤더 + SBOM 화면 → 보안 문서 자동 생성 + Nginx 통합
 
 ---
@@ -32,6 +32,23 @@
 | V038 | TASK-806 | `V038__add_totp_fields.sql` | V029 충돌 회피 |
 | V039 | TASK-807 | `V039__create_team_settings.sql` | 테이블 신규 |
 | V040 | TASK-MISC-002 | `V040__create_security_doc_requests.sql` | 생성 이력·다운로드 토큰 |
+
+---
+
+## 스프린트 시작 전 완료 사항 (2026-05-21)
+
+### PR #73 머지 완료 — Pagori 리디자인 전체 적용
+- `refactor/frontend-ui` → `main` 스쿼시 머지 완료
+- UI 적용률 75% → 95% (온보딩·SBOM·반응형·EmptyStates·Mock fallback·네비게이션)
+- SBOM 화면은 mock 데이터 — FEAT-FE-001(Stage 4)에서 API 연결 예정
+
+### CI 인프라 수정 (PR #73과 함께 main 반영)
+| 수정 항목 | 원인 | 조치 |
+|----------|------|------|
+| `SECUREAI_ENCRYPTION_KEY` | Base64 40자 → AES 키 불일치 | 64자 hex로 교체 |
+| `DB_URL` → `SPRING_DATASOURCE_URL` | Spring 환경변수명 불일치 → 포트 5434 기본값 사용 | `SPRING_DATASOURCE_URL` 등으로 정정 |
+| postgres 이미지 `postgres:15-alpine` | V028 `CREATE EXTENSION vector` 실패 | `pgvector/pgvector:pg15`로 교체 |
+| `BackendApplicationTests` | `application-test.yaml`에 `flyway.enabled: false` → plans 테이블 없어 DataInitializer 실패 | `@MockitoBean DataInitializer` 추가 (Spring Boot 4.x 패키지) |
 
 ---
 

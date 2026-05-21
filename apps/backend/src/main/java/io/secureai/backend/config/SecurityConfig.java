@@ -1,6 +1,7 @@
 package io.secureai.backend.config;
 
 import io.secureai.backend.global.security.InternalKeyAuthFilter;
+import io.secureai.backend.global.security.IpAllowlistFilter;
 import io.secureai.backend.global.security.JwtAuthenticationFilter;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final InternalKeyAuthFilter internalKeyAuthFilter;
+    private final IpAllowlistFilter ipAllowlistFilter;
 
     @Value("${secureai.cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
@@ -46,6 +48,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // SSE/비동기 재디스패치는 원래 요청에서 이미 인증됨 — 재인증 불필요
                 .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
+                // 2FA 관리 엔드포인트 — /api/v1/auth/** 의 permitAll 보다 먼저 매칭해야 함
+                .requestMatchers("/api/v1/auth/2fa/**").authenticated()
                 .requestMatchers(
                     "/api/v1/auth/**",
                     "/api/workspace/**",
@@ -62,6 +66,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/webhooks/github").permitAll()
                 // 내부 통신 엔드포인트 — JWT 불필요, InternalKeyAuthFilter가 X-Internal-Key 헤더 검증
                 .requestMatchers("/api/v1/internal/**").permitAll()
+                // 팀 설정 관리 — 관리자 전용 (adminGuard.check로 2차 검증)
+                .requestMatchers("/api/v1/admin/teams/**").authenticated()
                 // AI Engine 내부 호출 전용 — InternalKeyFilter 에서 인증
                 .requestMatchers("/api/v1/cve/search").permitAll()
                 .requestMatchers("/api/v1/sbom/components").permitAll()
@@ -73,7 +79,8 @@ public class SecurityConfig {
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             )
             .addFilterBefore(internalKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(ipAllowlistFilter, JwtAuthenticationFilter.class);
         return http.build();
     }
 

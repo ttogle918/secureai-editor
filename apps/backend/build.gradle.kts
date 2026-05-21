@@ -77,6 +77,9 @@ dependencies {
 	implementation("net.javacrumbs.shedlock:shedlock-spring:6.3.0")
 	implementation("net.javacrumbs.shedlock:shedlock-provider-redis-spring:6.3.0")
 
+	// TOTP (2FA) — HMAC-based One-Time Password (RFC 6238)
+	implementation("dev.samstevens.totp:totp-spring-boot-starter:1.7.1")
+
 	// OpenTelemetry — Micrometer OTLP 트레이싱 (Spring Boot 4 호환)
 	// spring-boot-micrometer-tracing: Spring Boot 4에서 트레이싱 자동구성이 별도 모듈로 분리됨
 	implementation("org.springframework.boot:spring-boot-micrometer-tracing:4.0.5")

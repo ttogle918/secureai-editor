@@ -406,18 +406,18 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
-#### TASK-802 🔴 Resilience4j Circuit Breaker 전체 적용
+#### TASK-802 🔴 Resilience4j Circuit Breaker 전체 적용 ✅ 완료 (2026-05-21)
 - **중요도**: 🔴 Critical
 
 **하위 할일**
-- [ ] `build.gradle.kts` 의존성: `io.github.resilience4j:resilience4j-spring-boot3` (Spring Boot 4 호환 모듈)
-- [ ] `ResilienceConfig.java` — CircuitBreaker, TimeLimiter, Retry 설정
-- [ ] AI Agent / GitHub / NVD `@CircuitBreaker(fallbackMethod=)` + fallback 메서드
-- [ ] `AiAgentClient.isCircuitOpen()` Resilience4j `CircuitBreakerRegistry` 연결 (현재 stub 상태 — `SessionInterruptionScheduler`에서 이미 호출 중)
-- [ ] `CircuitBreakerTest.java`
+- [x] `build.gradle.kts` 의존성: `resilience4j-spring-boot3:2.2.0`
+- [x] `application.yaml` — aiAgent/nvdApi/dnsLookup CB + TimeLimiter 설정
+- [x] AI Agent / NVD / DNS `@CircuitBreaker(fallbackMethod=)` + fallback 메서드 (DefaultAiAgentClient, NvdApiClient, DomainVerificationService)
+- [x] `AiAgentClient.isCircuitOpen()` Resilience4j `CircuitBreakerRegistry` 연결
+- [x] `CircuitBreakerTest.java` — 8개 단위 테스트
 
 **테스트 체크리스트**
-- [ ] 🧪 각 Circuit Breaker fallback 메서드
+- [x] 🧪 각 Circuit Breaker fallback 메서드 (8개 통과)
 - [ ] 🔬 AI Agent 강제 종료 → 연속 실패 10회 → Circuit OPEN
 - [ ] 🔬 Circuit OPEN 상태 → 사용자 요청 → fallback 응답
 - [ ] 🔬 30초 후 HALF_OPEN → 1회 시도 → 성공 시 CLOSED 복구
@@ -535,24 +535,24 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
-#### TASK-809 🟠 GDPR 데이터 삭제 요청 API
+#### TASK-809 🟠 GDPR 데이터 삭제 요청 API ✅ 완료 (2026-05-21)
 - **중요도**: 🟠 High | **출처**: FEAT-COMP-001
 
 **하위 할일**
-- [ ] `POST /users/me/gdpr/export` — 내 전체 데이터 JSON 다운로드
-- [ ] `POST /users/me/gdpr/delete` — 즉시 하드 삭제 요청 (30일 유예 없이)
-- [ ] 삭제 시 관련 분석 세션, 취약점, 리포트 연쇄 삭제
+- [x] `POST /api/v1/users/me/gdpr/export` — 내 전체 데이터 JSON 다운로드
+- [x] `POST /api/v1/users/me/gdpr/delete` — 즉시 하드 삭제 요청 (비밀번호 재확인, OAuth 계정은 null 허용)
+- [x] 삭제 연쇄: GdprAccountDeletedEvent → GdprReportCleanupHandler(report 도메인) → refresh_tokens revoke → users 삭제 (CASCADE)
 
 **테스트 체크리스트**
 - [ ] 🔬 export API → 사용자 데이터 JSON 완전성 검증
-- [ ] 🔬 delete API → 30일 내 데이터 완전 삭제 확인
-- [ ] 🛡️ 타 사용자 GDPR 요청 거부 (인증 필수)
+- [ ] 🔬 delete API → 데이터 완전 삭제 확인
+- [x] 🛡️ 타 사용자 GDPR 요청 거부 — @AuthenticationPrincipal으로만 userId 획득 (7개 단위 테스트 통과)
 
 ---
 
 ### Sprint 8 완료 기준
 - [x] **스케줄러 안정**: ShedLock으로 중복 실행 방지 (6개 Job)
-- [ ] **Circuit Breaker**: 모든 외부 호출(AI Agent / GitHub / NVD) 장애 격리
+- [x] **Circuit Breaker**: 모든 외부 호출(AI Agent / NVD / DNS) 장애 격리
 - [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80%
 - [ ] **보안 기본선**: OWASP ZAP Critical 0건
 - [ ] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)

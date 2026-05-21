@@ -96,12 +96,12 @@
 
 ---
 
-### Stage 2 — Circuit Breaker + GDPR API (병렬)
+### Stage 2 — Circuit Breaker + GDPR API (병렬) ✅ 완료 (2026-05-21)
 
-| TASK | 제목 | 서비스 | 파일 | 선행 |
-|------|------|--------|------|------|
-| TASK-802 | Resilience4j Circuit Breaker 전체 적용 | backend | `build.gradle.kts`(`resilience4j-spring-boot3`), `ResilienceConfig.java`(신규), `AnalysisService`·`DomainVerificationService`·`NvdSyncJob`에 `@CircuitBreaker(fallbackMethod=)` 추가, `AiAgentClient.isCircuitOpen()` Registry 연결 | TASK-801 |
-| TASK-809 | GDPR Export/Delete API | backend | `GdprExportController.java`(신규), `GdprDeleteService.java`(신규), 연쇄 삭제 순서: `exploit_results` → `analysis_sessions` → `vulnerabilities` → `reports` → `users` | — |
+| TASK | 제목 | 서비스 | 파일 | 선행 | 상태 |
+|------|------|--------|------|------|------|
+| TASK-802 | Resilience4j Circuit Breaker 전체 적용 | backend | `build.gradle.kts`, `application.yaml`(CB 설정), `DefaultAiAgentClient`·`NvdApiClient`·`DomainVerificationService` @CircuitBreaker, `CircuitBreakerTest.java`(8개) | TASK-801 | ✅ |
+| TASK-809 | GDPR Export/Delete API | backend | `GdprController.java`, `GdprService.java`, `GdprAccountDeletedEvent`, `GdprReportCleanupHandler.java`, `GdprServiceTest.java`(7개) | — | ✅ |
 
 **병렬 안전**: 802는 기존 서비스 클래스 어노테이션 추가, 809는 신규 컨트롤러/서비스 — 파일 영역 분리
 
@@ -159,8 +159,8 @@
 |------|------|------|------|---------|------|
 | 1a | TASK-808 | OpenTelemetry 통합 (Jaeger) | — | Dev + Tester | ✅ |
 | 1b | TASK-801 | ShedLock 스케줄러 전체 완성 | — | Dev + Tester | ✅ |
-| 2a | TASK-802 | Resilience4j Circuit Breaker | TASK-801 | Dev + Tester |
-| 2b | TASK-809 | GDPR Export/Delete API | — | Dev + Tester |
+| 2a | TASK-802 | Resilience4j Circuit Breaker | TASK-801 | Dev + Tester | ✅ |
+| 2b | TASK-809 | GDPR Export/Delete API | — | Dev + Tester | ✅ |
 | 3a | TASK-806 | 2FA (TOTP) | — | Dev + Tester |
 | 3b | TASK-807 | IP Allowlist | TASK-806 | Dev + Tester |
 | 4a | TASK-803 | 성능 테스트 & 캐시 최적화 | TASK-808 | Dev + Tester |
@@ -230,8 +230,8 @@
 
 ```
 /stage 1   ✅ 완료 (2026-05-21) — TASK-808 + TASK-801
-/stage 2   ← 다음 (TASK-801 완료 후)
-/stage 3   (Stage 2 완료 후)
+/stage 2   ✅ 완료 (2026-05-21) — TASK-802 + TASK-809
+/stage 3   ← 다음 (Stage 2 완료 후)
 /stage 4   (Stage 3 완료 후)
 /stage 5   (Stage 4 완료 후)
 ```

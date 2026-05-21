@@ -559,9 +559,9 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - [x] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
 - [x] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
 - [x] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
-- [ ] **GDPR**: Export/Delete API 동작
+- [x] **GDPR**: Export/Delete API 동작
 - [ ] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
-- [ ] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면 (mock 제거)
+- [x] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면 (mock 제거)
 - [ ] **Nginx + SSL**: API Gateway 라우팅 + 보안 헤더 통합
 
 ---
@@ -832,7 +832,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 | 로그인 / 회원가입 | LoginForm, RegisterForm, GitHubOAuthButton | ✅ 완료 | `app/auth/` |
 | PDF 리포트 모달 | PdfReportModal (포맷 선택, 상태 폴링) | ✅ 완료 | `components/analysis/PdfReportModal.tsx` |
 | 커밋 시크릿 스캔 | CommitSecretScanModal | ✅ 완료 | `components/analysis/CommitSecretScanModal.tsx` |
-| SBOM & CVE | SbomPage (컴포넌트 테이블, CVE 매핑) | ❌ 미구현 | 신규 필요 (FEAT-FE-001) |
+| SBOM & CVE | SbomPage (컴포넌트 테이블, CVE 매핑) | ✅ 완료 | `components/analysis/SbomPage.tsx` + `app/projects/[projectId]/sbom/page.tsx` |
 | GitHub 레포 스캔 | GitHubScanModal (URL·브랜치 입력 → 직접 분석 트리거) | ❌ 미구현 | 신규 필요 (FEAT-FE-002) |
 | 컴플라이언스 리포트 | CompliancePage (ISO 27001 / NIST CSF 매핑 표) | ❌ 미구현 | 신규 필요 (FEAT-FE-003) |
 | 팀 관리 | TeamManagementPage (초대, 권한 설정) | ❌ 미구현 | 신규 필요 |

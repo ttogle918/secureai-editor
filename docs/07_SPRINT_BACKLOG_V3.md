@@ -530,8 +530,8 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - [x] `application.yaml` OTel tracing 설정 + secrets 하드코딩 기본값 제거
 
 **테스트 체크리스트**
-- [ ] 🔬 분석 요청 → Spring Boot → AI Agent 전체 Trace 연결 확인
-- [ ] ✅ Jaeger UI(localhost:16686)에서 분석 파이프라인 Span 시각화 확인
+- [ ] 🔬 분석 요청 → Spring Boot → AI Agent 전체 Trace 연결 확인 (Stage 4 성능 테스트 시 함께 검증 예정)
+- [x] ✅ Jaeger UI(localhost:16686)에서 분석 파이프라인 Span 시각화 확인 (secureai-backend ✅, secureai-ai-engine — 추후 확인)
 
 ---
 

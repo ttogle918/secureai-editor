@@ -201,7 +201,7 @@
 
 | 마일스톤 | 기준 |
 |---------|------|
-| **Stage 1 게이트** | Jaeger UI에서 분석 요청 전체 Trace 시각화 + ShedLock 다중 인스턴스 시뮬레이션 1회만 실행 |
+| **Stage 1 게이트** | Jaeger UI에서 분산 Trace 시각화 (secureai-backend ✅) + ShedLock 다중 인스턴스 시뮬레이션 1회만 실행 ✅ — `secureai-ai-engine` Jaeger 검증은 추후(Stage 4 성능 테스트 시 분석 요청과 함께 확인) |
 | **Stage 2 게이트** | AI Agent 강제 종료 → 연속 실패 10회 → Circuit OPEN → fallback 응답 + 30초 후 HALF_OPEN → CLOSED 복구 + GDPR export JSON 완전성 + delete 연쇄 삭제 검증 |
 | **Stage 3 게이트** | Google Authenticator QR 스캔 → TOTP 인증 성공, 복구 코드 1회 사용 후 재사용 거부 + 허용 IP 외부 요청 403, CIDR 범위 내 IP 정상 통과, X-Forwarded-For 조작 시 원본 IP 기준 검증 |
 | **Stage 4 게이트** | k6 p95 < 500ms + Redis 캐시 히트율 > 80% + OWASP ZAP Critical/High 0건 + CSP/HSTS/X-Frame-Options 헤더 응답 확인 + SBOM Page → CVE 매핑 표시 |

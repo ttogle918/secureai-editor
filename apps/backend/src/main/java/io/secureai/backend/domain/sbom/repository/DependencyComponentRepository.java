@@ -8,7 +8,11 @@ import java.util.UUID;
 
 public interface DependencyComponentRepository extends JpaRepository<DependencyComponent, UUID> {
 
-    List<DependencyComponent> findBySessionId(UUID sessionId);
+    /**
+     * session 관계 엔티티의 id로 검색 (Spring Data JPA 탐색 표현식).
+     * DependencyComponent.session.id = sessionId
+     */
+    List<DependencyComponent> findBySession_Id(UUID sessionId);
 
     List<DependencyComponent> findByArtifactIdContainingIgnoreCase(String artifactId);
 }

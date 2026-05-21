@@ -184,6 +184,20 @@ services:
   #   networks:
   #     - app-net
   #     - data-net
+  # ── k6 부하 테스트 ────────────────────────────────────
+  # make perf-test 시에만 기동 (profile: perf)
+  k6:
+    image: grafana/k6:latest
+    profiles: ["perf"]
+    volumes:
+      - ./tests/perf:/scripts
+    environment:
+      - K6_OUT=json=/scripts/results.json
+    networks:
+      - app-net
+    depends_on:
+      - backend
+
   # ── Next.js Frontend ──────────────────────────────────
   # 개발: cd apps/frontend && npm run dev  (로컬 실행)
   # 프로덕션 배포 시 아래 주석 해제

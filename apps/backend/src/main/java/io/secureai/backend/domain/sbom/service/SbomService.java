@@ -5,7 +5,9 @@ import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.cve.service.CveSearchService;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.repository.ProjectRepository;
+import io.secureai.backend.domain.project.repository.TeamMemberRepository;
 import io.secureai.backend.domain.sbom.dto.SaveComponentsRequest;
+import io.secureai.backend.domain.sbom.dto.SbomComponentResponse;
 import io.secureai.backend.domain.sbom.entity.DependencyComponent;
 import io.secureai.backend.domain.sbom.parser.DependencyInfo;
 import io.secureai.backend.domain.sbom.parser.SbomParserFactory;
@@ -31,6 +33,7 @@ public class SbomService {
     private final DependencyComponentRepository componentRepository;
     private final AnalysisSessionRepository sessionRepository;
     private final ProjectRepository projectRepository;
+    private final TeamMemberRepository teamMemberRepository;
     // cve 도메인 Repository 직접 주입 금지 — Service를 통해 접근 (도메인 격리 원칙)
     private final CveSearchService cveSearchService;
 
@@ -70,7 +73,7 @@ public class SbomService {
 
     @Transactional(readOnly = true)
     public int matchCve(UUID sessionId) {
-        List<DependencyComponent> components = componentRepository.findBySessionId(sessionId);
+        List<DependencyComponent> components = componentRepository.findBySession_Id(sessionId);
         int matchCount = 0;
         for (DependencyComponent comp : components) {
             // cve 도메인 Repository 직접 호출 금지 — CveSearchService 위임
@@ -125,6 +128,32 @@ public class SbomService {
         componentRepository.saveAll(components);
         log.info("[sbom] saveComponents sessionId={} count={}", request.sessionId(), components.size());
         return components.size();
+    }
+
+    /**
+     * 특정 세션의 SBOM 컴포넌트 목록을 조회한다.
+     *
+     * <p>프로젝트 접근 권한(팀 멤버 여부)을 검증한 후 컴포넌트를 반환한다.
+     *
+     * @param projectId 프로젝트 ID
+     * @param sessionId 분석 세션 ID
+     * @param userId    요청자 ID (@AuthenticationPrincipal에서 획득)
+     * @return SBOM 컴포넌트 응답 목록 (세션에 컴포넌트가 없으면 빈 리스트)
+     */
+    @Transactional(readOnly = true)
+    public List<SbomComponentResponse> getComponents(UUID projectId, UUID sessionId, UUID userId) {
+        verifyProjectAccess(projectId, userId);
+        return componentRepository.findBySession_Id(sessionId).stream()
+                .map(SbomComponentResponse::from)
+                .toList();
+    }
+
+    private void verifyProjectAccess(UUID projectId, UUID userId) {
+        projectRepository.findById(projectId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+        if (!teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)) {
+            throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
+        }
     }
 
     private String resolvePackageManager(String fileName) {

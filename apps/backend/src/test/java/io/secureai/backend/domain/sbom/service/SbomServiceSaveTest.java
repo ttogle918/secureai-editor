@@ -2,9 +2,10 @@ package io.secureai.backend.domain.sbom.service;
 
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
-import io.secureai.backend.domain.cve.repository.CveDataRepository;
+import io.secureai.backend.domain.cve.service.CveSearchService;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.repository.ProjectRepository;
+import io.secureai.backend.domain.project.repository.TeamMemberRepository;
 import io.secureai.backend.domain.sbom.dto.SaveComponentsRequest;
 import io.secureai.backend.domain.sbom.entity.DependencyComponent;
 import io.secureai.backend.domain.sbom.parser.SbomParserFactory;
@@ -34,7 +35,8 @@ class SbomServiceSaveTest {
     @Mock DependencyComponentRepository componentRepository;
     @Mock AnalysisSessionRepository sessionRepository;
     @Mock ProjectRepository projectRepository;
-    @Mock CveDataRepository cveDataRepository;
+    @Mock TeamMemberRepository teamMemberRepository;
+    @Mock CveSearchService cveSearchService;
 
     @InjectMocks SbomService service;
 

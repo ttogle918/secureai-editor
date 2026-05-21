@@ -4,6 +4,7 @@ import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.entity.SessionStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,8 @@ import java.util.UUID;
 
 public interface AnalysisSessionRepository extends JpaRepository<AnalysisSession, UUID> {
 
+    // N+1 방지: 세션 목록 조회 시 project와 user를 함께 로딩
+    @EntityGraph(attributePaths = {"project", "user"})
     Page<AnalysisSession> findByProjectIdOrderByCreatedAtDesc(UUID projectId, Pageable pageable);
 
     Optional<AnalysisSession> findByIdAndUserId(UUID id, UUID userId);

@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -20,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -45,6 +47,19 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .headers(headers -> headers
+                .contentSecurityPolicy(csp -> csp
+                    .policyDirectives("default-src 'self'; script-src 'self'; " +
+                        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
+                        "connect-src 'self'; frame-ancestors 'none'"))
+                .httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000))
+                .frameOptions(frame -> frame.deny())
+                .contentTypeOptions(Customizer.withDefaults())
+                .referrerPolicy(referrer -> referrer
+                    .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+            )
             .authorizeHttpRequests(auth -> auth
                 // SSE/비동기 재디스패치는 원래 요청에서 이미 인증됨 — 재인증 불필요
                 .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
@@ -70,7 +85,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/admin/teams/**").authenticated()
                 // AI Engine 내부 호출 전용 — InternalKeyFilter 에서 인증
                 .requestMatchers("/api/v1/cve/search").permitAll()
-                .requestMatchers("/api/v1/sbom/components").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/sbom/components").permitAll()
                 // FCM 디바이스 토큰 등록/삭제 — JWT 인증 필요 (anyRequest 에 포함되나 명시)
                 // /api/v1/fcm/** 는 별도 permitAll 없으므로 JWT 인증 필수
                 .anyRequest().authenticated()

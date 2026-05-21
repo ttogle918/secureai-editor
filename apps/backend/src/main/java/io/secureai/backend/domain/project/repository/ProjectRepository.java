@@ -23,11 +23,18 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     @Query("SELECT p FROM Project p JOIN FETCH p.owner WHERE p.id = :id")
     Optional<Project> findByIdWithOwner(@Param("id") UUID id);
 
-    @Query("""
+    // N+1 방지: owner를 JOIN FETCH로 함께 조회 — teamMembers는 Project 엔티티 @BatchSize(30) 적용
+    @EntityGraph(attributePaths = {"owner"})
+    @Query(value = """
         SELECT DISTINCT p FROM Project p
         LEFT JOIN TeamMember tm ON tm.project = p AND tm.user.id = :userId
         WHERE (p.owner.id = :userId OR tm.user.id = :userId)
         ORDER BY p.updatedAt DESC
+        """,
+        countQuery = """
+        SELECT COUNT(DISTINCT p) FROM Project p
+        LEFT JOIN TeamMember tm ON tm.project = p AND tm.user.id = :userId
+        WHERE (p.owner.id = :userId OR tm.user.id = :userId)
         """)
     Page<Project> findAllAccessibleByUser(@Param("userId") UUID userId, Pageable pageable);
 }

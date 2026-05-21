@@ -1,23 +1,25 @@
 package io.secureai.backend.domain.sbom.controller;
 
 import io.secureai.backend.domain.sbom.dto.SaveComponentsRequest;
+import io.secureai.backend.domain.sbom.dto.SbomComponentResponse;
 import io.secureai.backend.domain.sbom.service.SbomService;
 import io.secureai.backend.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
- * SBOM 컴포넌트 저장 API.
+ * SBOM 컴포넌트 API.
  *
- * AI Engine → Backend 내부 호출 전용 (X-Internal-Key 인증).
- * POST /api/v1/sbom/components
+ * POST /api/v1/sbom/components          — AI Engine → Backend 내부 호출 전용 (X-Internal-Key 인증, POST만 permitAll)
+ * GET  /api/v1/projects/{projectId}/sbom/components — 인증된 사용자 전용 (anyRequest().authenticated())
  */
 @RestController
 @RequiredArgsConstructor
@@ -34,5 +36,23 @@ public class SbomController {
         int saved = sbomService.saveComponents(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(Map.of("saved", saved)));
+    }
+
+    /**
+     * 특정 프로젝트·세션의 SBOM 컴포넌트 목록을 조회한다.
+     *
+     * <p>인증된 사용자만 접근 가능하며, 프로젝트 팀 멤버 여부를 서비스 레이어에서 검증한다.
+     *
+     * @param projectId 경로 변수 — 프로젝트 ID
+     * @param sessionId 쿼리 파라미터 — 분석 세션 ID
+     * @param userId    Spring Security Principal — Access Token에서 추출된 사용자 ID
+     */
+    @GetMapping("/api/v1/projects/{projectId}/sbom/components")
+    public ResponseEntity<ApiResponse<List<SbomComponentResponse>>> getComponents(
+            @PathVariable UUID projectId,
+            @RequestParam UUID sessionId,
+            @AuthenticationPrincipal UUID userId) {
+        List<SbomComponentResponse> components = sbomService.getComponents(projectId, sessionId, userId);
+        return ResponseEntity.ok(ApiResponse.success(components));
     }
 }

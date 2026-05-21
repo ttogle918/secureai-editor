@@ -55,9 +55,9 @@ jobs:
       - name: Build & test
         working-directory: apps/backend
         env:
-          DB_URL: jdbc:postgresql://localhost:5432/secureai_test
-          DB_USER: secureai
-          DB_PASSWORD: test_password
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/secureai_test
+          SPRING_DATASOURCE_USERNAME: secureai
+          SPRING_DATASOURCE_PASSWORD: test_password
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           REDIS_PASSWORD: ""

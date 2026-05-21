@@ -2,6 +2,7 @@ package io.secureai.backend.domain.cve.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.secureai.backend.domain.cve.entity.CveData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +48,7 @@ public class NvdApiClient {
     @Value("${secureai.nvd.api-key:}")
     private String nvdApiKey;
 
+    @CircuitBreaker(name = "nvdApi", fallbackMethod = "fetchRecentCvesFallback")
     public List<CveData> fetchRecentCves(int daysBack) {
         OffsetDateTime end   = OffsetDateTime.now();
         OffsetDateTime start = end.minusDays(daysBack);
@@ -66,6 +68,12 @@ public class NvdApiClient {
 
         redisTemplate.opsForValue().set(cacheKey, responseBody, CACHE_TTL);
         return parseCveList(responseBody);
+    }
+
+    @SuppressWarnings("unused")
+    private List<CveData> fetchRecentCvesFallback(int daysBack, Throwable t) {
+        log.warn("[circuit] fetchRecentCves fallback triggered daysBack={} cause={}", daysBack, t.getMessage());
+        return List.of();
     }
 
     private String buildQueryParams(OffsetDateTime start, OffsetDateTime end) {

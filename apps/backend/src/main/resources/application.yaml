@@ -101,3 +101,27 @@ firebase:
   enabled: false
   # 서비스 계정 JSON 파일 경로 (firebase.enabled=true 일 때 필수)
   credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      aiAgent:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        registerHealthIndicator: true
+      nvdApi:
+        slidingWindowSize: 5
+        failureRateThreshold: 60
+        waitDurationInOpenState: 120s
+      dnsLookup:
+        slidingWindowSize: 5
+        failureRateThreshold: 60
+        waitDurationInOpenState: 60s
+  timelimiter:
+    instances:
+      aiAgent:
+        timeoutDuration: 30s
+      nvdApi:
+        timeoutDuration: 15s

@@ -1,5 +1,6 @@
 package io.secureai.backend.domain.dast.service;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.secureai.backend.domain.dast.entity.ScanTarget;
 import io.secureai.backend.domain.dast.repository.ScanTargetRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -85,6 +86,7 @@ public class DomainVerificationService {
      * @throws DomainVerificationException ScanTarget을 찾을 수 없는 경우
      */
     @Transactional
+    @CircuitBreaker(name = "dnsLookup", fallbackMethod = "verifyFallback")
     public boolean verify(UUID scanTargetId) throws DomainVerificationException {
         ScanTarget target = scanTargetRepository.findById(scanTargetId)
                 .orElseThrow(() -> new DomainVerificationException("ScanTarget not found: " + scanTargetId));
@@ -103,6 +105,12 @@ public class DomainVerificationService {
         }
 
         return verified;
+    }
+
+    @SuppressWarnings("unused")
+    private boolean verifyFallback(UUID scanTargetId, Throwable t) {
+        log.warn("[circuit] verify fallback triggered scanTargetId={} cause={}", scanTargetId, t.getMessage());
+        return false;
     }
 
     /**

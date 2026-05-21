@@ -28,4 +28,9 @@ public interface ReportRepository extends JpaRepository<Report, UUID> {
     @Modifying
     @Query("DELETE FROM Report r WHERE r.createdAt < :cutoff")
     int deleteByCreatedAtBefore(@Param("cutoff") OffsetDateTime cutoff);
+
+    // GDPR 계정 삭제 전 사용자 리포트 일괄 삭제
+    @Modifying
+    @Query("DELETE FROM Report r WHERE r.user.id = :userId")
+    int deleteByUserId(@Param("userId") UUID userId);
 }

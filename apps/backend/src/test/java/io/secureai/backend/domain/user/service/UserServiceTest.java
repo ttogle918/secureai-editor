@@ -1,0 +1,92 @@
+package io.secureai.backend.domain.user.service;
+
+import io.secureai.backend.domain.user.entity.User;
+import io.secureai.backend.domain.user.repository.RefreshTokenRepository;
+import io.secureai.backend.domain.user.repository.UserRepository;
+import io.secureai.backend.global.exception.BusinessException;
+import io.secureai.backend.global.exception.ErrorCode;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class UserServiceTest {
+
+    @Mock UserRepository userRepository;
+    @Mock RefreshTokenRepository refreshTokenRepository;
+    @Mock PasswordEncoder passwordEncoder;
+    @Mock RedisTemplate<String, String> redisTemplate;
+
+    @InjectMocks UserService userService;
+
+    private UUID userId;
+    private User user;
+
+    @BeforeEach
+    void setUp() {
+        userId = UUID.randomUUID();
+        user   = mock(User.class);
+    }
+
+    // ── findOrThrow ───────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("findOrThrow — 사용자가 존재하면 User를 반환한다")
+    void findOrThrow_found_returnsUser() {
+        when(userRepository.findByIdWithPlan(userId)).thenReturn(Optional.of(user));
+
+        User result = userService.findOrThrow(userId);
+
+        assertThat(result).isSameAs(user);
+    }
+
+    @Test
+    @DisplayName("findOrThrow — 사용자가 없으면 USER_NOT_FOUND 예외가 발생한다")
+    void findOrThrow_notFound_throwsUserNotFound() {
+        when(userRepository.findByIdWithPlan(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.findOrThrow(userId))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
+    // ── findAllByIds ──────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("findAllByIds — ID 목록으로 User 목록을 반환한다")
+    void findAllByIds_returnsUserList() {
+        List<UUID> ids = List.of(userId, UUID.randomUUID());
+        when(userRepository.findAllById(ids)).thenReturn(List.of(user));
+
+        List<User> result = userService.findAllByIds(ids);
+
+        assertThat(result).containsExactly(user);
+    }
+
+    // ── getDecryptedGithubToken ───────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getDecryptedGithubToken — 사용자가 없으면 USER_NOT_FOUND 예외가 발생한다")
+    void getDecryptedGithubToken_notFound_throwsUserNotFound() {
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getDecryptedGithubToken(userId))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+}

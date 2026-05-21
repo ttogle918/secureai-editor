@@ -11,8 +11,20 @@ import type { SeverityLevel } from '@/types';
 export type Severity       = 'critical' | 'high' | 'medium' | 'low';
 export type SeverityFilter = 'all' | Severity;
 export type ViewMode       = 'editor' | 'dashboard';
-export type RightTab       = 'vulns' | 'chat' | 'progress';
+export type RightTab       = 'vulns' | 'chat' | 'progress' | 'sbom';
 export type DisplayLanguage = 'ko' | 'en';
+export type PreferencesLanguage = 'ko' | 'en' | 'ja' | 'zh' | 'es' | 'de';
+export type PreferencesTheme = 'dark' | 'dim' | 'light';
+export type AiTone = 'direct' | 'friendly' | 'expert' | 'teaching';
+
+export interface DastExploitResult {
+  success: boolean;
+  evidence: string;
+  payload: string;
+  responseSnippet: string;
+  error: string | null;
+  logMessages: string[];
+}
 
 // 프로젝트 요약 — useProjects 훅과 공유 (순환 의존성 방지를 위해 인라인 정의)
 export interface WorkspaceProject {
@@ -78,6 +90,13 @@ interface SecureStore {
   workspaceTree: FileNode[];
   setWorkspaceTree: (tree: FileNode[]) => void;
 
+  // ── 추가 워크스페이스 (다중 폴더) ──────────────────────
+  extraWorkspaces: Array<{ id: string; name: string; tree: FileNode[] }>;
+  addExtraWorkspace: (ws: { id: string; name: string; tree: FileNode[] }) => void;
+  removeExtraWorkspace: (id: string) => void;
+  activeWorkspaceId: string | null;
+  setActiveWorkspaceId: (id: string | null) => void;
+
   // ── 프로젝트 목록 (전역 캐시 — useProjects 훅이 설정) ────
   workspaceProjects: WorkspaceProject[];
   setWorkspaceProjects: (projects: WorkspaceProject[]) => void;
@@ -140,8 +159,16 @@ interface SecureStore {
   isAnalyzing: boolean;
   setIsAnalyzing: (v: boolean) => void;
 
-  // ── DAST 로그 ───────────────────────────────────────────
+  // ── DAST ────────────────────────────────────────────────
   dastLogs: DastLog[];
+  dastSessionId: string | null;
+  dastBaseUrl: string;
+  dastExploitResults: Record<string, DastExploitResult>;
+  setDastSessionId: (id: string | null) => void;
+  setDastBaseUrl: (url: string) => void;
+  clearDastLogs: () => void;
+  addDastLog: (log: DastLog) => void;
+  setDastExploitResult: (vulnId: string, result: DastExploitResult) => void;
 
   // ── 진행률 ──────────────────────────────────────────────
   progressSteps: ProgressStep[];
@@ -153,6 +180,16 @@ interface SecureStore {
   // ── 언어 설정 ────────────────────────────────────────────
   displayLanguage: DisplayLanguage;
   setDisplayLanguage: (lang: DisplayLanguage) => void;
+
+  // ── 초기 설정 페이지 — 언어/테마 ─────────────────────────
+  language: PreferencesLanguage;
+  setLanguage: (lang: PreferencesLanguage) => void;
+  theme: PreferencesTheme;
+  setTheme: (theme: PreferencesTheme) => void;
+
+  // ── AI 톤 설정 ───────────────────────────────────────────
+  aiTone: AiTone;
+  setAiTone: (tone: AiTone) => void;
 
   // ── 채팅 ────────────────────────────────────────────────
   chatMessages: ChatMessage[];
@@ -227,6 +264,13 @@ export const useSecureStore = create<SecureStore>()(
   setWorkspaceName: (name) => set({ workspaceName: name }),
   workspaceTree: [],
   setWorkspaceTree: (tree) => set({ workspaceTree: tree }),
+
+  // ── 추가 워크스페이스 (런타임만 — localStorage 미저장)
+  extraWorkspaces: [],
+  addExtraWorkspace: (ws) => set((s) => ({ extraWorkspaces: [...s.extraWorkspaces, ws] })),
+  removeExtraWorkspace: (id) => set((s) => ({ extraWorkspaces: s.extraWorkspaces.filter((w) => w.id !== id) })),
+  activeWorkspaceId: null,
+  setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id }),
 
   // ── 프로젝트 목록 캐시
   workspaceProjects: [],
@@ -305,6 +349,15 @@ export const useSecureStore = create<SecureStore>()(
 
   // ── DAST
   dastLogs: [],
+  dastSessionId: null,
+  dastBaseUrl: '',
+  dastExploitResults: {},
+  setDastSessionId: (id) => set({ dastSessionId: id }),
+  setDastBaseUrl: (url) => set({ dastBaseUrl: url }),
+  clearDastLogs: () => set({ dastLogs: [] }),
+  addDastLog: (log) => set((s) => ({ dastLogs: [...s.dastLogs, log] })),
+  setDastExploitResult: (vulnId, result) =>
+    set((s) => ({ dastExploitResults: { ...s.dastExploitResults, [vulnId]: result } })),
 
   // ── 진행률
   progressSteps: [],
@@ -327,6 +380,16 @@ export const useSecureStore = create<SecureStore>()(
   // ── 언어
   displayLanguage: 'ko',
   setDisplayLanguage: (lang) => set({ displayLanguage: lang }),
+
+  // ── 초기 설정 — 언어/테마
+  language: 'ko',
+  setLanguage: (lang) => set({ language: lang }),
+  theme: 'dark',
+  setTheme: (theme) => set({ theme }),
+
+  // ── AI 톤
+  aiTone: 'direct',
+  setAiTone: (tone) => set({ aiTone: tone }),
 
   // ── 채팅
   chatMessages: [],
@@ -361,6 +424,10 @@ export const useSecureStore = create<SecureStore>()(
         projectId:       state.projectId,
         lastTokenUsage:  state.lastTokenUsage,
         displayLanguage: state.displayLanguage,
+        language:        state.language,
+        theme:           state.theme,
+        dastBaseUrl:     state.dastBaseUrl,
+        aiTone:          state.aiTone,
       }),
     }
   )

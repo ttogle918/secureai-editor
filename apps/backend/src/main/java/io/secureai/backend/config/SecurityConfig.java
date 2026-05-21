@@ -65,6 +65,8 @@ public class SecurityConfig {
                 // AI Engine 내부 호출 전용 — InternalKeyFilter 에서 인증
                 .requestMatchers("/api/v1/cve/search").permitAll()
                 .requestMatchers("/api/v1/sbom/components").permitAll()
+                // FCM 디바이스 토큰 등록/삭제 — JWT 인증 필요 (anyRequest 에 포함되나 명시)
+                // /api/v1/fcm/** 는 별도 permitAll 없으므로 JWT 인증 필수
                 .anyRequest().authenticated()
             )
             .exceptionHandling(e -> e

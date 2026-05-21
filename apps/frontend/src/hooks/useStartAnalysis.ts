@@ -21,6 +21,17 @@ export function useStartAnalysis() {
   const clearProgressSteps = useSecureStore((s) => s.clearProgressSteps);
   const addToast        = useToastStore((s) => s.addToast);
 
+  const createSession = useCallback(async (pid: string, force = false) => {
+    const res = await apiClient.post<{ data: SessionData }>(
+      '/analysis/sessions',
+      { projectId: pid, workspaceRoot: workspaceId, sourceType: 'local', force },
+    );
+    setSseSessionId(res.data.id);
+    setViewMode('editor');
+    setRightTab('progress');
+    addToast('분석을 시작했습니다. 오른쪽 패널에서 진행 상황을 확인하세요.', 'info');
+  }, [workspaceId, setSseSessionId, setViewMode, setRightTab, addToast]);
+
   const startAnalysis = useCallback(async () => {
     if (isAnalyzing) return;
 
@@ -34,27 +45,59 @@ export function useStartAnalysis() {
     clearProgressSteps();
 
     try {
-      // 프로젝트 없으면 생성
+      // 프로젝트 없으면 생성, 이미 있으면 목록에서 조회해서 재사용
       let pid = projectId;
       if (!pid) {
-        const res = await apiClient.post<{ data: ProjectData }>(
-          '/projects',
-          { name: workspaceName ?? workspaceId, sourceType: 'local' },
-        );
-        pid = res.data.id;
-        setProjectId(pid);
+        try {
+          const res = await apiClient.post<{ data: ProjectData }>(
+            '/projects',
+            { name: workspaceName ?? workspaceId, sourceType: 'local' },
+          );
+          pid = res.data.id;
+          setProjectId(pid);
+        } catch (err) {
+          if (err instanceof ApiError && err.code === 'PROJECT_DUPLICATE_NAME') {
+            const listRes = await apiClient.get<{ data: { content: ProjectData[] } }>('/projects');
+            const name = workspaceName ?? workspaceId;
+            const items: ProjectData[] = listRes.data?.content ?? (listRes.data as any) ?? [];
+            const existing = items.find((p: any) => p.name === name);
+            if (!existing) throw err;
+            pid = existing.id;
+            setProjectId(pid);
+          } else {
+            throw err;
+          }
+        }
       }
 
       // 분석 세션 시작
-      const res = await apiClient.post<{ data: SessionData }>(
-        '/analysis/sessions',
-        { projectId: pid, workspaceRoot: workspaceId, sourceType: 'local' },
-      );
-
-      setSseSessionId(res.data.id);
-      setViewMode('editor');   // 진행률 패널이 있는 에디터 뷰로 유지
-      setRightTab('progress'); // 오른쪽 패널을 진행률 탭으로 자동 전환
-      addToast('분석을 시작했습니다. 오른쪽 패널에서 진행 상황을 확인하세요.', 'info');
+      try {
+        await createSession(pid);
+      } catch (err) {
+        if (err instanceof ApiError && err.code === 'SESSION_ALREADY_RUNNING') {
+          setIsAnalyzing(false);
+          addToast(
+            '진행 중인 분석이 있습니다. 새로 시작하시겠습니까?',
+            'warning',
+            {
+              label: '새로 시작',
+              onClick: async () => {
+                setIsAnalyzing(true);
+                clearVulns();
+                clearProgressSteps();
+                try {
+                  await createSession(pid!, true);
+                } catch {
+                  setIsAnalyzing(false);
+                  addToast('분석 시작에 실패했습니다.', 'error');
+                }
+              },
+            },
+          );
+        } else {
+          throw err;
+        }
+      }
     } catch (err) {
       setIsAnalyzing(false);
       const msg = err instanceof ApiError ? err.message : '분석 시작에 실패했습니다.';
@@ -62,7 +105,8 @@ export function useStartAnalysis() {
     }
   }, [
     workspaceId, workspaceName, projectId, isAnalyzing,
-    setProjectId, setSseSessionId, setIsAnalyzing, setViewMode, setRightTab, clearVulns, clearProgressSteps, addToast,
+    setProjectId, setSseSessionId, setIsAnalyzing, setViewMode, setRightTab,
+    clearVulns, clearProgressSteps, addToast, createSession,
   ]);
 
   return { startAnalysis, isAnalyzing };

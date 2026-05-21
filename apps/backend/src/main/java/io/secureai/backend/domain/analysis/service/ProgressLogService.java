@@ -9,7 +9,7 @@ import io.secureai.backend.domain.analysis.entity.AnalysisProgressLog;
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisProgressLogRepository;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
-import io.secureai.backend.domain.project.repository.TeamMemberRepository;
+import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,7 @@ public class ProgressLogService {
 
     private final AnalysisProgressLogRepository progressLogRepository;
     private final AnalysisSessionRepository sessionRepository;
-    private final TeamMemberRepository teamMemberRepository;
+    private final ProjectService projectService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -101,7 +101,7 @@ public class ProgressLogService {
         AnalysisSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        if (!teamMemberRepository.existsByProjectIdAndUserId(session.getProject().getId(), userId)) {
+        if (!projectService.isMember(session.getProject().getId(), userId)) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
 
@@ -117,7 +117,7 @@ public class ProgressLogService {
         AnalysisSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        if (!teamMemberRepository.existsByProjectIdAndUserId(session.getProject().getId(), userId)) {
+        if (!projectService.isMember(session.getProject().getId(), userId)) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
 

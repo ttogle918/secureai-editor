@@ -1,1481 +1,2344 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SecureAI — AI 보안 감사 에이전트</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg0: #080809;
-    --bg1: #0d0d0f;
-    --bg2: #111114;
-    --bg3: #161619;
-    --bg4: #1c1c20;
-    --border: #1f1f24;
-    --border2: #2a2a30;
-    --text1: #e8e8ee;
-    --text2: #9494a0;
-    --text3: #555560;
-    --orange: #f97316;
-    --orange2: #ea580c;
-    --orange-dim: rgba(249,115,22,0.12);
-    --orange-glow: rgba(249,115,22,0.25);
-    --red: #f04141;
-    --red-dim: rgba(240,65,65,0.08);
-    --yellow: #f59e0b;
-    --yellow-dim: rgba(245,158,11,0.08);
-    --amber: #eab308;
-    --green: #22c55e;
-    --green-dim: rgba(34,197,94,0.08);
-    --blue: #569cd6;
-    --purple: #c586c0;
-    --mono: 'JetBrains Mono', monospace;
-    --sans: 'Space Grotesk', sans-serif;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagori — AI 보안 감사 에이전트</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg0: #080809;
+      --bg1: #0d0d0f;
+      --bg2: #111114;
+      --bg3: #161619;
+      --bg4: #1c1c20;
+      --border: #1f1f24;
+      --border2: #2a2a30;
+      --text1: #e8e8ee;
+      --text2: #9494a0;
+      --text3: #555560;
+      --orange: #f97316;
+      --orange2: #ea580c;
+      --orange-dim: rgba(249, 115, 22, 0.12);
+      --orange-glow: rgba(249, 115, 22, 0.25);
+      --red: #f04141;
+      --red-dim: rgba(240, 65, 65, 0.08);
+      --yellow: #f59e0b;
+      --yellow-dim: rgba(245, 158, 11, 0.08);
+      --amber: #eab308;
+      --green: #22c55e;
+      --green-dim: rgba(34, 197, 94, 0.08);
+      --blue: #569cd6;
+      --purple: #c586c0;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Space Grotesk', sans-serif;
+    }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  
-  body {
-    font-family: var(--sans);
-    background: var(--bg0);
-    color: var(--text1);
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-  /* ===== HEADER ===== */
-  header {
-    height: 44px;
-    background: var(--bg1);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    gap: 10px;
-    flex-shrink: 0;
-    z-index: 100;
-  }
+    body {
+      font-family: var(--sans);
+      background: var(--bg0);
+      color: var(--text1);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
 
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--orange);
-    letter-spacing: -0.3px;
-    margin-right: 8px;
-  }
+    /* ===== HEADER ===== */
+    header {
+      height: 44px;
+      background: var(--bg1);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 10px;
+      flex-shrink: 0;
+      z-index: 100;
+    }
 
-  .logo svg { width: 18px; height: 18px; }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--orange);
+      letter-spacing: -0.3px;
+      margin-right: 8px;
+    }
 
-  .header-divider { width: 1px; height: 20px; background: var(--border2); }
+    .logo svg {
+      width: 18px;
+      height: 18px;
+    }
 
-  .header-path {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text3);
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .header-path span { color: var(--text2); }
+    .header-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border2);
+    }
 
-  /* Severity Filter Pills */
-  .sev-filters { display: flex; gap: 4px; align-items: center; }
+    .header-path {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text3);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-  .sev-pill {
-    padding: 3px 10px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.15s;
-    font-family: var(--mono);
-  }
-  .sev-pill:hover { opacity: 0.8; }
-  .sev-pill.all { border-color: var(--border2); color: var(--text2); }
-  .sev-pill.all.active { border-color: var(--orange); color: var(--orange); background: var(--orange-dim); }
-  .sev-pill.crit { border-color: #f0414144; color: var(--red); background: var(--red-dim); }
-  .sev-pill.crit.active { box-shadow: 0 0 8px rgba(240,65,65,0.3); border-color: var(--red); }
-  .sev-pill.high { border-color: #f59e0b44; color: var(--yellow); background: var(--yellow-dim); }
-  .sev-pill.high.active { box-shadow: 0 0 8px rgba(245,158,11,0.3); }
-  .sev-pill.med { border-color: #eab30844; color: var(--amber); background: #eab30808; }
-  .sev-pill.low { border-color: #22c55e44; color: var(--green); background: var(--green-dim); }
+    .header-path span {
+      color: var(--text2);
+    }
 
-  .header-actions { display: flex; gap: 6px; margin-left: 8px; }
-  .btn-ghost {
-    padding: 4px 12px; border: 1px solid var(--border2); border-radius: 3px;
-    font-size: 11px; color: var(--text2); cursor: pointer;
-    background: transparent; font-family: var(--sans); transition: all 0.15s;
-  }
-  .btn-ghost:hover { border-color: var(--border2); color: var(--text1); background: var(--bg3); }
-  .btn-ghost.active { background: var(--bg3); border-color: var(--orange); color: var(--orange); }
-  .btn-primary {
-    padding: 4px 14px; background: var(--orange2); border: none; border-radius: 3px;
-    font-size: 11px; color: white; cursor: pointer; font-weight: 600;
-    font-family: var(--sans); transition: all 0.15s;
-  }
-  .btn-primary:hover { background: var(--orange); }
-  .btn-primary.analyzing {
-    background: var(--bg3); border: 1px solid var(--orange); color: var(--orange);
-    animation: pulse-border 1.5s infinite;
-  }
-  @keyframes pulse-border {
-    0%,100% { box-shadow: 0 0 0 0 var(--orange-glow); }
-    50% { box-shadow: 0 0 0 3px var(--orange-glow); }
-  }
+    /* Severity Filter Pills */
+    .sev-filters {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
 
-  /* ===== MAIN LAYOUT ===== */
-  .main-layout {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
+    .sev-pill {
+      padding: 3px 10px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+      font-family: var(--mono);
+    }
 
-  /* ===== SIDEBAR ===== */
-  .sidebar {
-    width: 210px;
-    background: var(--bg1);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow: hidden;
-    transition: width 0.2s;
-  }
-  .sidebar.collapsed { width: 0; overflow: hidden; }
+    .sev-pill:hover {
+      opacity: 0.8;
+    }
 
-  .sidebar-section {
-    padding: 10px 10px 6px;
-    font-size: 10px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
+    .sev-pill.all {
+      border-color: var(--border2);
+      color: var(--text2);
+    }
 
-  .file-tree { flex: 1; overflow-y: auto; padding: 4px; }
-  .file-tree::-webkit-scrollbar { width: 3px; }
-  .file-tree::-webkit-scrollbar-thumb { background: var(--border2); }
+    .sev-pill.all.active {
+      border-color: var(--orange);
+      color: var(--orange);
+      background: var(--orange-dim);
+    }
 
-  .tree-folder {
-    padding: 5px 8px;
-    font-size: 11px;
-    color: var(--text3);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    cursor: pointer;
-    border-radius: 2px;
-    font-family: var(--mono);
-  }
-  .tree-folder:hover { background: var(--bg3); }
+    .sev-pill.crit {
+      border-color: #f0414144;
+      color: var(--red);
+      background: var(--red-dim);
+    }
 
-  .tree-file {
-    padding: 4px 8px 4px 20px;
-    font-size: 11px;
-    color: var(--text2);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    border-radius: 2px;
-    font-family: var(--mono);
-    transition: all 0.1s;
-  }
-  .tree-file:hover { background: var(--bg3); color: var(--text1); }
-  .tree-file.active { background: var(--bg4); color: var(--text1); }
+    .sev-pill.crit.active {
+      box-shadow: 0 0 8px rgba(240, 65, 65, 0.3);
+      border-color: var(--red);
+    }
 
-  .vuln-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-  .dot-c { background: var(--red); box-shadow: 0 0 4px var(--red); }
-  .dot-h { background: var(--yellow); }
-  .dot-ok { background: #333; }
+    .sev-pill.high {
+      border-color: #f59e0b44;
+      color: var(--yellow);
+      background: var(--yellow-dim);
+    }
 
-  .sidebar-bottom {
-    padding: 10px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .sidebar-btn {
-    padding: 7px 10px;
-    border: 1px solid var(--border2);
-    border-radius: 3px;
-    font-size: 11px;
-    color: var(--text2);
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.15s;
-    font-family: var(--sans);
-  }
-  .sidebar-btn:hover { background: var(--bg3); color: var(--text1); }
-  .sidebar-btn.orange { border-color: var(--orange); color: var(--orange); background: var(--orange-dim); }
-  .sidebar-btn.orange:hover { background: rgba(249,115,22,0.2); }
+    .sev-pill.high.active {
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+    }
 
-  /* ===== EDITOR CENTER ===== */
-  .editor-center {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-width: 0;
-  }
+    .sev-pill.med {
+      border-color: #eab30844;
+      color: var(--amber);
+      background: #eab30808;
+    }
 
-  .editor-tabs {
-    background: var(--bg1);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: stretch;
-    height: 33px;
-    overflow-x: auto;
-    flex-shrink: 0;
-  }
-  .editor-tabs::-webkit-scrollbar { height: 0; }
+    .sev-pill.low {
+      border-color: #22c55e44;
+      color: var(--green);
+      background: var(--green-dim);
+    }
 
-  .tab {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 14px;
-    font-size: 11px;
-    color: var(--text3);
-    border-right: 1px solid var(--border);
-    cursor: pointer;
-    white-space: nowrap;
-    font-family: var(--mono);
-    transition: all 0.1s;
-    flex-shrink: 0;
-  }
-  .tab:hover { background: var(--bg2); color: var(--text2); }
-  .tab.active { background: var(--bg2); color: var(--text1); border-bottom: 1px solid var(--orange); }
-  .tab .tab-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); }
+    .header-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: 8px;
+    }
 
-  /* CODE EDITOR */
-  .code-editor {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-    position: relative;
-  }
+    .btn-ghost {
+      padding: 4px 12px;
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      font-size: 11px;
+      color: var(--text2);
+      cursor: pointer;
+      background: transparent;
+      font-family: var(--sans);
+      transition: all 0.15s;
+    }
 
-  .line-nums {
-    width: 46px;
-    background: var(--bg1);
-    border-right: 1px solid var(--border);
-    padding: 14px 0;
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-  .ln {
-    height: 19px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding-right: 8px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text3);
-    transition: all 0.1s;
-  }
-  .ln.vuln-c { color: #f0414199; background: #f0414108; }
-  .ln.vuln-h { color: #f59e0b99; background: #f59e0b08; }
+    .btn-ghost:hover {
+      border-color: var(--border2);
+      color: var(--text1);
+      background: var(--bg3);
+    }
 
-  .code-body {
-    flex: 1;
-    padding: 14px 16px;
-    overflow: auto;
-    font-family: var(--mono);
-    font-size: 12px;
-    line-height: 19px;
-    color: var(--text3);
-  }
-  .code-body::-webkit-scrollbar { width: 6px; height: 6px; }
-  .code-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    .btn-ghost.active {
+      background: var(--bg3);
+      border-color: var(--orange);
+      color: var(--orange);
+    }
 
-  .code-line {
-    display: flex;
-    align-items: center;
-    min-height: 19px;
-    padding: 0 4px;
-    border-radius: 2px;
-    position: relative;
-    white-space: pre;
-  }
-  .code-line.vuln-c {
-    background: linear-gradient(90deg, rgba(240,65,65,0.06) 0%, transparent 80%);
-    border-left: 2px solid var(--red);
-    padding-left: 6px;
-  }
-  .code-line.vuln-h {
-    background: linear-gradient(90deg, rgba(245,158,11,0.06) 0%, transparent 80%);
-    border-left: 2px solid var(--yellow);
-    padding-left: 6px;
-  }
+    .btn-primary {
+      padding: 4px 14px;
+      background: var(--orange2);
+      border: none;
+      border-radius: 3px;
+      font-size: 11px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: var(--sans);
+      transition: all 0.15s;
+    }
 
-  .vuln-badge {
-    font-size: 9px;
-    padding: 1px 5px;
-    border-radius: 2px;
-    margin-left: 12px;
-    font-family: var(--sans);
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    flex-shrink: 0;
-    animation: fadein 0.3s ease;
-  }
-  .badge-c { background: rgba(240,65,65,0.15); color: var(--red); border: 1px solid rgba(240,65,65,0.3); }
-  .badge-h { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
-  @keyframes fadein { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
+    .btn-primary:hover {
+      background: var(--orange);
+    }
 
-  .kw { color: #569cd6; }
-  .kw2 { color: #c586c0; }
-  .str { color: #ce9178; }
-  .fn { color: #dcdcaa; }
-  .cm { color: #3a3a4a; }
-  .num { color: #b5cea8; }
-  .ann { color: #4ec9b0; }
+    .btn-primary.analyzing {
+      background: var(--bg3);
+      border: 1px solid var(--orange);
+      color: var(--orange);
+      animation: pulse-border 1.5s infinite;
+    }
 
-  /* GUTTER ICONS */
-  .gutter-icon {
-    position: absolute;
-    left: -20px;
-    font-size: 10px;
-    cursor: pointer;
-  }
+    @keyframes pulse-border {
 
-  /* ===== DAST TERMINAL ===== */
-  .dast-terminal {
-    height: 150px;
-    background: var(--bg0);
-    border-top: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow: hidden;
-    transition: height 0.2s;
-  }
-  .dast-terminal.collapsed { height: 33px; }
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 var(--orange-glow);
+      }
 
-  .terminal-bar {
-    height: 33px;
-    background: var(--bg1);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    gap: 8px;
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  .terminal-status { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
-  .terminal-status.running { animation: blink 1s infinite; }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-  .terminal-title { font-size: 11px; color: var(--text2); flex: 1; font-family: var(--mono); }
-  .terminal-tag {
-    font-size: 9px; padding: 2px 6px; border-radius: 2px;
-    background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2);
-    font-family: var(--mono);
-  }
+      50% {
+        box-shadow: 0 0 0 3px var(--orange-glow);
+      }
+    }
 
-  .terminal-body {
-    flex: 1;
-    padding: 8px 14px;
-    overflow-y: auto;
-    font-family: var(--mono);
-    font-size: 11px;
-    line-height: 19px;
-  }
-  .terminal-body::-webkit-scrollbar { width: 4px; }
-  .terminal-body::-webkit-scrollbar-thumb { background: var(--border2); }
+    /* ===== MAIN LAYOUT ===== */
+    .main-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
 
-  .t-line { display: flex; gap: 10px; align-items: flex-start; }
-  .t-time { color: var(--text3); flex-shrink: 0; }
-  .t-msg { color: var(--text2); }
-  .t-ok { color: var(--green); }
-  .t-err { color: var(--red); }
-  .t-warn { color: var(--yellow); }
-  .t-payload { color: #9a7; background: #1a1f1a; padding: 1px 6px; border-radius: 2px; }
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      width: 210px;
+      background: var(--bg1);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+      transition: width 0.2s;
+    }
 
-  /* ===== RIGHT PANEL ===== */
-  .right-panel {
-    width: 320px;
-    background: var(--bg1);
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    flex-shrink: 0;
-  }
+    .sidebar.collapsed {
+      width: 0;
+      overflow: hidden;
+    }
 
-  .panel-tabs {
-    display: flex;
-    height: 36px;
-    background: var(--bg0);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .ptab {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    color: var(--text3);
-    cursor: pointer;
-    border-right: 1px solid var(--border);
-    transition: all 0.15s;
-  }
-  .ptab:hover { background: var(--bg2); color: var(--text2); }
-  .ptab.active { color: var(--orange); background: var(--bg1); border-bottom: 2px solid var(--orange); }
-  .ptab:last-child { border-right: none; }
+    .sidebar-section {
+      padding: 10px 10px 6px;
+      font-size: 10px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
 
-  /* API FILTER BAR */
-  .api-filter-bar {
-    padding: 7px 10px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-  }
-  .api-pill {
-    padding: 2px 8px;
-    border: 1px solid var(--border2);
-    border-radius: 2px;
-    font-size: 10px;
-    color: var(--text3);
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: var(--mono);
-  }
-  .api-pill:hover { border-color: var(--border2); color: var(--text2); background: var(--bg3); }
-  .api-pill.active { border-color: var(--orange); color: var(--orange); background: var(--orange-dim); }
+    .file-tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px;
+    }
 
-  /* VULN LIST */
-  .vuln-list { flex: 1; overflow-y: auto; }
-  .vuln-list::-webkit-scrollbar { width: 4px; }
-  .vuln-list::-webkit-scrollbar-thumb { background: var(--border2); }
+    .file-tree::-webkit-scrollbar {
+      width: 3px;
+    }
 
-  .vuln-item {
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    transition: background 0.1s;
-  }
-  .vuln-item:hover { background: var(--bg2); }
-  .vuln-item.expanded { background: var(--bg2); }
+    .file-tree::-webkit-scrollbar-thumb {
+      background: var(--border2);
+    }
 
-  .vuln-header {
-    padding: 10px 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+    .tree-folder {
+      padding: 5px 8px;
+      font-size: 11px;
+      color: var(--text3);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      border-radius: 2px;
+      font-family: var(--mono);
+    }
 
-  .sev-tag {
-    font-size: 9px;
-    padding: 2px 5px;
-    border-radius: 2px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    font-family: var(--mono);
-    flex-shrink: 0;
-  }
-  .tag-c { background: rgba(240,65,65,0.15); color: var(--red); border: 1px solid rgba(240,65,65,0.3); }
-  .tag-h { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
-  .tag-m { background: rgba(234,179,8,0.15); color: var(--amber); border: 1px solid rgba(234,179,8,0.3); }
+    .tree-folder:hover {
+      background: var(--bg3);
+    }
 
-  .vuln-name { font-size: 12px; color: var(--text1); flex: 1; font-weight: 500; }
-  .vuln-toggle { color: var(--text3); font-size: 12px; transition: transform 0.2s; }
-  .vuln-item.expanded .vuln-toggle { transform: rotate(180deg); }
-  .vuln-loc { font-family: var(--mono); font-size: 10px; color: var(--text3); padding: 0 12px 8px; }
+    .tree-file {
+      padding: 4px 8px 4px 20px;
+      font-size: 11px;
+      color: var(--text2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      border-radius: 2px;
+      font-family: var(--mono);
+      transition: all 0.1s;
+    }
 
-  .vuln-body {
-    padding: 0 12px 12px;
-    display: none;
-    animation: slidein 0.15s ease;
-  }
-  @keyframes slidein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; } }
-  .vuln-item.expanded .vuln-body { display: block; }
+    .tree-file:hover {
+      background: var(--bg3);
+      color: var(--text1);
+    }
 
-  .detail-block { margin-top: 10px; }
-  .detail-label {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--text3);
-    margin-bottom: 5px;
-    font-family: var(--mono);
-  }
-  .detail-text { font-size: 11px; color: var(--text2); line-height: 1.7; }
+    .tree-file.active {
+      background: var(--bg4);
+      color: var(--text1);
+    }
 
-  /* CALL CHAIN */
-  .call-chain {
-    background: var(--bg0);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 8px 10px;
-    font-family: var(--mono);
-    font-size: 10px;
-    line-height: 20px;
-  }
-  .chain-node {
-    display: inline-block;
-    padding: 1px 6px;
-    border-radius: 2px;
-    cursor: pointer;
-    transition: all 0.1s;
-  }
-  .chain-ok { color: var(--text3); }
-  .chain-ok:hover { background: var(--bg3); color: var(--text2); }
-  .chain-vuln {
-    color: var(--red);
-    background: rgba(240,65,65,0.1);
-    border: 1px solid rgba(240,65,65,0.25);
-    box-shadow: 0 0 10px rgba(240,65,65,0.2);
-  }
-  .chain-arrow { color: var(--border2); padding: 0 3px; }
-  .chain-indent { color: var(--border2); }
+    .vuln-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
 
-  /* DIFF VIEW */
-  .diff-view {
-    background: var(--bg0);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-    font-family: var(--mono);
-    font-size: 10px;
-    line-height: 18px;
-  }
-  .diff-header { 
-    display: flex; background: var(--bg1); border-bottom: 1px solid var(--border);
-  }
-  .diff-col-header {
-    flex: 1; padding: 4px 8px; font-size: 9px; letter-spacing: 1px;
-    text-transform: uppercase; color: var(--text3); border-right: 1px solid var(--border);
-  }
-  .diff-col-header:last-child { border-right: none; }
-  .diff-body { display: flex; }
-  .diff-col { flex: 1; border-right: 1px solid var(--border); overflow: hidden; }
-  .diff-col:last-child { border-right: none; }
-  .diff-line { padding: 1px 8px; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
-  .diff-del { background: rgba(240,65,65,0.08); color: #f0414188; }
-  .diff-add { background: rgba(34,197,94,0.08); color: #22c55e; }
-  .diff-same { color: var(--text3); }
+    .dot-c {
+      background: var(--red);
+      box-shadow: 0 0 4px var(--red);
+    }
 
-  /* AUTO FIX BTN */
-  .autofix-btn {
-    margin-top: 10px;
-    padding: 8px;
-    background: var(--orange2);
-    border: none;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 700;
-    color: white;
-    cursor: pointer;
-    width: 100%;
-    text-align: center;
-    transition: all 0.15s;
-    font-family: var(--sans);
-    letter-spacing: 0.3px;
-  }
-  .autofix-btn:hover { background: var(--orange); box-shadow: 0 0 12px var(--orange-glow); }
+    .dot-h {
+      background: var(--yellow);
+    }
 
-  /* AI CHAT PANEL */
-  .chat-panel {
-    display: none;
-    flex-direction: column;
-    flex: 1;
-    overflow: hidden;
-  }
-  .chat-panel.active { display: flex; }
-  .vuln-panel { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
-  .vuln-panel.hidden { display: none; }
+    .dot-ok {
+      background: #333;
+    }
 
-  .chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .chat-messages::-webkit-scrollbar { width: 4px; }
-  .chat-messages::-webkit-scrollbar-thumb { background: var(--border2); }
+    .sidebar-bottom {
+      padding: 10px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
 
-  .msg { max-width: 90%; }
-  .msg.user { align-self: flex-end; }
-  .msg.ai { align-self: flex-start; }
+    .sidebar-btn {
+      padding: 7px 10px;
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      font-size: 11px;
+      color: var(--text2);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      font-family: var(--sans);
+    }
 
-  .msg-bubble {
-    padding: 8px 11px;
-    border-radius: 4px;
-    font-size: 11px;
-    line-height: 1.7;
-  }
-  .msg.user .msg-bubble { background: var(--bg3); border: 1px solid var(--border2); color: var(--text1); }
-  .msg.ai .msg-bubble { background: var(--bg2); border-left: 2px solid var(--orange); color: var(--text2); }
+    .sidebar-btn:hover {
+      background: var(--bg3);
+      color: var(--text1);
+    }
 
-  .msg-label { font-size: 9px; color: var(--text3); margin-bottom: 3px; font-family: var(--mono); }
-  .msg.ai .msg-label { color: var(--orange); }
+    .sidebar-btn.orange {
+      border-color: var(--orange);
+      color: var(--orange);
+      background: var(--orange-dim);
+    }
 
-  .chat-input-row {
-    padding: 10px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    gap: 6px;
-    flex-shrink: 0;
-  }
-  .chat-input {
-    flex: 1;
-    background: var(--bg0);
-    border: 1px solid var(--border2);
-    border-radius: 3px;
-    padding: 7px 10px;
-    font-size: 11px;
-    color: var(--text1);
-    font-family: var(--sans);
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  .chat-input:focus { border-color: var(--orange); }
-  .chat-input::placeholder { color: var(--text3); }
-  .chat-send {
-    padding: 7px 12px;
-    background: var(--orange2);
-    border: none;
-    border-radius: 3px;
-    color: white;
-    cursor: pointer;
-    font-size: 12px;
-    transition: background 0.15s;
-  }
-  .chat-send:hover { background: var(--orange); }
+    .sidebar-btn.orange:hover {
+      background: rgba(249, 115, 22, 0.2);
+    }
 
-  /* LOADING OVERLAY */
-  .loading-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(8,8,9,0.85);
-    z-index: 1000;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
-  }
-  .loading-overlay.show { display: flex; }
-  .shield-icon { font-size: 48px; animation: pulse-scale 1.5s infinite; }
-  @keyframes pulse-scale { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
-  .loading-text { font-size: 14px; color: var(--text2); }
-  .loading-sub { font-size: 11px; color: var(--text3); font-family: var(--mono); }
-  .loading-bar {
-    width: 200px; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden;
-  }
-  .loading-progress {
-    height: 100%; background: var(--orange); border-radius: 1px;
-    animation: loading-anim 2s ease-in-out forwards;
-  }
-  @keyframes loading-anim { from{width:0} to{width:100%} }
+    /* ===== EDITOR CENTER ===== */
+    .editor-center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
 
-  /* DASHBOARD OVERLAY */
-  .dashboard-overlay {
-    display: none;
-    position: fixed;
-    inset: 44px 0 0 0;
-    background: var(--bg0);
-    z-index: 50;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .dashboard-overlay.show { display: flex; }
+    .editor-tabs {
+      background: var(--bg1);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: stretch;
+      height: 33px;
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
 
-  .dash-inner {
-    flex: 1;
-    padding: 20px 24px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .dash-inner::-webkit-scrollbar { width: 6px; }
-  .dash-inner::-webkit-scrollbar-thumb { background: var(--border2); }
+    .editor-tabs::-webkit-scrollbar {
+      height: 0;
+    }
 
-  .dash-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text1);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .dash-sub { font-size: 12px; color: var(--text3); font-family: var(--mono); margin-top: 2px; }
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 14px;
+      font-size: 11px;
+      color: var(--text3);
+      border-right: 1px solid var(--border);
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: var(--mono);
+      transition: all 0.1s;
+      flex-shrink: 0;
+    }
 
-  .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-  .kpi-card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 16px;
-    text-align: center;
-  }
-  .kpi-card.score { border-color: rgba(249,115,22,0.3); background: rgba(249,115,22,0.05); }
-  .kpi-num { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
-  .kpi-num.orange { color: var(--orange); }
-  .kpi-num.red { color: var(--red); }
-  .kpi-num.yellow { color: var(--yellow); }
-  .kpi-num.amber { color: var(--amber); }
-  .kpi-num.green { color: var(--green); }
-  .kpi-lbl { font-size: 10px; color: var(--text3); letter-spacing: 0.5px; }
+    .tab:hover {
+      background: var(--bg2);
+      color: var(--text2);
+    }
 
-  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .chart-card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 16px;
-  }
-  .chart-title { font-size: 11px; color: var(--text2); margin-bottom: 14px; letter-spacing: 0.3px; }
+    .tab.active {
+      background: var(--bg2);
+      color: var(--text1);
+      border-bottom: 1px solid var(--orange);
+    }
 
-  .bar-chart { display: flex; flex-direction: column; gap: 7px; }
-  .bar-row { display: flex; align-items: center; gap: 8px; font-size: 10px; }
-  .bar-lbl { width: 100px; color: var(--text3); text-align: right; font-family: var(--mono); }
-  .bar-track { flex: 1; height: 10px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
-  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
-  .bar-cnt { width: 20px; color: var(--text3); text-align: right; }
+    .tab .tab-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--red);
+    }
 
-  .spark { height: 70px; display: flex; align-items: flex-end; gap: 5px; }
-  .spark-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .spark-bar { width: 100%; border-radius: 2px; transition: height 0.5s ease; }
-  .spark-lbl { font-size: 9px; color: var(--text3); font-family: var(--mono); }
+    /* CODE EDITOR */
+    .code-editor {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
 
-  .heatmap-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-  .heat-cell {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 8px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .heat-cell:hover { border-color: var(--orange); }
-  .heat-cell.c { background: rgba(240,65,65,0.07); border-color: rgba(240,65,65,0.25); }
-  .heat-cell.h { background: rgba(245,158,11,0.07); border-color: rgba(245,158,11,0.2); }
-  .heat-cell.m { background: rgba(234,179,8,0.07); border-color: rgba(234,179,8,0.2); }
-  .heat-file { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .heat-cnt { font-size: 11px; font-weight: 600; }
-  .heat-cnt.red { color: var(--red); }
-  .heat-cnt.yellow { color: var(--yellow); }
-  .heat-cnt.green { color: var(--green); }
+    .line-nums {
+      width: 46px;
+      background: var(--bg1);
+      border-right: 1px solid var(--border);
+      padding: 14px 0;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
 
-  .owasp-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-  .owasp-cell {
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 8px;
-    text-align: center;
-    background: var(--bg3);
-  }
-  .owasp-cell.hit { border-color: rgba(240,65,65,0.3); background: rgba(240,65,65,0.06); }
-  .owasp-cell.part { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.06); }
-  .owasp-id { font-family: var(--mono); font-size: 10px; color: var(--text3); }
-  .owasp-name { font-size: 9px; color: var(--text2); margin-top: 2px; line-height: 1.3; }
-  .owasp-cell.hit .owasp-id { color: var(--red); }
-  .owasp-cell.part .owasp-id { color: var(--yellow); }
+    .ln {
+      height: 19px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text3);
+      transition: all 0.1s;
+    }
 
-  /* RESIZE HANDLE */
-  .resize-h {
-    width: 4px;
-    background: transparent;
-    cursor: col-resize;
-    transition: background 0.2s;
-    flex-shrink: 0;
-  }
-  .resize-h:hover { background: var(--orange-dim); }
+    .ln.vuln-c {
+      color: #f0414199;
+      background: #f0414108;
+    }
 
-  /* MISC */
-  .scan-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    background: rgba(34,197,94,0.1);
-    border: 1px solid rgba(34,197,94,0.2);
-    border-radius: 10px;
-    font-size: 10px;
-    color: var(--green);
-    font-family: var(--mono);
-    margin-left: 10px;
-  }
-  .scan-badge::before {
-    content: '';
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--green);
-  }
+    .ln.vuln-h {
+      color: #f59e0b99;
+      background: #f59e0b08;
+    }
 
-  .empty-state { 
-    flex: 1; display: flex; flex-direction: column; align-items: center; 
-    justify-content: center; gap: 8px; 
-  }
-  .empty-state .icon { font-size: 32px; opacity: 0.3; }
-  .empty-state .text { font-size: 12px; color: var(--text3); }
-</style>
+    .code-body {
+      flex: 1;
+      padding: 14px 16px;
+      overflow: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 19px;
+      color: var(--text3);
+    }
+
+    .code-body::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .code-body::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 3px;
+    }
+
+    .code-line {
+      display: flex;
+      align-items: center;
+      min-height: 19px;
+      padding: 0 4px;
+      border-radius: 2px;
+      position: relative;
+      white-space: pre;
+    }
+
+    .code-line.vuln-c {
+      background: linear-gradient(90deg, rgba(240, 65, 65, 0.06) 0%, transparent 80%);
+      border-left: 2px solid var(--red);
+      padding-left: 6px;
+    }
+
+    .code-line.vuln-h {
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.06) 0%, transparent 80%);
+      border-left: 2px solid var(--yellow);
+      padding-left: 6px;
+    }
+
+    .vuln-badge {
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 2px;
+      margin-left: 12px;
+      font-family: var(--sans);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+      animation: fadein 0.3s ease;
+    }
+
+    .badge-c {
+      background: rgba(240, 65, 65, 0.15);
+      color: var(--red);
+      border: 1px solid rgba(240, 65, 65, 0.3);
+    }
+
+    .badge-h {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--yellow);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    @keyframes fadein {
+      from {
+        opacity: 0;
+        transform: translateX(-4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .kw {
+      color: #569cd6;
+    }
+
+    .kw2 {
+      color: #c586c0;
+    }
+
+    .str {
+      color: #ce9178;
+    }
+
+    .fn {
+      color: #dcdcaa;
+    }
+
+    .cm {
+      color: #3a3a4a;
+    }
+
+    .num {
+      color: #b5cea8;
+    }
+
+    .ann {
+      color: #4ec9b0;
+    }
+
+    /* GUTTER ICONS */
+    .gutter-icon {
+      position: absolute;
+      left: -20px;
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    /* ===== DAST TERMINAL ===== */
+    .dast-terminal {
+      height: 150px;
+      background: var(--bg0);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+      transition: height 0.2s;
+    }
+
+    .dast-terminal.collapsed {
+      height: 33px;
+    }
+
+    .terminal-bar {
+      height: 33px;
+      background: var(--bg1);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 8px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .terminal-status {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .terminal-status.running {
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    .terminal-title {
+      font-size: 11px;
+      color: var(--text2);
+      flex: 1;
+      font-family: var(--mono);
+    }
+
+    .terminal-tag {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 2px;
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--green);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      font-family: var(--mono);
+    }
+
+    .terminal-body {
+      flex: 1;
+      padding: 8px 14px;
+      overflow-y: auto;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 19px;
+    }
+
+    .terminal-body::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .terminal-body::-webkit-scrollbar-thumb {
+      background: var(--border2);
+    }
+
+    .t-line {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .t-time {
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+
+    .t-msg {
+      color: var(--text2);
+    }
+
+    .t-ok {
+      color: var(--green);
+    }
+
+    .t-err {
+      color: var(--red);
+    }
+
+    .t-warn {
+      color: var(--yellow);
+    }
+
+    .t-payload {
+      color: #9a7;
+      background: #1a1f1a;
+      padding: 1px 6px;
+      border-radius: 2px;
+    }
+
+    /* ===== RIGHT PANEL ===== */
+    .right-panel {
+      width: 320px;
+      background: var(--bg1);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .panel-tabs {
+      display: flex;
+      height: 36px;
+      background: var(--bg0);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .ptab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--text3);
+      cursor: pointer;
+      border-right: 1px solid var(--border);
+      transition: all 0.15s;
+    }
+
+    .ptab:hover {
+      background: var(--bg2);
+      color: var(--text2);
+    }
+
+    .ptab.active {
+      color: var(--orange);
+      background: var(--bg1);
+      border-bottom: 2px solid var(--orange);
+    }
+
+    .ptab:last-child {
+      border-right: none;
+    }
+
+    /* API FILTER BAR */
+    .api-filter-bar {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    .api-pill {
+      padding: 2px 8px;
+      border: 1px solid var(--border2);
+      border-radius: 2px;
+      font-size: 10px;
+      color: var(--text3);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: var(--mono);
+    }
+
+    .api-pill:hover {
+      border-color: var(--border2);
+      color: var(--text2);
+      background: var(--bg3);
+    }
+
+    .api-pill.active {
+      border-color: var(--orange);
+      color: var(--orange);
+      background: var(--orange-dim);
+    }
+
+    /* VULN LIST */
+    .vuln-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .vuln-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .vuln-list::-webkit-scrollbar-thumb {
+      background: var(--border2);
+    }
+
+    .vuln-item {
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .vuln-item:hover {
+      background: var(--bg2);
+    }
+
+    .vuln-item.expanded {
+      background: var(--bg2);
+    }
+
+    .vuln-header {
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sev-tag {
+      font-size: 9px;
+      padding: 2px 5px;
+      border-radius: 2px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      font-family: var(--mono);
+      flex-shrink: 0;
+    }
+
+    .tag-c {
+      background: rgba(240, 65, 65, 0.15);
+      color: var(--red);
+      border: 1px solid rgba(240, 65, 65, 0.3);
+    }
+
+    .tag-h {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--yellow);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .tag-m {
+      background: rgba(234, 179, 8, 0.15);
+      color: var(--amber);
+      border: 1px solid rgba(234, 179, 8, 0.3);
+    }
+
+    .vuln-name {
+      font-size: 12px;
+      color: var(--text1);
+      flex: 1;
+      font-weight: 500;
+    }
+
+    .vuln-toggle {
+      color: var(--text3);
+      font-size: 12px;
+      transition: transform 0.2s;
+    }
+
+    .vuln-item.expanded .vuln-toggle {
+      transform: rotate(180deg);
+    }
+
+    .vuln-loc {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text3);
+      padding: 0 12px 8px;
+    }
+
+    .vuln-body {
+      padding: 0 12px 12px;
+      display: none;
+      animation: slidein 0.15s ease;
+    }
+
+    @keyframes slidein {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .vuln-item.expanded .vuln-body {
+      display: block;
+    }
+
+    .detail-block {
+      margin-top: 10px;
+    }
+
+    .detail-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text3);
+      margin-bottom: 5px;
+      font-family: var(--mono);
+    }
+
+    .detail-text {
+      font-size: 11px;
+      color: var(--text2);
+      line-height: 1.7;
+    }
+
+    /* CALL CHAIN */
+    .call-chain {
+      background: var(--bg0);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 8px 10px;
+      font-family: var(--mono);
+      font-size: 10px;
+      line-height: 20px;
+    }
+
+    .chain-node {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .chain-ok {
+      color: var(--text3);
+    }
+
+    .chain-ok:hover {
+      background: var(--bg3);
+      color: var(--text2);
+    }
+
+    .chain-vuln {
+      color: var(--red);
+      background: rgba(240, 65, 65, 0.1);
+      border: 1px solid rgba(240, 65, 65, 0.25);
+      box-shadow: 0 0 10px rgba(240, 65, 65, 0.2);
+    }
+
+    .chain-arrow {
+      color: var(--border2);
+      padding: 0 3px;
+    }
+
+    .chain-indent {
+      color: var(--border2);
+    }
+
+    /* DIFF VIEW */
+    .diff-view {
+      background: var(--bg0);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      font-family: var(--mono);
+      font-size: 10px;
+      line-height: 18px;
+    }
+
+    .diff-header {
+      display: flex;
+      background: var(--bg1);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .diff-col-header {
+      flex: 1;
+      padding: 4px 8px;
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text3);
+      border-right: 1px solid var(--border);
+    }
+
+    .diff-col-header:last-child {
+      border-right: none;
+    }
+
+    .diff-body {
+      display: flex;
+    }
+
+    .diff-col {
+      flex: 1;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .diff-col:last-child {
+      border-right: none;
+    }
+
+    .diff-line {
+      padding: 1px 8px;
+      white-space: pre;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .diff-del {
+      background: rgba(240, 65, 65, 0.08);
+      color: #f0414188;
+    }
+
+    .diff-add {
+      background: rgba(34, 197, 94, 0.08);
+      color: #22c55e;
+    }
+
+    .diff-same {
+      color: var(--text3);
+    }
+
+    /* AUTO FIX BTN */
+    .autofix-btn {
+      margin-top: 10px;
+      padding: 8px;
+      background: var(--orange2);
+      border: none;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+      width: 100%;
+      text-align: center;
+      transition: all 0.15s;
+      font-family: var(--sans);
+      letter-spacing: 0.3px;
+    }
+
+    .autofix-btn:hover {
+      background: var(--orange);
+      box-shadow: 0 0 12px var(--orange-glow);
+    }
+
+    /* AI CHAT PANEL */
+    .chat-panel {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .chat-panel.active {
+      display: flex;
+    }
+
+    .vuln-panel {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .vuln-panel.hidden {
+      display: none;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: var(--border2);
+    }
+
+    .msg {
+      max-width: 90%;
+    }
+
+    .msg.user {
+      align-self: flex-end;
+    }
+
+    .msg.ai {
+      align-self: flex-start;
+    }
+
+    .msg-bubble {
+      padding: 8px 11px;
+      border-radius: 4px;
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    .msg.user .msg-bubble {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      color: var(--text1);
+    }
+
+    .msg.ai .msg-bubble {
+      background: var(--bg2);
+      border-left: 2px solid var(--orange);
+      color: var(--text2);
+    }
+
+    .msg-label {
+      font-size: 9px;
+      color: var(--text3);
+      margin-bottom: 3px;
+      font-family: var(--mono);
+    }
+
+    .msg.ai .msg-label {
+      color: var(--orange);
+    }
+
+    .chat-input-row {
+      padding: 10px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .chat-input {
+      flex: 1;
+      background: var(--bg0);
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      padding: 7px 10px;
+      font-size: 11px;
+      color: var(--text1);
+      font-family: var(--sans);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .chat-input:focus {
+      border-color: var(--orange);
+    }
+
+    .chat-input::placeholder {
+      color: var(--text3);
+    }
+
+    .chat-send {
+      padding: 7px 12px;
+      background: var(--orange2);
+      border: none;
+      border-radius: 3px;
+      color: white;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.15s;
+    }
+
+    .chat-send:hover {
+      background: var(--orange);
+    }
+
+    /* LOADING OVERLAY */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 8, 9, 0.85);
+      z-index: 1000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .loading-overlay.show {
+      display: flex;
+    }
+
+    .shield-icon {
+      font-size: 48px;
+      animation: pulse-scale 1.5s infinite;
+    }
+
+    @keyframes pulse-scale {
+
+      0%,
+      100% {
+        transform: scale(1)
+      }
+
+      50% {
+        transform: scale(1.08)
+      }
+    }
+
+    .loading-text {
+      font-size: 14px;
+      color: var(--text2);
+    }
+
+    .loading-sub {
+      font-size: 11px;
+      color: var(--text3);
+      font-family: var(--mono);
+    }
+
+    .loading-bar {
+      width: 200px;
+      height: 2px;
+      background: var(--border);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+
+    .loading-progress {
+      height: 100%;
+      background: var(--orange);
+      border-radius: 1px;
+      animation: loading-anim 2s ease-in-out forwards;
+    }
+
+    @keyframes loading-anim {
+      from {
+        width: 0
+      }
+
+      to {
+        width: 100%
+      }
+    }
+
+    /* DASHBOARD OVERLAY */
+    .dashboard-overlay {
+      display: none;
+      position: fixed;
+      inset: 44px 0 0 0;
+      background: var(--bg0);
+      z-index: 50;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .dashboard-overlay.show {
+      display: flex;
+    }
+
+    .dash-inner {
+      flex: 1;
+      padding: 20px 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .dash-inner::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .dash-inner::-webkit-scrollbar-thumb {
+      background: var(--border2);
+    }
+
+    .dash-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dash-sub {
+      font-size: 12px;
+      color: var(--text3);
+      font-family: var(--mono);
+      margin-top: 2px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    .kpi-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .kpi-card.score {
+      border-color: rgba(249, 115, 22, 0.3);
+      background: rgba(249, 115, 22, 0.05);
+    }
+
+    .kpi-num {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .kpi-num.orange {
+      color: var(--orange);
+    }
+
+    .kpi-num.red {
+      color: var(--red);
+    }
+
+    .kpi-num.yellow {
+      color: var(--yellow);
+    }
+
+    .kpi-num.amber {
+      color: var(--amber);
+    }
+
+    .kpi-num.green {
+      color: var(--green);
+    }
+
+    .kpi-lbl {
+      font-size: 10px;
+      color: var(--text3);
+      letter-spacing: 0.5px;
+    }
+
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .chart-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 16px;
+    }
+
+    .chart-title {
+      font-size: 11px;
+      color: var(--text2);
+      margin-bottom: 14px;
+      letter-spacing: 0.3px;
+    }
+
+    .bar-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+    }
+
+    .bar-lbl {
+      width: 100px;
+      color: var(--text3);
+      text-align: right;
+      font-family: var(--mono);
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 10px;
+      background: var(--bg3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.5s ease;
+    }
+
+    .bar-cnt {
+      width: 20px;
+      color: var(--text3);
+      text-align: right;
+    }
+
+    .spark {
+      height: 70px;
+      display: flex;
+      align-items: flex-end;
+      gap: 5px;
+    }
+
+    .spark-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .spark-bar {
+      width: 100%;
+      border-radius: 2px;
+      transition: height 0.5s ease;
+    }
+
+    .spark-lbl {
+      font-size: 9px;
+      color: var(--text3);
+      font-family: var(--mono);
+    }
+
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .heat-cell {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .heat-cell:hover {
+      border-color: var(--orange);
+    }
+
+    .heat-cell.c {
+      background: rgba(240, 65, 65, 0.07);
+      border-color: rgba(240, 65, 65, 0.25);
+    }
+
+    .heat-cell.h {
+      background: rgba(245, 158, 11, 0.07);
+      border-color: rgba(245, 158, 11, 0.2);
+    }
+
+    .heat-cell.m {
+      background: rgba(234, 179, 8, 0.07);
+      border-color: rgba(234, 179, 8, 0.2);
+    }
+
+    .heat-file {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text3);
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .heat-cnt {
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .heat-cnt.red {
+      color: var(--red);
+    }
+
+    .heat-cnt.yellow {
+      color: var(--yellow);
+    }
+
+    .heat-cnt.green {
+      color: var(--green);
+    }
+
+    .owasp-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .owasp-cell {
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 8px;
+      text-align: center;
+      background: var(--bg3);
+    }
+
+    .owasp-cell.hit {
+      border-color: rgba(240, 65, 65, 0.3);
+      background: rgba(240, 65, 65, 0.06);
+    }
+
+    .owasp-cell.part {
+      border-color: rgba(245, 158, 11, 0.3);
+      background: rgba(245, 158, 11, 0.06);
+    }
+
+    .owasp-id {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    .owasp-name {
+      font-size: 9px;
+      color: var(--text2);
+      margin-top: 2px;
+      line-height: 1.3;
+    }
+
+    .owasp-cell.hit .owasp-id {
+      color: var(--red);
+    }
+
+    .owasp-cell.part .owasp-id {
+      color: var(--yellow);
+    }
+
+    /* RESIZE HANDLE */
+    .resize-h {
+      width: 4px;
+      background: transparent;
+      cursor: col-resize;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .resize-h:hover {
+      background: var(--orange-dim);
+    }
+
+    /* MISC */
+    .scan-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: 10px;
+      font-size: 10px;
+      color: var(--green);
+      font-family: var(--mono);
+      margin-left: 10px;
+    }
+
+    .scan-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .empty-state .icon {
+      font-size: 32px;
+      opacity: 0.3;
+    }
+
+    .empty-state .text {
+      font-size: 12px;
+      color: var(--text3);
+    }
+  </style>
 </head>
+
 <body>
 
-<!-- LOADING OVERLAY -->
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="shield-icon">🛡️</div>
-  <div class="loading-text">AI 보안 분석 중...</div>
-  <div class="loading-sub" id="loadingStep">SAST 에이전트 초기화</div>
-  <div class="loading-bar"><div class="loading-progress"></div></div>
-</div>
-
-<!-- HEADER -->
-<header>
-  <div class="logo">
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M10 1L2 5v6c0 4.1 3.4 7.9 8 9 4.6-1.1 8-4.9 8-9V5L10 1z" fill="rgba(249,115,22,0.15)" stroke="#f97316" stroke-width="1.5"/>
-      <path d="M7 10l2 2 4-4" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
-    SecureAI
-  </div>
-  <div class="header-divider"></div>
-  <div class="header-path">
-    secureai-frontend / src / controllers / <span>UserController.java</span>
-  </div>
-  <div class="sev-filters">
-    <div class="sev-pill all active" onclick="setSevFilter('all', this)">ALL</div>
-    <div class="sev-pill crit" onclick="setSevFilter('critical', this)">CRITICAL 3</div>
-    <div class="sev-pill high" onclick="setSevFilter('high', this)">HIGH 2</div>
-    <div class="sev-pill med" onclick="setSevFilter('medium', this)">MEDIUM 1</div>
-    <div class="sev-pill low" onclick="setSevFilter('low', this)">LOW 0</div>
-  </div>
-  <div class="header-actions">
-    <button class="btn-ghost active" onclick="toggleDashboard()">📊 대시보드</button>
-    <button class="btn-primary" id="analyzeBtn" onclick="startAnalysis()">⚡ 분석 시작</button>
-    <button class="btn-ghost">↓ Export PDF</button>
-  </div>
-</header>
-
-<!-- MAIN -->
-<div class="main-layout">
-
-  <!-- SIDEBAR -->
-  <div class="sidebar" id="sidebar">
-    <div class="sidebar-section">
-      <span>프로젝트 파일</span>
-      <span style="color:var(--orange);font-size:9px;">MCP</span>
-    </div>
-    <div class="file-tree">
-      <div class="tree-folder">📁 src</div>
-      <div class="tree-folder" style="padding-left:20px;">📁 controllers</div>
-      <div class="tree-file active" style="padding-left:28px;" onclick="selectFile(this, 'UserController.java')">
-        <div class="vuln-dot dot-c"></div>UserController.java
-      </div>
-      <div class="tree-file" style="padding-left:28px;" onclick="selectFile(this, 'AuthService.java')">
-        <div class="vuln-dot dot-c"></div>AuthService.java
-      </div>
-      <div class="tree-folder" style="padding-left:20px;">📁 models</div>
-      <div class="tree-file" style="padding-left:28px;" onclick="selectFile(this, 'User.java')">
-        <div class="vuln-dot dot-ok"></div>User.java
-      </div>
-      <div class="tree-folder" style="padding-left:20px;">📁 config</div>
-      <div class="tree-file" style="padding-left:28px;" onclick="selectFile(this, 'SecurityConfig.java')">
-        <div class="vuln-dot" style="background:#f59e0b;width:6px;height:6px;border-radius:50%;flex-shrink:0;"></div>SecurityConfig.java
-      </div>
-      <div class="tree-folder" style="margin-top:8px;">📁 frontend</div>
-      <div class="tree-folder" style="padding-left:20px;">📁 pages</div>
-      <div class="tree-file" style="padding-left:28px;" onclick="selectFile(this, 'LoginPage.tsx')">
-        <div class="vuln-dot" style="background:var(--yellow);width:6px;height:6px;border-radius:50%;flex-shrink:0;"></div>LoginPage.tsx
-      </div>
-      <div class="tree-file" style="padding-left:28px;" onclick="selectFile(this, 'Dashboard.tsx')">
-        <div class="vuln-dot dot-ok"></div>Dashboard.tsx
-      </div>
-      <div class="tree-folder" style="margin-top:8px;">📁 tests</div>
-      <div class="tree-file" style="padding-left:20px;" onclick="selectFile(this, 'AuthTest.java')">
-        <div class="vuln-dot dot-ok"></div>AuthTest.java
-      </div>
-    </div>
-    <div class="sidebar-bottom">
-      <div class="sidebar-btn orange" onclick="startAnalysis()">⬡ 전체 분석 시작</div>
-      <div class="sidebar-btn" onclick="toggleDashboard()">📊 대시보드 전환</div>
-      <div class="sidebar-btn">🔗 GitHub 연동</div>
+  <!-- LOADING OVERLAY -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="shield-icon">🛡️</div>
+    <div class="loading-text">AI 보안 분석 중...</div>
+    <div class="loading-sub" id="loadingStep">SAST 에이전트 초기화</div>
+    <div class="loading-bar">
+      <div class="loading-progress"></div>
     </div>
   </div>
 
-  <!-- EDITOR CENTER -->
-  <div class="editor-center">
-    <!-- TABS -->
-    <div class="editor-tabs">
-      <div class="tab active">
-        <div class="tab-dot"></div>
-        UserController.java
-      </div>
-      <div class="tab">AuthService.java</div>
-      <div class="tab">LoginPage.tsx</div>
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 1L2 5v6c0 4.1 3.4 7.9 8 9 4.6-1.1 8-4.9 8-9V5L10 1z" fill="rgba(249,115,22,0.15)" stroke="#f97316"
+          stroke-width="1.5" />
+        <path d="M7 10l2 2 4-4" stroke="#f97316" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      Pagori
     </div>
+    <div class="header-divider"></div>
+    <div class="header-path">
+      pagori-frontend / src / controllers / <span>UserController.java</span>
+    </div>
+    <div class="sev-filters">
+      <div class="sev-pill all active" onclick="setSevFilter('all', this)">ALL</div>
+      <div class="sev-pill crit" onclick="setSevFilter('critical', this)">CRITICAL 3</div>
+      <div class="sev-pill high" onclick="setSevFilter('high', this)">HIGH 2</div>
+      <div class="sev-pill med" onclick="setSevFilter('medium', this)">MEDIUM 1</div>
+      <div class="sev-pill low" onclick="setSevFilter('low', this)">LOW 0</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ghost active" onclick="toggleDashboard()">📊 대시보드</button>
+      <button class="btn-primary" id="analyzeBtn" onclick="startAnalysis()">⚡ 분석 시작</button>
+      <button class="btn-ghost">↓ Export PDF</button>
+    </div>
+  </header>
 
-    <!-- CODE EDITOR -->
-    <div class="code-editor">
-      <div class="line-nums">
-        <div class="ln">38</div>
-        <div class="ln">39</div>
-        <div class="ln">40</div>
-        <div class="ln">41</div>
-        <div class="ln">42</div>
-        <div class="ln">43</div>
-        <div class="ln">44</div>
-        <div class="ln">45</div>
-        <div class="ln vuln-c">46</div>
-        <div class="ln vuln-c">47</div>
-        <div class="ln">48</div>
-        <div class="ln">49</div>
-        <div class="ln">50</div>
-        <div class="ln">51</div>
-        <div class="ln vuln-h">52</div>
-        <div class="ln vuln-h">53</div>
-        <div class="ln">54</div>
-        <div class="ln">55</div>
-        <div class="ln">56</div>
-        <div class="ln">57</div>
-        <div class="ln">58</div>
-        <div class="ln">59</div>
-        <div class="ln">60</div>
-        <div class="ln">61</div>
+  <!-- MAIN -->
+  <div class="main-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <span>프로젝트 파일</span>
+        <span style="color:var(--orange);font-size:9px;">MCP</span>
       </div>
-      <div class="code-body">
-        <div class="code-line"><span class="ann">@RestController</span></div>
-        <div class="code-line"><span class="ann">@RequestMapping</span><span style="color:var(--text2);">("/api/users")</span></div>
-        <div class="code-line"><span class="kw">public class </span><span class="fn">UserController</span><span style="color:var(--text2);"> {</span></div>
-        <div class="code-line">&nbsp;</div>
-        <div class="code-line" style="padding-left:20px;"><span class="ann">@Autowired</span></div>
-        <div class="code-line" style="padding-left:20px;"><span class="kw">private </span><span class="fn">UserRepository</span><span style="color:var(--text2);"> userRepo;</span></div>
-        <div class="code-line">&nbsp;</div>
-        <div class="code-line" style="padding-left:20px;"><span class="ann">@PostMapping</span><span style="color:var(--text2);">("/login")</span></div>
-        <div class="code-line vuln-c" style="padding-left:20px;">
-          <span class="kw">public </span><span class="fn">ResponseEntity</span><span style="color:var(--text2);">&lt;User&gt; </span><span class="fn">login</span><span style="color:var(--text2);">(@RequestBody LoginDto dto) {</span>
-          <span class="vuln-badge badge-c">🔴 SQL Injection · CWE-89</span>
+      <div class="file-tree">
+        <div class="tree-folder">📁 src</div>
+        <div class="tree-folder" style="padding-left:20px;">📁 controllers</div>
+        <div class="tree-file active" style="padding-left:28px;" onclick="selectFile(this, 'UserController.java')">
+          <div class="vuln-dot dot-c"></div>UserController.java
         </div>
-        <div class="code-line vuln-c" style="padding-left:40px;">
-          <span class="kw">String </span><span style="color:var(--text2);">q = </span><span class="str">"SELECT * FROM users WHERE name='"</span><span style="color:var(--text2);">+ dto.getName() + </span><span class="str">"'"</span><span style="color:var(--text2);">;</span>
+        <div class="tree-file" style="padding-left:28px;" onclick="selectFile(this, 'AuthService.java')">
+          <div class="vuln-dot dot-c"></div>AuthService.java
         </div>
-        <div class="code-line" style="padding-left:40px;"><span class="kw">return </span><span style="color:var(--text2);">userRepo.query(q);</span></div>
-        <div class="code-line" style="padding-left:20px;"><span style="color:var(--text2);">}</span></div>
-        <div class="code-line">&nbsp;</div>
-        <div class="code-line" style="padding-left:20px;"><span class="ann">@GetMapping</span><span style="color:var(--text2);">("/user/{id}")</span></div>
-        <div class="code-line vuln-h" style="padding-left:20px;">
-          <span class="kw">public </span><span class="fn">User </span><span class="fn">getUser</span><span style="color:var(--text2);">(@PathVariable Long id) {</span>
-          <span class="vuln-badge badge-h">🟠 IDOR · CWE-284</span>
+        <div class="tree-folder" style="padding-left:20px;">📁 models</div>
+        <div class="tree-file" style="padding-left:28px;" onclick="selectFile(this, 'User.java')">
+          <div class="vuln-dot dot-ok"></div>User.java
         </div>
-        <div class="code-line vuln-h" style="padding-left:40px;"><span class="cm">// ⚠ 인증 없이 타인 정보 조회 가능 — currentUser 검증 누락</span></div>
-        <div class="code-line" style="padding-left:40px;"><span class="kw">return </span><span style="color:var(--text2);">userRepo.findById(id).get();</span></div>
-        <div class="code-line" style="padding-left:20px;"><span style="color:var(--text2);">}</span></div>
-        <div class="code-line">&nbsp;</div>
-        <div class="code-line" style="padding-left:20px;"><span class="ann">@PostMapping</span><span style="color:var(--text2);">("/register")</span></div>
-        <div class="code-line" style="padding-left:20px;"><span class="kw">public </span><span class="fn">ResponseEntity</span><span style="color:var(--text2);">&lt;User&gt; </span><span class="fn">register</span><span style="color:var(--text2);">(@RequestBody UserDto dto) {</span></div>
-        <div class="code-line" style="padding-left:40px;"><span class="cm">// TODO: 입력값 검증 추가 필요</span></div>
-        <div class="code-line" style="padding-left:40px;"><span class="kw">return </span><span style="color:var(--text2);">ResponseEntity.ok(userRepo.save(dto.toUser()));</span></div>
-        <div class="code-line" style="padding-left:20px;"><span style="color:var(--text2);">}</span></div>
+        <div class="tree-folder" style="padding-left:20px;">📁 config</div>
+        <div class="tree-file" style="padding-left:28px;" onclick="selectFile(this, 'SecurityConfig.java')">
+          <div class="vuln-dot" style="background:#f59e0b;width:6px;height:6px;border-radius:50%;flex-shrink:0;"></div>
+          SecurityConfig.java
+        </div>
+        <div class="tree-folder" style="margin-top:8px;">📁 frontend</div>
+        <div class="tree-folder" style="padding-left:20px;">📁 pages</div>
+        <div class="tree-file" style="padding-left:28px;" onclick="selectFile(this, 'LoginPage.tsx')">
+          <div class="vuln-dot" style="background:var(--yellow);width:6px;height:6px;border-radius:50%;flex-shrink:0;">
+          </div>LoginPage.tsx
+        </div>
+        <div class="tree-file" style="padding-left:28px;" onclick="selectFile(this, 'Dashboard.tsx')">
+          <div class="vuln-dot dot-ok"></div>Dashboard.tsx
+        </div>
+        <div class="tree-folder" style="margin-top:8px;">📁 tests</div>
+        <div class="tree-file" style="padding-left:20px;" onclick="selectFile(this, 'AuthTest.java')">
+          <div class="vuln-dot dot-ok"></div>AuthTest.java
+        </div>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="sidebar-btn orange" onclick="startAnalysis()">⬡ 전체 분석 시작</div>
+        <div class="sidebar-btn" onclick="toggleDashboard()">📊 대시보드 전환</div>
+        <div class="sidebar-btn">🔗 GitHub 연동</div>
       </div>
     </div>
 
-    <!-- DAST TERMINAL -->
-    <div class="dast-terminal" id="dastTerminal">
-      <div class="terminal-bar" onclick="toggleTerminal()">
-        <div class="terminal-status" id="termStatus"></div>
-        <div class="terminal-title">DAST 에이전트 — 실시간 로그</div>
-        <div class="terminal-tag">Docker Sandbox 격리</div>
-        <span style="color:var(--text3);font-size:12px;margin-left:8px;" id="termToggle">▼</span>
+    <!-- EDITOR CENTER -->
+    <div class="editor-center">
+      <!-- TABS -->
+      <div class="editor-tabs">
+        <div class="tab active">
+          <div class="tab-dot"></div>
+          UserController.java
+        </div>
+        <div class="tab">AuthService.java</div>
+        <div class="tab">LoginPage.tsx</div>
       </div>
-      <div class="terminal-body" id="terminalBody">
-        <div class="t-line"><span class="t-time">[14:32:01]</span><span class="t-ok">✓</span><span class="t-msg">Docker 샌드박스 컨테이너 초기화 완료</span></div>
-        <div class="t-line"><span class="t-time">[14:32:02]</span><span class="t-msg">🔍 SQL Injection 공격 페이로드 생성 중...</span></div>
-        <div class="t-line"><span class="t-time">[14:32:03]</span><span class="t-msg">→ payload: </span><span class="t-payload">' OR '1'='1' --</span></div>
-        <div class="t-line"><span class="t-time">[14:32:04]</span><span class="t-msg">→ target: </span><span class="t-payload">POST /api/users/login</span></div>
-        <div class="t-line"><span class="t-time">[14:32:05]</span><span class="t-err">✗ EXPLOIT SUCCESS</span><span class="t-msg"> — 전체 users 테이블 노출 확인 (23 rows)</span></div>
-        <div class="t-line"><span class="t-time">[14:32:06]</span><span class="t-warn">⚠</span><span class="t-msg"> IDOR 검증: GET /api/users/user/2 → 타인 데이터 반환</span></div>
-        <div class="t-line"><span class="t-time">[14:32:07]</span><span class="t-ok">✓</span><span class="t-msg"> 익스플로잇 로그 암호화 저장 완료 (30일 후 자동 삭제)</span></div>
-      </div>
-    </div>
-  </div>
 
-  <!-- RIGHT PANEL -->
-  <div class="right-panel">
-    <div class="panel-tabs">
-      <div class="ptab active" id="ptab-vuln" onclick="switchTab('vuln')">취약점 상세</div>
-      <div class="ptab" id="ptab-chat" onclick="switchTab('chat')">AI 채팅</div>
-    </div>
-
-    <!-- VULN PANEL -->
-    <div class="vuln-panel" id="vulnPanel">
-      <div class="api-filter-bar">
-        <div class="api-pill active" onclick="setApiFilter(this, '/api/users')">/api/users</div>
-        <div class="api-pill" onclick="setApiFilter(this, '/api/auth')">/api/auth</div>
-        <div class="api-pill" onclick="setApiFilter(this, 'other')">기타</div>
-      </div>
-      <div class="vuln-list" id="vulnList">
-
-        <!-- VULN 1: SQL INJECTION -->
-        <div class="vuln-item expanded" id="vuln1">
-          <div class="vuln-header" onclick="toggleVuln('vuln1')">
-            <div class="sev-tag tag-c">CRITICAL</div>
-            <div class="vuln-name">SQL Injection</div>
-            <div class="vuln-toggle">▲</div>
+      <!-- CODE EDITOR -->
+      <div class="code-editor">
+        <div class="line-nums">
+          <div class="ln">38</div>
+          <div class="ln">39</div>
+          <div class="ln">40</div>
+          <div class="ln">41</div>
+          <div class="ln">42</div>
+          <div class="ln">43</div>
+          <div class="ln">44</div>
+          <div class="ln">45</div>
+          <div class="ln vuln-c">46</div>
+          <div class="ln vuln-c">47</div>
+          <div class="ln">48</div>
+          <div class="ln">49</div>
+          <div class="ln">50</div>
+          <div class="ln">51</div>
+          <div class="ln vuln-h">52</div>
+          <div class="ln vuln-h">53</div>
+          <div class="ln">54</div>
+          <div class="ln">55</div>
+          <div class="ln">56</div>
+          <div class="ln">57</div>
+          <div class="ln">58</div>
+          <div class="ln">59</div>
+          <div class="ln">60</div>
+          <div class="ln">61</div>
+        </div>
+        <div class="code-body">
+          <div class="code-line"><span class="ann">@RestController</span></div>
+          <div class="code-line"><span class="ann">@RequestMapping</span><span
+              style="color:var(--text2);">("/api/users")</span></div>
+          <div class="code-line"><span class="kw">public class </span><span class="fn">UserController</span><span
+              style="color:var(--text2);"> {</span></div>
+          <div class="code-line">&nbsp;</div>
+          <div class="code-line" style="padding-left:20px;"><span class="ann">@Autowired</span></div>
+          <div class="code-line" style="padding-left:20px;"><span class="kw">private </span><span
+              class="fn">UserRepository</span><span style="color:var(--text2);"> userRepo;</span></div>
+          <div class="code-line">&nbsp;</div>
+          <div class="code-line" style="padding-left:20px;"><span class="ann">@PostMapping</span><span
+              style="color:var(--text2);">("/login")</span></div>
+          <div class="code-line vuln-c" style="padding-left:20px;">
+            <span class="kw">public </span><span class="fn">ResponseEntity</span><span
+              style="color:var(--text2);">&lt;User&gt; </span><span class="fn">login</span><span
+              style="color:var(--text2);">(@RequestBody LoginDto dto) {</span>
+            <span class="vuln-badge badge-c">🔴 SQL Injection · CWE-89</span>
           </div>
-          <div class="vuln-loc">UserController.java:46 · CWE-89 · OWASP A03</div>
-          <div class="vuln-body">
-            <div class="detail-block">
-              <div class="detail-label">문제 설명</div>
-              <div class="detail-text">사용자 입력값이 SQL 쿼리에 직접 삽입됩니다. 공격자가 <code style="color:var(--red);background:var(--red-dim);padding:1px 4px;border-radius:2px;font-family:var(--mono);font-size:10px;">' OR '1'='1</code> 주입 시 전체 DB 접근 가능합니다.</div>
+          <div class="code-line vuln-c" style="padding-left:40px;">
+            <span class="kw">String </span><span style="color:var(--text2);">q = </span><span class="str">"SELECT * FROM
+              users WHERE name='"</span><span style="color:var(--text2);">+ dto.getName() + </span><span
+              class="str">"'"</span><span style="color:var(--text2);">;</span>
+          </div>
+          <div class="code-line" style="padding-left:40px;"><span class="kw">return </span><span
+              style="color:var(--text2);">userRepo.query(q);</span></div>
+          <div class="code-line" style="padding-left:20px;"><span style="color:var(--text2);">}</span></div>
+          <div class="code-line">&nbsp;</div>
+          <div class="code-line" style="padding-left:20px;"><span class="ann">@GetMapping</span><span
+              style="color:var(--text2);">("/user/{id}")</span></div>
+          <div class="code-line vuln-h" style="padding-left:20px;">
+            <span class="kw">public </span><span class="fn">User </span><span class="fn">getUser</span><span
+              style="color:var(--text2);">(@PathVariable Long id) {</span>
+            <span class="vuln-badge badge-h">🟠 IDOR · CWE-284</span>
+          </div>
+          <div class="code-line vuln-h" style="padding-left:40px;"><span class="cm">// ⚠ 인증 없이 타인 정보 조회 가능 — currentUser
+              검증 누락</span></div>
+          <div class="code-line" style="padding-left:40px;"><span class="kw">return </span><span
+              style="color:var(--text2);">userRepo.findById(id).get();</span></div>
+          <div class="code-line" style="padding-left:20px;"><span style="color:var(--text2);">}</span></div>
+          <div class="code-line">&nbsp;</div>
+          <div class="code-line" style="padding-left:20px;"><span class="ann">@PostMapping</span><span
+              style="color:var(--text2);">("/register")</span></div>
+          <div class="code-line" style="padding-left:20px;"><span class="kw">public </span><span
+              class="fn">ResponseEntity</span><span style="color:var(--text2);">&lt;User&gt; </span><span
+              class="fn">register</span><span style="color:var(--text2);">(@RequestBody UserDto dto) {</span></div>
+          <div class="code-line" style="padding-left:40px;"><span class="cm">// TODO: 입력값 검증 추가 필요</span></div>
+          <div class="code-line" style="padding-left:40px;"><span class="kw">return </span><span
+              style="color:var(--text2);">ResponseEntity.ok(userRepo.save(dto.toUser()));</span></div>
+          <div class="code-line" style="padding-left:20px;"><span style="color:var(--text2);">}</span></div>
+        </div>
+      </div>
+
+      <!-- DAST TERMINAL -->
+      <div class="dast-terminal" id="dastTerminal">
+        <div class="terminal-bar" onclick="toggleTerminal()">
+          <div class="terminal-status" id="termStatus"></div>
+          <div class="terminal-title">DAST 에이전트 — 실시간 로그</div>
+          <div class="terminal-tag">Docker Sandbox 격리</div>
+          <span style="color:var(--text3);font-size:12px;margin-left:8px;" id="termToggle">▼</span>
+        </div>
+        <div class="terminal-body" id="terminalBody">
+          <div class="t-line"><span class="t-time">[14:32:01]</span><span class="t-ok">✓</span><span
+              class="t-msg">Docker 샌드박스 컨테이너 초기화 완료</span></div>
+          <div class="t-line"><span class="t-time">[14:32:02]</span><span class="t-msg">🔍 SQL Injection 공격 페이로드 생성
+              중...</span></div>
+          <div class="t-line"><span class="t-time">[14:32:03]</span><span class="t-msg">→ payload: </span><span
+              class="t-payload">' OR '1'='1' --</span></div>
+          <div class="t-line"><span class="t-time">[14:32:04]</span><span class="t-msg">→ target: </span><span
+              class="t-payload">POST /api/users/login</span></div>
+          <div class="t-line"><span class="t-time">[14:32:05]</span><span class="t-err">✗ EXPLOIT SUCCESS</span><span
+              class="t-msg"> — 전체 users 테이블 노출 확인 (23 rows)</span></div>
+          <div class="t-line"><span class="t-time">[14:32:06]</span><span class="t-warn">⚠</span><span class="t-msg">
+              IDOR 검증: GET /api/users/user/2 → 타인 데이터 반환</span></div>
+          <div class="t-line"><span class="t-time">[14:32:07]</span><span class="t-ok">✓</span><span class="t-msg">
+              익스플로잇 로그 암호화 저장 완료 (30일 후 자동 삭제)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+      <div class="panel-tabs">
+        <div class="ptab active" id="ptab-vuln" onclick="switchTab('vuln')">취약점 상세</div>
+        <div class="ptab" id="ptab-chat" onclick="switchTab('chat')">AI 채팅</div>
+      </div>
+
+      <!-- VULN PANEL -->
+      <div class="vuln-panel" id="vulnPanel">
+        <div class="api-filter-bar">
+          <div class="api-pill active" onclick="setApiFilter(this, '/api/users')">/api/users</div>
+          <div class="api-pill" onclick="setApiFilter(this, '/api/auth')">/api/auth</div>
+          <div class="api-pill" onclick="setApiFilter(this, 'other')">기타</div>
+        </div>
+        <div class="vuln-list" id="vulnList">
+
+          <!-- VULN 1: SQL INJECTION -->
+          <div class="vuln-item expanded" id="vuln1">
+            <div class="vuln-header" onclick="toggleVuln('vuln1')">
+              <div class="sev-tag tag-c">CRITICAL</div>
+              <div class="vuln-name">SQL Injection</div>
+              <div class="vuln-toggle">▲</div>
             </div>
-            <div class="detail-block">
-              <div class="detail-label">API 호출 체인</div>
-              <div class="call-chain">
-                <div><span class="chain-node chain-ok">LoginPage.tsx:18</span></div>
-                <div><span class="chain-indent">&nbsp;└─</span><span class="chain-node chain-ok">POST /api/users/login</span></div>
-                <div><span class="chain-indent">&nbsp;&nbsp;&nbsp;└─</span><span class="chain-node chain-ok">UserController.login()</span></div>
-                <div><span class="chain-indent">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─</span><span class="chain-node chain-vuln">userRepo.query() :46 🔴</span></div>
+            <div class="vuln-loc">UserController.java:46 · CWE-89 · OWASP A03</div>
+            <div class="vuln-body">
+              <div class="detail-block">
+                <div class="detail-label">문제 설명</div>
+                <div class="detail-text">사용자 입력값이 SQL 쿼리에 직접 삽입됩니다. 공격자가 <code
+                    style="color:var(--red);background:var(--red-dim);padding:1px 4px;border-radius:2px;font-family:var(--mono);font-size:10px;">' OR '1'='1</code>
+                  주입 시 전체 DB 접근 가능합니다.</div>
               </div>
-            </div>
-            <div class="detail-block">
-              <div class="detail-label">Before / After 패치</div>
-              <div class="diff-view">
-                <div class="diff-header">
-                  <div class="diff-col-header">Before (취약)</div>
-                  <div class="diff-col-header">After (패치)</div>
+              <div class="detail-block">
+                <div class="detail-label">API 호출 체인</div>
+                <div class="call-chain">
+                  <div><span class="chain-node chain-ok">LoginPage.tsx:18</span></div>
+                  <div><span class="chain-indent">&nbsp;└─</span><span class="chain-node chain-ok">POST
+                      /api/users/login</span></div>
+                  <div><span class="chain-indent">&nbsp;&nbsp;&nbsp;└─</span><span
+                      class="chain-node chain-ok">UserController.login()</span></div>
+                  <div><span class="chain-indent">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─</span><span
+                      class="chain-node chain-vuln">userRepo.query() :46 🔴</span></div>
                 </div>
-                <div class="diff-body">
-                  <div class="diff-col">
-                    <div class="diff-line diff-del">String q = "SELECT * FROM</div>
-                    <div class="diff-line diff-del"> users WHERE name='" +</div>
-                    <div class="diff-line diff-del"> dto.getName() + "'";</div>
-                    <div class="diff-line diff-same">return userRepo.query(q);</div>
+              </div>
+              <div class="detail-block">
+                <div class="detail-label">Before / After 패치</div>
+                <div class="diff-view">
+                  <div class="diff-header">
+                    <div class="diff-col-header">Before (취약)</div>
+                    <div class="diff-col-header">After (패치)</div>
                   </div>
-                  <div class="diff-col">
-                    <div class="diff-line diff-add">PreparedStatement ps =</div>
-                    <div class="diff-line diff-add"> con.prepareStatement(</div>
-                    <div class="diff-line diff-add"> "SELECT * FROM users</div>
-                    <div class="diff-line diff-add">  WHERE name = ?");</div>
-                    <div class="diff-line diff-add">ps.setString(1, dto.getName());</div>
+                  <div class="diff-body">
+                    <div class="diff-col">
+                      <div class="diff-line diff-del">String q = "SELECT * FROM</div>
+                      <div class="diff-line diff-del"> users WHERE name='" +</div>
+                      <div class="diff-line diff-del"> dto.getName() + "'";</div>
+                      <div class="diff-line diff-same">return userRepo.query(q);</div>
+                    </div>
+                    <div class="diff-col">
+                      <div class="diff-line diff-add">PreparedStatement ps =</div>
+                      <div class="diff-line diff-add"> con.prepareStatement(</div>
+                      <div class="diff-line diff-add"> "SELECT * FROM users</div>
+                      <div class="diff-line diff-add"> WHERE name = ?");</div>
+                      <div class="diff-line diff-add">ps.setString(1, dto.getName());</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div class="detail-block">
-              <div class="detail-label">DAST 결과</div>
-              <div style="background:rgba(240,65,65,0.07);border:1px solid rgba(240,65,65,0.2);border-radius:3px;padding:7px 10px;font-family:var(--mono);font-size:10px;color:var(--red);">EXPLOIT SUCCESS — 23 rows 노출<br><span style="color:var(--text3);">payload: ' OR '1'='1' --</span></div>
-            </div>
-            <button class="autofix-btn" onclick="autoFix('vuln1')">⚡ AUTO FIX 적용</button>
-          </div>
-        </div>
-
-        <!-- VULN 2 -->
-        <div class="vuln-item" id="vuln2">
-          <div class="vuln-header" onclick="toggleVuln('vuln2')">
-            <div class="sev-tag tag-c">CRITICAL</div>
-            <div class="vuln-name">Hardcoded API Secret</div>
-            <div class="vuln-toggle">▼</div>
-          </div>
-          <div class="vuln-loc">application.properties:12 · CWE-798 · OWASP A02</div>
-          <div class="vuln-body">
-            <div class="detail-block">
-              <div class="detail-label">문제 설명</div>
-              <div class="detail-text">JWT 시크릿 키가 설정 파일에 하드코딩되어 있어 GitHub 공개 저장소에 노출 시 토큰 위조가 가능합니다.</div>
-            </div>
-            <div class="detail-block">
-              <div class="detail-label">탐지 위치</div>
-              <div class="call-chain">
-                <div><span class="chain-node chain-vuln">application.properties:12 🔴</span></div>
-                <div style="color:var(--text3);font-size:10px;margin-top:4px;">jwt.secret=my-super-secret-key-2024</div>
+              <div class="detail-block">
+                <div class="detail-label">DAST 결과</div>
+                <div
+                  style="background:rgba(240,65,65,0.07);border:1px solid rgba(240,65,65,0.2);border-radius:3px;padding:7px 10px;font-family:var(--mono);font-size:10px;color:var(--red);">
+                  EXPLOIT SUCCESS — 23 rows 노출<br><span style="color:var(--text3);">payload: ' OR '1'='1' --</span>
+                </div>
               </div>
+              <button class="autofix-btn" onclick="autoFix('vuln1')">⚡ AUTO FIX 적용</button>
             </div>
-            <button class="autofix-btn" onclick="autoFix('vuln2')">⚡ AUTO FIX 적용</button>
           </div>
-        </div>
 
-        <!-- VULN 3 -->
-        <div class="vuln-item" id="vuln3">
-          <div class="vuln-header" onclick="toggleVuln('vuln3')">
-            <div class="sev-tag tag-h">HIGH</div>
-            <div class="vuln-name">IDOR</div>
-            <div class="vuln-toggle">▼</div>
-          </div>
-          <div class="vuln-loc">UserController.java:52 · CWE-284 · OWASP A01</div>
-          <div class="vuln-body">
-            <div class="detail-block">
-              <div class="detail-label">문제 설명</div>
-              <div class="detail-text">/api/users/user/{id} 엔드포인트가 현재 로그인한 사용자 인증 없이 임의의 id로 타인 정보를 조회할 수 있습니다.</div>
+          <!-- VULN 2 -->
+          <div class="vuln-item" id="vuln2">
+            <div class="vuln-header" onclick="toggleVuln('vuln2')">
+              <div class="sev-tag tag-c">CRITICAL</div>
+              <div class="vuln-name">Hardcoded API Secret</div>
+              <div class="vuln-toggle">▼</div>
             </div>
-            <div class="detail-block">
-              <div class="detail-label">API 호출 체인</div>
-              <div class="call-chain">
-                <div><span class="chain-node chain-ok">GET /api/users/user/{id}</span></div>
-                <div><span class="chain-indent">&nbsp;└─</span><span class="chain-node chain-vuln">UserController.getUser() :52 🟠</span></div>
+            <div class="vuln-loc">application.properties:12 · CWE-798 · OWASP A02</div>
+            <div class="vuln-body">
+              <div class="detail-block">
+                <div class="detail-label">문제 설명</div>
+                <div class="detail-text">JWT 시크릿 키가 설정 파일에 하드코딩되어 있어 GitHub 공개 저장소에 노출 시 토큰 위조가 가능합니다.</div>
               </div>
+              <div class="detail-block">
+                <div class="detail-label">탐지 위치</div>
+                <div class="call-chain">
+                  <div><span class="chain-node chain-vuln">application.properties:12 🔴</span></div>
+                  <div style="color:var(--text3);font-size:10px;margin-top:4px;">jwt.secret=my-super-secret-key-2024
+                  </div>
+                </div>
+              </div>
+              <button class="autofix-btn" onclick="autoFix('vuln2')">⚡ AUTO FIX 적용</button>
             </div>
-            <button class="autofix-btn" onclick="autoFix('vuln3')">⚡ AUTO FIX 적용</button>
+          </div>
+
+          <!-- VULN 3 -->
+          <div class="vuln-item" id="vuln3">
+            <div class="vuln-header" onclick="toggleVuln('vuln3')">
+              <div class="sev-tag tag-h">HIGH</div>
+              <div class="vuln-name">IDOR</div>
+              <div class="vuln-toggle">▼</div>
+            </div>
+            <div class="vuln-loc">UserController.java:52 · CWE-284 · OWASP A01</div>
+            <div class="vuln-body">
+              <div class="detail-block">
+                <div class="detail-label">문제 설명</div>
+                <div class="detail-text">/api/users/user/{id} 엔드포인트가 현재 로그인한 사용자 인증 없이 임의의 id로 타인 정보를 조회할 수 있습니다.</div>
+              </div>
+              <div class="detail-block">
+                <div class="detail-label">API 호출 체인</div>
+                <div class="call-chain">
+                  <div><span class="chain-node chain-ok">GET /api/users/user/{id}</span></div>
+                  <div><span class="chain-indent">&nbsp;└─</span><span
+                      class="chain-node chain-vuln">UserController.getUser() :52 🟠</span></div>
+                </div>
+              </div>
+              <button class="autofix-btn" onclick="autoFix('vuln3')">⚡ AUTO FIX 적용</button>
+            </div>
+          </div>
+
+          <!-- VULN 4 -->
+          <div class="vuln-item" id="vuln4">
+            <div class="vuln-header" onclick="toggleVuln('vuln4')">
+              <div class="sev-tag tag-h">HIGH</div>
+              <div class="vuln-name">XSS (Reflected)</div>
+              <div class="vuln-toggle">▼</div>
+            </div>
+            <div class="vuln-loc">LoginPage.tsx:34 · CWE-79 · OWASP A03</div>
+            <div class="vuln-body">
+              <div class="detail-block">
+                <div class="detail-label">문제 설명</div>
+                <div class="detail-text">오류 메시지를 innerHTML로 직접 렌더링하여 스크립트 삽입이 가능합니다.</div>
+              </div>
+              <button class="autofix-btn" onclick="autoFix('vuln4')">⚡ AUTO FIX 적용</button>
+            </div>
+          </div>
+
+          <!-- VULN 5 -->
+          <div class="vuln-item" id="vuln5">
+            <div class="vuln-header" onclick="toggleVuln('vuln5')">
+              <div class="sev-tag tag-m">MEDIUM</div>
+              <div class="vuln-name">Missing Security Headers</div>
+              <div class="vuln-toggle">▼</div>
+            </div>
+            <div class="vuln-loc">SecurityConfig.java:8 · OWASP A05</div>
+            <div class="vuln-body">
+              <div class="detail-block">
+                <div class="detail-label">문제 설명</div>
+                <div class="detail-text">CSP, HSTS, X-Frame-Options 등 주요 보안 헤더가 누락되어 있습니다.</div>
+              </div>
+              <button class="autofix-btn" onclick="autoFix('vuln5')">⚡ AUTO FIX 적용</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CHAT PANEL -->
+      <div class="chat-panel" id="chatPanel">
+        <div class="chat-messages" id="chatMessages">
+          <div class="msg ai">
+            <div class="msg-label">SecureAI Agent</div>
+            <div class="msg-bubble">안녕하세요! 현재 <strong style="color:var(--orange);">6개</strong> 파일에서 <strong
+                style="color:var(--red);">Critical 3개</strong>, <strong style="color:var(--yellow);">High 2개</strong>,
+              <strong style="color:var(--amber);">Medium 1개</strong> 취약점이 발견되었습니다. 무엇이 궁금하신가요?
+            </div>
           </div>
         </div>
-
-        <!-- VULN 4 -->
-        <div class="vuln-item" id="vuln4">
-          <div class="vuln-header" onclick="toggleVuln('vuln4')">
-            <div class="sev-tag tag-h">HIGH</div>
-            <div class="vuln-name">XSS (Reflected)</div>
-            <div class="vuln-toggle">▼</div>
-          </div>
-          <div class="vuln-loc">LoginPage.tsx:34 · CWE-79 · OWASP A03</div>
-          <div class="vuln-body">
-            <div class="detail-block">
-              <div class="detail-label">문제 설명</div>
-              <div class="detail-text">오류 메시지를 innerHTML로 직접 렌더링하여 스크립트 삽입이 가능합니다.</div>
-            </div>
-            <button class="autofix-btn" onclick="autoFix('vuln4')">⚡ AUTO FIX 적용</button>
-          </div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" placeholder="취약점에 대해 질문하세요..." onkeydown="handleChatKey(event)">
+          <button class="chat-send" onclick="sendChat()">➤</button>
         </div>
-
-        <!-- VULN 5 -->
-        <div class="vuln-item" id="vuln5">
-          <div class="vuln-header" onclick="toggleVuln('vuln5')">
-            <div class="sev-tag tag-m">MEDIUM</div>
-            <div class="vuln-name">Missing Security Headers</div>
-            <div class="vuln-toggle">▼</div>
-          </div>
-          <div class="vuln-loc">SecurityConfig.java:8 · OWASP A05</div>
-          <div class="vuln-body">
-            <div class="detail-block">
-              <div class="detail-label">문제 설명</div>
-              <div class="detail-text">CSP, HSTS, X-Frame-Options 등 주요 보안 헤더가 누락되어 있습니다.</div>
-            </div>
-            <button class="autofix-btn" onclick="autoFix('vuln5')">⚡ AUTO FIX 적용</button>
-          </div>
-        </div>
-
       </div>
     </div>
 
-    <!-- CHAT PANEL -->
-    <div class="chat-panel" id="chatPanel">
-      <div class="chat-messages" id="chatMessages">
-        <div class="msg ai">
-          <div class="msg-label">SecureAI Agent</div>
-          <div class="msg-bubble">안녕하세요! 현재 <strong style="color:var(--orange);">6개</strong> 파일에서 <strong style="color:var(--red);">Critical 3개</strong>, <strong style="color:var(--yellow);">High 2개</strong>, <strong style="color:var(--amber);">Medium 1개</strong> 취약점이 발견되었습니다. 무엇이 궁금하신가요?</div>
+  </div>
+
+  <!-- DASHBOARD OVERLAY -->
+  <div class="dashboard-overlay" id="dashOverlay">
+    <div class="dash-inner">
+      <div>
+        <div class="dash-title">
+          📊 보안 대시보드
+          <span class="scan-badge">분석 완료</span>
+        </div>
+        <div class="dash-sub">secureai-frontend · 마지막 분석: 방금 전 · 6개 파일 스캔</div>
+      </div>
+
+      <!-- KPI -->
+      <div class="kpi-grid">
+        <div class="kpi-card score">
+          <div class="kpi-num orange">72</div>
+          <div class="kpi-lbl">보안 점수 / 100</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-num red">3</div>
+          <div class="kpi-lbl">🔴 Critical</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-num yellow">2</div>
+          <div class="kpi-lbl">🟠 High</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-num amber">1</div>
+          <div class="kpi-lbl">🟡 Medium</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-num green">40%</div>
+          <div class="kpi-lbl">패치 완료율</div>
         </div>
       </div>
-      <div class="chat-input-row">
-        <input class="chat-input" id="chatInput" placeholder="취약점에 대해 질문하세요..." onkeydown="handleChatKey(event)">
-        <button class="chat-send" onclick="sendChat()">➤</button>
+
+      <!-- CHARTS -->
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">OWASP 카테고리별 취약점 분포</div>
+          <div class="bar-chart">
+            <div class="bar-row">
+              <div class="bar-lbl">Injection</div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:70%;background:var(--red);"></div>
+              </div>
+              <div class="bar-cnt">2</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-lbl">Broken Access</div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:35%;background:var(--yellow);"></div>
+              </div>
+              <div class="bar-cnt">1</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-lbl">Crypto Failure</div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:35%;background:var(--red);"></div>
+              </div>
+              <div class="bar-cnt">1</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-lbl">XSS</div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:35%;background:var(--yellow);"></div>
+              </div>
+              <div class="bar-cnt">1</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-lbl">Misc. Config</div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:18%;background:var(--amber);"></div>
+              </div>
+              <div class="bar-cnt">1</div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">보안 점수 트렌드 (최근 7일)</div>
+          <div class="spark">
+            <div class="spark-col">
+              <div class="spark-bar" style="height:38px;background:rgba(240,65,65,0.5);"></div>
+              <div class="spark-lbl">4/13</div>
+            </div>
+            <div class="spark-col">
+              <div class="spark-bar" style="height:34px;background:rgba(240,65,65,0.5);"></div>
+              <div class="spark-lbl">4/14</div>
+            </div>
+            <div class="spark-col">
+              <div class="spark-bar" style="height:45px;background:rgba(245,158,11,0.6);"></div>
+              <div class="spark-lbl">4/15</div>
+            </div>
+            <div class="spark-col">
+              <div class="spark-bar" style="height:50px;background:rgba(245,158,11,0.6);"></div>
+              <div class="spark-lbl">4/16</div>
+            </div>
+            <div class="spark-col">
+              <div class="spark-bar" style="height:55px;background:rgba(234,179,8,0.6);"></div>
+              <div class="spark-lbl">4/17</div>
+            </div>
+            <div class="spark-col">
+              <div class="spark-bar" style="height:63px;background:rgba(34,197,94,0.5);"></div>
+              <div class="spark-lbl">4/18</div>
+            </div>
+            <div class="spark-col">
+              <div class="spark-bar" style="height:72px;background:var(--orange);"></div>
+              <div class="spark-lbl">오늘</div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <!-- HEATMAP -->
+      <div class="chart-card">
+        <div class="chart-title">파일별 취약점 히트맵</div>
+        <div class="heatmap-grid">
+          <div class="heat-cell c">
+            <div class="heat-file">UserController.java</div>
+            <div class="heat-cnt red">2 Critical</div>
+          </div>
+          <div class="heat-cell c">
+            <div class="heat-file">application.properties</div>
+            <div class="heat-cnt red">1 Critical</div>
+          </div>
+          <div class="heat-cell h">
+            <div class="heat-file">LoginPage.tsx</div>
+            <div class="heat-cnt yellow">1 High</div>
+          </div>
+          <div class="heat-cell m">
+            <div class="heat-file">SecurityConfig.java</div>
+            <div class="heat-cnt amber">1 Medium</div>
+          </div>
+          <div class="heat-cell">
+            <div class="heat-file">Dashboard.tsx</div>
+            <div class="heat-cnt green">Clean ✓</div>
+          </div>
+          <div class="heat-cell">
+            <div class="heat-file">AuthTest.java</div>
+            <div class="heat-cnt green">Clean ✓</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OWASP -->
+      <div class="chart-card">
+        <div class="chart-title">OWASP Top 10 커버리지 (A01~A10)</div>
+        <div class="owasp-grid">
+          <div class="owasp-cell hit">
+            <div class="owasp-id">A01</div>
+            <div class="owasp-name">Broken Access Control</div>
+          </div>
+          <div class="owasp-cell hit">
+            <div class="owasp-id">A02</div>
+            <div class="owasp-name">Cryptographic Failures</div>
+          </div>
+          <div class="owasp-cell hit">
+            <div class="owasp-id">A03</div>
+            <div class="owasp-name">Injection</div>
+          </div>
+          <div class="owasp-cell part">
+            <div class="owasp-id">A04</div>
+            <div class="owasp-name">Insecure Design</div>
+          </div>
+          <div class="owasp-cell part">
+            <div class="owasp-id">A05</div>
+            <div class="owasp-name">Misc. Config</div>
+          </div>
+          <div class="owasp-cell">
+            <div class="owasp-id">A06</div>
+            <div class="owasp-name">Vuln. Components</div>
+          </div>
+          <div class="owasp-cell hit">
+            <div class="owasp-id">A07</div>
+            <div class="owasp-name">Auth Failures</div>
+          </div>
+          <div class="owasp-cell">
+            <div class="owasp-id">A08</div>
+            <div class="owasp-name">Data Integrity</div>
+          </div>
+          <div class="owasp-cell part">
+            <div class="owasp-id">A09</div>
+            <div class="owasp-name">Security Logging</div>
+          </div>
+          <div class="owasp-cell">
+            <div class="owasp-id">A10</div>
+            <div class="owasp-name">SSRF</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:10px;font-size:10px;">
+          <span style="color:var(--red);">■ 탐지됨 (3)</span>
+          <span style="color:var(--yellow);">■ 부분 탐지 (3)</span>
+          <span style="color:var(--text3);">■ 미커버 (4)</span>
+        </div>
+      </div>
+
+      <div style="padding-bottom:20px;"></div>
     </div>
   </div>
 
-</div>
+  <script>
+    // State
+    let sevFilter = 'all';
+    let apiFilter = '/api/users';
+    let dashVisible = false;
+    let termCollapsed = false;
 
-<!-- DASHBOARD OVERLAY -->
-<div class="dashboard-overlay" id="dashOverlay">
-  <div class="dash-inner">
-    <div>
-      <div class="dash-title">
-        📊 보안 대시보드
-        <span class="scan-badge">분석 완료</span>
-      </div>
-      <div class="dash-sub">secureai-frontend · 마지막 분석: 방금 전 · 6개 파일 스캔</div>
-    </div>
-
-    <!-- KPI -->
-    <div class="kpi-grid">
-      <div class="kpi-card score">
-        <div class="kpi-num orange">72</div>
-        <div class="kpi-lbl">보안 점수 / 100</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-num red">3</div>
-        <div class="kpi-lbl">🔴 Critical</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-num yellow">2</div>
-        <div class="kpi-lbl">🟠 High</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-num amber">1</div>
-        <div class="kpi-lbl">🟡 Medium</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-num green">40%</div>
-        <div class="kpi-lbl">패치 완료율</div>
-      </div>
-    </div>
-
-    <!-- CHARTS -->
-    <div class="chart-row">
-      <div class="chart-card">
-        <div class="chart-title">OWASP 카테고리별 취약점 분포</div>
-        <div class="bar-chart">
-          <div class="bar-row">
-            <div class="bar-lbl">Injection</div>
-            <div class="bar-track"><div class="bar-fill" style="width:70%;background:var(--red);"></div></div>
-            <div class="bar-cnt">2</div>
-          </div>
-          <div class="bar-row">
-            <div class="bar-lbl">Broken Access</div>
-            <div class="bar-track"><div class="bar-fill" style="width:35%;background:var(--yellow);"></div></div>
-            <div class="bar-cnt">1</div>
-          </div>
-          <div class="bar-row">
-            <div class="bar-lbl">Crypto Failure</div>
-            <div class="bar-track"><div class="bar-fill" style="width:35%;background:var(--red);"></div></div>
-            <div class="bar-cnt">1</div>
-          </div>
-          <div class="bar-row">
-            <div class="bar-lbl">XSS</div>
-            <div class="bar-track"><div class="bar-fill" style="width:35%;background:var(--yellow);"></div></div>
-            <div class="bar-cnt">1</div>
-          </div>
-          <div class="bar-row">
-            <div class="bar-lbl">Misc. Config</div>
-            <div class="bar-track"><div class="bar-fill" style="width:18%;background:var(--amber);"></div></div>
-            <div class="bar-cnt">1</div>
-          </div>
-        </div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">보안 점수 트렌드 (최근 7일)</div>
-        <div class="spark">
-          <div class="spark-col"><div class="spark-bar" style="height:38px;background:rgba(240,65,65,0.5);"></div><div class="spark-lbl">4/13</div></div>
-          <div class="spark-col"><div class="spark-bar" style="height:34px;background:rgba(240,65,65,0.5);"></div><div class="spark-lbl">4/14</div></div>
-          <div class="spark-col"><div class="spark-bar" style="height:45px;background:rgba(245,158,11,0.6);"></div><div class="spark-lbl">4/15</div></div>
-          <div class="spark-col"><div class="spark-bar" style="height:50px;background:rgba(245,158,11,0.6);"></div><div class="spark-lbl">4/16</div></div>
-          <div class="spark-col"><div class="spark-bar" style="height:55px;background:rgba(234,179,8,0.6);"></div><div class="spark-lbl">4/17</div></div>
-          <div class="spark-col"><div class="spark-bar" style="height:63px;background:rgba(34,197,94,0.5);"></div><div class="spark-lbl">4/18</div></div>
-          <div class="spark-col"><div class="spark-bar" style="height:72px;background:var(--orange);"></div><div class="spark-lbl">오늘</div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- HEATMAP -->
-    <div class="chart-card">
-      <div class="chart-title">파일별 취약점 히트맵</div>
-      <div class="heatmap-grid">
-        <div class="heat-cell c">
-          <div class="heat-file">UserController.java</div>
-          <div class="heat-cnt red">2 Critical</div>
-        </div>
-        <div class="heat-cell c">
-          <div class="heat-file">application.properties</div>
-          <div class="heat-cnt red">1 Critical</div>
-        </div>
-        <div class="heat-cell h">
-          <div class="heat-file">LoginPage.tsx</div>
-          <div class="heat-cnt yellow">1 High</div>
-        </div>
-        <div class="heat-cell m">
-          <div class="heat-file">SecurityConfig.java</div>
-          <div class="heat-cnt amber">1 Medium</div>
-        </div>
-        <div class="heat-cell">
-          <div class="heat-file">Dashboard.tsx</div>
-          <div class="heat-cnt green">Clean ✓</div>
-        </div>
-        <div class="heat-cell">
-          <div class="heat-file">AuthTest.java</div>
-          <div class="heat-cnt green">Clean ✓</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- OWASP -->
-    <div class="chart-card">
-      <div class="chart-title">OWASP Top 10 커버리지 (A01~A10)</div>
-      <div class="owasp-grid">
-        <div class="owasp-cell hit"><div class="owasp-id">A01</div><div class="owasp-name">Broken Access Control</div></div>
-        <div class="owasp-cell hit"><div class="owasp-id">A02</div><div class="owasp-name">Cryptographic Failures</div></div>
-        <div class="owasp-cell hit"><div class="owasp-id">A03</div><div class="owasp-name">Injection</div></div>
-        <div class="owasp-cell part"><div class="owasp-id">A04</div><div class="owasp-name">Insecure Design</div></div>
-        <div class="owasp-cell part"><div class="owasp-id">A05</div><div class="owasp-name">Misc. Config</div></div>
-        <div class="owasp-cell"><div class="owasp-id">A06</div><div class="owasp-name">Vuln. Components</div></div>
-        <div class="owasp-cell hit"><div class="owasp-id">A07</div><div class="owasp-name">Auth Failures</div></div>
-        <div class="owasp-cell"><div class="owasp-id">A08</div><div class="owasp-name">Data Integrity</div></div>
-        <div class="owasp-cell part"><div class="owasp-id">A09</div><div class="owasp-name">Security Logging</div></div>
-        <div class="owasp-cell"><div class="owasp-id">A10</div><div class="owasp-name">SSRF</div></div>
-      </div>
-      <div style="display:flex;gap:16px;margin-top:10px;font-size:10px;">
-        <span style="color:var(--red);">■ 탐지됨 (3)</span>
-        <span style="color:var(--yellow);">■ 부분 탐지 (3)</span>
-        <span style="color:var(--text3);">■ 미커버 (4)</span>
-      </div>
-    </div>
-
-    <div style="padding-bottom:20px;"></div>
-  </div>
-</div>
-
-<script>
-  // State
-  let sevFilter = 'all';
-  let apiFilter = '/api/users';
-  let dashVisible = false;
-  let termCollapsed = false;
-
-  // Sev filter
-  function setSevFilter(level, el) {
-    sevFilter = level;
-    document.querySelectorAll('.sev-pill').forEach(p => p.classList.remove('active'));
-    el.classList.add('active');
-  }
-
-  // Vuln toggle
-  function toggleVuln(id) {
-    const item = document.getElementById(id);
-    item.classList.toggle('expanded');
-  }
-
-  // API filter
-  function setApiFilter(el, filter) {
-    apiFilter = filter;
-    document.querySelectorAll('.api-pill').forEach(p => p.classList.remove('active'));
-    el.classList.add('active');
-  }
-
-  // Tab switch
-  function switchTab(tab) {
-    if (tab === 'vuln') {
-      document.getElementById('vulnPanel').classList.remove('hidden');
-      document.getElementById('chatPanel').classList.remove('active');
-      document.getElementById('ptab-vuln').classList.add('active');
-      document.getElementById('ptab-chat').classList.remove('active');
-    } else {
-      document.getElementById('vulnPanel').classList.add('hidden');
-      document.getElementById('chatPanel').classList.add('active');
-      document.getElementById('ptab-chat').classList.add('active');
-      document.getElementById('ptab-vuln').classList.remove('active');
+    // Sev filter
+    function setSevFilter(level, el) {
+      sevFilter = level;
+      document.querySelectorAll('.sev-pill').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
     }
-  }
 
-  // File select
-  function selectFile(el, filename) {
-    document.querySelectorAll('.tree-file').forEach(f => f.classList.remove('active'));
-    el.classList.add('active');
-    document.querySelector('.header-path span').textContent = filename;
-    document.querySelector('.tab.active').textContent = filename;
-  }
-
-  // Dashboard toggle
-  function toggleDashboard() {
-    dashVisible = !dashVisible;
-    const dash = document.getElementById('dashOverlay');
-    const btn = document.querySelector('button.btn-ghost.active');
-    if (dashVisible) {
-      dash.classList.add('show');
-    } else {
-      dash.classList.remove('show');
+    // Vuln toggle
+    function toggleVuln(id) {
+      const item = document.getElementById(id);
+      item.classList.toggle('expanded');
     }
-  }
 
-  // Terminal toggle
-  function toggleTerminal() {
-    termCollapsed = !termCollapsed;
-    document.getElementById('dastTerminal').classList.toggle('collapsed', termCollapsed);
-    document.getElementById('termToggle').textContent = termCollapsed ? '▲' : '▼';
-  }
+    // API filter
+    function setApiFilter(el, filter) {
+      apiFilter = filter;
+      document.querySelectorAll('.api-pill').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+    }
 
-  // Analysis
-  function startAnalysis() {
-    const overlay = document.getElementById('loadingOverlay');
-    const steps = [
-      'MCP Filesystem 로컬 디렉토리 읽기...',
-      'SAST 에이전트 — Claude AI 코드 분석 중...',
-      '취약점 CWE/OWASP 분류 중...',
-      'DAST 에이전트 — Docker 샌드박스 초기화...',
-      '공격 페이로드 생성 및 실행 중...',
-      '패치 에이전트 — 수정 코드 생성 중...',
-      '리포트 생성 완료!'
-    ];
-    let i = 0;
-    overlay.classList.add('show');
-    const interval = setInterval(() => {
-      if (i < steps.length) {
-        document.getElementById('loadingStep').textContent = steps[i++];
+    // Tab switch
+    function switchTab(tab) {
+      if (tab === 'vuln') {
+        document.getElementById('vulnPanel').classList.remove('hidden');
+        document.getElementById('chatPanel').classList.remove('active');
+        document.getElementById('ptab-vuln').classList.add('active');
+        document.getElementById('ptab-chat').classList.remove('active');
       } else {
-        clearInterval(interval);
-        setTimeout(() => overlay.classList.remove('show'), 500);
+        document.getElementById('vulnPanel').classList.add('hidden');
+        document.getElementById('chatPanel').classList.add('active');
+        document.getElementById('ptab-chat').classList.add('active');
+        document.getElementById('ptab-vuln').classList.remove('active');
       }
-    }, 400);
-  }
+    }
 
-  // AutoFix
-  function autoFix(id) {
-    const btn = document.querySelector(`#${id} .autofix-btn`);
-    btn.textContent = '✓ 패치 적용 완료';
-    btn.style.background = 'var(--green)';
-    btn.style.boxShadow = '0 0 10px rgba(34,197,94,0.3)';
-    setTimeout(() => {
-      btn.textContent = '⚡ AUTO FIX 적용';
-      btn.style.background = '';
-      btn.style.boxShadow = '';
-    }, 2000);
-  }
+    // File select
+    function selectFile(el, filename) {
+      document.querySelectorAll('.tree-file').forEach(f => f.classList.remove('active'));
+      el.classList.add('active');
+      document.querySelector('.header-path span').textContent = filename;
+      document.querySelector('.tab.active').textContent = filename;
+    }
 
-  // Chat
-  const AI_RESPONSES = {
-    'sql': 'PreparedStatement를 사용하면 SQL Injection을 방어할 수 있습니다.\n\n```java\nPreparedStatement ps = con.prepareStatement(\n  "SELECT * FROM users WHERE name = ?");\nps.setString(1, dto.getName());\n```\n\n파라미터화 쿼리는 입력값을 데이터로만 처리하여 SQL 명령으로 해석되지 않습니다.',
-    'idor': 'IDOR 방어를 위해 현재 인증된 사용자의 id와 요청한 id를 비교해야 합니다.\n\n```java\nif (!currentUser.getId().equals(id)) {\n  return ResponseEntity.status(403).build();\n}\n```\n\nSpring Security의 @PreAuthorize를 활용하면 더 간결하게 처리 가능합니다.',
-    'xss': 'innerHTML 대신 textContent를 사용하거나 DOMPurify로 sanitize해야 합니다.\n\n```javascript\n// ❌ 위험\nerrEl.innerHTML = message;\n\n// ✅ 안전\nerrEl.textContent = message;\n```',
-    'default': '현재 발견된 주요 취약점 요약입니다:\n\n🔴 **Critical (3개)**: SQL Injection, Hardcoded Secret\n🟠 **High (2개)**: IDOR, XSS\n🟡 **Medium (1개)**: Missing Security Headers\n\n어떤 취약점을 자세히 알고 싶으신가요?'
-  };
+    // Dashboard toggle
+    function toggleDashboard() {
+      dashVisible = !dashVisible;
+      const dash = document.getElementById('dashOverlay');
+      const btn = document.querySelector('button.btn-ghost.active');
+      if (dashVisible) {
+        dash.classList.add('show');
+      } else {
+        dash.classList.remove('show');
+      }
+    }
 
-  function sendChat() {
-    const input = document.getElementById('chatInput');
-    const msg = input.value.trim();
-    if (!msg) return;
-    
-    addMsg(msg, 'user');
-    input.value = '';
-    
-    setTimeout(() => {
-      const lower = msg.toLowerCase();
-      let resp = AI_RESPONSES.default;
-      if (lower.includes('sql') || lower.includes('injection')) resp = AI_RESPONSES.sql;
-      else if (lower.includes('idor') || lower.includes('접근')) resp = AI_RESPONSES.idor;
-      else if (lower.includes('xss')) resp = AI_RESPONSES.xss;
-      addMsg(resp, 'ai');
-    }, 600);
-  }
+    // Terminal toggle
+    function toggleTerminal() {
+      termCollapsed = !termCollapsed;
+      document.getElementById('dastTerminal').classList.toggle('collapsed', termCollapsed);
+      document.getElementById('termToggle').textContent = termCollapsed ? '▲' : '▼';
+    }
 
-  function addMsg(text, type) {
-    const msgs = document.getElementById('chatMessages');
-    const div = document.createElement('div');
-    div.className = `msg ${type}`;
-    div.innerHTML = `
+    // Analysis
+    function startAnalysis() {
+      const overlay = document.getElementById('loadingOverlay');
+      const steps = [
+        'MCP Filesystem 로컬 디렉토리 읽기...',
+        'SAST 에이전트 — Claude AI 코드 분석 중...',
+        '취약점 CWE/OWASP 분류 중...',
+        'DAST 에이전트 — Docker 샌드박스 초기화...',
+        '공격 페이로드 생성 및 실행 중...',
+        '패치 에이전트 — 수정 코드 생성 중...',
+        '리포트 생성 완료!'
+      ];
+      let i = 0;
+      overlay.classList.add('show');
+      const interval = setInterval(() => {
+        if (i < steps.length) {
+          document.getElementById('loadingStep').textContent = steps[i++];
+        } else {
+          clearInterval(interval);
+          setTimeout(() => overlay.classList.remove('show'), 500);
+        }
+      }, 400);
+    }
+
+    // AutoFix
+    function autoFix(id) {
+      const btn = document.querySelector(`#${id} .autofix-btn`);
+      btn.textContent = '✓ 패치 적용 완료';
+      btn.style.background = 'var(--green)';
+      btn.style.boxShadow = '0 0 10px rgba(34,197,94,0.3)';
+      setTimeout(() => {
+        btn.textContent = '⚡ AUTO FIX 적용';
+        btn.style.background = '';
+        btn.style.boxShadow = '';
+      }, 2000);
+    }
+
+    // Chat
+    const AI_RESPONSES = {
+      'sql': 'PreparedStatement를 사용하면 SQL Injection을 방어할 수 있습니다.\n\n```java\nPreparedStatement ps = con.prepareStatement(\n  "SELECT * FROM users WHERE name = ?");\nps.setString(1, dto.getName());\n```\n\n파라미터화 쿼리는 입력값을 데이터로만 처리하여 SQL 명령으로 해석되지 않습니다.',
+      'idor': 'IDOR 방어를 위해 현재 인증된 사용자의 id와 요청한 id를 비교해야 합니다.\n\n```java\nif (!currentUser.getId().equals(id)) {\n  return ResponseEntity.status(403).build();\n}\n```\n\nSpring Security의 @PreAuthorize를 활용하면 더 간결하게 처리 가능합니다.',
+      'xss': 'innerHTML 대신 textContent를 사용하거나 DOMPurify로 sanitize해야 합니다.\n\n```javascript\n// ❌ 위험\nerrEl.innerHTML = message;\n\n// ✅ 안전\nerrEl.textContent = message;\n```',
+      'default': '현재 발견된 주요 취약점 요약입니다:\n\n🔴 **Critical (3개)**: SQL Injection, Hardcoded Secret\n🟠 **High (2개)**: IDOR, XSS\n🟡 **Medium (1개)**: Missing Security Headers\n\n어떤 취약점을 자세히 알고 싶으신가요?'
+    };
+
+    function sendChat() {
+      const input = document.getElementById('chatInput');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      addMsg(msg, 'user');
+      input.value = '';
+
+      setTimeout(() => {
+        const lower = msg.toLowerCase();
+        let resp = AI_RESPONSES.default;
+        if (lower.includes('sql') || lower.includes('injection')) resp = AI_RESPONSES.sql;
+        else if (lower.includes('idor') || lower.includes('접근')) resp = AI_RESPONSES.idor;
+        else if (lower.includes('xss')) resp = AI_RESPONSES.xss;
+        addMsg(resp, 'ai');
+      }, 600);
+    }
+
+    function addMsg(text, type) {
+      const msgs = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.className = `msg ${type}`;
+      div.innerHTML = `
       ${type === 'ai' ? '<div class="msg-label">SecureAI Agent</div>' : ''}
-      <div class="msg-bubble">${text.replace(/\n/g,'<br>').replace(/```([\s\S]*?)```/g,'<code style="display:block;background:var(--bg0);padding:6px;border-radius:2px;font-family:var(--mono);font-size:10px;margin-top:4px;color:var(--green);">$1</code>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div>
+      <div class="msg-bubble">${text.replace(/\n/g, '<br>').replace(/```([\s\S]*?)```/g, '<code style="display:block;background:var(--bg0);padding:6px;border-radius:2px;font-family:var(--mono);font-size:10px;margin-top:4px;color:var(--green);">$1</code>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
     `;
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-  }
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
 
-  function handleChatKey(e) {
-    if (e.key === 'Enter') sendChat();
-  }
+    function handleChatKey(e) {
+      if (e.key === 'Enter') sendChat();
+    }
 
-  // Init terminal running indicator
-  document.getElementById('termStatus').classList.add('running');
-  setTimeout(() => document.getElementById('termStatus').classList.remove('running'), 5000);
-</script>
+    // Init terminal running indicator
+    document.getElementById('termStatus').classList.add('running');
+    setTimeout(() => document.getElementById('termStatus').classList.remove('running'), 5000);
+  </script>
 </body>
+
 </html>

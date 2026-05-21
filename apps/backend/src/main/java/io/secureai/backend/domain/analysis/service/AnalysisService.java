@@ -3,12 +3,11 @@ package io.secureai.backend.domain.analysis.service;
 import io.secureai.backend.domain.analysis.dto.AnalysisSessionResponse;
 import io.secureai.backend.domain.analysis.dto.StartAnalysisRequest;
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
+import io.secureai.backend.domain.analysis.entity.SessionStatus;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.project.entity.Project;
-import io.secureai.backend.domain.project.repository.ProjectRepository;
-import io.secureai.backend.domain.project.repository.TeamMemberRepository;
+import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.domain.user.entity.User;
-import io.secureai.backend.domain.user.repository.UserRepository;
 import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
@@ -27,68 +26,65 @@ import java.util.UUID;
 public class AnalysisService {
 
     private final AnalysisSessionRepository sessionRepository;
-    private final ProjectRepository projectRepository;
-    private final TeamMemberRepository teamMemberRepository;
-    private final UserRepository userRepository;
+    private final ProjectService projectService;
     private final AiAgentClient aiAgentClient;
     private final GitHubApiService gitHubApiService;
     private final UserService userService;
 
     @Transactional
     public AnalysisSessionResponse startAnalysis(UUID userId, StartAnalysisRequest request) {
-        Project project = projectRepository.findById(request.projectId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
-
-        if (!teamMemberRepository.existsByProjectIdAndUserId(request.projectId(), userId)) {
+        Project project = projectService.findOrThrow(request.projectId());
+        if (!projectService.isMember(request.projectId(), userId)) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
 
-        if (sessionRepository.existsByProjectIdAndStatus(request.projectId(), "running")) {
-            throw new BusinessException(ErrorCode.SESSION_ALREADY_RUNNING);
-        }
+        handleRunningSession(request.projectId(), request.isForce());
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-
-        AnalysisSession session = AnalysisSession.builder()
-                .project(project)
-                .user(user)
-                .build();
+        User user = userService.findOrThrow(userId);
+        AnalysisSession session = AnalysisSession.builder().project(project).user(user).build();
         sessionRepository.save(session);
-
         session.markRunning();
         sessionRepository.save(session);
 
-        // 사용자 모델 설정 및 BYOK 키 조회 (분석 전 해결)
         UserService.UserAnalysisSettings settings = userService.getAnalysisSettings(userId);
-
-        // AI Agent 비동기 호출 (Virtual Thread 에서 실행)
-        if ("github".equalsIgnoreCase(request.effectiveSourceType())) {
-            GitHubApiService.GithubRepoInfo info = gitHubApiService.resolveAndValidate(userId, request.githubRepoUrl(),
-                    request.githubRef());
-            // 토큰은 로그에 출력 금지
-            aiAgentClient.startAnalysis(
-                    session.getId(), project.getId(), null,
-                    "github", info.owner(), info.repo(), info.ref(), info.token(),
-                    settings.preferredModel(), settings.apiKey());
-        } else {
-            String workspaceRoot = request.workspaceRoot() != null
-                    ? request.workspaceRoot()
-                    : "/workspace/" + project.getId();
-            aiAgentClient.startAnalysis(
-                    session.getId(), project.getId(), workspaceRoot,
-                    "local", null, null, null, null,
-                    settings.preferredModel(), settings.apiKey());
-        }
+        dispatchToAgent(session, project, userId, request, settings);
 
         log.info("[analysis] started sessionId={} projectId={} sourceType={}",
                 session.getId(), project.getId(), request.effectiveSourceType());
         return AnalysisSessionResponse.from(session);
     }
 
+    private void handleRunningSession(UUID projectId, boolean force) {
+        if (!sessionRepository.existsByProjectIdAndStatus(projectId, SessionStatus.RUNNING)) return;
+        if (!force) throw new BusinessException(ErrorCode.SESSION_ALREADY_RUNNING);
+        sessionRepository.findAllByStatus(SessionStatus.RUNNING).stream()
+                .filter(s -> s.getProject().getId().equals(projectId))
+                .forEach(s -> sessionRepository.markInterrupted(
+                        s.getId(), SessionStatus.INTERRUPTED, SessionStatus.RUNNING));
+    }
+
+    private void dispatchToAgent(AnalysisSession session, Project project, UUID userId,
+                                 StartAnalysisRequest request, UserService.UserAnalysisSettings settings) {
+        if ("github".equalsIgnoreCase(request.effectiveSourceType())) {
+            GitHubApiService.GithubRepoInfo info =
+                    gitHubApiService.resolveAndValidate(userId, request.githubRepoUrl(), request.githubRef());
+            aiAgentClient.startAnalysis(
+                    session.getId(), project.getId(), null,
+                    "github", info.owner(), info.repo(), info.ref(), info.token(),
+                    settings.preferredModel(), settings.apiKey());
+        } else {
+            String workspaceRoot = request.workspaceRoot() != null
+                    ? request.workspaceRoot() : "/workspace/" + project.getId();
+            aiAgentClient.startAnalysis(
+                    session.getId(), project.getId(), workspaceRoot,
+                    "local", null, null, null, null,
+                    settings.preferredModel(), settings.apiKey());
+        }
+    }
+
     @Transactional(readOnly = true)
     public Page<AnalysisSessionResponse> listSessions(UUID userId, UUID projectId, Pageable pageable) {
-        if (!teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)) {
+        if (!projectService.isMember(projectId, userId)) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
         return sessionRepository.findByProjectIdOrderByCreatedAtDesc(projectId, pageable)
@@ -107,7 +103,7 @@ public class AnalysisService {
         AnalysisSession session = sessionRepository.findByIdAndUserId(sessionId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        if (!"interrupted".equals(session.getStatus())) {
+        if (SessionStatus.INTERRUPTED != session.getStatus()) {
             throw new BusinessException(ErrorCode.SESSION_NOT_RESUMABLE);
         }
 
@@ -123,11 +119,11 @@ public class AnalysisService {
         AnalysisSession session = sessionRepository.findByIdAndUserId(sessionId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        if (!"running".equals(session.getStatus()) && !"pending".equals(session.getStatus())) {
+        if (SessionStatus.RUNNING != session.getStatus() && SessionStatus.PENDING != session.getStatus()) {
             throw new BusinessException(ErrorCode.SESSION_NOT_RESUMABLE);
         }
 
-        session.setStatus("cancelled");
+        session.setStatus(SessionStatus.CANCELLED);
         sessionRepository.save(session);
         aiAgentClient.cancelAnalysis(sessionId);
         log.info("[analysis] cancelled sessionId={}", sessionId);

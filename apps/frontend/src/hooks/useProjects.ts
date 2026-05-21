@@ -28,8 +28,8 @@ export function useProjects() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await apiClient.get<{ data: ProjectItem[] }>('/projects');
-        const items: ProjectItem[] = res.data ?? [];
+        const res = await apiClient.get<{ data: { content: ProjectItem[] } }>('/projects');
+        const items: ProjectItem[] = res.data?.content ?? (res.data as any) ?? [];
 
         const summaries = await Promise.all(
           items.map(async (p) => {

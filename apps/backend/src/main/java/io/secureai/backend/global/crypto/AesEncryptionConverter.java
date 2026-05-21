@@ -11,15 +11,17 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.SecureRandom;
+import java.util.Base64;
 
 /**
  * AES-256-GCM 암호화 컨버터.
- * DB 저장 시 plaintext String → encrypted BYTEA, 읽을 때 역변환.
+ * DB 저장: plaintext String → Base64(IV || ciphertext), 읽을 때 역변환.
+ * TEXT 컬럼 호환을 위해 Base64 인코딩 사용.
  */
 @Slf4j
 @Converter
 @Component
-public class AesEncryptionConverter implements AttributeConverter<String, byte[]>, InitializingBean {
+public class AesEncryptionConverter implements AttributeConverter<String, String>, InitializingBean {
 
     private static final int GCM_IV_LENGTH = 12;
     private static final int GCM_TAG_BITS = 128;
@@ -39,7 +41,7 @@ public class AesEncryptionConverter implements AttributeConverter<String, byte[]
     }
 
     @Override
-    public byte[] convertToDatabaseColumn(String plaintext) {
+    public String convertToDatabaseColumn(String plaintext) {
         if (plaintext == null) return null;
         try {
             byte[] iv = new byte[GCM_IV_LENGTH];
@@ -52,20 +54,21 @@ public class AesEncryptionConverter implements AttributeConverter<String, byte[]
             byte[] result = new byte[GCM_IV_LENGTH + encrypted.length];
             System.arraycopy(iv, 0, result, 0, GCM_IV_LENGTH);
             System.arraycopy(encrypted, 0, result, GCM_IV_LENGTH, encrypted.length);
-            return result;
+            return Base64.getEncoder().encodeToString(result);
         } catch (Exception e) {
             throw new RuntimeException("Encryption failed", e);
         }
     }
 
     @Override
-    public String convertToEntityAttribute(byte[] dbData) {
+    public String convertToEntityAttribute(String dbData) {
         if (dbData == null) return null;
         try {
+            byte[] decoded = Base64.getDecoder().decode(dbData);
             byte[] iv = new byte[GCM_IV_LENGTH];
-            System.arraycopy(dbData, 0, iv, 0, GCM_IV_LENGTH);
-            byte[] ciphertext = new byte[dbData.length - GCM_IV_LENGTH];
-            System.arraycopy(dbData, GCM_IV_LENGTH, ciphertext, 0, ciphertext.length);
+            System.arraycopy(decoded, 0, iv, 0, GCM_IV_LENGTH);
+            byte[] ciphertext = new byte[decoded.length - GCM_IV_LENGTH];
+            System.arraycopy(decoded, GCM_IV_LENGTH, ciphertext, 0, ciphertext.length);
 
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(KEY_BYTES, "AES"), new GCMParameterSpec(GCM_TAG_BITS, iv));

@@ -6,6 +6,7 @@ import io.secureai.backend.domain.cve.entity.CveData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -37,7 +38,10 @@ public class NvdApiClient {
     public NvdApiClient(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
-        this.restClient = RestClient.builder().build();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10_000);
+        factory.setReadTimeout(30_000);
+        this.restClient = RestClient.builder().requestFactory(factory).build();
     }
 
     @Value("${secureai.nvd.api-key:}")

@@ -41,7 +41,9 @@ public enum ErrorCode {
     PROGRESS_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "진행 로그를 찾을 수 없습니다."),
 
     DAST_DOMAIN_NOT_VERIFIED(HttpStatus.FORBIDDEN, "도메인 소유권이 확인되지 않았습니다."),
+    DAST_CONSENT_REQUIRED(HttpStatus.FORBIDDEN, "DAST 실행 전 면책 동의가 필요합니다."),
     DAST_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "도메인별 DAST 횟수를 초과했습니다."),
+    DAST_CONCURRENT_SCAN(HttpStatus.CONFLICT, "해당 도메인에 이미 진행 중인 DAST가 있습니다."),
 
     GITHUB_AUTH_REQUIRED(HttpStatus.FORBIDDEN, "GitHub 연동이 필요합니다."),
     GITHUB_WEBHOOK_INVALID(HttpStatus.BAD_REQUEST, "Webhook 서명이 유효하지 않습니다."),

@@ -86,7 +86,7 @@ describe('useSse', () => {
 
     const vulnEvent: ProgressEvent = {
       sessionId: 'session-789',
-      type:      'completed',
+      type:      'vuln_found',
       file:      'UserAuth.java',
       message:   'SQL Injection detected',
     };

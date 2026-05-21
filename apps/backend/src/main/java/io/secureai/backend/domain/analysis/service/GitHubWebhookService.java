@@ -9,6 +9,8 @@ import io.secureai.backend.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.lang.Nullable;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +44,7 @@ public class GitHubWebhookService {
     private static final String SIGNATURE_PREFIX = "sha256=";
     private static final String CHECK_RUN_NAME = "SecureAI Security Review";
 
+    @Nullable
     private final Mac webhookMac;
     private final GitHubConfig gitHubConfig;
     private final PrReviewHistoryRepository prReviewHistoryRepository;
@@ -50,7 +53,7 @@ public class GitHubWebhookService {
     private final ObjectMapper objectMapper;
 
     public GitHubWebhookService(
-            @Qualifier("webhookMac") Mac webhookMac,
+            @Qualifier("webhookMac") @Nullable Mac webhookMac,
             GitHubConfig gitHubConfig,
             PrReviewHistoryRepository prReviewHistoryRepository,
             AiAgentClient aiAgentClient,
@@ -61,7 +64,11 @@ public class GitHubWebhookService {
         this.prReviewHistoryRepository = prReviewHistoryRepository;
         this.aiAgentClient = aiAgentClient;
         this.objectMapper = objectMapper;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10_000);
+        factory.setReadTimeout(30_000);
         this.githubRestClient = RestClient.builder()
+                .requestFactory(factory)
                 .baseUrl(GITHUB_API_BASE)
                 .defaultHeader("Accept", "application/vnd.github+json")
                 .defaultHeader("User-Agent", "secureai-backend/1.0")

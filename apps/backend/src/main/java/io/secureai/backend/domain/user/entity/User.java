@@ -47,7 +47,7 @@ public class User extends BaseTimeEntity {
     private String githubLogin;
 
     @Convert(converter = AesEncryptionConverter.class)
-    @Column(columnDefinition = "bytea")
+    @Column(columnDefinition = "TEXT")
     private String githubToken;
 
     private OffsetDateTime githubTokenExpiresAt;
@@ -109,7 +109,7 @@ public class User extends BaseTimeEntity {
     private Integer creditBalance = 100;
 
     @Convert(converter = AesEncryptionConverter.class)
-    @Column(columnDefinition = "bytea")
+    @Column(columnDefinition = "TEXT")
     private String anthropicApiKey;
 
     @Column(length = 60, nullable = false)

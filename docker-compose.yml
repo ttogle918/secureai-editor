@@ -1,17 +1,19 @@
 version: '3.9'
 
 # ===== 네트워크 =====
-# app-net   : frontend ↔ backend
-# data-net  : backend ↔ postgres, redis
-# dast-net  : DAST 샌드박스 격리 (Sprint 6에서 활성화)
+# app-net          : frontend ↔ backend
+# data-net         : backend ↔ postgres, redis
+# dast-isolated-net: DAST 샌드박스 격리 — external:true (호스트 Docker 데몬에서 별도 생성)
+#   생성 명령: docker network create dast-isolated-net
+#   특성: backend가 DooD(Docker-out-of-Docker)로 호스트 소켓 경유 컨테이너를 생성하므로
+#         docker-compose 관리 네트워크가 아닌 호스트 네트워크를 직접 참조한다.
 networks:
   app-net:
     driver: bridge
   data-net:
     driver: bridge
-  dast-net:
-    driver: bridge
-    internal: true
+  dast-isolated-net:
+    external: true
 
 # ===== 볼륨 =====
 volumes:
@@ -24,7 +26,7 @@ services:
 
   # ── PostgreSQL 15 ──────────────────────────────────────
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: secureai-postgres
     restart: unless-stopped
     environment:
@@ -91,6 +93,8 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       AI_AGENT_URL: http://ai-engine:8000
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      # Windows Docker Desktop: "Expose daemon on tcp://localhost:2375" 활성화 후 아래 주석 해제
+      DOCKER_HOST: tcp://host.docker.internal:2375
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - reports_data:/app/reports

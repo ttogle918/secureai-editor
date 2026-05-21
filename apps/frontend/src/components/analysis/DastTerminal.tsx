@@ -1,56 +1,164 @@
 'use client';
-import { useEffect, useRef } from 'react';
-import type { DastLog } from '@/lib/mockData';
+import React, { useEffect, useRef } from 'react';
+import { useSecureStore } from '@/store/useSecureStore';
+import { useDastStream } from '@/hooks/useDastStream';
 
-const levelColor: Record<DastLog['level'], string> = {
-  info:    'text-gray-400',
-  warn:    'text-yellow-400',
-  error:   'text-red-400',
-  success: 'text-green-400',
+// ── ANSI 컬러 코드 매핑 ─────────────────────────────────────────
+const ANSI_COLORS: Record<string, string> = {
+  '30': '#4a4a4a',
+  '31': '#ff5f5f',
+  '32': '#5fff5f',
+  '33': '#ffff00',
+  '34': '#5f87ff',
+  '35': '#ff5fff',
+  '36': '#5fffff',
+  '37': '#ffffff',
+  '0':  '',        // reset
 };
 
-const levelPrefix: Record<DastLog['level'], string> = {
-  info:    '[INFO]   ',
-  warn:    '[WARN]   ',
-  error:   '[EXPLOIT]',
-  success: '[PATCH]  ',
-};
+// ANSI escape 시퀀스(\x1b[Nm)를 React span 노드 배열로 변환
+function parseAnsi(text: string): React.ReactNode[] {
+  // \x1b[ ... m 패턴으로 분리 (캡처 그룹 포함 → 구분자 자체도 토큰에 포함)
+  const ANSI_RE = /\x1b\[(\d+)m/g;
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let currentColor: string | null = null;
+  let match: RegExpExecArray | null;
+  let keyIdx = 0;
 
-interface Props {
-  logs: DastLog[];
+  while ((match = ANSI_RE.exec(text)) !== null) {
+    const before = text.slice(lastIndex, match.index);
+    if (before) {
+      nodes.push(
+        currentColor
+          ? <span key={keyIdx++} style={{ color: currentColor }}>{before}</span>
+          : <span key={keyIdx++}>{before}</span>,
+      );
+    }
+
+    const code = match[1];
+    if (code === '0') {
+      currentColor = null;
+    } else {
+      currentColor = ANSI_COLORS[code] ?? null;
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // 나머지 텍스트
+  const tail = text.slice(lastIndex);
+  if (tail) {
+    nodes.push(
+      currentColor
+        ? <span key={keyIdx++} style={{ color: currentColor }}>{tail}</span>
+        : <span key={keyIdx++}>{tail}</span>,
+    );
+  }
+
+  return nodes.length > 0 ? nodes : [<span key={0}>{text}</span>];
 }
 
-export default function DastTerminal({ logs }: Props) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+const LEVEL_PREFIX: Record<string, string> = {
+  info:    '[INFO]   ',
+  warn:    '[WARN]   ',
+  error:   '[ERROR]  ',
+  success: '[SUCCESS]',
+};
 
+const LEVEL_COLOR: Record<string, string> = {
+  info:    'rgba(255,255,255,0.35)',
+  warn:    '#facc15',
+  error:   '#f87171',
+  success: '#4ade80',
+};
+
+// ── DastTerminal 컴포넌트 ────────────────────────────────────────
+export default function DastTerminal() {
+  const dastLogs      = useSecureStore((s) => s.dastLogs);
+  const dastSessionId = useSecureStore((s) => s.dastSessionId);
+  const bottomRef     = useRef<HTMLDivElement>(null);
+
+  // SSE 스트림 구독
+  useDastStream();
+
+  // 신규 로그 추가 시 자동 스크롤
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
+  }, [dastLogs]);
+
+  const isRunning = dastSessionId !== null;
 
   return (
     <div className="flex flex-col h-full">
       {/* 탭 헤더 */}
-      <div className="flex border-b shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--bg-panel)' }}>
-        <div className="editor-tab active">DAST 터미널</div>
-        <div className="editor-tab">로그</div>
+      <div
+        className="flex items-center border-b shrink-0 px-3 gap-3"
+        style={{ borderColor: 'var(--border)', background: 'var(--bg-panel)', height: 32 }}
+      >
+        <span
+          className="text-xs font-semibold"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          DAST 터미널
+        </span>
+
+        {/* 실행 상태 인디케이터 */}
+        {isRunning ? (
+          <span className="flex items-center gap-1.5 text-xs" style={{ color: '#4ade80' }}>
+            <span
+              className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"
+              aria-hidden="true"
+            />
+            DAST 실행 중...
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ background: 'rgba(255,255,255,0.2)' }}
+              aria-hidden="true"
+            />
+            대기 중
+          </span>
+        )}
       </div>
 
-      {/* 로그 출력 */}
+      {/* 로그 출력 영역 */}
       <div
         className="flex-1 overflow-y-auto p-2"
-        style={{ background: '#0d0d0d', fontFamily: 'var(--font-mono, monospace)' }}
+        style={{
+          background: '#050810',
+          fontFamily: 'var(--font-mono, monospace)',
+          minHeight: 200,
+        }}
       >
-        {logs.length === 0 ? (
-          <p className="text-xs p-2" style={{ color: 'var(--text-tertiary)' }}>
+        {dastLogs.length === 0 ? (
+          <p className="text-xs p-2" style={{ color: 'rgba(255,255,255,0.2)' }}>
             DAST 분석을 시작하려면 취약점을 선택하세요.
           </p>
         ) : (
-          logs.map((log, i) => (
+          dastLogs.map((log, i) => (
             <div key={i} className="flex gap-2 text-xs leading-relaxed">
-              <span style={{ color: 'var(--text-tertiary)' }}>{log.timestamp}</span>
-              <span className={levelColor[log.level]}>{levelPrefix[log.level]}</span>
-              <span style={{ color: log.level === 'error' ? 'var(--critical)' : log.level === 'success' ? 'var(--success)' : 'var(--text-secondary)' }}>
-                {log.message}
+              {/* 타임스탬프 */}
+              <span
+                className="shrink-0"
+                style={{ color: 'rgba(255,255,255,0.2)', minWidth: '7ch' }}
+              >
+                {log.timestamp}
+              </span>
+
+              {/* 레벨 접두사 */}
+              <span
+                className="shrink-0"
+                style={{ color: LEVEL_COLOR[log.level] ?? LEVEL_COLOR.info, minWidth: '10ch' }}
+              >
+                {LEVEL_PREFIX[log.level] ?? '[INFO]   '}
+              </span>
+
+              {/* 메시지 — ANSI 파싱 */}
+              <span className="break-all" style={{ color: '#d4d4d4' }}>
+                {parseAnsi(log.message)}
               </span>
             </div>
           ))

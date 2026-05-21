@@ -49,11 +49,13 @@ export function useWorkspace() {
   const [status, setStatus]   = useState<UploadStatus>('idle');
   const [progress, setProgress] = useState('');
 
-  const workspaceId      = useSecureStore((s) => s.workspaceId);
-  const setWorkspaceId   = useSecureStore((s) => s.setWorkspaceId);
-  const setWorkspaceName = useSecureStore((s) => s.setWorkspaceName);
-  const setWorkspaceTree = useSecureStore((s) => s.setWorkspaceTree);
-  const setProjectId     = useSecureStore((s) => s.setProjectId);
+  const workspaceId         = useSecureStore((s) => s.workspaceId);
+  const setWorkspaceId      = useSecureStore((s) => s.setWorkspaceId);
+  const setWorkspaceName    = useSecureStore((s) => s.setWorkspaceName);
+  const setWorkspaceTree    = useSecureStore((s) => s.setWorkspaceTree);
+  const setProjectId        = useSecureStore((s) => s.setProjectId);
+  const addExtraWorkspace   = useSecureStore((s) => s.addExtraWorkspace);
+  const setActiveWorkspaceId = useSecureStore((s) => s.setActiveWorkspaceId);
 
   // 새로고침 후 persist된 workspaceId가 Redis에서 만료됐는지 확인
   useEffect(() => {
@@ -71,72 +73,77 @@ export function useWorkspace() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 마운트 시 1회만
 
+  // 폴더 선택 → 파일 읽기 → 백엔드 업로드 → 트리 반환 (공통 로직)
+  const pickAndUpload = useCallback(async (): Promise<{
+    id: string; name: string; tree: FileNode[];
+  } | null> => {
+    setStatus('picking');
+
+    let projectName: string;
+    let files: Array<{ path: string; content: string }>;
+
+    if (isTauri()) {
+      const dirPath = await pickDirectoryNative();
+      if (!dirPath) { setStatus('idle'); return null; }
+      projectName = dirNameFromPath(dirPath);
+      setStatus('reading');
+      setProgress('파일 읽는 중...');
+      files = await readDirectoryNative(dirPath);
+    } else {
+      if (!('showDirectoryPicker' in window)) {
+        alert('이 브라우저는 폴더 선택을 지원하지 않습니다. Chrome 또는 Edge를 사용해 주세요.');
+        setStatus('idle');
+        return null;
+      }
+      const dirHandle: FileSystemDirectoryHandle = await (window as any).showDirectoryPicker({ mode: 'read' });
+      projectName = dirHandle.name;
+      setStatus('reading');
+      setProgress('파일 읽는 중...');
+      const collected: Array<{ path: string; content: string }> = [];
+      await readDir(dirHandle, '', collected);
+      files = collected;
+    }
+
+    setProgress(`${files.length}개 파일 읽음 — 업로드 중...`);
+    setStatus('uploading');
+
+    const res = await fetch(`${BACKEND}/api/workspace`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectName, files }),
+    });
+    if (!res.ok) throw new Error(`업로드 실패: ${res.status}`);
+    const { workspaceId: newId } = await res.json();
+
+    const treeRes = await fetch(`${BACKEND}/api/workspace/${newId}/tree`);
+    if (!treeRes.ok) throw new Error('트리 로드 실패');
+    const treeData: any[] = await treeRes.json();
+    const tree: FileNode[] = treeData.map(toFileNode);
+
+    return { id: newId, name: projectName, tree };
+  }, []);
+
+  // 기본 워크스페이스 교체 (기존 동작 유지)
   const openFolder = useCallback(async () => {
     try {
-      setStatus('picking');
+      const result = await pickAndUpload();
+      if (!result) return;
+      const { id, name, tree } = result;
 
-      let projectName: string;
-      let files: Array<{ path: string; content: string }>;
-
-      if (isTauri()) {
-        // ── Tauri 데스크탑: 네이티브 폴더 선택 ──────────────────────
-        const dirPath = await pickDirectoryNative();
-        if (!dirPath) { setStatus('idle'); return; }
-
-        projectName = dirNameFromPath(dirPath);
-        setStatus('reading');
-        setProgress('파일 읽는 중...');
-        files = await readDirectoryNative(dirPath);
-
-      } else {
-        // ── 웹 브라우저: File System Access API ──────────────────────
-        if (!('showDirectoryPicker' in window)) {
-          alert('이 브라우저는 폴더 선택을 지원하지 않습니다. Chrome 또는 Edge를 사용해 주세요.');
-          setStatus('idle');
-          return;
-        }
-        const dirHandle: FileSystemDirectoryHandle = await (window as any).showDirectoryPicker({ mode: 'read' });
-        projectName = dirHandle.name;
-        setStatus('reading');
-        setProgress('파일 읽는 중...');
-        const collected: Array<{ path: string; content: string }> = [];
-        await readDir(dirHandle, '', collected);
-        files = collected;
-      }
-
-      setProgress(`${files.length}개 파일 읽음 — 업로드 중...`);
-      setStatus('uploading');
-
-      const res = await fetch(`${BACKEND}/api/workspace`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectName, files }),
-      });
-
-      if (!res.ok) throw new Error(`업로드 실패: ${res.status}`);
-      const { workspaceId } = await res.json();
-
-      // 트리 로드
-      const treeRes = await fetch(`${BACKEND}/api/workspace/${workspaceId}/tree`);
-      if (!treeRes.ok) throw new Error('트리 로드 실패');
-      const treeData: any[] = await treeRes.json();
-
-      const tree: FileNode[] = treeData.map(toFileNode);
-      setWorkspaceId(workspaceId);
-      setWorkspaceName(projectName);
+      setWorkspaceId(id);
+      setWorkspaceName(name);
       setProjectId(null);
       setWorkspaceTree(tree);
+      setActiveWorkspaceId(id);
 
       const firstFile = findFirstFile(tree);
       const store = useSecureStore.getState();
       store.setSelectedPath(firstFile ?? '');
-      if (firstFile) {
-        useSecureStore.setState({
-          openTabs: [{ path: firstFile, label: firstFile.split('/').pop() ?? firstFile }],
-        });
-      } else {
-        useSecureStore.setState({ openTabs: [] });
-      }
+      useSecureStore.setState({
+        openTabs: firstFile
+          ? [{ path: firstFile, label: firstFile.split('/').pop() ?? firstFile }]
+          : [],
+      });
 
       setStatus('done');
       setProgress('');
@@ -146,9 +153,25 @@ export function useWorkspace() {
       setStatus('error');
       setProgress(err?.message ?? '알 수 없는 오류');
     }
-  }, [setWorkspaceId, setWorkspaceName, setProjectId, setWorkspaceTree]);
+  }, [pickAndUpload, setWorkspaceId, setWorkspaceName, setProjectId, setWorkspaceTree, setActiveWorkspaceId]);
 
-  return { openFolder, status, progress };
+  // 추가 워크스페이스 (기존 워크스페이스 유지하며 폴더 추가)
+  const addFolder = useCallback(async () => {
+    try {
+      const result = await pickAndUpload();
+      if (!result) return;
+      addExtraWorkspace(result);
+      setStatus('done');
+      setProgress('');
+    } catch (err: any) {
+      if (err?.name === 'AbortError') { setStatus('idle'); return; }
+      console.error(err);
+      setStatus('error');
+      setProgress(err?.message ?? '알 수 없는 오류');
+    }
+  }, [pickAndUpload, addExtraWorkspace]);
+
+  return { openFolder, addFolder, status, progress };
 }
 
 function findFirstFile(nodes: FileNode[]): string | null {

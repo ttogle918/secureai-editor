@@ -90,6 +90,7 @@ docs/analysis_results*.sql
 # Android / Firebase
 google-services.json
 google-services-dev.json
+firebase-service-account.json
 local.properties
 captures/
 .externalNativeBuild/
@@ -131,3 +132,6 @@ CLAUDE.md
 # Tauri App Icon
 apps/frontend/src-tauri/icons/**/*.*
 docs/portfolio/*
+
+
+dvwa-source/

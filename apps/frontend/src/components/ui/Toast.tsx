@@ -12,6 +12,7 @@ const BORDER_COLOR: Record<ToastSeverity, string> = {
   high:     '#f97316',
   info:     'rgba(255,255,255,0.2)',
   error:    'rgba(240,65,65,0.8)',
+  warning:  '#eab308',
 };
 
 const LABEL_COLOR: Record<ToastSeverity, string> = {
@@ -19,6 +20,7 @@ const LABEL_COLOR: Record<ToastSeverity, string> = {
   high:     '#f97316',
   info:     'rgba(255,255,255,0.6)',
   error:    '#f04141',
+  warning:  '#eab308',
 };
 
 const SEVERITY_LABEL: Record<ToastSeverity, string> = {
@@ -26,6 +28,7 @@ const SEVERITY_LABEL: Record<ToastSeverity, string> = {
   high:     'HIGH',
   info:     'INFO',
   error:    'ERROR',
+  warning:  'WARNING',
 };
 
 // ─── 컨테이너 위치 (우하단 고정) ─────────────────────────────
@@ -80,16 +83,35 @@ export function ToastContainer() {
               {SEVERITY_LABEL[toast.severity]}
             </span>
 
-            {/* 메시지 */}
-            <span style={{
-              fontSize:   12,
-              color:      'rgba(255,255,255,0.85)',
-              lineHeight: 1.5,
-              flex:       1,
-              wordBreak:  'break-word',
-            }}>
-              {toast.message}
-            </span>
+            {/* 메시지 + action */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{
+                fontSize:   12,
+                color:      'rgba(255,255,255,0.85)',
+                lineHeight: 1.5,
+                wordBreak:  'break-word',
+              }}>
+                {toast.message}
+              </span>
+              {toast.action && (
+                <button
+                  onClick={() => { toast.action!.onClick(); removeToast(toast.id); }}
+                  style={{
+                    alignSelf:    'flex-start',
+                    background:   LABEL_COLOR[toast.severity],
+                    border:       'none',
+                    borderRadius: 4,
+                    color:        '#0d0d0e',
+                    cursor:       'pointer',
+                    fontSize:     11,
+                    fontWeight:   700,
+                    padding:      '3px 8px',
+                  }}
+                >
+                  {toast.action.label}
+                </button>
+              )}
+            </div>
 
             {/* 닫기 버튼 */}
             <button

@@ -27,7 +27,7 @@ DOCS_DIR    = Path(os.getenv("DOCS_DIR", str(REPO_ROOT / "docs" / "security")))
 
 DB_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://secureai:secureai@localhost:5432/secureai_db",
+    "postgresql://secureai:secureai@localhost:5434/secureai_db",
 )
 
 # ── 파일 → (target_stack, category) 매핑 ────────────────────────

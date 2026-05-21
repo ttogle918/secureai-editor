@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -106,6 +107,26 @@ public class UserService {
     }
 
     public record UserAnalysisSettings(String preferredModel, String apiKey) {}
+
+    // ── 크로스 도메인 파사드 (analysis/organization 도메인에서 사용) ───────────
+
+    @Transactional(readOnly = true)
+    public User findOrThrow(UUID userId) {
+        return loadUser(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<User> findAllByIds(List<UUID> userIds) {
+        return userRepository.findAllById(userIds);
+    }
+
+    /** GitHub 토큰을 복호화해서 반환한다. AesEncryptionConverter가 자동 복호화. */
+    @Transactional(readOnly = true)
+    public String getDecryptedGithubToken(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return user.getGithubToken();
+    }
 
     /**
      * GitHub 연동 설정(blockMergeOnCritical)을 저장한다.

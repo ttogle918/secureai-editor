@@ -23,22 +23,25 @@ export function EditorLayout() {
   const setRightPanelWidth = useSecureStore((s) => s.setRightPanelWidth);
   const terminalHeight     = useSecureStore((s) => s.terminalHeight);
   const setTerminalHeight  = useSecureStore((s) => s.setTerminalHeight);
-  const dastLogs           = useSecureStore((s) => s.dastLogs);
   const vulns              = useSecureStore((s) => s.vulns);
   const workspaceId        = useSecureStore((s) => s.workspaceId);
+  const activeWorkspaceId  = useSecureStore((s) => s.activeWorkspaceId);
 
   const fileContents   = useSecureStore((s) => s.fileContents);
   const setFileContent = useSecureStore((s) => s.setFileContent);
 
+  // 추가 워크스페이스 파일을 선택하면 activeWorkspaceId가 변경됨
+  const effectiveWsId = activeWorkspaceId ?? workspaceId;
+
   useEffect(() => {
-    if (!workspaceId || !selectedPath || fileContents[selectedPath] !== undefined) return;
-    fetch(`${BACKEND}/api/workspace/${workspaceId}/file?path=${encodeURIComponent(selectedPath)}`)
+    if (!effectiveWsId || !selectedPath || fileContents[selectedPath] !== undefined) return;
+    fetch(`${BACKEND}/api/workspace/${effectiveWsId}/file?path=${encodeURIComponent(selectedPath)}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data?.content != null) setFileContent(selectedPath, data.content);
       })
       .catch(() => {});
-  }, [workspaceId, selectedPath]);
+  }, [effectiveWsId, selectedPath]);
 
   const onRightResize    = useCallback((d: number) => setRightPanelWidth((prev) => prev - d), [setRightPanelWidth]);
   const onTerminalResize = useCallback((d: number) => setTerminalHeight((prev) => prev - d), [setTerminalHeight]);
@@ -56,7 +59,7 @@ export function EditorLayout() {
     <div style={{ display: 'flex', flex: 1, minWidth: 0, minHeight: '1px', overflow: 'hidden', padding: '16px' }}>
 
       {/* ── 코드 + 터미널 ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+      <div className="editor-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
 
         <EditorTabs
           tabs={openTabs}
@@ -76,14 +79,14 @@ export function EditorLayout() {
         <ResizeHandle onResize={onTerminalResize} direction="vertical" />
 
         <div style={{ height: terminalHeight, flexShrink: 0, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <DastTerminal logs={dastLogs} />
+          <DastTerminal />
         </div>
       </div>
 
       <ResizeHandle onResize={onRightResize} direction="horizontal" />
 
       {/* ── 오른쪽 패널 ── */}
-      <div style={{
+      <div className="editor-right-panel" style={{
         width: rightPanelWidth,
         flexShrink: 0,
         background: '#0f0f0f',

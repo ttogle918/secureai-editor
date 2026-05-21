@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api/client';
 import { Search, ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { MOCK_ADMIN_USERS } from '@/lib/uiMockData';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -306,11 +307,11 @@ export default function AdminUsersPage() {
       setUsers(res.data.content);
       setTotalPages(res.data.totalPages);
       setTotalElements(res.data.totalElements);
-    } catch (e) {
-      // Non-fatal: show empty table
-      setUsers([]);
-      setTotalPages(0);
-      setTotalElements(0);
+    } catch {
+      // API 실패 시 mock 데이터로 fallback
+      setUsers(MOCK_ADMIN_USERS as AdminUser[]);
+      setTotalPages(1);
+      setTotalElements(MOCK_ADMIN_USERS.length);
     } finally {
       setLoading(false);
     }

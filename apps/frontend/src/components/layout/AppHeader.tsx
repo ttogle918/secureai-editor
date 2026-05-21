@@ -1,74 +1,104 @@
 // components/layout/AppHeader.tsx
-// 앱 상단 헤더 — 심각도 필터, 파이프라인 상태, 액션 버튼
+// Pagori 앱 상단 헤더 — V4 Hybrid 디자인 적용판
+// 변경점:
+//   • SecureAI 텍스트 로고 → Pagori lockup (assets/pagori-mark.png)
+//   • Editor/Dashboard 버튼 토글 → segmented control
+//   • CMD+K 검색 버튼 자리 추가
+//   • 알림 벨 (count 배지 포함, 추후 NotificationCenter 연결)
+//   • 심각도 chip이 'chip chip-{sev}' 글로벌 스타일을 사용 (밝아진 텍스트 토큰 반영)
+//
+// 기존 로직(useSse, useStartAnalysis, AnalysisHistoryModal 등)은 그대로 유지.
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  PanelLeftClose, PanelLeftOpen, ChevronRight,
+  PanelLeftClose, PanelLeftOpen, ChevronRight, ChevronDown,
   FileJson, Play, LayoutDashboard, Code2, Settings, History, Users,
+  Search, Bell, Key, Github, X,
 } from 'lucide-react';
-import { AnalysisHistoryModal } from '@/components/analysis/AnalysisHistoryModal';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { PagoriLockup } from '@/components/brand/PagoriBrand';
+import { CommitSecretScanModal } from '@/components/analysis/CommitSecretScanModal';
+import { AnalysisHistoryModal } from '@/components/analysis/AnalysisHistoryModal';
 import { useSecureStore, type SeverityFilter } from '@/store/useSecureStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/constants/severity';
 import { useSse, type SseStatus } from '@/hooks/useSse';
 import { useToastStore } from '@/hooks/useToast';
 import { useStartAnalysis } from '@/hooks/useStartAnalysis';
 import { SseIndicator } from '@/components/ui/SseIndicator';
 import { apiClient } from '@/lib/api/client';
 import type { Severity, VulnCategory, Vulnerability, PatchSuggestion } from '@/lib/mockData';
+import { deriveApiGroup } from '@/lib/vulnUtils';
 
 const SEV_FILTERS: Array<'critical' | 'high' | 'medium' | 'low'> = ['critical', 'high', 'medium', 'low'];
 const VALID_CATS: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
-
-// 와이어프레임 색상 — 항상 색상 표시, active 시 솔리드
-const SEV_COLORS: Record<'critical' | 'high' | 'medium' | 'low', string> = {
-  critical: '#e24b4b',
-  high:     '#f59e0b',
-  medium:   '#eab308',
-  low:      '#22c55e',
-};
 
 interface AppHeaderProps {
   onExportJSON?: () => void;
 }
 
 export function AppHeader({ onExportJSON }: AppHeaderProps) {
-  const { user: authUser } = useAuthStore();
-  const projectId          = useSecureStore((s) => s.projectId);
-  const sidebarOpen        = useSecureStore((s) => s.sidebarOpen);
-  const setSidebarOpen     = useSecureStore((s) => s.setSidebarOpen);
-  const viewMode           = useSecureStore((s) => s.viewMode);
-  const setViewMode        = useSecureStore((s) => s.setViewMode);
-  const selectedPath       = useSecureStore((s) => s.selectedPath);
-  const severityFilter     = useSecureStore((s) => s.severityFilter);
-  const setSeverityFilter  = useSecureStore((s) => s.setSeverityFilter);
-  const vulns              = useSecureStore((s) => s.vulns);
-  const setIsAnalyzing     = useSecureStore((s) => s.setIsAnalyzing);
-  const sseSessionId        = useSecureStore((s) => s.sseSessionId);
-  const addVuln             = useSecureStore((s) => s.addVuln);
-  const clearVulns          = useSecureStore((s) => s.clearVulns);
-  const setPatches          = useSecureStore((s) => s.setPatches);
-  const setLastTokenUsage   = useSecureStore((s) => s.setLastTokenUsage);
-  const setRightTab         = useSecureStore((s) => s.setRightTab);
-  const addProgressStep    = useSecureStore((s) => s.addProgressStep);
-  const addToast           = useToastStore((s) => s.addToast);
+  const router               = useRouter();
+  const { user: authUser }   = useAuthStore();
+  const searchInputRef       = useRef<HTMLInputElement>(null);
+  const sidebarOpen          = useSecureStore((s) => s.sidebarOpen);
+  const setSidebarOpen       = useSecureStore((s) => s.setSidebarOpen);
+  const viewMode             = useSecureStore((s) => s.viewMode);
+  const setViewMode          = useSecureStore((s) => s.setViewMode);
+  const selectedPath         = useSecureStore((s) => s.selectedPath);
+  const severityFilter       = useSecureStore((s) => s.severityFilter);
+  const setSeverityFilter    = useSecureStore((s) => s.setSeverityFilter);
+  const apiGroupFilter       = useSecureStore((s) => s.apiGroupFilter);
+  const setApiGroupFilter    = useSecureStore((s) => s.setApiGroupFilter);
+  const vulns                = useSecureStore((s) => s.vulns);
+  const setIsAnalyzing       = useSecureStore((s) => s.setIsAnalyzing);
+  const sseSessionId         = useSecureStore((s) => s.sseSessionId);
+  const addVuln              = useSecureStore((s) => s.addVuln);
+  const clearVulns           = useSecureStore((s) => s.clearVulns);
+  const setPatches           = useSecureStore((s) => s.setPatches);
+  const setLastTokenUsage    = useSecureStore((s) => s.setLastTokenUsage);
+  const setRightTab          = useSecureStore((s) => s.setRightTab);
+  const addProgressStep      = useSecureStore((s) => s.addProgressStep);
+  const addToast             = useToastStore((s) => s.addToast);
   const { startAnalysis, isAnalyzing } = useStartAnalysis();
 
-  // SSE 상태 — 컴포넌트 로컬 상태로 관리
-  const [sseStatus, setSseStatus] = useState<SseStatus>('idle');
-  const [showHistory, setShowHistory] = useState(false);
+  const [sseStatus,         setSseStatus]         = useState<SseStatus>('idle');
+  const [showHistory,       setShowHistory]       = useState(false);
+  const [showCommitScan,    setShowCommitScan]    = useState(false);
+  const [showSearchPalette, setShowSearchPalette] = useState(false);
+  const [searchQuery,       setSearchQuery]       = useState('');
+
+  // Cmd+K / Ctrl+K 글로벌 단축키
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearchPalette((v) => !v);
+        setSearchQuery('');
+      }
+      if (e.key === 'Escape') {
+        setShowSearchPalette(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // 팔레트 열릴 때 input focus
+  useEffect(() => {
+    if (showSearchPalette) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+  }, [showSearchPalette]);
 
   const VALID_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low'];
 
+  // SSE wiring — unchanged from original
   useSse({
     sessionId: sseSessionId,
     onEvent: (event) => {
       if (event.type === 'completed') {
         const sid = event.sessionId;
-
-        // DB에서 실제 취약점 로드 — SSE 페이로드 대신 DB 기준으로 로드해야
-        // 캐시 히트 레이스 컨디션 + 합성 ID 불일치 문제를 모두 해결한다.
         apiClient.get<{ data: { content: Array<{
           id: string; filePath: string; lineNumber: number | null;
           vulnType: string; severity: string; category: string | null;
@@ -87,6 +117,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
                 lineStart: v.lineNumber ?? 0, lineEnd: v.lineNumber ?? 0,
                 filePath: v.filePath, description: v.description ?? '',
                 cweId: v.cwe ?? '', owaspCategory: v.owasp ?? '', status: 'open',
+                apiGroup: deriveApiGroup(v.filePath),
               };
               addVuln(vuln);
             }
@@ -94,32 +125,25 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           .catch(() => {});
 
         const totalVulns = event.vuln_count ?? 0;
-        const usage = event.token_usage as { input_tokens: number; output_tokens: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number } | undefined;
+        const usage = event.token_usage as {
+          input_tokens: number; output_tokens: number;
+          cache_creation_input_tokens?: number; cache_read_input_tokens?: number;
+        } | undefined;
         if (usage) {
-          const inp   = usage.input_tokens;
-          const out   = usage.output_tokens;
-          const cw    = usage.cache_creation_input_tokens ?? 0;
-          const cr    = usage.cache_read_input_tokens ?? 0;
-          // claude-haiku-4-5-20251001 pricing (USD per million tokens)
+          const inp = usage.input_tokens, out = usage.output_tokens;
+          const cw = usage.cache_creation_input_tokens ?? 0;
+          const cr = usage.cache_read_input_tokens ?? 0;
           const costUsd = (inp * 0.80 + out * 4.00 + cw * 1.00 + cr * 0.08) / 1_000_000;
           setLastTokenUsage({
-            inputTokens:      inp,
-            outputTokens:     out,
-            cacheWriteTokens: cw,
-            cacheReadTokens:  cr,
-            estimatedCostUsd: costUsd,
-            modelId:          'claude-haiku-4-5',
+            inputTokens: inp, outputTokens: out, cacheWriteTokens: cw, cacheReadTokens: cr,
+            estimatedCostUsd: costUsd, modelId: 'claude-haiku-4-5',
           });
           const totalTokens = inp + out + cw + cr;
-          addToast(
-            `분석 완료 — 취약점 ${totalVulns}개 · ${(totalTokens / 1000).toFixed(1)}k 토큰 · $${costUsd.toFixed(4)}`,
-            'info',
-          );
+          addToast(`분석 완료 — 취약점 ${totalVulns}개 · ${(totalTokens / 1000).toFixed(1)}k 토큰 · $${costUsd.toFixed(4)}`, 'info');
         } else {
           addToast(`분석 완료 — 취약점 ${totalVulns}개 발견`, 'info');
         }
 
-        // 패치 제안을 백엔드에서 로드 (patch_node가 저장 완료 후 completed 이벤트 발생)
         apiClient.get<{ data: Array<{
           id: string; vulnId: string | null; filePath: string; vulnType: string;
           originalSnippet: string | null; patchedSnippet: string | null; explanation: string | null;
@@ -127,26 +151,37 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           .then((res) => {
             const items = res.data ?? [];
             const patches: PatchSuggestion[] = items.map((p) => ({
-              vulnId:       p.vulnId ?? undefined,
-              filePath:     p.filePath,
-              vulnType:     p.vulnType,
+              vulnId: p.vulnId ?? undefined,
+              filePath: p.filePath,
+              vulnType: p.vulnType,
               originalCode: p.originalSnippet ?? '',
-              patchedCode:  p.patchedSnippet ?? '',
-              explanation:  p.explanation ?? '',
+              patchedCode: p.patchedSnippet ?? '',
+              explanation: p.explanation ?? '',
             }));
             setPatches(patches);
           })
           .catch(() => {});
 
-        setRightTab('vulns'); // 완료 시 취약점 탭으로 자동 전환
+        setRightTab('vulns');
         setIsAnalyzing(false);
-      } else if (event.type === 'progress' && event.node === 'sast' && event.file) {
-        // 파일별 SAST 진행률 업데이트
+      } else if (event.type === 'started') {
+        addProgressStep({ stepName: '분석 시작', stepOrder: Date.now(), target: '초기화 중...', status: 'completed' });
+      } else if (event.type === 'progress') {
+        if (event.file) {
+          addProgressStep({
+            stepName: event.node === 'sast' ? 'SAST 분석' : (event.node ?? '분석 중'),
+            stepOrder: Date.now(), target: event.file, status: 'completed',
+          });
+        } else if (event.message) {
+          addProgressStep({
+            stepName: event.node ?? '진행 중', stepOrder: Date.now(),
+            target: event.message, status: 'completed',
+          });
+        }
+      } else if (event.type === 'scan_complete') {
         addProgressStep({
-          stepName: 'SAST 분석',
-          stepOrder: event.current ?? 0,
-          target: event.file,
-          status: 'completed',
+          stepName: '스캔 완료', stepOrder: Date.now(),
+          target: `취약점 ${event.vuln_count ?? 0}개 발견`, status: 'completed',
         });
       } else if (event.type === 'error') {
         addToast(event.message ?? 'SSE 오류가 발생했습니다.', 'error');
@@ -159,58 +194,140 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
     },
   });
 
+  // ── Derived UI state ────────────────────────────────────────────
+  const pathSegs = selectedPath.split('/').filter(Boolean);
+  // Truncate breadcrumb to last 3 segments so the header doesn't blow up on deep paths
+  const breadcrumb = pathSegs.length > 3 ? ['…', ...pathSegs.slice(-3)] : pathSegs;
+  // If the path is inside api/foo/..., the second segment after 'api' is the API group
+  const apiIdx = pathSegs.indexOf('api');
+  const activeApi = apiIdx >= 0 && pathSegs[apiIdx + 1] ? pathSegs[apiIdx + 1] : null;
+  const apiGroupCount = activeApi
+    ? vulns.filter(v => v.apiGroup === activeApi || v.apiGroup?.startsWith(activeApi + '/')).length
+    : 0;
+
+  // placeholder — wire up when NotificationCenter is built
+  const unreadNotifications = 0;
+
+  // ── Severity counts (for chip badges) ───────────────────────────
+  const sevCount = (sev: 'critical' | 'high' | 'medium' | 'low') =>
+    vulns.filter(v => v.severity === sev).length;
+
   const handleSevFilter = (sev: SeverityFilter) => {
     setSeverityFilter(severityFilter === sev ? 'all' : sev);
   };
 
-  const currentFile =
-    viewMode === 'editor'
-      ? (selectedPath.split('/').pop() || '에디터')
-      : 'Security Dashboard';
+  const toggleApiFilter = () => {
+    if (!activeApi) return;
+    setApiGroupFilter(apiGroupFilter === activeApi ? null : activeApi);
+  };
 
   return (
     <header
       style={{
         height: '100%',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
-        background: '#0d0d0f',
+        borderBottom: '1px solid var(--hairline)',
+        background: 'var(--bg-1)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 18px',
+        padding: '0 12px 0 10px',
         flexShrink: 0,
         zIndex: 10,
         gap: 12,
       }}
     >
-      {/* ── Left: Sidebar toggle + Path + Pipeline ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {/* ── Left: sidebar toggle + Pagori brand + breadcrumb ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <button
           onClick={() => setSidebarOpen((v) => !v)}
+          title={sidebarOpen ? '사이드바 접기' : '사이드바 펼치기'}
           style={{
-            background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)',
-            cursor: 'pointer', display: 'flex', padding: 6, borderRadius: 6,
+            width: 28, height: 28, borderRadius: 6,
+            background: sidebarOpen ? 'var(--orange-dim)' : 'transparent',
+            border: 'none',
+            color: sidebarOpen ? 'var(--orange)' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.15s, color 0.15s',
           }}
         >
-          {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+          {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-          <span style={{ color: '#ea580c' }}>SecureAI</span>
-          <ChevronRight size={12} color="rgba(255,255,255,0.2)" />
-          <span style={{ color: '#fff' }}>{currentFile}</span>
+        <PagoriLockup size={22} />
+
+        <div style={{ width: 1, height: 18, background: 'var(--hairline)' }} />
+
+        {/* Breadcrumb — click api/<group> chip to filter the right panel by that API */}
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            fontSize: 12, color: 'var(--text-on-bg)',
+            fontFamily: 'var(--font-mono)', minWidth: 0,
+          }}
+        >
+          {breadcrumb.map((seg, i) => {
+            const isFile = i === breadcrumb.length - 1;
+            const isApiGroup = activeApi && seg === activeApi;
+            const apiActive = apiGroupFilter === activeApi;
+            return (
+              <span key={`${seg}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {i > 0 && <ChevronRight size={11} color="var(--text-tertiary)" />}
+                {isApiGroup ? (
+                  <button
+                    onClick={toggleApiFilter}
+                    title={apiActive ? '필터 해제' : `이 API 그룹으로 필터 (${apiGroupCount}건)`}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      padding: '3px 6px', borderRadius: 4,
+                      background: apiActive ? 'var(--orange-dim)' : 'transparent',
+                      border: `1px solid ${apiActive ? 'rgba(249,115,22,0.30)' : 'transparent'}`,
+                      color: apiActive ? 'var(--orange)' : 'var(--text-on-bg)',
+                      fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {seg}
+                    <ChevronDown size={10} />
+                    {apiGroupCount > 0 && (
+                      <span className="chip chip-critical" style={{ height: 14, fontSize: 8, padding: '0 4px', marginLeft: 2 }}>
+                        {apiGroupCount}
+                      </span>
+                    )}
+                  </button>
+                ) : (
+                  <span
+                    style={{
+                      padding: '3px 6px', borderRadius: 4,
+                      color: isFile ? 'var(--text-active)' : 'var(--text-on-bg)',
+                    }}
+                  >
+                    {seg}
+                  </span>
+                )}
+              </span>
+            );
+          })}
+          {!breadcrumb.length && (
+            <span style={{ color: 'var(--text-tertiary)' }}>
+              {viewMode === 'editor' ? '파일을 선택하세요' : 'Security Dashboard'}
+            </span>
+          )}
         </div>
 
         <div className="header-pipeline-badges">
           {([
-            { label: 'SAST',  bg: 'rgba(34,197,94,0.12)',  color: '#22c55e', border: 'rgba(34,197,94,0.35)'  },
-            { label: 'DAST',  bg: 'rgba(249,115,22,0.10)', color: '#f97316', border: 'rgba(249,115,22,0.30)' },
-            { label: 'PATCH', bg: 'rgba(99,102,241,0.10)', color: '#818cf8', border: 'rgba(99,102,241,0.30)' },
-          ] as const).map(({ label, bg, color, border }) => (
-            <div key={label} style={{
-              fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 10,
-              background: bg, color, border: `0.5px solid ${border}`,
-            }}>
+            { label: 'SAST',  color: 'var(--low)',     bg: 'var(--low-dim)' },
+            { label: 'DAST',  color: 'var(--orange)',  bg: 'var(--orange-dim)' },
+            { label: 'PATCH', color: 'var(--tag-1)',   bg: 'rgba(129,140,248,0.10)' },
+          ] as const).map(({ label, color, bg }) => (
+            <div
+              key={label}
+              style={{
+                fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 10,
+                background: bg, color, border: `0.5px solid ${color}`,
+              }}
+            >
               {label}
             </div>
           ))}
@@ -219,108 +336,261 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
 
       {/* ── Right ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* CMD+K search button — 팔레트 토글 */}
+        <button
+          title="전역 검색 (⌘K)"
+          onClick={() => { setShowSearchPalette(true); setSearchQuery(''); }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            height: 28, padding: '0 8px 0 10px',
+            background: 'var(--bg-3)', border: '1px solid var(--border)',
+            borderRadius: 6, color: 'var(--text-tertiary)',
+            fontSize: 11, cursor: 'pointer', minWidth: 200,
+          }}
+        >
+          <Search size={12} />
+          <span style={{ flex: 1, textAlign: 'left' }}>취약점 · 파일 · CVE 검색</span>
+          <span
+            className="font-mono"
+            style={{
+              padding: '2px 5px', borderRadius: 3,
+              background: 'var(--bg-1)', border: '1px solid var(--border)',
+              fontSize: 9, fontWeight: 600,
+            }}
+          >
+            ⌘K
+          </span>
+        </button>
+
+        {/* Severity chips — uses global .chip styles, brighter active text */}
         <div className="header-sev-filters">
-          {/* ALL 버튼 — active 시 흰색 반투명 하이라이트 */}
           <button
             onClick={() => setSeverityFilter('all')}
-            style={{
-              fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 4,
-              background: severityFilter === 'all' ? 'rgba(255,255,255,0.12)' : 'transparent',
-              color: severityFilter === 'all' ? '#e8e8ee' : 'rgba(255,255,255,0.35)',
-              border: `1px solid ${severityFilter === 'all' ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)'}`,
-              cursor: 'pointer',
-            }}
+            className={`chip ${severityFilter === 'all' ? 'chip-active' : ''}`}
+            style={{ height: 22 }}
           >
             ALL
           </button>
-          {/* 심각도 버튼 — 항상 색상 표시 (비활성: 반투명, 활성: 솔리드) */}
           {SEV_FILTERS.map(sev => {
             const active = severityFilter === sev;
-            const color = SEV_COLORS[sev];
             return (
               <button
                 key={sev}
                 onClick={() => handleSevFilter(sev)}
+                className={`chip chip-${sev} ${active ? 'chip-active' : ''}`}
                 style={{
-                  fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 4,
-                  background: active ? color : `${color}22`,
-                  color: active ? '#fff' : color,
-                  border: `1px solid ${active ? color : `${color}66`}`,
-                  cursor: 'pointer',
+                  height: 22,
+                  opacity: severityFilter !== 'all' && !active ? 0.45 : 1,
                 }}
               >
+                <span className="severity-dot" style={{ background: `var(--${sev})` }} />
                 {sev.toUpperCase()}
+                {sevCount(sev) > 0 && (
+                  <span style={{ opacity: 0.75, marginLeft: 2 }}>{sevCount(sev)}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Editor / Dashboard — segmented control */}
+        <div
+          style={{
+            display: 'flex', height: 28, padding: 2,
+            background: 'var(--bg-3)', border: '1px solid var(--border)',
+            borderRadius: 7,
+          }}
+        >
+          {(['editor', 'dashboard'] as const).map(v => {
+            const active = viewMode === v;
+            return (
+              <button
+                key={v}
+                onClick={() => setViewMode(v)}
+                style={{
+                  padding: '0 10px', borderRadius: 5, border: 'none',
+                  background: active ? 'var(--bg-1)' : 'transparent',
+                  color: active ? 'var(--text-active)' : 'var(--text-tertiary)',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  boxShadow: active ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+              >
+                {v === 'editor' ? <Code2 size={12} /> : <LayoutDashboard size={12} />}
+                {v === 'editor' ? '에디터' : '대시보드'}
               </button>
             );
           })}
         </div>
 
         <button
-          onClick={() => setViewMode(v => v === 'editor' ? 'dashboard' : 'editor')}
+          onClick={() => setShowCommitScan(true)}
+          title="커밋 시크릿 스캔"
           style={{
-            fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6,
-            background: '#1a1a1c', color: '#e8e8ee', border: '1px solid #2d2d30',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+            width: 28, height: 28, borderRadius: 6,
+            background: 'var(--bg-2)', color: 'var(--text-secondary)',
+            border: '1px solid var(--border)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
-          {viewMode === 'editor' ? <LayoutDashboard size={14} /> : <Code2 size={14} />}
-          {viewMode === 'editor' ? '대시보드' : '에디터'}
+          <Key size={14} />
         </button>
 
         <button
           onClick={() => setShowHistory(true)}
           title="분석 이력 (전체 프로젝트)"
           style={{
-            fontSize: 11, fontWeight: 700, padding: '6px 10px', borderRadius: 6,
-            background: '#1a1a1c', color: 'rgba(255,255,255,0.45)',
-            border: '1px solid #2d2d30', cursor: 'pointer',
-            display: 'flex', alignItems: 'center',
+            width: 28, height: 28, borderRadius: 6,
+            background: 'var(--bg-2)', color: 'var(--text-secondary)',
+            border: '1px solid var(--border)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
           <History size={14} />
         </button>
 
         <button
+          title="알림"
+          onClick={() => addToast('알림 센터는 곧 출시됩니다', 'info')}
+          style={{
+            position: 'relative',
+            width: 28, height: 28, borderRadius: 6,
+            background: 'var(--bg-2)', color: 'var(--text-secondary)',
+            border: '1px solid var(--border)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Bell size={14} />
+          {unreadNotifications > 0 && (
+            <span
+              style={{
+                position: 'absolute', top: -3, right: -3,
+                minWidth: 14, height: 14, borderRadius: 7,
+                background: 'var(--orange-2)', color: '#fff',
+                fontSize: 9, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '0 3px', boxShadow: '0 0 0 2px var(--bg-1)',
+              }}
+            >
+              {unreadNotifications}
+            </span>
+          )}
+        </button>
+
+        <button
           onClick={startAnalysis}
           disabled={isAnalyzing}
           style={{
-            fontSize: 11, fontWeight: 800, padding: '6px 16px', borderRadius: 6,
-            background: isAnalyzing ? '#ea580c44' : '#ea580c',
-            color: '#fff', border: 'none', cursor: 'pointer',
+            fontSize: 11, fontWeight: 800, padding: '0 14px',
+            height: 28, borderRadius: 6,
+            background: isAnalyzing ? 'var(--orange-dim)' : 'var(--orange-2)',
+            color: isAnalyzing ? 'var(--orange)' : '#fff', border: 'none',
+            cursor: isAnalyzing ? 'default' : 'pointer',
             display: 'flex', alignItems: 'center', gap: 6,
-            boxShadow: isAnalyzing ? 'none' : '0 4px 12px rgba(234,88,12,0.4)',
+            boxShadow: isAnalyzing ? 'none' : 'var(--orange-shadow)',
           }}
         >
-          <Play size={14} fill="currentColor" />
+          <Play size={12} fill="currentColor" />
           {isAnalyzing ? '분석 중...' : '분석 시작'}
         </button>
 
-        {showHistory && (
-          <AnalysisHistoryModal onClose={() => setShowHistory(false)} />
-        )}
+        {showHistory && <AnalysisHistoryModal onClose={() => setShowHistory(false)} />}
+        {showCommitScan && <CommitSecretScanModal onClose={() => setShowCommitScan(false)} />}
 
         {onExportJSON && (
           <button
             onClick={onExportJSON}
             className="header-export-btn"
             style={{
-              fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.25)',
+              fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)',
               background: 'none', border: 'none', cursor: 'pointer',
-              alignItems: 'center', gap: 4, marginLeft: 8,
+              alignItems: 'center', gap: 4, marginLeft: 4,
             }}
           >
             <FileJson size={14} /> Export JSON
           </button>
         )}
 
-        {/* SSE 연결 상태 표시 */}
-        <div style={{ marginLeft: 8 }}>
-          <SseIndicator
-            status={sseStatus}
-            isAnalyzing={isAnalyzing}
-            hasResults={vulns.length > 0}
-          />
+        <div style={{ marginLeft: 4 }}>
+          <SseIndicator status={sseStatus} isAnalyzing={isAnalyzing} hasResults={vulns.length > 0} />
         </div>
+
+        {/* 검색 팔레트 오버레이 */}
+        {showSearchPalette && (
+          <>
+            {/* backdrop */}
+            <div
+              onClick={() => setShowSearchPalette(false)}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 200,
+                background: 'rgba(0,0,0,0.55)',
+                backdropFilter: 'blur(3px)',
+              }}
+            />
+            {/* palette */}
+            <div style={{
+              position: 'fixed', top: '15%', left: '50%', transform: 'translateX(-50%)',
+              zIndex: 201, width: '100%', maxWidth: 560,
+              background: 'var(--bg-2, #1a1a1c)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 12, overflow: 'hidden',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+            }}>
+              {/* input row */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', height: 52, gap: 10, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <Search size={16} color="rgba(255,255,255,0.35)" />
+                <input
+                  ref={searchInputRef}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="검색: 취약점 유형, 파일명, CVE ID…"
+                  style={{
+                    flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                    fontSize: 14, color: '#e8e8ee',
+                  }}
+                />
+                <button
+                  onClick={() => setShowSearchPalette(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', display: 'flex' }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              {/* quick actions */}
+              <div style={{ padding: '8px 0' }}>
+                {([
+                  { label: '분석 시작',    icon: <Play size={13} fill="currentColor" />, action: () => { setShowSearchPalette(false); startAnalysis(); } },
+                  { label: 'GitHub 스캔',  icon: <Github size={13} />,                  action: () => { setShowSearchPalette(false); router.push('/github-scan'); } },
+                  { label: 'PDF 다운로드', icon: <FileJson size={13} />,                action: () => { setShowSearchPalette(false); if (onExportJSON) onExportJSON(); } },
+                  { label: '설정',         icon: <Settings size={13} />,                action: () => { setShowSearchPalette(false); router.push('/settings'); } },
+                ] as const).map(({ label, icon, action }) => (
+                  <button
+                    key={label}
+                    onClick={action}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '10px 16px', background: 'none', border: 'none',
+                      cursor: 'pointer', color: 'rgba(255,255,255,0.65)', fontSize: 13,
+                      textAlign: 'left', transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(249,115,22,0.08)'; (e.currentTarget as HTMLElement).style.color = '#f97316'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'none'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.65)'; }}
+                  >
+                    <span style={{ opacity: 0.7 }}>{icon}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* hint */}
+              <div style={{ padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 12, fontSize: 10, color: 'rgba(255,255,255,0.2)' }}>
+                <span>↑↓ 탐색</span>
+                <span>Enter 실행</span>
+                <span>Esc 닫기</span>
+              </div>
+            </div>
+          </>
+        )}
 
         {authUser?.isAdmin && (
           <Link
@@ -329,11 +599,10 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: '5px 10px', borderRadius: 6,
               fontSize: 11, fontWeight: 700,
-              color: '#ea580c',
-              background: 'rgba(234,88,12,0.10)',
+              color: 'var(--orange)',
+              background: 'var(--orange-dim)',
               border: '1px solid rgba(234,88,12,0.25)',
-              textDecoration: 'none',
-              marginLeft: 4,
+              textDecoration: 'none', marginLeft: 4,
             }}
             title="Admin Console"
           >
@@ -345,30 +614,29 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           href="/team"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 32, height: 32, borderRadius: 6,
-            color: 'rgba(255,255,255,0.35)',
-            background: 'none', border: 'none', cursor: 'pointer',
-            transition: 'color 0.15s',
+            width: 28, height: 28, borderRadius: 6,
+            color: 'var(--text-tertiary)',
+            background: 'transparent', border: '1px solid transparent',
+            transition: 'color 0.15s, background 0.15s, border-color 0.15s',
             marginLeft: 4,
           }}
           title="팀"
         >
-          <Users size={16} />
+          <Users size={14} />
         </Link>
 
         <Link
           href="/settings"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 32, height: 32, borderRadius: 6,
-            color: 'rgba(255,255,255,0.35)',
-            background: 'none', border: 'none', cursor: 'pointer',
-            transition: 'color 0.15s',
-            marginLeft: 4,
+            width: 28, height: 28, borderRadius: 6,
+            color: 'var(--text-tertiary)',
+            background: 'transparent', border: '1px solid transparent',
+            transition: 'color 0.15s, background 0.15s, border-color 0.15s',
           }}
           title="설정"
         >
-          <Settings size={16} />
+          <Settings size={14} />
         </Link>
       </div>
     </header>

@@ -3,9 +3,11 @@ package io.secureai.backend.domain.analysis.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.secureai.backend.domain.analysis.dto.ProgressEvent;
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
+import io.secureai.backend.domain.analysis.event.SessionCompletedEvent;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Component;
@@ -21,6 +23,7 @@ public class RedisSubscriber implements MessageListener {
     private final SseEmitterService sseEmitterService;
     private final AnalysisSessionRepository sessionRepository;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -40,6 +43,8 @@ public class RedisSubscriber implements MessageListener {
                 sessionRepository.findById(sessionId).ifPresent(session -> {
                     session.markCompleted();
                     sessionRepository.save(session);
+                    eventPublisher.publishEvent(new SessionCompletedEvent(
+                            this, sessionId, session.getProject().getId(), session.getUser().getId()));
                     log.info("[redis-sub] session completed sessionId={}", sessionId);
                 });
                 sseEmitterService.complete(sessionId);

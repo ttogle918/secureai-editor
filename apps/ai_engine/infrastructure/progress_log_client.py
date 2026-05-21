@@ -3,6 +3,7 @@
 
 AI Engine → Spring Backend 방향의 내부 호출.
 로그 저장 실패는 분석 흐름에 영향을 주지 않으므로 조용히 처리한다.
+모듈 레벨 AsyncClient로 TCP 연결 풀을 재사용한다.
 """
 import logging
 
@@ -11,6 +12,12 @@ import httpx
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+_client = httpx.AsyncClient(
+    base_url=settings.backend_internal_url,
+    timeout=5,
+    headers={"X-Internal-Key": settings.internal_api_key},
+)
 
 
 async def log_progress(
@@ -33,13 +40,8 @@ async def log_progress(
         payload["detail"] = detail
 
     try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.post(
-                f"{settings.backend_internal_url}/api/v1/internal/progress-logs",
-                json=payload,
-                headers={"X-Internal-Key": settings.internal_api_key},
-            )
-            resp.raise_for_status()
+        resp = await _client.post("/api/v1/internal/progress-logs", json=payload)
+        resp.raise_for_status()
     except Exception as exc:
         logger.warning(
             "[progress-log] failed session=%s step=%s status=%s: %s",

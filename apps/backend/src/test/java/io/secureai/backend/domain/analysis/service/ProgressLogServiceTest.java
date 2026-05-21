@@ -7,7 +7,7 @@ import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisProgressLogRepository;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.project.entity.Project;
-import io.secureai.backend.domain.project.repository.TeamMemberRepository;
+import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +32,7 @@ class ProgressLogServiceTest {
 
     @Mock AnalysisProgressLogRepository progressLogRepository;
     @Mock AnalysisSessionRepository sessionRepository;
-    @Mock TeamMemberRepository teamMemberRepository;
+    @Mock ProjectService projectService;
     @Mock ObjectMapper objectMapper;
 
     @InjectMocks ProgressLogService service;
@@ -63,7 +63,7 @@ class ProgressLogServiceTest {
     @DisplayName("completed 로그가 절반일 때 percentage=50 반환")
     void getSummary_calculatesPercentageCorrectly() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
         when(progressLogRepository.findBySessionIdOrderByStepOrderAscStartedAtAsc(sessionId))
                 .thenReturn(List.of(
                         log(1, "SAST 초기화", "Foo.java",  "completed", 840),
@@ -88,7 +88,7 @@ class ProgressLogServiceTest {
     @DisplayName("진행 로그가 없을 때 percentage=0, steps=[] 반환")
     void getSummary_returnsZeroWhenNoLogs() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
         when(progressLogRepository.findBySessionIdOrderByStepOrderAscStartedAtAsc(sessionId))
                 .thenReturn(List.of());
 
@@ -125,7 +125,7 @@ class ProgressLogServiceTest {
     @DisplayName("팀 멤버가 아닌 userId → PROJECT_ACCESS_DENIED 예외")
     void getSummary_throwsWhenNoProjectAccess() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(false);
+        when(projectService.isMember(projectId, userId)).thenReturn(false);
 
         assertThatThrownBy(() -> service.getSummary(userId, sessionId))
                 .isInstanceOf(BusinessException.class)
@@ -143,7 +143,7 @@ class ProgressLogServiceTest {
     @DisplayName("ProgressStepDto 필드가 엔티티와 동일하게 매핑됨")
     void getSummary_mapsStepDtoFieldsCorrectly() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
         when(progressLogRepository.findBySessionIdOrderByStepOrderAscStartedAtAsc(sessionId))
                 .thenReturn(List.of(log(2, "SAST 분석", "Auth.java", "completed", 950)));
 

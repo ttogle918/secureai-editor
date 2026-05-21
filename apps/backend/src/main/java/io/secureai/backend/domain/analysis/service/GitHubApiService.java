@@ -1,7 +1,6 @@
 package io.secureai.backend.domain.analysis.service;
 
-import io.secureai.backend.domain.user.entity.User;
-import io.secureai.backend.domain.user.repository.UserRepository;
+import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +21,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class GitHubApiService {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
     private final GitHubRestClient gitHubRestClient;
 
     /**
@@ -39,11 +38,8 @@ public class GitHubApiService {
         String owner = ownerRepo[0];
         String repo = ownerRepo[1];
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-
-        // JPA @Convert(AesEncryptionConverter) 가 자동 복호화 — 복호화된 값을 그대로 사용
-        String token = user.getGithubToken();
+        // AesEncryptionConverter가 자동 복호화 — 복호화된 값을 그대로 사용
+        String token = userService.getDecryptedGithubToken(userId);
 
         if (token != null) {
             // 토큰이 있으면 접근 가능 여부 확인 (토큰은 로그에 출력 금지)

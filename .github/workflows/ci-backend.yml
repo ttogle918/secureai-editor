@@ -19,7 +19,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15-alpine
+        image: pgvector/pgvector:pg15
         env:
           POSTGRES_DB: secureai_test
           POSTGRES_USER: secureai
@@ -55,14 +55,14 @@ jobs:
       - name: Build & test
         working-directory: apps/backend
         env:
-          DB_URL: jdbc:postgresql://localhost:5432/secureai_test
-          DB_USER: secureai
-          DB_PASSWORD: test_password
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/secureai_test
+          SPRING_DATASOURCE_USERNAME: secureai
+          SPRING_DATASOURCE_PASSWORD: test_password
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           REDIS_PASSWORD: ""
           JWT_SECRET: ci-test-secret-key-at-least-64-characters-long-for-testing-only
-          SECUREAI_ENCRYPTION_KEY: Y2ktdGVzdC1lbmNyeXB0aW9uLWtleS0zMmJ5dGVz
+          SECUREAI_ENCRYPTION_KEY: 0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20
         run: ./gradlew build --no-daemon
 
       - name: Upload test report

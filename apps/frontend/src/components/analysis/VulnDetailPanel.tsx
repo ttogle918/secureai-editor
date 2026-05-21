@@ -1,17 +1,251 @@
 // components/analysis/VulnDetailPanel.tsx
 // 취약점 상세 아코디언 패널 — FilterBar 내장, useVulnFilter 훅 사용
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle,
-  Zap, Info, Layers, RefreshCw,
+  Zap, Info, Layers, RefreshCw, Play, Server,
 } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
+import type { DastExploitResult } from '@/store/useSecureStore';
+import { useToastStore } from '@/hooks/useToast';
 import { useVulnFilter } from '@/hooks/useVulnFilter';
 import { useTranslate } from '@/hooks/useTranslate';
 import { CallChainView } from '@/components/analysis/CallChainView';
 import FilterBar from '@/components/ui/FilterBar';
 import type { Vulnerability } from '@/lib/mockData';
+import { deriveEndpoint } from '@/lib/vulnUtils';
+import { BASE_URL, getAccessToken } from '@/lib/api/client';
+
+// ── DAST 실행 섹션 ────────────────────────────────────────────
+function DastRunSection({ vuln }: { vuln: Vulnerability }) {
+  const setDastSessionId = useSecureStore((s) => s.setDastSessionId);
+  const dastSessionId    = useSecureStore((s) => s.dastSessionId);
+  const dastBaseUrl      = useSecureStore((s) => s.dastBaseUrl);
+  const setDastBaseUrl   = useSecureStore((s) => s.setDastBaseUrl);
+  const addToast         = useToastStore((s) => s.addToast);
+
+  const derivedPath = deriveEndpoint(vuln.filePath, vuln.description);
+
+  const buildTargetUrl = useCallback(
+    (base: string) => (base.trim() ? base.replace(/\/$/, '') + derivedPath : vuln.apiEndpoint ?? ''),
+    [derivedPath, vuln.apiEndpoint],
+  );
+
+  const [baseInput,  setBaseInput]  = useState(dastBaseUrl);
+  const [targetUrl,  setTargetUrl]  = useState(() => buildTargetUrl(dastBaseUrl));
+  const [consent,    setConsent]    = useState(false);
+  const [running,    setRunning]    = useState(false);
+
+  // base URL이 변경되면 target URL도 갱신
+  useEffect(() => {
+    setTargetUrl(buildTargetUrl(baseInput));
+  }, [baseInput, buildTargetUrl]);
+
+  const handleBaseBlur = () => {
+    const trimmed = baseInput.trim().replace(/\/$/, '');
+    setDastBaseUrl(trimmed);
+  };
+
+  const isGlobalRunning = dastSessionId !== null;
+  const canRun = consent && targetUrl.trim() !== '' && !running && !isGlobalRunning;
+
+  const handleRun = async () => {
+    if (!canRun) return;
+    setRunning(true);
+    try {
+      let parsedUrl: URL;
+      try { parsedUrl = new URL(targetUrl.trim()); }
+      catch { addToast('올바른 URL을 입력해주세요.', 'error'); setRunning(false); return; }
+
+      const dastId = crypto.randomUUID();
+      // SSE 구독을 먼저 열어 race condition 방어 (DAST가 즉시 완료될 수 있음)
+      setDastSessionId(dastId);
+
+      const token = getAccessToken();
+      const res = await fetch(`${BASE_URL}/dast/start`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          sessionId:    dastId,
+          vulnId:       vuln.id,
+          domain:       parsedUrl.hostname,
+          consentGiven: true,
+          vulnType:     vuln.type,
+          targetUrl:    parsedUrl.origin + parsedUrl.pathname,
+          endpoint:     parsedUrl.pathname,
+          params:       Object.fromEntries(new URLSearchParams(parsedUrl.search)),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        setDastSessionId(null);
+        throw new Error(err?.error?.message ?? err?.message ?? `DAST 시작 실패: ${res.status}`);
+      }
+      addToast('DAST 분석을 시작했습니다. 하단 터미널에서 진행 상황을 확인하세요.', 'info');
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : 'DAST 시작에 실패했습니다.', 'error');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: 6, padding: '6px 10px',
+    fontSize: 11, color: '#e8e8ee', fontFamily: 'var(--font-mono)',
+    outline: 'none',
+  };
+
+  return (
+    <div>
+      <SectionLabel icon={<Play size={10} color="#f97316" />} text="동적 분석 (DAST)" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+        {/* 테스트 서버 Base URL — 한 번 설정하면 기억됨 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Server size={10} color="rgba(255,255,255,0.3)" style={{ flexShrink: 0 }} />
+          <input
+            type="url"
+            placeholder="테스트 서버 주소 (예: http://localhost:8888)"
+            value={baseInput}
+            onChange={(e) => setBaseInput(e.target.value)}
+            onBlur={handleBaseBlur}
+            style={{ ...inputStyle, fontSize: 10, color: 'rgba(255,255,255,0.55)' }}
+          />
+        </div>
+
+        {/* 타겟 URL — base + 추론된 경로로 자동 완성 */}
+        <input
+          type="url"
+          placeholder="Target URL"
+          value={targetUrl}
+          onChange={(e) => setTargetUrl(e.target.value)}
+          style={inputStyle}
+        />
+        {derivedPath && (
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', marginTop: -4, paddingLeft: 2 }}>
+            경로 자동 추론: <span style={{ fontFamily: 'var(--font-mono)', color: 'rgba(249,115,22,0.5)' }}>{derivedPath}</span>
+          </div>
+        )}
+
+        <label style={{
+          display: 'flex', alignItems: 'flex-start', gap: 7,
+          fontSize: 10, color: 'rgba(255,255,255,0.45)', cursor: 'pointer', lineHeight: 1.5,
+        }}>
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+            style={{ marginTop: 2, cursor: 'pointer', accentColor: '#f97316' }}
+          />
+          이 대상에 대한 보안 테스트 수행에 동의합니다 (반드시 테스트 환경만 사용)
+        </label>
+        <button
+          onClick={handleRun}
+          disabled={!canRun}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+            padding: '6px 12px', fontSize: 11, fontWeight: 700, borderRadius: 6,
+            background: canRun ? 'rgba(249,115,22,0.2)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${canRun ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.08)'}`,
+            color: canRun ? '#f97316' : 'rgba(255,255,255,0.2)',
+            cursor: canRun ? 'pointer' : 'not-allowed',
+          }}
+        >
+          {running ? (
+            <><RefreshCw size={11} style={{ animation: 'spin 0.85s linear infinite' }} /> 시작 중...</>
+          ) : isGlobalRunning ? (
+            <><Play size={11} /> DAST 실행 중...</>
+          ) : (
+            <><Play size={11} /> DAST 실행</>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── DAST 결과 JSON 상세 컴포넌트 ────────────────────────────────
+function DastResultDetail({ result }: { result: DastExploitResult }) {
+  const [open, setOpen] = useState(false);
+  const isExploited = result.success === true;
+  const accentColor = isExploited ? '#f87171' : '#4ade80';
+  const bgColor     = isExploited ? 'rgba(220,38,38,0.06)' : 'rgba(34,197,94,0.06)';
+  const borderColor = isExploited ? 'rgba(220,38,38,0.2)' : 'rgba(34,197,94,0.2)';
+
+  const jsonObj = {
+    success:         result.success,
+    evidence:        result.evidence || null,
+    payload:         result.payload  || null,
+    responseSnippet: result.responseSnippet || null,
+    error:           result.error    || null,
+  };
+  const jsonStr = JSON.stringify(jsonObj, null, 2);
+
+  return (
+    <div>
+      <SectionLabel
+        icon={<AlertTriangle size={10} color={accentColor} />}
+        text={isExploited ? 'DAST 결과 — EXPLOITED' : 'DAST 결과 — 안전'}
+      />
+      <div style={{
+        borderRadius: 8, overflow: 'hidden',
+        border: `0.5px solid ${borderColor}`,
+        background: bgColor,
+      }}>
+        {/* 요약 행 */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '6px 10px',
+        }}>
+          <span style={{ fontSize: 11, color: accentColor, fontWeight: 700 }}>
+            {isExploited ? '⚡ 취약점 익스플로잇 성공' : '✓ 공격 차단됨'}
+          </span>
+          <button
+            onClick={() => setOpen((p) => !p)}
+            style={{
+              fontSize: 9, color: 'rgba(255,255,255,0.35)', background: 'none',
+              cursor: 'pointer', padding: '2px 6px',
+              borderRadius: 3, border: '0.5px solid rgba(255,255,255,0.08)',
+            }}
+          >
+            {open ? '접기 ▲' : 'JSON 보기 ▼'}
+          </button>
+        </div>
+
+        {/* evidence 요약 */}
+        {result.evidence && (
+          <div style={{
+            padding: '0 10px 8px', fontSize: 11,
+            color: 'rgba(255,255,255,0.55)', lineHeight: 1.6,
+          }}>
+            {result.evidence}
+          </div>
+        )}
+
+        {/* JSON 상세 (접기/펴기) */}
+        {open && (
+          <pre style={{
+            margin: 0, padding: '8px 10px',
+            borderTop: `0.5px solid ${borderColor}`,
+            fontSize: 10, fontFamily: 'var(--font-mono)',
+            color: accentColor, lineHeight: 1.7,
+            overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+            background: 'rgba(0,0,0,0.3)',
+          }}>
+            {jsonStr}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── 심각도별 색상 ──────────────────────────────────────────────
 const SEV_COLOR: Record<string, string> = {
@@ -24,6 +258,8 @@ const SEV_COLOR: Record<string, string> = {
 // ── 개별 취약점 카드 ───────────────────────────────────────────
 function VulnCard({ vuln }: { vuln: Vulnerability }) {
   const expandedVulnId    = useSecureStore((s) => s.expandedVulnId);
+  const dastExploitResults = useSecureStore((s) => s.dastExploitResults);
+  const exploitResult      = dastExploitResults[vuln.id];
   const setExpandedVulnId = useSecureStore((s) => s.setExpandedVulnId);
   const selectedPath      = useSecureStore((s) => s.selectedPath);
   const setSelectedPath   = useSecureStore((s) => s.setSelectedPath);
@@ -157,6 +393,25 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
           </span>
         ) : null}
 
+        {/* DAST 익스플로잇 결과 배지 */}
+        {exploitResult?.success === true ? (
+          <span style={{
+            flexShrink: 0, fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 4,
+            background: 'rgba(220,38,38,0.15)', color: '#f87171',
+            border: '0.5px solid rgba(220,38,38,0.4)', letterSpacing: '0.04em',
+          }}>
+            EXPLOITED ✓
+          </span>
+        ) : exploitResult && !exploitResult.success ? (
+          <span style={{
+            flexShrink: 0, fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+            background: 'rgba(34,197,94,0.12)', color: '#4ade80',
+            border: '0.5px solid rgba(34,197,94,0.3)', letterSpacing: '0.04em',
+          }}>
+            DAST 안전
+          </span>
+        ) : null}
+
         <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <div
             style={{
@@ -241,8 +496,16 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
             </div>
           </div>
 
-          {/* DAST 결과 */}
-          {vuln.dastResult && (
+          {/* DAST 실행 */}
+          <DastRunSection vuln={vuln} />
+
+          {/* DAST 결과 JSON 상세 */}
+          {exploitResult && (
+            <DastResultDetail result={exploitResult} />
+          )}
+
+          {/* DAST 결과 (레거시 dastResult 필드) */}
+          {!exploitResult && vuln.dastResult && (
             <div>
               <SectionLabel icon={<AlertTriangle size={10} color="#f97316" />} text="공격 시나리오" />
               <div

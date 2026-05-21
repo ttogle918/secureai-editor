@@ -4,6 +4,7 @@ import io.secureai.backend.domain.cve.entity.CveData;
 import io.secureai.backend.domain.cve.repository.CveDataRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ public class NvdSyncJob {
     private final CveDataRepository cveDataRepository;
 
     @Scheduled(cron = "0 0 3 * * *")
+    @SchedulerLock(name = "nvdSyncJob", lockAtMostFor = "PT2H", lockAtLeastFor = "PT30M")
     @Transactional
     public void syncRecentCves() {
         log.info("[nvd-sync] 최근 {}일 CVE 동기화 시작", SYNC_DAYS_BACK);

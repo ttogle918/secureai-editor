@@ -19,6 +19,22 @@ from api.routes.secret_scan import router as secret_scan_router
 from config.settings import settings
 from infrastructure.checkpointer import set_checkpointer
 
+# OpenTelemetry 초기화 — OTEL_ENABLED=true 시에만 활성화
+# asyncio Task 경계에서 ContextVar 전파 단절 방지를 위해 앱 시작 직전에 설정한다.
+if settings.otel_enabled:
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+
+    _resource = Resource(attributes={SERVICE_NAME: settings.otel_service_name})
+    _provider = TracerProvider(resource=_resource)
+    _provider.add_span_processor(
+        BatchSpanProcessor(OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint))
+    )
+    trace.set_tracer_provider(_provider)
+
 logger = logging.getLogger(__name__)
 
 
@@ -61,6 +77,11 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lifespan,
 )
+
+# FastAPI OTel 계측 — 앱 생성 직후 미들웨어 등록 전에 적용
+if settings.otel_enabled:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    FastAPIInstrumentor.instrument_app(app)
 
 app.add_middleware(InternalKeyAuthMiddleware)
 # CORSMiddleware는 InternalKeyAuth 바깥(outermost)에 위치해야 OPTIONS preflight가 먼저 처리됨

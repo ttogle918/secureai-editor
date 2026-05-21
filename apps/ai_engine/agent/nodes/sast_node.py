@@ -4,6 +4,7 @@ import logging
 import os
 
 import redis.asyncio as aioredis
+from opentelemetry import trace
 
 from agent.agent_state import AgentState
 from agent.claude_client import analyze_for_sast
@@ -18,6 +19,7 @@ from infrastructure.guidelines_client import load_guidelines
 from infrastructure.progress_log_client import log_completed, log_failed, log_started
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 _redis: aioredis.Redis | None = None
 _CACHE_PREFIX = "secureai:sast:cache:"
@@ -134,6 +136,7 @@ async def sast_node(state: AgentState) -> dict:
     - 분석 결과를 Redis 에 캐시한다
     - 오류 발생 시 해당 파일 스킵하고 계속 진행 (전체 세션은 유지)
     - 파일 완료 시 progress_percent 를 갱신하고 progress log 에 기록한다
+    - asyncio Task 경계에서 ContextVar 단절 방지를 위해 수동 span 사용
     """
     session_id = state["session_id"]
     idx = state["current_file_index"]
@@ -147,7 +150,13 @@ async def sast_node(state: AgentState) -> dict:
     logger.info("[sast] session=%s file=%s (%d/%d)", session_id, file_path, idx + 1, total_files)
     await log_started(session_id, "sast", _STEP_ORDER, target=file_path)
 
-    try:
+    with tracer.start_as_current_span("sast_node") as span:
+      span.set_attribute("session_id", session_id)
+      span.set_attribute("file_path", file_path)
+      span.set_attribute("file_index", idx)
+      span.set_attribute("total_files", total_files)
+
+      try:
         source_type = state.get("source_type", "local")
         if source_type == "github":
             # github_token은 로그에 절대 출력 금지
@@ -192,15 +201,15 @@ async def sast_node(state: AgentState) -> dict:
         )
         result = {"file": file_path, "vulnerabilities": vulns, "cached": False}
 
-    except Exception as exc:
-        logger.error("[sast] session=%s file=%s error=%s", session_id, file_path, exc)
-        await log_failed(
-            session_id, "sast", _STEP_ORDER,
-            target=file_path,
-            detail={"error": str(exc)},
-        )
-        file_usage = dict(_EMPTY_USAGE)
-        result = {"file": file_path, "vulnerabilities": [], "error": str(exc)}
+      except Exception as exc:
+          logger.error("[sast] session=%s file=%s error=%s", session_id, file_path, exc)
+          await log_failed(
+              session_id, "sast", _STEP_ORDER,
+              target=file_path,
+              detail={"error": str(exc)},
+          )
+          file_usage = dict(_EMPTY_USAGE)
+          result = {"file": file_path, "vulnerabilities": [], "error": str(exc)}
 
     prev_usage = state.get("token_usage") or dict(_EMPTY_USAGE)
     return {

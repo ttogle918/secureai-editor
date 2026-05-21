@@ -69,6 +69,14 @@ dependencies {
 
 	// Firebase Admin SDK — FCM Push 알림 (선택적 활성화)
 	implementation("com.google.firebase:firebase-admin:9.2.0")
+
+	// ShedLock — Redis Provider (분산 스케줄러 중복 실행 방지)
+	implementation("net.javacrumbs.shedlock:shedlock-spring:6.3.0")
+	implementation("net.javacrumbs.shedlock:shedlock-provider-redis-spring:6.3.0")
+
+	// OpenTelemetry — Micrometer OTLP 트레이싱 (Spring Boot 4 호환)
+	implementation("io.micrometer:micrometer-tracing-bridge-otel")
+	implementation("io.opentelemetry:opentelemetry-exporter-otlp")
 }
 
 tasks.withType<Test> {

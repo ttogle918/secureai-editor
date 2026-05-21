@@ -5,6 +5,7 @@ import io.secureai.backend.domain.analysis.entity.SessionStatus;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ public class SessionInterruptionScheduler {
     private final AnalysisSessionRepository sessionRepository;
 
     @Scheduled(fixedDelay = 30_000)
+    @SchedulerLock(name = "sessionInterruptionScheduler", lockAtMostFor = "PT25S", lockAtLeastFor = "PT5S")
     @Transactional
     public void detectInterruptedSessions() {
         if (!aiAgentClient.isCircuitOpen()) return;

@@ -145,6 +145,21 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+  # ── Jaeger — 분산 트레이싱 UI ─────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.56
+    container_name: secureai-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - app-net
+      - data-net
+
   # ── MCP Server (Node.js) ─────────────────────────────
   # stdio 모드 MCP 서버 — AI Agent가 subprocess로 직접 spawn하므로
   # docker-compose 단독 실행 불가 (Sprint 2에서 AI Agent가 내부적으로 기동)

@@ -6,3 +6,10 @@ spring:
   data:
     redis:
       password: ${REDIS_PASSWORD:}
+
+secureai:
+  jwt:
+    secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItdW5pdC10ZXN0aW5nLW9ubHktbm90LWZvci1wcm9kdWN0aW9u}
+  encryption:
+    key: ${SECUREAI_ENCRYPTION_KEY:0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20}
+  internal-api-key: ${INTERNAL_API_KEY:test-internal-key}

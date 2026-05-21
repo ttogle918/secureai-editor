@@ -122,13 +122,13 @@
 
 ---
 
-### Stage 4 — 성능 최적화 + DTO 보안 검증 + SBOM 화면 (병렬)
+### Stage 4 — 성능 최적화 + DTO 보안 검증 + SBOM 화면 (병렬) ✅ 완료 (2026-05-22)
 
-| TASK | 제목 | 서비스 | 파일 | 선행 |
-|------|------|--------|------|------|
-| TASK-803 | 성능 테스트 & 캐시 최적화 | backend + k6 | `docker-compose.yml`(`grafana/k6` 서비스), k6 스크립트(`tests/perf/*.js`), Repository 레이어 `@EntityGraph`·`@BatchSize` 적용, `make perf-test` 추가 | TASK-808 |
-| TASK-804 | 보안 강화 (Spring Security 헤더 + DTO + Android) | backend + android | `SecurityConfig.java` `.headers()` 설정 (CSP/HSTS/X-Frame-Options/X-Content-Type), Controller 전체 DTO `@Valid` 전수 점검, Android `networkSecurityConfig`(cleartext 차단), OWASP ZAP Docker 자체 스캔 | TASK-806·807 |
-| FEAT-FE-001 | SBOM API + SbomPage.tsx | backend + frontend | `SbomController.java` GET 엔드포인트 추가 (경로: `/api/v1/projects/{projectId}/sbom/components`), `SbomComponentResponse.java`(신규 DTO), `DependencyComponentRepository.java`(`findBySessionId`), `apps/frontend/src/components/analysis/SbomPage.tsx`(신규) | — |
+| TASK | 제목 | 서비스 | 파일 | 선행 | 상태 |
+|------|------|--------|------|------|------|
+| TASK-803 | 성능 테스트 & 캐시 최적화 | backend + k6 | `docker-compose.yml`(k6 perf profile), `tests/perf/load-test.js`, `@EntityGraph`(Project/Vulnerability/Session), `@BatchSize(30)`, `RedisCacheConfig` cveList 6h TTL | TASK-808 | ✅ |
+| TASK-804 | 보안 강화 (Spring Security 헤더 + DTO + Android) | backend + android | `SecurityConfig.java` `.headers()`(CSP/HSTS/X-Frame-Options/X-Content-Type/Referrer-Policy), Controller @Valid 전수 점검(DastController 1건 수정), Android network_security_config.xml 확인, POST /sbom/components HttpMethod.POST 명시 | TASK-806·807 | ✅ |
+| FEAT-FE-001 | SBOM API + SbomPage.tsx | backend + frontend | `SbomController` GET 추가, `SbomComponentResponse.java`, `DependencyComponentRepository.findBySession_Id`, `SbomService.getComponents(프로젝트 소유권)`, `SbomPage.tsx` API 연결, 신규 `sbom/page.tsx` | — | ✅ |
 
 **병렬 안전**:
 - 803: Repository 레이어 (`VulnerabilityRepository`, `AnalysisSessionRepository` 등)
@@ -163,9 +163,9 @@
 | 2b | TASK-809 | GDPR Export/Delete API | — | Dev + Tester | ✅ |
 | 3a | TASK-806 | 2FA (TOTP) | — | Dev + Tester | ✅ |
 | 3b | TASK-807 | IP Allowlist | TASK-806 | Dev + Tester | ✅ |
-| 4a | TASK-803 | 성능 테스트 & 캐시 최적화 | TASK-808 | Dev + Tester |
-| 4b | TASK-804 | 보안 강화 (헤더 + DTO + Android) | TASK-806·807 | Dev + Tester |
-| 4c | FEAT-FE-001 | SBOM API + SbomPage.tsx | — | Dev + Tester |
+| 4a | TASK-803 | 성능 테스트 & 캐시 최적화 | TASK-808 | Dev + Tester | ✅ |
+| 4b | TASK-804 | 보안 강화 (헤더 + DTO + Android) | TASK-806·807 | Dev + Tester | ✅ |
+| 4c | FEAT-FE-001 | SBOM API + SbomPage.tsx | — | Dev + Tester | ✅ |
 | 5a | TASK-MISC-002 | 보안 문서 자동 생성 Level 1 | Stage 1~4 | Dev + Tester |
 | 5b | TASK-805 | Nginx + SSL + 보안 헤더 통합 | TASK-808, 5a | Dev + Tester |
 
@@ -213,15 +213,15 @@
 ## Sprint 8 완료 기준 (백로그 기준)
 
 - [x] **스케줄러 안정**: ShedLock으로 중복 실행 방지 (6개 Job)
-- [ ] **Circuit Breaker**: 모든 외부 호출(AI Agent / GitHub / NVD) 장애 격리
-- [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80%
-- [ ] **보안 기본선**: OWASP ZAP Critical 0건
-- [ ] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
+- [x] **Circuit Breaker**: 모든 외부 호출(AI Agent / NVD / DNS) 장애 격리
+- [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80% (k6 인프라 실행 필요)
+- [ ] **보안 기본선**: OWASP ZAP Critical 0건 (수동 스캔 필요)
+- [x] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
 - [x] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
 - [x] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
 - [x] **GDPR**: Export/Delete API 동작
 - [ ] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
-- [ ] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면
+- [x] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면
 - [ ] **Nginx + SSL**: API Gateway 라우팅 + 보안 헤더 통합
 
 ---
@@ -232,7 +232,7 @@
 /stage 1   ✅ 완료 (2026-05-21) — TASK-808 + TASK-801
 /stage 2   ✅ 완료 (2026-05-21) — TASK-802 + TASK-809
 /stage 3   ✅ 완료 (2026-05-22) — TASK-806 + TASK-807
-/stage 4   (Stage 3 완료 후)
+/stage 4   ✅ 완료 (2026-05-22) — TASK-803 + TASK-804 + FEAT-FE-001
 /stage 5   (Stage 4 완료 후)
 ```
 

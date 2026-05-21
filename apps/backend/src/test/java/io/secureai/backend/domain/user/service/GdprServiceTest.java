@@ -1,11 +1,11 @@
 package io.secureai.backend.domain.user.service;
 
-import io.secureai.backend.domain.report.repository.ReportRepository;
 import io.secureai.backend.domain.user.dto.GdprExportResponse;
 import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.repository.RefreshTokenRepository;
 import io.secureai.backend.domain.user.repository.UserRepository;
 import io.secureai.backend.global.aop.AuditLogRepository;
+import io.secureai.backend.global.event.GdprAccountDeletedEvent;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +16,7 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.OffsetDateTime;
@@ -32,9 +33,9 @@ class GdprServiceTest {
 
     @Mock UserRepository userRepository;
     @Mock RefreshTokenRepository refreshTokenRepository;
-    @Mock ReportRepository reportRepository;
     @Mock AuditLogRepository auditLogRepository;
     @Mock PasswordEncoder passwordEncoder;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     @InjectMocks GdprService gdprService;
 
@@ -134,9 +135,10 @@ class GdprServiceTest {
         // when
         gdprService.deleteAccount(userId, "correct-password");
 
-        // then — 삭제 순서 검증
-        InOrder inOrder = inOrder(reportRepository, refreshTokenRepository, userRepository);
-        inOrder.verify(reportRepository).deleteByUserId(userId);
+        // then — 삭제 순서 검증 (event → refreshTokens → users)
+        InOrder inOrder = inOrder(eventPublisher, refreshTokenRepository, userRepository);
+        inOrder.verify(eventPublisher).publishEvent(argThat((Object e) ->
+                e instanceof GdprAccountDeletedEvent evt && evt.userId().equals(userId)));
         inOrder.verify(refreshTokenRepository).revokeAllByUserId(eq(userId), any(OffsetDateTime.class), eq("gdpr_delete"));
         inOrder.verify(userRepository).deleteById(userId);
     }
@@ -156,7 +158,7 @@ class GdprServiceTest {
                 .isEqualTo(ErrorCode.USER_INVALID_PASSWORD);
 
         verify(userRepository, never()).deleteById(any());
-        verify(reportRepository, never()).deleteByUserId(any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -213,9 +215,11 @@ class GdprServiceTest {
         // when — 자신의 userId로만 삭제 요청
         gdprService.deleteAccount(userId, null);
 
-        // then — otherUserId와 관련된 메서드는 호출되지 않는다
-        verify(reportRepository).deleteByUserId(userId);
-        verify(reportRepository, never()).deleteByUserId(otherUserId);
+        // then — 자신의 userId 이벤트만 발행, 타 사용자 이벤트 없음
+        verify(eventPublisher).publishEvent(argThat((Object e) ->
+                e instanceof GdprAccountDeletedEvent evt && evt.userId().equals(userId)));
+        verify(eventPublisher, never()).publishEvent(argThat((Object e) ->
+                e instanceof GdprAccountDeletedEvent evt && evt.userId().equals(otherUserId)));
         verify(userRepository).deleteById(userId);
         verify(userRepository, never()).deleteById(otherUserId);
     }

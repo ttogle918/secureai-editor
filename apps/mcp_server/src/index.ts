@@ -27,6 +27,10 @@ import {
   handleCreatePrComment,
   createPrCommentToolDef,
 } from "./github/create_pr_comment.js";
+import {
+  handleRunDastInSandbox,
+  runDastInSandboxToolDef,
+} from "./dast/dast_backend.js";
 
 const WORKSPACE_ROOT = process.env["MCP_WORKSPACE_ROOT"] ?? "/workspace";
 
@@ -84,6 +88,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     listCommitsToolDef,
     getCommitDiffToolDef,
     createPrCommentToolDef,
+    runDastInSandboxToolDef,
   ],
 }));
 
@@ -142,6 +147,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "github_create_pr_comment":
         return handleCreatePrComment(args as Record<string, unknown>);
+
+      case "run_dast_in_sandbox":
+        return handleRunDastInSandbox(args as Record<string, unknown>);
 
       default:
         return { content: [{ type: "text", text: `Unknown tool: ${name}` }], isError: true };

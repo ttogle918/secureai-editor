@@ -18,6 +18,8 @@ spring:
     baseline-version: 0
     out-of-order: true
     locations: classpath:db/migration
+    placeholders:
+      mcp-ro-password: ${MCP_RO_PASSWORD:changeme_mcp_ro}
 
   jpa:
     hibernate:

@@ -15,6 +15,7 @@ from anthropic import AsyncAnthropic
 from jinja2 import Environment, FileSystemLoader
 
 from agent.agent_state import AgentState
+from agent.mcp_client import get_tool
 from agent.nodes.diff_generator import parse_patch_response
 from config.settings import settings
 from infrastructure.backend_api_client import save_patch_results
@@ -92,8 +93,46 @@ async def _call_claude(prompt: str, api_key: str | None = None, model: str | Non
     return response.content[0].text
 
 
+async def _fetch_prev_patch_example(session_id: str, vuln_type: str, language: str) -> str:
+    """이전 성공 패치 예시를 MCP PostgreSQL에서 조회해 문자열로 반환한다.
+
+    MCP PostgreSQL 미설정 또는 조회 실패 시 빈 문자열을 반환한다.
+
+    vuln_type과 language는 내부 열거값이므로 f-string 치환이 안전하다.
+    (@modelcontextprotocol/server-postgres의 query 툴은 파라미터 바인딩을 지원하지 않는다.)
+    """
+    try:
+        tool = get_tool(session_id, "query")
+    except (ValueError, KeyError):
+        return ""  # MCP PostgreSQL 미설정
+
+    try:
+        # language는 _detect_language()가 반환하는 내부 열거값 (java/python/javascript 등)
+        sql = (
+            f"SELECT original_code, patched_code FROM patch_results "
+            f"WHERE vuln_type = '{vuln_type}' AND file_path LIKE '%.{language}' "
+            f"LIMIT 3"
+        )
+        result = await tool.ainvoke({"query": sql})
+
+        if not result:
+            return ""
+
+        if isinstance(result, str):
+            raw = result.strip()
+        elif isinstance(result, list):
+            raw = "\n---\n".join(str(row) for row in result if row)
+        else:
+            raw = str(result)
+
+        return raw if raw else ""
+    except Exception as exc:
+        logger.debug("[patch] prev_patch_example failed session=%s vuln_type=%s error=%s", session_id, vuln_type, exc)
+        return ""
+
+
 async def _generate_patch_for_vuln(
-    vuln: dict, file_path: str, api_key: str | None = None, model: str | None = None
+    vuln: dict, file_path: str, session_id: str = "", api_key: str | None = None, model: str | None = None
 ) -> dict | None:
     """취약점 하나에 대한 패치를 생성한다. 실패 시 None을 반환한다."""
     vuln_type = vuln.get("type", "UNKNOWN")
@@ -108,6 +147,9 @@ async def _generate_patch_for_vuln(
             logger.debug("[patch] cache HIT key=%s", cache_key)
             return patch_result.to_dict()
 
+    # Redis 캐시 미스 — DB에서 이전 성공 패치 예시 조회 (MCP PostgreSQL 미설정 시 "")
+    prev_patch_example = await _fetch_prev_patch_example(session_id, vuln_type, language)
+
     template = _jinja_env.get_template("patch_generation.jinja2")
     prompt = template.render(
         vuln_type=vuln_type,
@@ -117,6 +159,7 @@ async def _generate_patch_for_vuln(
         code_snippet=vuln.get("code_snippet", ""),
         file_path=file_path,
         language=language,
+        prev_patch_example=prev_patch_example,
     )
 
     raw = await _call_claude(prompt, api_key=api_key, model=model)
@@ -148,22 +191,22 @@ async def patch_node(state: AgentState) -> dict:
         span.set_attribute("project_id", str(project_id))
         span.set_attribute("sast_result_count", len(sast_results))
 
-    patch_results: list[dict] = []
-    for file_result in sast_results:
-        file_path = file_result.get("file", "")
-        vulns = file_result.get("vulnerabilities", [])
-        for vuln in vulns:
-            try:
-                result = await _generate_patch_for_vuln(vuln, file_path, api_key=user_api_key, model=preferred_model)
-                if result is not None:
-                    patch_results.append(result)
-            except Exception as exc:
-                logger.warning(
-                    "[patch] skip vuln session=%s file=%s vuln_type=%s error=%s",
-                    session_id, file_path, vuln.get("type"), exc,
-                )
+        patch_results: list[dict] = []
+        for file_result in sast_results:
+            file_path = file_result.get("file", "")
+            vulns = file_result.get("vulnerabilities", [])
+            for vuln in vulns:
+                try:
+                    result = await _generate_patch_for_vuln(vuln, file_path, session_id=session_id, api_key=user_api_key, model=preferred_model)
+                    if result is not None:
+                        patch_results.append(result)
+                except Exception as exc:
+                    logger.warning(
+                        "[patch] skip vuln session=%s file=%s vuln_type=%s error=%s",
+                        session_id, file_path, vuln.get("type"), exc,
+                    )
 
-    logger.info("[patch] session=%s generated=%d patches", session_id, len(patch_results))
+        logger.info("[patch] session=%s generated=%d patches", session_id, len(patch_results))
 
     await save_patch_results(session_id, project_id, patch_results)
 

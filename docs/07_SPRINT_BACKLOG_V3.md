@@ -678,18 +678,18 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 > 자동으로 완전 삭제하는 배치 스케줄러. TASK-801(ShedLock)과 연계.
 
 **하위 할일**
-- [ ] `GdprHardDeleteJob.java` — `@Scheduled` + `@SchedulerLock` (ShedLock)
-- [ ] 삭제 대상: `users`, `vulnerabilities`, `analysis_sessions`, `exploit_results`, `reports` 연쇄 삭제
-- [ ] 삭제 전 감사 로그(`audit_logs`) 기록 후 제거
-- [ ] 삭제 완료 알림 이메일 발송 (EmailService 연동)
-- [ ] `GET /admin/gdpr/pending-deletions` — 관리자 대기 목록 조회 API
+- [x] `GdprHardDeleteJob.java` — `@Scheduled` + `@SchedulerLock` (ShedLock)
+- [x] 삭제 대상: `users`, `vulnerabilities`, `analysis_sessions`, `exploit_results`, `reports` 연쇄 삭제
+- [x] 삭제 전 감사 로그(`audit_logs`) 기록 후 제거
+- [x] 삭제 완료 알림 이메일 발송 (EmailService 연동)
+- [x] `GET /admin/gdpr/pending-deletions` — 관리자 대기 목록 조회 API
 
 **테스트 체크리스트**
-- [ ] 🧪 `GdprHardDeleteJob` — `deleted_at` 30일 초과 계정만 선택 정확성
+- [x] 🧪 `GdprHardDeleteJob` — `deleted_at` 30일 초과 계정만 선택 정확성
+- [x] 🛡️ 소프트 삭제 후 29일 계정 → 삭제 대상에서 제외
 - [ ] 🔬 소프트 삭제 후 30일 경과 시뮬레이션 → 연관 데이터 전체 삭제 확인
 - [ ] 🔬 다중 인스턴스 환경 → ShedLock으로 1회만 실행
 - [ ] 🔬 감사 로그 — 삭제 직전 로그 기록 후 사용자 데이터 제거 확인
-- [ ] 🛡️ 소프트 삭제 후 29일 계정 → 삭제 대상에서 제외
 - [ ] ✅ 삭제 완료 알림 이메일 수신 확인
 
 ---

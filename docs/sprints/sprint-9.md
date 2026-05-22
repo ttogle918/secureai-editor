@@ -360,3 +360,33 @@
 - `test_sast_node.py` 2개
 
 **커밋**: `4992551` `feat(sprint9/stage2): Prometheus + Grafana 운영 대시보드 (TASK-906)`
+
+---
+
+## Stage 3 완료 기록 (2026-05-22)
+
+### TASK-907 — GDPR 하드 삭제 스케줄러
+
+**구현 내용**:
+- `GdprService.java`: `deleteAccount()` 즉시 하드 삭제 → `user.markAsDeleted()` + refresh_tokens revoke 소프트 삭제로 전환
+- `User.java`: `markAsDeleted()` 메서드 추가 (`deletedAt = now()`, `isActive = false`)
+- `GdprUserHardDeleteEvent.java`: 크로스 도메인 삭제용 ApplicationEvent 레코드
+- `GdprHardDeleteService.java`: 30일 경과 계정 배치 50건 완전 삭제 + `getPendingDeletions()`. 감사 로그 선행 기록 → ApplicationEvent 발행 → users 삭제 → 이메일 순서 보장. 개별 실패 skip & log.
+- `GdprHardDeleteJob.java`: `@Scheduled(cron="0 0 4 * * *")` + `@SchedulerLock(name="gdprHardDelete", lockAtMostFor="PT30M")`
+- `GdprHardDeleteReportHandler.java`: `@EventListener`로 `GdprUserHardDeleteEvent` 수신 → report 도메인 삭제 (크로스 도메인 Repository 직접 주입 금지 준수)
+- `V042__add_gdpr_hard_delete_audit_action.sql`: `deleted_at` 인덱스 추가
+- `GdprController.java`: `GET /api/v1/admin/gdpr/pending-deletions` 추가, `UserRepository` 직접 주입 → `GdprHardDeleteService` 위임으로 레이어 규칙 준수
+- `EmailService.java`: 로그에서 수신자 이메일 주소 제거 (개인정보 보호)
+
+**Reviewer 경고 및 수정**:
+| # | 경고 | 수정 |
+|---|------|------|
+| 1 | EmailService 로그에 이메일 주소(개인정보) 출력 | `to=` 파라미터 제거 |
+| 2 | GdprController가 UserRepository 직접 주입 (레이어 위반) | GdprHardDeleteService.getPendingDeletions() 위임으로 교체 |
+| 3 | HARD_DELETE_DAYS 상수 두 곳에 중복 정의 | Controller 측 상수 제거, Service 단독 유지 |
+
+**단위 테스트**: 14개 통과
+- `GdprHardDeleteServiceTest` 7개 (30일 초과 선택, 29일 제외, skip&log 등)
+- `GdprServiceTest` 7개 (소프트 삭제 전환 검증)
+
+**커밋**: `e2175fc` `feat(sprint9/stage3): GDPR 하드 삭제 스케줄러 (TASK-907)`

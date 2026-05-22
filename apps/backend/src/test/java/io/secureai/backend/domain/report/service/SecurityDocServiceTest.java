@@ -1,14 +1,13 @@
 package io.secureai.backend.domain.report.service;
 
 import io.secureai.backend.domain.project.entity.Project;
-import io.secureai.backend.domain.project.repository.ProjectRepository;
-import io.secureai.backend.domain.project.repository.TeamMemberRepository;
+import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.domain.report.dto.SecurityDocResponse;
 import io.secureai.backend.domain.report.entity.DocType;
 import io.secureai.backend.domain.report.entity.SecurityDocRequest;
 import io.secureai.backend.domain.report.repository.SecurityDocRequestRepository;
 import io.secureai.backend.domain.user.entity.User;
-import io.secureai.backend.domain.user.repository.UserRepository;
+import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,9 +31,8 @@ import static org.mockito.Mockito.*;
 class SecurityDocServiceTest {
 
     @Mock SecurityDocRequestRepository securityDocRequestRepository;
-    @Mock ProjectRepository projectRepository;
-    @Mock TeamMemberRepository teamMemberRepository;
-    @Mock UserRepository userRepository;
+    @Mock ProjectService projectService;
+    @Mock UserService userService;
     @Mock SecurityDocAsyncProcessor asyncProcessor;
 
     @InjectMocks SecurityDocService securityDocService;
@@ -80,8 +78,8 @@ class SecurityDocServiceTest {
     @Test
     @DisplayName("createRequest — 프로젝트 멤버가 아닌 사용자는 PROJECT_ACCESS_DENIED 예외를 발생시킨다")
     void createRequest_nonMember_throwsAccessDenied() {
-        when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(false);
+        when(projectService.findOrThrow(projectId)).thenReturn(project);
+        when(projectService.isMember(projectId, userId)).thenReturn(false);
 
         assertThatThrownBy(() -> securityDocService.createRequest(projectId, userId, DocType.CISO))
                 .isInstanceOf(BusinessException.class)
@@ -98,9 +96,9 @@ class SecurityDocServiceTest {
     void createRequest_validMember_savesPendingRequest() {
         SecurityDocRequest saved = buildRequest(DocType.CISO, "PENDING", null, null);
 
-        when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(projectService.findOrThrow(projectId)).thenReturn(project);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
+        when(userService.findOrThrow(userId)).thenReturn(user);
         when(securityDocRequestRepository.save(any(SecurityDocRequest.class))).thenReturn(saved);
         doNothing().when(asyncProcessor).process(any(UUID.class));
 
@@ -153,9 +151,9 @@ class SecurityDocServiceTest {
     void createRequest_hanafosType_returnsHanafosDocType() {
         SecurityDocRequest saved = buildRequest(DocType.HANAFOS, "PENDING", null, null);
 
-        when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(projectService.findOrThrow(projectId)).thenReturn(project);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
+        when(userService.findOrThrow(userId)).thenReturn(user);
         when(securityDocRequestRepository.save(any(SecurityDocRequest.class))).thenReturn(saved);
         doNothing().when(asyncProcessor).process(any(UUID.class));
 
@@ -171,9 +169,9 @@ class SecurityDocServiceTest {
     void createRequest_ismsType_returnsIsmsDocType() {
         SecurityDocRequest saved = buildRequest(DocType.ISMS, "PENDING", null, null);
 
-        when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(teamMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(projectService.findOrThrow(projectId)).thenReturn(project);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
+        when(userService.findOrThrow(userId)).thenReturn(user);
         when(securityDocRequestRepository.save(any(SecurityDocRequest.class))).thenReturn(saved);
         doNothing().when(asyncProcessor).process(any(UUID.class));
 

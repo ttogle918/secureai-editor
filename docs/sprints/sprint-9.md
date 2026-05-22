@@ -284,3 +284,46 @@
 ---
 
 *Sprint 9 계획 작성일: 2026-05-22 (Sprint 8 종료 직후, PR #74 머지 대기)*
+
+---
+
+## Stage 1 완료 기록 (2026-05-22)
+
+### TASK-904 — PostgreSQL MCP 서버 도입
+
+**구현 내용**:
+- `mcp_client.py`: `contextlib.AsyncExitStack` 기반 멀티서버 MCP 세션 관리. `MultiServerMCPClient.__aenter__` 가 복수 서버에서 `NotImplementedError` 발생하는 한계를 AsyncExitStack으로 우회.
+- `settings.py`: `postgres_mcp_url` 필드 추가 — 비어 있으면 PostgreSQL MCP 서버 미기동, 분석 계속.
+- `sast_node.py`: `_fetch_prev_vuln_context()` 추가. UUID 검증 (`str(_uuid.UUID(...))`) 후 f-string SQL 조립 — `@modelcontextprotocol/server-postgres` 의 `query` 툴이 파라미터 바인딩 미지원이므로.
+- `patch_node.py`: `_fetch_prev_patch_example()` 추가 + OTel span 스코프 수정 (실제 작업이 `with tracer.start_as_current_span()` 블록 내부에 있어야 DB 조회 시간도 트레이싱에 포함됨).
+- `V041__create_mcp_readonly_user.sql`: `secureai_mcp_ro` 읽기 전용 계정 생성, `GRANT SELECT`, `ALTER DEFAULT PRIVILEGES REVOKE INSERT,UPDATE,DELETE`.
+- `application.yaml`: `spring.flyway.placeholders.mcp-ro-password` 추가.
+- `.env.example`: `POSTGRES_MCP_URL`, `MCP_RO_PASSWORD` 추가.
+
+**Stage 0 검증 결과**:
+- `@modelcontextprotocol/server-postgres` v0.6.2 → npm 공식 패키지 존재 → `npx -y` 채택 (자체 구현 불필요).
+- `@modelcontextprotocol/server-docker` → npm 미존재 → `mcp-server-docker` v1.0.0 채택 (TASK-905).
+
+### TASK-905 — Docker DAST MCP thin-wrapper 구현
+
+**구현 내용**:
+- `apps/mcp_server/src/dast/dast_backend.ts`: `run_dast_in_sandbox` MCP 툴. Backend `/api/v1/internal/dast/execute` HTTP 내부 호출. AbortController 350초 타임아웃. `targetUrl`, `params`, `INTERNAL_API_KEY` 로그 출력 금지.
+- `apps/mcp_server/src/index.ts`: 툴 등록 (ListTools + CallTool handler).
+- `dast_node.py`: `_execute_dast()` 추가 — MCP `run_dast_in_sandbox` 툴 우선 시도, 미등록 시 httpx fallback (`run_dast_in_sandbox`).
+- 기존 `filesystem` 서버 env에 `BACKEND_INTERNAL_URL`, `INTERNAL_API_KEY` 주입 — 별도 Docker MCP 서버 프로세스 불필요, 단일 `index.js`에서 파일시스템 + DAST 툴 통합 처리.
+
+### 자동 테스트 결과
+
+- `tests/agent/test_mcp_postgres_tools.py` — 11개 통과
+- `tests/agent/test_dast_mcp_tool.py` — 10개 통과
+
+### Reviewer 경고 및 수정
+
+| # | 경고 | 수정 |
+|---|------|------|
+| 1 | `patch_node.py` OTel span 스코프 이탈 | 실제 작업을 `with` 블록 내부로 이동 |
+| 2 | `_fetch_prev_patch_example()` 빈 except | `logger.debug()` 추가 |
+| 3 | `dast_backend.ts` `errText` 선언 후 미사용 | 에러 메시지에 `errText` 포함 |
+| 4 | `sast_node.py` `project_id` f-string SQL 직접 주입 | `str(_uuid.UUID(str(project_id)))` 검증 추가 |
+
+**커밋**: `938ac29` `feat(sprint9/stage1): PostgreSQL MCP + Docker DAST MCP 연동 (TASK-904, TASK-905)`

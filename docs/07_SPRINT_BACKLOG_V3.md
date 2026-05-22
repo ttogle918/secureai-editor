@@ -660,9 +660,9 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - **중요도**: 🟠 High | **출처**: FEAT-OPS-002
 
 **하위 할일**
-- [ ] `prometheus.yml` 설정
-- [ ] Grafana 대시보드 JSON (분석 처리량, 에러율, DAST 실행시간, AI 토큰 사용량)
-- [ ] 커스텀 메트릭: 분석 완료 수, 평균 분석 시간, DAST 성공률
+- [x] `prometheus.yml` 설정
+- [x] Grafana 대시보드 JSON (분석 처리량, 에러율, DAST 실행시간, AI 토큰 사용량)
+- [x] 커스텀 메트릭: 분석 완료 수, 평균 분석 시간, DAST 성공률
 
 **테스트 체크리스트**
 - [ ] ✅ Prometheus 타겟 모두 UP

@@ -327,3 +327,36 @@
 | 4 | `sast_node.py` `project_id` f-string SQL 직접 주입 | `str(_uuid.UUID(str(project_id)))` 검증 추가 |
 
 **커밋**: `938ac29` `feat(sprint9/stage1): PostgreSQL MCP + Docker DAST MCP 연동 (TASK-904, TASK-905)`
+
+---
+
+## Stage 2 완료 기록 (2026-05-22)
+
+### TASK-906 — Prometheus + Grafana 대시보드
+
+**구현 내용**:
+- `build.gradle.kts`: `io.micrometer:micrometer-registry-prometheus` 추가 → `/actuator/prometheus` 자동 노출
+- `application.yaml`: `management.endpoints.web.exposure.include`에 `prometheus` 추가
+- `AnalysisMetrics.java`: `infrastructure.metrics` 레이어 전용 컴포넌트 — `secureai_analysis_sessions_total`, `secureai_analysis_errors_total`, `secureai_dast_success_total`, `secureai_ai_tokens_total` Counter 4종
+- `AnalysisService.java`: `AnalysisMetrics` 주입, 세션 시작/실패 계측
+- `DastExecutionService.java`: `MeterRegistry` 주입, `secureai_dast_duration_seconds` Timer 히스토그램
+- `requirements.txt`: `prometheus-fastapi-instrumentator==7.1.0` 추가
+- `main.py`: `Instrumentator().instrument(app).expose(app)` 등록
+- `internal_key_auth.py`: `_OPEN_PATHS`에 `"/metrics"` 추가 (Prometheus 스크레이핑 인증 면제)
+- `docker-compose.yml`: ai_engine `ports: "8000:8000"` → `expose: "8000"` (외부 직접 접근 차단), prometheus/grafana 서비스 추가
+- `prometheus.yml`: backend(`:8080/actuator/prometheus`), ai_engine(`:8000/metrics`) 스크레이프 설정
+- `grafana/provisioning/`: Prometheus 데이터소스 + 대시보드 프로비저닝 (4개 패널)
+- `.env.example`: `GF_SECURITY_ADMIN_PASSWORD=changeme_in_production` 추가
+
+**Reviewer 경고 및 수정**:
+| # | 경고 | 수정 |
+|---|------|------|
+| 1 | `GF_SECURITY_ADMIN_PASSWORD=admin` 하드코딩 | `${GF_SECURITY_ADMIN_PASSWORD:?}` 환경변수화 + `.env.example` 추가 |
+| 2 | `/metrics` 인증 차단으로 Prometheus 수집 불가 | `_OPEN_PATHS`에 `/metrics` 추가 + ai_engine 포트 `expose` 전환 |
+
+**단위 테스트**: 5개 통과
+- `AnalysisMetricsTest` 3개
+- `DastExecutionServiceTest` Timer 등록 테스트 1개
+- `test_sast_node.py` 2개
+
+**커밋**: `4992551` `feat(sprint9/stage2): Prometheus + Grafana 운영 대시보드 (TASK-906)`

@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from api.middleware.internal_key_auth import InternalKeyAuthMiddleware
 from api.routes.analyze import router as analyze_router
@@ -88,6 +89,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Prometheus 메트릭 — /metrics 엔드포인트 노출
+# _OPEN_PATHS 에 "/metrics" 추가 + docker-compose에서 8000 포트를 expose(내부망 전용)로
+# 제한하여 Prometheus 컨테이너만 수집 가능하고 외부에서 직접 접근 불가
+Instrumentator().instrument(app).expose(app)
 
 app.include_router(analyze_router)
 app.include_router(chat_router)

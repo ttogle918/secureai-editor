@@ -1,6 +1,7 @@
 package io.secureai.backend.domain.dast.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.secureai.backend.domain.analysis.service.AiAgentClient;
 import io.secureai.backend.domain.dast.dto.DastExecuteRequest;
 import io.secureai.backend.domain.dast.dto.DastExecuteResponse;
@@ -46,7 +47,7 @@ class DastExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DastExecutionService(dockerSandboxManager, exploitResultPersister, exploitResultRepository, new ObjectMapper(), aiAgentClient);
+        service = new DastExecutionService(dockerSandboxManager, exploitResultPersister, exploitResultRepository, new ObjectMapper(), aiAgentClient, new SimpleMeterRegistry());
 
         // saveInitial() 이 RUNNING 상태의 ExploitResult를 반환하도록 스텁
         ExploitResult initial = ExploitResult.builder()
@@ -56,7 +57,7 @@ class DastExecutionServiceTest {
                 .targetUrl("https://target.example.com")
                 .status(ScanStatus.RUNNING)
                 .build();
-        when(exploitResultPersister.saveInitial(any(UUID.class), any())).thenReturn(initial);
+        lenient().when(exploitResultPersister.saveInitial(any(UUID.class), any())).thenReturn(initial);
     }
 
     @Test
@@ -203,6 +204,26 @@ class DastExecutionServiceTest {
         // then
         verify(exploitResultPersister).saveSuccess(any(), any(DastExecuteResponse.class), anyLong());
         verify(exploitResultPersister, never()).saveFailed(any(), any(), any(), anyLong());
+    }
+
+    @Test
+    @DisplayName("생성자 호출 시 DAST 실행시간 Timer가 MeterRegistry에 등록된다")
+    void constructor_registersDastDurationTimer() {
+        // given — @BeforeEach 스텁과 무관하도록 로컬 mock 사용
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+
+        // when
+        new DastExecutionService(
+                mock(DockerSandboxManager.class),
+                mock(ExploitResultPersister.class),
+                mock(ExploitResultRepository.class),
+                new ObjectMapper(),
+                mock(AiAgentClient.class),
+                registry
+        );
+
+        // then
+        assertThat(registry.find("secureai_dast_duration_seconds").timer()).isNotNull();
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

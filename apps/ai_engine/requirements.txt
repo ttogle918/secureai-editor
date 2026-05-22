@@ -62,3 +62,9 @@ Jinja2==3.1.6
 opentelemetry-api==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-exporter-otlp-proto-grpc==1.27.0
+
+# ───────────────────────────────────────────────────
+# Prometheus 메트릭 — FastAPI 자동 계측 및 커스텀 카운터
+# prometheus_client 는 prometheus-fastapi-instrumentator 의존성으로 자동 설치됨
+# ───────────────────────────────────────────────────
+prometheus-fastapi-instrumentator==7.1.0

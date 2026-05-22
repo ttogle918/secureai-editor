@@ -48,6 +48,7 @@ repositories {
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-actuator:4.0.5")
+	implementation("io.micrometer:micrometer-registry-prometheus")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa:4.0.5")
 	implementation("org.springframework.boot:spring-boot-starter-data-redis:4.0.5")
 	implementation("org.springframework.boot:spring-boot-starter-cache:4.0.5")

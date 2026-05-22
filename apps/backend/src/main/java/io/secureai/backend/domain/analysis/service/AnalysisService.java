@@ -11,6 +11,7 @@ import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
+import io.secureai.backend.infrastructure.metrics.AnalysisMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -30,6 +31,7 @@ public class AnalysisService {
     private final AiAgentClient aiAgentClient;
     private final GitHubApiService gitHubApiService;
     private final UserService userService;
+    private final AnalysisMetrics analysisMetrics;
 
     @Transactional
     public AnalysisSessionResponse startAnalysis(UUID userId, StartAnalysisRequest request) {
@@ -46,8 +48,15 @@ public class AnalysisService {
         session.markRunning();
         sessionRepository.save(session);
 
+        analysisMetrics.incrementSessions();
+
         UserService.UserAnalysisSettings settings = userService.getAnalysisSettings(userId);
-        dispatchToAgent(session, project, userId, request, settings);
+        try {
+            dispatchToAgent(session, project, userId, request, settings);
+        } catch (Exception e) {
+            analysisMetrics.incrementErrors();
+            throw e;
+        }
 
         log.info("[analysis] started sessionId={} projectId={} sourceType={}",
                 session.getId(), project.getId(), request.effectiveSourceType());

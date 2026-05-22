@@ -6,6 +6,7 @@ import uuid as _uuid
 
 import redis.asyncio as aioredis
 from opentelemetry import trace
+from prometheus_client import Counter
 
 from agent.agent_state import AgentState
 from agent.claude_client import analyze_for_sast
@@ -22,6 +23,13 @@ from infrastructure.progress_log_client import log_completed, log_failed, log_st
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
+
+# Prometheus 커스텀 카운터 — 모듈 레벨 선언으로 프로세스당 한 번만 생성한다.
+_ai_tokens_counter = Counter(
+    "secureai_ai_tokens_total",
+    "Total AI tokens consumed",
+    ["service"],
+)
 
 _redis: aioredis.Redis | None = None
 _CACHE_PREFIX = "secureai:sast:cache:"
@@ -237,6 +245,10 @@ async def sast_node(state: AgentState) -> dict:
         user_api_key = state.get("user_api_key")
         raw_vulns, file_usage = await _analyze_chunks(file_path, content, guidelines, preferred_model, user_api_key)
         vulns = classify_and_enrich(raw_vulns, file_path)
+
+        token_count = file_usage.get("input_tokens", 0) + file_usage.get("output_tokens", 0)
+        if token_count > 0:
+            _ai_tokens_counter.labels(service="sast").inc(token_count)
 
         if sha256:
             r = _get_redis()

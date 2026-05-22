@@ -3,6 +3,8 @@ package io.secureai.backend.domain.dast.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.secureai.backend.domain.analysis.service.AiAgentClient;
 import io.secureai.backend.domain.dast.dto.DastExecuteRequest;
 import io.secureai.backend.domain.dast.dto.DastExecuteResponse;
@@ -11,7 +13,6 @@ import io.secureai.backend.domain.dast.entity.ExploitResult;
 import io.secureai.backend.domain.dast.entity.ScanStatus;
 import io.secureai.backend.domain.dast.repository.ExploitResultRepository;
 import io.secureai.backend.global.exception.BusinessException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +27,6 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class DastExecutionService {
 
     private static final String DAST_IMAGE = "secureai/dast-runner:latest";
@@ -37,6 +37,25 @@ public class DastExecutionService {
     private final ExploitResultRepository exploitResultRepository;
     private final ObjectMapper objectMapper;
     private final AiAgentClient aiAgentClient;
+    private final Timer dastDurationTimer;
+
+    public DastExecutionService(
+            DockerSandboxManager dockerSandboxManager,
+            ExploitResultPersister exploitResultPersister,
+            ExploitResultRepository exploitResultRepository,
+            ObjectMapper objectMapper,
+            AiAgentClient aiAgentClient,
+            MeterRegistry registry) {
+        this.dockerSandboxManager = dockerSandboxManager;
+        this.exploitResultPersister = exploitResultPersister;
+        this.exploitResultRepository = exploitResultRepository;
+        this.objectMapper = objectMapper;
+        this.aiAgentClient = aiAgentClient;
+        this.dastDurationTimer = Timer.builder("secureai_dast_duration_seconds")
+                .description("DAST sandbox execution duration")
+                .publishPercentileHistogram()
+                .register(registry);
+    }
 
     /**
      * DAST 분석을 AI Engine에 위임한다. Controller는 이 메서드만 호출한다.
@@ -79,43 +98,45 @@ public class DastExecutionService {
         List<String> command = buildCommand();
         List<String> envVars = buildEnvVars(req);
 
-        String containerId = null;
+        String[] containerIdHolder = {null};
         long startMs = System.currentTimeMillis();
 
-        try {
-            containerId = dockerSandboxManager.createAndStart(config, command, envVars);
-            log.info("DAST execution started: vulnType={} containerId={}", req.vulnType(), containerId);
+        return dastDurationTimer.record(() -> {
+            try {
+                containerIdHolder[0] = dockerSandboxManager.createAndStart(config, command, envVars);
+                log.info("DAST execution started: vulnType={} containerId={}", req.vulnType(), containerIdHolder[0]);
 
-            result.setContainerId(containerId);
-            dockerSandboxManager.waitForExit(containerId, TIMEOUT_SECONDS);
+                result.setContainerId(containerIdHolder[0]);
+                dockerSandboxManager.waitForExit(containerIdHolder[0], TIMEOUT_SECONDS);
 
-            String logs = dockerSandboxManager.collectLogs(containerId);
-            DastExecuteResponse response = parseOutcome(logs, containerId);
+                String logs = dockerSandboxManager.collectLogs(containerIdHolder[0]);
+                DastExecuteResponse response = parseOutcome(logs, containerIdHolder[0]);
 
-            long durationMs = System.currentTimeMillis() - startMs;
-            exploitResultPersister.saveSuccess(result, response, durationMs);
+                long durationMs = System.currentTimeMillis() - startMs;
+                exploitResultPersister.saveSuccess(result, response, durationMs);
 
-            log.info("DAST execution completed: vulnType={} success={} containerId={}",
-                    req.vulnType(), response.success(), containerId);
-            return response;
+                log.info("DAST execution completed: vulnType={} success={} containerId={}",
+                        req.vulnType(), response.success(), containerIdHolder[0]);
+                return response;
 
-        } catch (DockerSandboxException e) {
-            long durationMs = System.currentTimeMillis() - startMs;
-            safelyPersistFailure(result, e.getStatus(), e.getMessage(), durationMs);
-            log.error("DAST sandbox error: vulnType={} status={}", req.vulnType(), e.getStatus());
-            return failureResponse(e.getMessage(), containerId);
+            } catch (DockerSandboxException e) {
+                long durationMs = System.currentTimeMillis() - startMs;
+                safelyPersistFailure(result, e.getStatus(), e.getMessage(), durationMs);
+                log.error("DAST sandbox error: vulnType={} status={}", req.vulnType(), e.getStatus());
+                return failureResponse(e.getMessage(), containerIdHolder[0]);
 
-        } catch (Exception e) {
-            long durationMs = System.currentTimeMillis() - startMs;
-            safelyPersistFailure(result, ScanStatus.FAILED, e.getMessage(), durationMs);
-            log.warn("DAST execution failed: vulnType={} error={}", req.vulnType(), e.getMessage());
-            return failureResponse(e.getMessage(), containerId);
+            } catch (Exception e) {
+                long durationMs = System.currentTimeMillis() - startMs;
+                safelyPersistFailure(result, ScanStatus.FAILED, e.getMessage(), durationMs);
+                log.warn("DAST execution failed: vulnType={} error={}", req.vulnType(), e.getMessage());
+                return failureResponse(e.getMessage(), containerIdHolder[0]);
 
-        } finally {
-            if (containerId != null) {
-                dockerSandboxManager.forceRemove(containerId);
+            } finally {
+                if (containerIdHolder[0] != null) {
+                    dockerSandboxManager.forceRemove(containerIdHolder[0]);
+                }
             }
-        }
+        });
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

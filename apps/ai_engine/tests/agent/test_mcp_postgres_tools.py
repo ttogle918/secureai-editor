@@ -28,14 +28,15 @@ async def test_fetch_prev_vuln_context_returns_string_on_success():
 
     mock_tool = _make_query_tool_mock("SQL_INJECTION | 3 | HIGH\nXSS | 1 | MEDIUM")
 
+    valid_project_id = "00000000-0000-0000-0000-000000001234"
     with patch("agent.nodes.sast_node.get_tool", return_value=mock_tool):
-        result = await _fetch_prev_vuln_context("sess-001", "proj-uuid-1234")
+        result = await _fetch_prev_vuln_context("sess-001", valid_project_id)
 
     assert "SQL_INJECTION" in result
     assert "XSS" in result
     mock_tool.ainvoke.assert_called_once()
     call_args = mock_tool.ainvoke.call_args[0][0]
-    assert "proj-uuid-1234" in call_args["query"]
+    assert valid_project_id in call_args["query"]
 
 
 @pytest.mark.asyncio
@@ -88,7 +89,7 @@ async def test_fetch_prev_vuln_context_handles_list_result():
     mock_tool = _make_query_tool_mock(rows)
 
     with patch("agent.nodes.sast_node.get_tool", return_value=mock_tool):
-        result = await _fetch_prev_vuln_context("sess-005", "proj-uuid-list")
+        result = await _fetch_prev_vuln_context("sess-005", "00000000-0000-0000-0000-000000005678")
 
     assert result != ""
     assert len(result) > 0

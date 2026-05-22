@@ -36,6 +36,7 @@ class AnalysisServiceTest {
     @Mock AiAgentClient aiAgentClient;
     @Mock GitHubApiService gitHubApiService;
     @Mock UserService userService;
+    @Mock io.secureai.backend.infrastructure.metrics.AnalysisMetrics analysisMetrics;
 
     @InjectMocks AnalysisService analysisService;
 

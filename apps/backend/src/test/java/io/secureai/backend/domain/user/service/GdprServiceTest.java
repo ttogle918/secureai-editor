@@ -5,18 +5,15 @@ import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.repository.RefreshTokenRepository;
 import io.secureai.backend.domain.user.repository.UserRepository;
 import io.secureai.backend.global.aop.AuditLogRepository;
-import io.secureai.backend.global.event.GdprAccountDeletedEvent;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.OffsetDateTime;
@@ -35,7 +32,6 @@ class GdprServiceTest {
     @Mock RefreshTokenRepository refreshTokenRepository;
     @Mock AuditLogRepository auditLogRepository;
     @Mock PasswordEncoder passwordEncoder;
-    @Mock ApplicationEventPublisher eventPublisher;
 
     @InjectMocks GdprService gdprService;
 
@@ -45,7 +41,11 @@ class GdprServiceTest {
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
-        user = mock(User.class);
+        // markAsDeleted() 실제 동작 검증을 위해 실제 User spy 사용
+        user = spy(User.builder()
+                .email("user@example.com")
+                .username("testuser")
+                .build());
     }
 
     // ── exportData ────────────────────────────────────────────────────────────
@@ -53,22 +53,23 @@ class GdprServiceTest {
     @Test
     @DisplayName("exportData — 존재하는 사용자의 DTO가 반환된다")
     void exportData_existingUser_returnsDto() {
-        // given
-        given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(user));
-        given(user.getId()).willReturn(userId);
-        given(user.getEmail()).willReturn("user@example.com");
-        given(user.getUsername()).willReturn("testuser");
-        given(user.getDisplayName()).willReturn("Test User");
-        given(user.getGithubLogin()).willReturn("gh-user");
-        given(user.getTimezone()).willReturn("Asia/Seoul");
-        given(user.getLocale()).willReturn("ko");
-        given(user.getPublicProfile()).willReturn(false);
-        given(user.getEmailVerified()).willReturn(true);
-        given(user.getIsActive()).willReturn(true);
-        given(user.getGithubId()).willReturn(12345L);
-        given(user.getAnthropicApiKey()).willReturn("enc-key");
-        given(user.getCreatedAt()).willReturn(OffsetDateTime.now().minusDays(30));
-        given(user.getUpdatedAt()).willReturn(OffsetDateTime.now().minusDays(1));
+        // given — exportData 는 stub이 많이 필요하므로 별도 mock 사용
+        User mockUser = mock(User.class);
+        given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(mockUser));
+        given(mockUser.getId()).willReturn(userId);
+        given(mockUser.getEmail()).willReturn("user@example.com");
+        given(mockUser.getUsername()).willReturn("testuser");
+        given(mockUser.getDisplayName()).willReturn("Test User");
+        given(mockUser.getGithubLogin()).willReturn("gh-user");
+        given(mockUser.getTimezone()).willReturn("Asia/Seoul");
+        given(mockUser.getLocale()).willReturn("ko");
+        given(mockUser.getPublicProfile()).willReturn(false);
+        given(mockUser.getEmailVerified()).willReturn(true);
+        given(mockUser.getIsActive()).willReturn(true);
+        given(mockUser.getGithubId()).willReturn(12345L);
+        given(mockUser.getAnthropicApiKey()).willReturn("enc-key");
+        given(mockUser.getCreatedAt()).willReturn(OffsetDateTime.now().minusDays(30));
+        given(mockUser.getUpdatedAt()).willReturn(OffsetDateTime.now().minusDays(1));
 
         // when
         GdprExportResponse result = gdprService.exportData(userId);
@@ -100,19 +101,20 @@ class GdprServiceTest {
     @DisplayName("exportData — GitHub 미연동·BYOK 미설정 사용자는 false가 반환된다")
     void exportData_noGithubNoBYOK_returnsFalseFlags() {
         // given
-        given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(user));
-        given(user.getId()).willReturn(userId);
-        given(user.getEmail()).willReturn("user@example.com");
-        given(user.getUsername()).willReturn("testuser");
-        given(user.getTimezone()).willReturn("Asia/Seoul");
-        given(user.getLocale()).willReturn("ko");
-        given(user.getPublicProfile()).willReturn(false);
-        given(user.getEmailVerified()).willReturn(false);
-        given(user.getIsActive()).willReturn(true);
-        given(user.getGithubId()).willReturn(null);
-        given(user.getAnthropicApiKey()).willReturn(null);
-        given(user.getCreatedAt()).willReturn(OffsetDateTime.now());
-        given(user.getUpdatedAt()).willReturn(OffsetDateTime.now());
+        User mockUser = mock(User.class);
+        given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(mockUser));
+        given(mockUser.getId()).willReturn(userId);
+        given(mockUser.getEmail()).willReturn("user@example.com");
+        given(mockUser.getUsername()).willReturn("testuser");
+        given(mockUser.getTimezone()).willReturn("Asia/Seoul");
+        given(mockUser.getLocale()).willReturn("ko");
+        given(mockUser.getPublicProfile()).willReturn(false);
+        given(mockUser.getEmailVerified()).willReturn(false);
+        given(mockUser.getIsActive()).willReturn(true);
+        given(mockUser.getGithubId()).willReturn(null);
+        given(mockUser.getAnthropicApiKey()).willReturn(null);
+        given(mockUser.getCreatedAt()).willReturn(OffsetDateTime.now());
+        given(mockUser.getUpdatedAt()).willReturn(OffsetDateTime.now());
 
         // when
         GdprExportResponse result = gdprService.exportData(userId);
@@ -122,33 +124,67 @@ class GdprServiceTest {
         assertThat(result.isHasByok()).isFalse();
     }
 
-    // ── deleteAccount ─────────────────────────────────────────────────────────
+    // ── deleteAccount (소프트 삭제) ───────────────────────────────────────────
 
     @Test
-    @DisplayName("deleteAccount — 삭제 순서: reports → refreshTokens → users 순서로 호출된다")
-    void deleteAccount_hardDelete_deletesInCorrectOrder() {
+    @DisplayName("deleteAccount — 호출 후 user.deletedAt 이 설정된다 (소프트 삭제)")
+    void deleteAccount_softDelete_setsDeletedAt() {
         // given
         given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(user));
-        given(user.getPasswordHash()).willReturn("$2a$12$hashedPassword");
-        given(passwordEncoder.matches("correct-password", "$2a$12$hashedPassword")).willReturn(true);
 
         // when
-        gdprService.deleteAccount(userId, "correct-password");
+        gdprService.deleteAccount(userId, null);
 
-        // then — 삭제 순서 검증 (event → refreshTokens → users)
-        InOrder inOrder = inOrder(eventPublisher, refreshTokenRepository, userRepository);
-        inOrder.verify(eventPublisher).publishEvent(argThat((Object e) ->
-                e instanceof GdprAccountDeletedEvent evt && evt.userId().equals(userId)));
-        inOrder.verify(refreshTokenRepository).revokeAllByUserId(eq(userId), any(OffsetDateTime.class), eq("gdpr_delete"));
-        inOrder.verify(userRepository).deleteById(userId);
+        // then — deletedAt 이 설정되어야 한다
+        assertThat(user.getDeletedAt()).isNotNull();
+        assertThat(user.getDeletedAt()).isBeforeOrEqualTo(OffsetDateTime.now());
     }
 
     @Test
-    @DisplayName("deleteAccount — 잘못된 비밀번호이면 USER_INVALID_PASSWORD 예외가 발생하고 삭제되지 않는다")
-    void deleteAccount_wrongPassword_throwsAndDoesNotDelete() {
+    @DisplayName("deleteAccount — 호출 후 isActive 가 false 로 설정된다")
+    void deleteAccount_softDelete_deactivatesUser() {
         // given
         given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(user));
-        given(user.getPasswordHash()).willReturn("$2a$12$hashedPassword");
+
+        // when
+        gdprService.deleteAccount(userId, null);
+
+        // then
+        assertThat(user.getIsActive()).isFalse();
+    }
+
+    @Test
+    @DisplayName("deleteAccount — 소프트 삭제 후 userRepository.deleteById 는 호출되지 않는다")
+    void deleteAccount_softDelete_doesNotHardDelete() {
+        // given
+        given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(user));
+
+        // when
+        gdprService.deleteAccount(userId, null);
+
+        // then — 하드 삭제(deleteById)는 GdprHardDeleteService 책임이므로 여기서 호출되지 않아야 함
+        verify(userRepository, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("deleteAccount — 소프트 삭제 후 refresh_tokens 이 즉시 revoke 된다")
+    void deleteAccount_softDelete_revokesRefreshTokens() {
+        // given
+        given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(user));
+
+        // when
+        gdprService.deleteAccount(userId, null);
+
+        // then — refresh_tokens revoke 는 소프트 삭제에서도 즉시 수행
+        verify(refreshTokenRepository).revokeAllByUserId(eq(userId), any(OffsetDateTime.class), eq("gdpr_soft_delete"));
+    }
+
+    @Test
+    @DisplayName("deleteAccount — 잘못된 비밀번호이면 USER_INVALID_PASSWORD 예외가 발생하고 소프트 삭제되지 않는다")
+    void deleteAccount_wrongPassword_throwsAndDoesNotSoftDelete() {
+        // given
+        doReturn("$2a$12$hashedPassword").when(user).getPasswordHash();
+        given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(user));
         given(passwordEncoder.matches("wrong-password", "$2a$12$hashedPassword")).willReturn(false);
 
         // when & then
@@ -157,23 +193,23 @@ class GdprServiceTest {
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.USER_INVALID_PASSWORD);
 
-        verify(userRepository, never()).deleteById(any());
-        verify(eventPublisher, never()).publishEvent(any());
+        assertThat(user.getDeletedAt()).isNull();
+        verify(refreshTokenRepository, never()).revokeAllByUserId(any(), any(), any());
     }
 
     @Test
-    @DisplayName("deleteAccount — OAuth 전용 계정(passwordHash null)은 비밀번호 검증 없이 삭제된다")
-    void deleteAccount_oauthAccount_deletesWithoutPasswordCheck() {
+    @DisplayName("deleteAccount — OAuth 전용 계정(passwordHash null)은 비밀번호 검증 없이 소프트 삭제된다")
+    void deleteAccount_oauthAccount_softDeletesWithoutPasswordCheck() {
         // given
         given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(user));
-        given(user.getPasswordHash()).willReturn(null);
+        // user.getPasswordHash() 는 기본 null (Builder default)
 
         // when
         gdprService.deleteAccount(userId, null);
 
         // then
         verify(passwordEncoder, never()).matches(any(), any());
-        verify(userRepository).deleteById(userId);
+        assertThat(user.getDeletedAt()).isNotNull();
     }
 
     @Test
@@ -190,37 +226,16 @@ class GdprServiceTest {
     }
 
     @Test
-    @DisplayName("deleteAccount — audit_log 저장 실패 시에도 삭제 플로우는 계속된다")
-    void deleteAccount_auditLogFails_deletionContinues() {
+    @DisplayName("deleteAccount — audit_log 저장 실패 시에도 소프트 삭제 플로우는 계속된다")
+    void deleteAccount_auditLogFails_softDeletionContinues() {
         // given
         given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(user));
-        given(user.getPasswordHash()).willReturn(null);
         given(auditLogRepository.save(any())).willThrow(new RuntimeException("DB error"));
 
         // when — 예외 없이 완료되어야 한다
         gdprService.deleteAccount(userId, null);
 
-        // then
-        verify(userRepository).deleteById(userId);
-    }
-
-    @Test
-    @DisplayName("deleteAccount — userId는 AuthenticationPrincipal에서만 획득하므로 타 사용자 데이터는 삭제 불가")
-    void deleteAccount_onlyDeletesOwnData_principalBound() {
-        // given — 두 개의 서로 다른 userId
-        UUID otherUserId = UUID.randomUUID();
-        given(userRepository.findByIdWithPlan(userId)).willReturn(Optional.of(user));
-        given(user.getPasswordHash()).willReturn(null);
-
-        // when — 자신의 userId로만 삭제 요청
-        gdprService.deleteAccount(userId, null);
-
-        // then — 자신의 userId 이벤트만 발행, 타 사용자 이벤트 없음
-        verify(eventPublisher).publishEvent(argThat((Object e) ->
-                e instanceof GdprAccountDeletedEvent evt && evt.userId().equals(userId)));
-        verify(eventPublisher, never()).publishEvent(argThat((Object e) ->
-                e instanceof GdprAccountDeletedEvent evt && evt.userId().equals(otherUserId)));
-        verify(userRepository).deleteById(userId);
-        verify(userRepository, never()).deleteById(otherUserId);
+        // then — 소프트 삭제는 완료되어야 함
+        assertThat(user.getDeletedAt()).isNotNull();
     }
 }

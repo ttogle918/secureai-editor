@@ -131,6 +131,16 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private boolean totpEnabled = false;
 
+    /**
+     * GDPR 삭제 요청에 따른 소프트 삭제 처리.
+     * deletedAt을 현재 시각으로 설정하고 계정을 비활성화한다.
+     * 실제 데이터 삭제는 GdprHardDeleteJob이 30일 후 수행한다.
+     */
+    public void markAsDeleted() {
+        this.deletedAt = OffsetDateTime.now();
+        this.isActive = false;
+    }
+
     @Override
     @PrePersist
     protected void onCreate() {

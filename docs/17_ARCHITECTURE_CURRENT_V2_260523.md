@@ -1,7 +1,16 @@
-# SecureAI — 현재 아키텍처 개요
-> 기준: Sprint 4 완료 + TASK-306 (보안 가이드라인 DB) 완료  
-> 작성일: 2026-05-06  
-> 완료된 스프린트: Sprint 0, 1, 2, 3, 4 + TASK-306
+# SecureAI — 현재 아키텍처 개요 v2.0
+> 기준: Sprint 8 완료 (VC 피드백 반영)  
+> 작성일: 2026-05-22  
+> 완료된 스프린트: Sprint 0 ~ Sprint 8  
+> **정본 지정일**: 2026-05-23 | 구버전(`16_ARCHITECTURE_CURRENT.md`) 아카이브 완료  
+> ⚠️ **Sprint 9 완료 후 업데이트 필요** (MCP 전환·Prometheus·VSCode Extension 미반영)
+
+## 버전 이력
+
+| 버전 | 파일명 | 기준일 | 주요 변경 |
+|------|--------|--------|---------|
+| V1 | `16_ARCHITECTURE_CURRENT.md` | Sprint 6 완료 | 초기 아키텍처 스냅샷 — SAST+DAST+SSE 파이프라인, Sprint 1~6 기준, pgvector 임베딩, Redis 키 구조, 인증 흐름 |
+| **V2 (현재)** | `17_ARCHITECTURE_CURRENT_V2.md` | 2026-05-22 | Sprint 8 완료 기준 전면 개편: Prometheus+Grafana 관측성 3계층, Jaeger 분산 트레이싱, 2FA/IP Allowlist/GDPR 보안 강화, VC 피드백 3항목(AI 환각 제어·DAST 자원 통제·API 토큰 Hard Limit) 대응 |
 
 ---
 
@@ -18,6 +27,7 @@
 9. [Redis 키 구조](#9-redis-키-구조)
 10. [인증 흐름](#10-인증-흐름)
 11. [기술 스택 상세](#11-기술-스택-상세)
+12. [VC 피드백 대응 (보안/인프라 전략)](#12-vc-피드백-대응-보안인프라-전략)
 
 ---
 
@@ -30,18 +40,23 @@ graph LR
     end
 
     subgraph APPNET["app-net"]
+        Nginx["Nginx\nAPI Gateway (:80/443)"]
         Frontend["Frontend\nNext.js 15\n:3000"]
-        Backend["Backend\nSpring Boot 4\n:8080"]
+        Backend["Backend\nSpring Boot 4\n:8080\nResilience4j CB"]
     end
 
     subgraph DATANET["data-net"]
         AI["AI Engine\nFastAPI + LangGraph\n:8000"]
-        Postgres["PostgreSQL 15\n:5432"]
+        Postgres["pgvector:15\n:5432"]
         Redis["Redis 7\n:6379"]
     end
 
-    subgraph DASTNET["dast-net (격리, Sprint 6)"]
-        DAST["DAST 샌드박스\n(미구현)"]
+    subgraph DASTNET["dast-net (격리)"]
+        DAST["DAST 샌드박스 큐\n(호스트 자원 제어)"]
+    end
+
+    subgraph TRACENET["trace-net"]
+        Jaeger["Jaeger (OpenTelemetry)"]
     end
 
     subgraph EXTERNAL["외부"]
@@ -50,8 +65,9 @@ graph LR
         MCP["MCP Server\nNode.js :3100"]
     end
 
-    Browser -->|"HTTP/SSE"| Frontend
-    Frontend -->|"REST/SSE\nBearer Token"| Backend
+    Browser -->|"HTTP/SSE"| Nginx
+    Nginx --> Frontend
+    Nginx -->|"REST/SSE\nBearer Token"| Backend
     Backend -->|"X-Internal-Key"| AI
     Backend --- Postgres
     Backend --- Redis
@@ -61,6 +77,8 @@ graph LR
     AI -->|"MCP Protocol"| MCP
     MCP -->|"GitHub API"| GitHubAPI
     Backend -->|"GitHub OAuth"| GitHubAPI
+    Backend -.->|"OTLP"| Jaeger
+    AI -.->|"OTLP"| Jaeger
 ```
 
 ### 1.1 서비스 포트 요약
@@ -594,10 +612,10 @@ graph TD
 | Sprint 3 | Week 07-08 | SAST 파이프라인 & GitHub 레포 스캔 | 완료 |
 | Sprint 4 | Week 09-10 | 웹 에디터 UI & 실시간 SSE | 완료 |
 | TASK-306 | 2026-05-06 | 보안 가이드라인 DB & SAST 주입 | 완료 |
-| Sprint 5 | Week 11-12 | GitHub Layer 2 완성 | 예정 |
-| Sprint 6 | Week 13-14 | DAST 엔진 & Docker 샌드박스 | 예정 |
-| Sprint 7 | Week 15-16 | 리포트 & 대시보드 & Android MVP | 예정 |
-| Sprint 8 | Week 17-18 | 안정화 & 성능 최적화 | 예정 |
+| Sprint 5 | Week 11-12 | GitHub 연동 고도화 (Webhooks) | 완료 |
+| Sprint 6 | Week 13-14 | DAST 엔진 & Docker 샌드박스 제어 | 완료 |
+| Sprint 7 | Week 15-16 | 리포트 & 대시보드 & Android MVP | 완료 |
+| Sprint 8 | Week 17-18 | 안정화 & 성능 최적화, 보안 피드백 반영 | 완료 |
 | Sprint 9 | Week 19-20 | VSCode Extension & 지속 모니터링 | 예정 |
 
 ### 8.2 Sprint별 구현 완료 항목
@@ -835,5 +853,28 @@ sequenceDiagram
 
 ---
 
-*이 문서는 Sprint 4 완료 + TASK-306 완료 시점(2026-05-06)의 구현 상태를 반영한다.*  
-*다음 업데이트 예정: Sprint 5 완료 후*
+---
+
+## 12. VC 피드백 대응 (보안/인프라 전략)
+
+Sprint 8에서 투자자(엑셀러레이터) 피드백을 기반으로 다음 3가지 핵심 아키텍처 방어책을 도입했다.
+
+### 12.1 단위 테스트를 통한 AI 환각 제어
+- AI가 생성한 패치 코드가 기존 로직을 파괴하지 않도록 보장한다.
+- 패치 적용 전 단위 테스트 코드를 동시 생성하여 임시 컨테이너에서 실행.
+- 테스트 통과(Verified) 상태인 패치만 사용자에게 추천되도록 파이프라인 보강.
+
+### 12.2 DAST 샌드박스 호스트 자원 통제
+- Docker API를 통해 동적으로 샌드박스 컨테이너를 띄울 때 호스트 자원이 고갈되는 문제를 해결.
+- `dast-net` 내부 큐잉 시스템을 도입하여 활성 컨테이너 수를 제한 (예: Max 5개).
+- 초과 요청은 대기 상태(`queued`)로 전환되며 예상 대기 시간(`estimatedWaitTimeMs`)을 반환.
+
+### 12.3 API 토큰 사용량 제어 (Hard Limit)
+- 무제한 프롬프트 사용으로 인한 LLM 비용 폭탄(Bill Shock) 방지.
+- 팀/프로젝트 단위로 월별 최대 사용 예산(USD)과 토큰 수를 할당.
+- Redis의 Rate Limiter 및 Token Counter를 통해 실시간 차감, 초과 시 `429 Too Many Requests` + 경고 알림 전송.
+
+---
+
+*이 문서는 Sprint 8 완료 시점(2026-05-22)의 구현 상태를 반영한다.*
+*다음 업데이트 예정: Sprint 9 완료 후*

@@ -132,7 +132,7 @@ public class DastController {
      */
     @PostMapping("/dast/results/by-vuln-ids")
     public ResponseEntity<ApiResponse<List<DastResultDto>>> getResultsByVulnIds(
-            @RequestBody List<UUID> vulnIds
+            @Valid @RequestBody List<UUID> vulnIds
     ) {
         List<DastResultDto> results = dastResultQueryService.getLatestCompletedByVulnIds(vulnIds)
                 .stream().map(DastResultDto::from).toList();

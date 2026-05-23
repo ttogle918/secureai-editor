@@ -5,6 +5,7 @@ import io.secureai.backend.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.time.OffsetDateTime;
@@ -26,6 +27,8 @@ public class Project extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    // N+1 방지: 프로젝트 목록 조회 시 팀멤버를 IN 쿼리로 일괄 로딩 (한 번에 최대 30건)
+    @BatchSize(size = 30)
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<TeamMember> teamMembers = new ArrayList<>();

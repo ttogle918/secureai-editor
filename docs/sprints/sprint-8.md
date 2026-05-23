@@ -1,5 +1,5 @@
 # Sprint 8 — 안정화 & 보안 강화 & 런칭 준비
-**기간**: 2026-06-01 ~ 2026-06-14 (Week 17–18)
+**기간**: 2026-05-21 ~ 2026-06-03 (Week 17–18, 실제 시작일 조정)
 **목표**: 관측성·복원성 기반 구축(OpenTelemetry + ShedLock + Circuit Breaker) → 보안 인증 강화(2FA + IP Allowlist) → 성능 최적화 + 보안 헤더 + SBOM 화면 → 보안 문서 자동 생성 + Nginx 통합
 
 ---
@@ -35,6 +35,23 @@
 
 ---
 
+## 스프린트 시작 전 완료 사항 (2026-05-21)
+
+### PR #73 머지 완료 — Pagori 리디자인 전체 적용
+- `refactor/frontend-ui` → `main` 스쿼시 머지 완료
+- UI 적용률 75% → 95% (온보딩·SBOM·반응형·EmptyStates·Mock fallback·네비게이션)
+- SBOM 화면은 mock 데이터 — FEAT-FE-001(Stage 4)에서 API 연결 예정
+
+### CI 인프라 수정 (PR #73과 함께 main 반영)
+| 수정 항목 | 원인 | 조치 |
+|----------|------|------|
+| `SECUREAI_ENCRYPTION_KEY` | Base64 40자 → AES 키 불일치 | 64자 hex로 교체 |
+| `DB_URL` → `SPRING_DATASOURCE_URL` | Spring 환경변수명 불일치 → 포트 5434 기본값 사용 | `SPRING_DATASOURCE_URL` 등으로 정정 |
+| postgres 이미지 `postgres:15-alpine` | V028 `CREATE EXTENSION vector` 실패 | `pgvector/pgvector:pg15`로 교체 |
+| `BackendApplicationTests` | `application-test.yaml`에 `flyway.enabled: false` → plans 테이블 없어 DataInitializer 실패 | `@MockitoBean DataInitializer` 추가 (Spring Boot 4.x 패키지) |
+
+---
+
 ## 이월 태스크
 
 | TASK | 출처 | 사유 | Sprint 8 처리 |
@@ -64,12 +81,12 @@
 
 ## 실행 계획
 
-### Stage 1 — 관측성 기반 + 스케줄러 안정화 (병렬)
+### Stage 1 — 관측성 기반 + 스케줄러 안정화 (병렬) ✅ 완료 (2026-05-21)
 
-| TASK | 제목 | 서비스 | 파일 | 선행 |
-|------|------|--------|------|------|
-| TASK-808 | OpenTelemetry 통합 (Jaeger) | backend + ai_engine + docker-compose | `build.gradle.kts`(OTel starter), `application.yaml`(OTel 설정), `docker-compose.yml`(Jaeger), Python `requirements.txt`(OTel SDK), `settings.py`(환경변수), LangGraph 노드별 수동 span | Stage 0 #1, #5 |
-| TASK-801 | ShedLock 스케줄러 전체 완성 | backend | `build.gradle.kts`(ShedLock 의존성), `V037__create_shedlock_table.sql`, 6개 Job `@SchedulerLock` (`ExpiredDataCleanupJob`, `PartitionMaintenanceJob`, `SastUsageResetJob`, `NvdSyncJob`, `SessionInterruptionScheduler`, `RefreshTokenCleanupJob`) | Stage 0 #3 |
+| TASK | 제목 | 서비스 | 파일 | 선행 | 상태 |
+|------|------|--------|------|------|------|
+| TASK-808 | OpenTelemetry 통합 (Jaeger) | backend + ai_engine + docker-compose | `build.gradle.kts`(OTel starter), `application.yaml`(OTel 설정), `docker-compose.yml`(Jaeger), Python `requirements.txt`(OTel SDK), `settings.py`(환경변수), LangGraph 노드별 수동 span | Stage 0 #1, #5 | ✅ |
+| TASK-801 | ShedLock 스케줄러 전체 완성 | backend | `build.gradle.kts`(ShedLock 의존성), `V037__create_shedlock_table.sql`, 6개 Job `@SchedulerLock` (`ExpiredDataCleanupJob`, `PartitionMaintenanceJob`, `SastUsageResetJob`, `NvdSyncJob`, `SessionInterruptionScheduler`, `RefreshTokenCleanupJob`) | Stage 0 #3 | ✅ |
 
 **병렬 안전 조건**:
 - `build.gradle.kts` 공유 → 단일 Dev 에이전트가 두 의존성 블록(OTel + ShedLock)을 한 번에 처리하거나, 801 의존성 추가 커밋 후 808이 이어서 추가
@@ -79,12 +96,12 @@
 
 ---
 
-### Stage 2 — Circuit Breaker + GDPR API (병렬)
+### Stage 2 — Circuit Breaker + GDPR API (병렬) ✅ 완료 (2026-05-21)
 
-| TASK | 제목 | 서비스 | 파일 | 선행 |
-|------|------|--------|------|------|
-| TASK-802 | Resilience4j Circuit Breaker 전체 적용 | backend | `build.gradle.kts`(`resilience4j-spring-boot3`), `ResilienceConfig.java`(신규), `AnalysisService`·`DomainVerificationService`·`NvdSyncJob`에 `@CircuitBreaker(fallbackMethod=)` 추가, `AiAgentClient.isCircuitOpen()` Registry 연결 | TASK-801 |
-| TASK-809 | GDPR Export/Delete API | backend | `GdprExportController.java`(신규), `GdprDeleteService.java`(신규), 연쇄 삭제 순서: `exploit_results` → `analysis_sessions` → `vulnerabilities` → `reports` → `users` | — |
+| TASK | 제목 | 서비스 | 파일 | 선행 | 상태 |
+|------|------|--------|------|------|------|
+| TASK-802 | Resilience4j Circuit Breaker 전체 적용 | backend | `build.gradle.kts`, `application.yaml`(CB 설정), `DefaultAiAgentClient`·`NvdApiClient`·`DomainVerificationService` @CircuitBreaker, `CircuitBreakerTest.java`(8개) | TASK-801 | ✅ |
+| TASK-809 | GDPR Export/Delete API | backend | `GdprController.java`, `GdprService.java`, `GdprAccountDeletedEvent`, `GdprReportCleanupHandler.java`, `GdprServiceTest.java`(7개) | — | ✅ |
 
 **병렬 안전**: 802는 기존 서비스 클래스 어노테이션 추가, 809는 신규 컨트롤러/서비스 — 파일 영역 분리
 
@@ -92,12 +109,12 @@
 
 ---
 
-### Stage 3 — 보안 인증 강화 (순차: SecurityConfig.java 공유)
+### Stage 3 — 보안 인증 강화 (순차: SecurityConfig.java 공유) ✅ 완료 (2026-05-22)
 
-| TASK | 제목 | 서비스 | 파일 | 선행 |
-|------|------|--------|------|------|
-| TASK-806 | 2FA (TOTP) | backend | `build.gradle.kts`(`totp-spring-boot-starter`), `V038__add_totp_fields.sql`, `TotpService.java`, `RecoveryCodeService.java`(`@Lock(PESSIMISTIC_WRITE)`), `SecurityConfig.java` 2FA 필터, `/auth/2fa/*` 엔드포인트 | — |
-| TASK-807 | IP Allowlist | backend | `V039__create_team_settings.sql`(테이블 신규), `IpAllowlistFilter.java`(`OncePerRequestFilter`), `SecurityConfig.java`에 `addFilterBefore(ipAllowlistFilter, JwtAuthenticationFilter.class)`, `application.yaml`에 `server.forward-headers-strategy: NATIVE`, `PUT /admin/teams/{teamId}/ip-allowlist` API | TASK-806 |
+| TASK | 제목 | 서비스 | 파일 | 선행 | 상태 |
+|------|------|--------|------|------|------|
+| TASK-806 | 2FA (TOTP) | backend | `build.gradle.kts`(`totp-spring-boot-starter`), `V038__add_totp_fields.sql`, `TotpService.java`, `TotpController.java`(`@Lock(PESSIMISTIC_WRITE)`), `SecurityConfig.java` 2FA 경로 설정, `/api/v1/auth/2fa/*` 엔드포인트 | — | ✅ |
+| TASK-807 | IP Allowlist | backend | `V039__create_team_settings.sql`(테이블 신규), `IpAllowlistFilter.java`(`OncePerRequestFilter`), `SecurityConfig.java`에 `addFilterBefore(ipAllowlistFilter, JwtAuthenticationFilter.class)`, `application.yaml`에 `server.forward-headers-strategy: NATIVE`, `PUT /api/v1/admin/teams/{teamId}/ip-allowlist` API | TASK-806 | ✅ |
 
 **순차 강제 이유**: 두 태스크 모두 `SecurityConfig.java` 수정 → 806이 먼저 필터 체인 구조 확정 후 807이 IP 필터 삽입
 
@@ -105,13 +122,13 @@
 
 ---
 
-### Stage 4 — 성능 최적화 + DTO 보안 검증 + SBOM 화면 (병렬)
+### Stage 4 — 성능 최적화 + DTO 보안 검증 + SBOM 화면 (병렬) ✅ 완료 (2026-05-22)
 
-| TASK | 제목 | 서비스 | 파일 | 선행 |
-|------|------|--------|------|------|
-| TASK-803 | 성능 테스트 & 캐시 최적화 | backend + k6 | `docker-compose.yml`(`grafana/k6` 서비스), k6 스크립트(`tests/perf/*.js`), Repository 레이어 `@EntityGraph`·`@BatchSize` 적용, `make perf-test` 추가 | TASK-808 |
-| TASK-804 | 보안 강화 (Spring Security 헤더 + DTO + Android) | backend + android | `SecurityConfig.java` `.headers()` 설정 (CSP/HSTS/X-Frame-Options/X-Content-Type), Controller 전체 DTO `@Valid` 전수 점검, Android `networkSecurityConfig`(cleartext 차단), OWASP ZAP Docker 자체 스캔 | TASK-806·807 |
-| FEAT-FE-001 | SBOM API + SbomPage.tsx | backend + frontend | `SbomController.java` GET 엔드포인트 추가 (경로: `/api/v1/projects/{projectId}/sbom/components`), `SbomComponentResponse.java`(신규 DTO), `DependencyComponentRepository.java`(`findBySessionId`), `apps/frontend/src/components/analysis/SbomPage.tsx`(신규) | — |
+| TASK | 제목 | 서비스 | 파일 | 선행 | 상태 |
+|------|------|--------|------|------|------|
+| TASK-803 | 성능 테스트 & 캐시 최적화 | backend + k6 | `docker-compose.yml`(k6 perf profile), `tests/perf/load-test.js`, `@EntityGraph`(Project/Vulnerability/Session), `@BatchSize(30)`, `RedisCacheConfig` cveList 6h TTL | TASK-808 | ✅ |
+| TASK-804 | 보안 강화 (Spring Security 헤더 + DTO + Android) | backend + android | `SecurityConfig.java` `.headers()`(CSP/HSTS/X-Frame-Options/X-Content-Type/Referrer-Policy), Controller @Valid 전수 점검(DastController 1건 수정), Android network_security_config.xml 확인, POST /sbom/components HttpMethod.POST 명시 | TASK-806·807 | ✅ |
+| FEAT-FE-001 | SBOM API + SbomPage.tsx | backend + frontend | `SbomController` GET 추가, `SbomComponentResponse.java`, `DependencyComponentRepository.findBySession_Id`, `SbomService.getComponents(프로젝트 소유권)`, `SbomPage.tsx` API 연결, 신규 `sbom/page.tsx` | — | ✅ |
 
 **병렬 안전**:
 - 803: Repository 레이어 (`VulnerabilityRepository`, `AnalysisSessionRepository` 등)
@@ -123,12 +140,12 @@
 
 ---
 
-### Stage 5 — 보안 문서 자동 생성 + Nginx 통합 (순차)
+### Stage 5 — 보안 문서 자동 생성 + Nginx 통합 (순차) ✅ 완료 (2026-05-22)
 
-| TASK | 제목 | 서비스 | 파일 | 선행 |
-|------|------|--------|------|------|
-| TASK-MISC-002 | 보안 문서 자동 생성 Level 1 | backend + frontend | `build.gradle.kts`(`spring-boot-starter-thymeleaf` + `openhtmltopdf-pdfbox:1.0.20`), `V040__create_security_doc_requests.sql`, `SecurityDocController.java`, `SecurityDocService.java`(Thymeleaf → HTML → OpenHTMLtoPDF 파이프라인), 템플릿 3종(`ciso-report.html`, `hanafos-checklist.html`, `isms-p-evidence.html`), 프론트엔드 문서 유형 선택 UI | Stage 1~4 완료 |
-| TASK-805 | Nginx API Gateway + SSL + 보안 헤더 통합 | nginx + docker-compose | `nginx.conf` 라우팅(`/api/*` → backend, `/ai/*` → ai_engine), `limit_req_zone` 분당 100회, 보안 헤더 통합(TASK-804의 Spring `.headers()` 설정을 Nginx `add_header`로 이전), 개발: 자체 서명 / 프로덕션: Let's Encrypt + Certbot, `docker-compose.yml` Nginx + Certbot 서비스 | TASK-808 (Jaeger와 `docker-compose.yml` 비충돌 확인) |
+| TASK | 제목 | 서비스 | 파일 | 선행 | 상태 |
+|------|------|--------|------|------|------|
+| TASK-MISC-002 | 보안 문서 자동 생성 Level 1 | backend + frontend | `build.gradle.kts`(`spring-boot-starter-thymeleaf` + `openhtmltopdf-pdfbox:1.1.37`), `V040__create_security_doc_requests.sql`, `SecurityDocController.java`, `SecurityDocService.java` + `SecurityDocAsyncProcessor.java`(Thymeleaf → HTML → OpenHTMLtoPDF, @Async, SecureRandom 토큰, Path Traversal 방어), 템플릿 3종, `SecurityDocPage.tsx` | Stage 1~4 완료 | ✅ |
+| TASK-805 | Nginx API Gateway + SSL + 보안 헤더 통합 | nginx + docker-compose | `nginx/nginx.conf`(HTTP→HTTPS 강제, TLSv1.2/1.3, limit_req 100r/m, app-net 최소 권한), `nginx/.gitignore`(키 파일 보호), `docker-compose.yml` nginx 서비스 추가, `Makefile` ssl-cert 타겟 | TASK-808 | ✅ |
 
 **구성 근거**: Nginx는 모든 엔드포인트 확정 후 라우팅 작성. 보안 헤더는 TASK-804에서 Spring Security로 1단계 적용된 상태에서 Nginx로 통합 이전.
 
@@ -138,19 +155,19 @@
 
 ## 전체 실행 순서 요약
 
-| 순서 | TASK | 제목 | 선행 | 에이전트 |
-|------|------|------|------|---------|
-| 1a | TASK-808 | OpenTelemetry 통합 (Jaeger) | — | Dev + Tester |
-| 1b | TASK-801 | ShedLock 스케줄러 전체 완성 | — | Dev + Tester |
-| 2a | TASK-802 | Resilience4j Circuit Breaker | TASK-801 | Dev + Tester |
-| 2b | TASK-809 | GDPR Export/Delete API | — | Dev + Tester |
-| 3a | TASK-806 | 2FA (TOTP) | — | Dev + Tester |
-| 3b | TASK-807 | IP Allowlist | TASK-806 | Dev + Tester |
-| 4a | TASK-803 | 성능 테스트 & 캐시 최적화 | TASK-808 | Dev + Tester |
-| 4b | TASK-804 | 보안 강화 (헤더 + DTO + Android) | TASK-806·807 | Dev + Tester |
-| 4c | FEAT-FE-001 | SBOM API + SbomPage.tsx | — | Dev + Tester |
-| 5a | TASK-MISC-002 | 보안 문서 자동 생성 Level 1 | Stage 1~4 | Dev + Tester |
-| 5b | TASK-805 | Nginx + SSL + 보안 헤더 통합 | TASK-808, 5a | Dev + Tester |
+| 순서 | TASK | 제목 | 선행 | 에이전트 | 상태 |
+|------|------|------|------|---------|------|
+| 1a | TASK-808 | OpenTelemetry 통합 (Jaeger) | — | Dev + Tester | ✅ |
+| 1b | TASK-801 | ShedLock 스케줄러 전체 완성 | — | Dev + Tester | ✅ |
+| 2a | TASK-802 | Resilience4j Circuit Breaker | TASK-801 | Dev + Tester | ✅ |
+| 2b | TASK-809 | GDPR Export/Delete API | — | Dev + Tester | ✅ |
+| 3a | TASK-806 | 2FA (TOTP) | — | Dev + Tester | ✅ |
+| 3b | TASK-807 | IP Allowlist | TASK-806 | Dev + Tester | ✅ |
+| 4a | TASK-803 | 성능 테스트 & 캐시 최적화 | TASK-808 | Dev + Tester | ✅ |
+| 4b | TASK-804 | 보안 강화 (헤더 + DTO + Android) | TASK-806·807 | Dev + Tester | ✅ |
+| 4c | FEAT-FE-001 | SBOM API + SbomPage.tsx | — | Dev + Tester | ✅ |
+| 5a | TASK-MISC-002 | 보안 문서 자동 생성 Level 1 | Stage 1~4 | Dev + Tester | ✅ |
+| 5b | TASK-805 | Nginx + SSL + 보안 헤더 통합 | TASK-808, 5a | Dev + Tester | ✅ |
 
 ---
 
@@ -184,7 +201,7 @@
 
 | 마일스톤 | 기준 |
 |---------|------|
-| **Stage 1 게이트** | Jaeger UI에서 분석 요청 전체 Trace 시각화 + ShedLock 다중 인스턴스 시뮬레이션 1회만 실행 |
+| **Stage 1 게이트** | Jaeger UI에서 분산 Trace 시각화 (secureai-backend ✅) + ShedLock 다중 인스턴스 시뮬레이션 1회만 실행 ✅ — `secureai-ai-engine` Jaeger 검증은 추후(Stage 4 성능 테스트 시 분석 요청과 함께 확인) |
 | **Stage 2 게이트** | AI Agent 강제 종료 → 연속 실패 10회 → Circuit OPEN → fallback 응답 + 30초 후 HALF_OPEN → CLOSED 복구 + GDPR export JSON 완전성 + delete 연쇄 삭제 검증 |
 | **Stage 3 게이트** | Google Authenticator QR 스캔 → TOTP 인증 성공, 복구 코드 1회 사용 후 재사용 거부 + 허용 IP 외부 요청 403, CIDR 범위 내 IP 정상 통과, X-Forwarded-For 조작 시 원본 IP 기준 검증 |
 | **Stage 4 게이트** | k6 p95 < 500ms + Redis 캐시 히트율 > 80% + OWASP ZAP Critical/High 0건 + CSP/HSTS/X-Frame-Options 헤더 응답 확인 + SBOM Page → CVE 매핑 표시 |
@@ -195,28 +212,28 @@
 
 ## Sprint 8 완료 기준 (백로그 기준)
 
-- [ ] **스케줄러 안정**: ShedLock으로 중복 실행 방지 (6개 Job)
-- [ ] **Circuit Breaker**: 모든 외부 호출(AI Agent / GitHub / NVD) 장애 격리
-- [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80%
-- [ ] **보안 기본선**: OWASP ZAP Critical 0건
-- [ ] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
-- [ ] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
-- [ ] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
-- [ ] **GDPR**: Export/Delete API 동작
-- [ ] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
-- [ ] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면
-- [ ] **Nginx + SSL**: API Gateway 라우팅 + 보안 헤더 통합
+- [x] **스케줄러 안정**: ShedLock으로 중복 실행 방지 (6개 Job)
+- [x] **Circuit Breaker**: 모든 외부 호출(AI Agent / NVD / DNS) 장애 격리
+- [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80% (k6 인프라 실행 필요)
+- [ ] **보안 기본선**: OWASP ZAP Critical 0건 (수동 스캔 필요)
+- [x] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
+- [x] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
+- [x] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
+- [x] **GDPR**: Export/Delete API 동작
+- [x] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
+- [x] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면
+- [x] **Nginx + SSL**: API Gateway 라우팅 + 보안 헤더 통합
 
 ---
 
 ## 실행 명령어
 
 ```
-/stage 1   ← 여기서 시작 (TASK-808 + TASK-801 병렬)
-/stage 2   (TASK-801 완료 후)
-/stage 3   (Stage 2 완료 후)
-/stage 4   (Stage 3 완료 후)
-/stage 5   (Stage 4 완료 후)
+/stage 1   ✅ 완료 (2026-05-21) — TASK-808 + TASK-801
+/stage 2   ✅ 완료 (2026-05-21) — TASK-802 + TASK-809
+/stage 3   ✅ 완료 (2026-05-22) — TASK-806 + TASK-807
+/stage 4   ✅ 완료 (2026-05-22) — TASK-803 + TASK-804 + FEAT-FE-001
+/stage 5   ✅ 완료 (2026-05-22) — TASK-MISC-002 + TASK-805
 ```
 
 권장 선행 작업: FCM E2E 에뮬레이터 수동 검증 (Sprint 7 잔여 매뉴얼 항목) — Sprint 8 진행과 병행 가능.

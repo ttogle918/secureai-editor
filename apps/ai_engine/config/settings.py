@@ -49,5 +49,10 @@ class Settings(BaseSettings):
     embedding_model: str = Field("BAAI/bge-small-en-v1.5", alias="EMBEDDING_MODEL")
     embedding_top_k: int = Field(5, alias="EMBEDDING_TOP_K")
 
+    # OpenTelemetry — 분산 트레이싱 (기본 비활성화, 프로덕션에서만 활성화)
+    otel_enabled: bool = Field(False, alias="OTEL_ENABLED")
+    otel_exporter_otlp_endpoint: str = Field("http://localhost:4317", alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+    otel_service_name: str = Field("secureai-ai-engine", alias="OTEL_SERVICE_NAME")
+
 
 settings = Settings()

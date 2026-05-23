@@ -23,6 +23,8 @@ public class RedisCacheConfig {
     private static final Duration DEFAULT_TTL        = Duration.ofMinutes(10);
     private static final Duration PROJECT_DETAIL_TTL = Duration.ofMinutes(10);
     private static final Duration DASHBOARD_TTL      = Duration.ofMinutes(5);
+    // CVE 목록: NVD API 호출 부하 감소를 위해 6시간 캐시 (NvdApiClient 자체 Redis 캐시와 TTL 통일)
+    private static final Duration CVE_LIST_TTL       = Duration.ofHours(6);
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
@@ -43,7 +45,8 @@ public class RedisCacheConfig {
 
         Map<String, RedisCacheConfiguration> cacheConfigs = Map.of(
                 "projectDetail", defaultConfig.entryTtl(PROJECT_DETAIL_TTL),
-                "dashboard",     defaultConfig.entryTtl(DASHBOARD_TTL)
+                "dashboard",     defaultConfig.entryTtl(DASHBOARD_TTL),
+                "cveList",       defaultConfig.entryTtl(CVE_LIST_TTL)
         );
 
         return RedisCacheManager.builder(connectionFactory)

@@ -23,6 +23,9 @@ public enum ErrorCode {
 
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
     USER_INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "현재 비밀번호가 올바르지 않습니다."),
+    TOTP_INVALID_CODE(HttpStatus.BAD_REQUEST, "유효하지 않은 인증 코드입니다."),
+    TOTP_NOT_SETUP(HttpStatus.BAD_REQUEST, "2단계 인증이 설정되어 있지 않습니다."),
+    TOTP_ALREADY_ENABLED(HttpStatus.CONFLICT, "2단계 인증이 이미 활성화되어 있습니다."),
 
     PROJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "프로젝트를 찾을 수 없습니다."),
     PROJECT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "프로젝트에 대한 접근 권한이 없습니다."),
@@ -54,6 +57,9 @@ public enum ErrorCode {
     PATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "패치 제안을 찾을 수 없습니다."),
 
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "리포트를 찾을 수 없습니다."),
+    SECURITY_DOC_NOT_FOUND(HttpStatus.NOT_FOUND, "보안 문서 요청을 찾을 수 없습니다."),
+    SECURITY_DOC_TOKEN_EXPIRED(HttpStatus.GONE, "다운로드 토큰이 만료되었습니다."),
+    SECURITY_DOC_NOT_COMPLETED(HttpStatus.CONFLICT, "보안 문서 생성이 완료되지 않았습니다."),
 
     ADMIN_SELF_MODIFICATION_DENIED(HttpStatus.FORBIDDEN, "자기 자신의 플랜 또는 상태를 변경할 수 없습니다."),
     ADMIN_PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "플랜을 찾을 수 없습니다."),
@@ -65,6 +71,9 @@ public enum ErrorCode {
     ORG_SLUG_DUPLICATE(HttpStatus.CONFLICT, "이미 사용 중인 조직 슬러그입니다."),
     INVITATION_NOT_FOUND(HttpStatus.NOT_FOUND, "초대를 찾을 수 없습니다."),
     INVITATION_EXPIRED(HttpStatus.GONE, "만료된 초대입니다."),
+
+    IP_BLOCKED(HttpStatus.FORBIDDEN, "허용되지 않은 IP 주소에서의 접근입니다."),
+    INVALID_CIDR_FORMAT(HttpStatus.BAD_REQUEST, "유효하지 않은 CIDR 형식입니다."),
 
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "입력값이 유효하지 않습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");

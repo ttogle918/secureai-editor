@@ -15,9 +15,35 @@ java {
 
 repositories {
 	mavenCentral()
-	maven { url = uri("https://repo.spring.io/release") }
-	maven { url = uri("https://repo.spring.io/milestone") }
-	maven { url = uri("https://repo.spring.io/snapshot") }
+	// Spring 사설 리포는 org.springframework / io.spring / io.micrometer / io.opentelemetry 계열만 탐색.
+	// 그 외 패키지(openhtmltopdf 등)는 mavenCentral에서만 해결하여 401 오류를 방지한다.
+	maven {
+		url = uri("https://repo.spring.io/release")
+		content {
+			includeGroupByRegex("org\\.springframework.*")
+			includeGroupByRegex("io\\.spring.*")
+			includeGroup("io.micrometer")
+			includeGroup("io.opentelemetry")
+		}
+	}
+	maven {
+		url = uri("https://repo.spring.io/milestone")
+		content {
+			includeGroupByRegex("org\\.springframework.*")
+			includeGroupByRegex("io\\.spring.*")
+			includeGroup("io.micrometer")
+			includeGroup("io.opentelemetry")
+		}
+	}
+	maven {
+		url = uri("https://repo.spring.io/snapshot")
+		content {
+			includeGroupByRegex("org\\.springframework.*")
+			includeGroupByRegex("io\\.spring.*")
+			includeGroup("io.micrometer")
+			includeGroup("io.opentelemetry")
+		}
+	}
 }
 
 dependencies {
@@ -64,11 +90,32 @@ dependencies {
 	// Swagger / OpenAPI
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
 
-	// PDF 생성 — OpenPDF (LGPL)
+	// PDF 생성 — OpenPDF (LGPL, 기존 파이프라인 전용)
 	implementation("com.github.librepdf:openpdf:1.3.30")
+
+	// 보안 문서 PDF 생성 — OpenHTMLtoPDF + Thymeleaf (Flying Saucer 대체)
+	// 1.0.20은 Maven Central 미배포 — 1.1.37(최신 stable) 사용
+	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
+	implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.37")
 
 	// Firebase Admin SDK — FCM Push 알림 (선택적 활성화)
 	implementation("com.google.firebase:firebase-admin:9.2.0")
+
+	// Resilience4j — Circuit Breaker (spring-boot3 명명이지만 Spring Boot 4 호환)
+	implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
+
+	// ShedLock — Redis Provider (분산 스케줄러 중복 실행 방지)
+	implementation("net.javacrumbs.shedlock:shedlock-spring:6.3.0")
+	implementation("net.javacrumbs.shedlock:shedlock-provider-redis-spring:6.3.0")
+
+	// TOTP (2FA) — HMAC-based One-Time Password (RFC 6238)
+	implementation("dev.samstevens.totp:totp-spring-boot-starter:1.7.1")
+
+	// OpenTelemetry — Micrometer OTLP 트레이싱 (Spring Boot 4 호환)
+	// spring-boot-micrometer-tracing: Spring Boot 4에서 트레이싱 자동구성이 별도 모듈로 분리됨
+	implementation("org.springframework.boot:spring-boot-micrometer-tracing:4.0.5")
+	implementation("io.micrometer:micrometer-tracing-bridge-otel")
+	implementation("io.opentelemetry:opentelemetry-exporter-otlp")
 }
 
 tasks.withType<Test> {

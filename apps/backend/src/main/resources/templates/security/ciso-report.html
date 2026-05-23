@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<title>CISO 보안 보고서</title>
+<style>
+  body        { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; margin: 40px; color: #1a1a1a; }
+  h1          { font-size: 22px; border-bottom: 2px solid #1a56db; padding-bottom: 8px; }
+  h2          { font-size: 16px; color: #1a56db; margin-top: 28px; }
+  table       { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+  th          { background: #1a56db; color: #fff; padding: 8px 10px; text-align: left; }
+  td          { border: 1px solid #ddd; padding: 7px 10px; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+  .badge-crit { background:#dc2626; color:#fff; border-radius:4px; padding:2px 7px; font-size:11px; }
+  .badge-high { background:#ea580c; color:#fff; border-radius:4px; padding:2px 7px; font-size:11px; }
+  .badge-med  { background:#d97706; color:#fff; border-radius:4px; padding:2px 7px; font-size:11px; }
+  .badge-low  { background:#16a34a; color:#fff; border-radius:4px; padding:2px 7px; font-size:11px; }
+  .summary    { display:flex; gap:20px; margin:16px 0; }
+  .summary-box{ border:1px solid #ddd; border-radius:8px; padding:14px 18px; text-align:center; min-width:90px; }
+  .summary-box .num { font-size:28px; font-weight:700; }
+  .summary-box .lbl { font-size:11px; color:#666; margin-top:4px; }
+  .meta-row   { font-size:11px; color:#555; margin-bottom:4px; }
+  .footer     { margin-top:40px; border-top:1px solid #ddd; padding-top:10px; font-size:10px; color:#888; }
+</style>
+</head>
+<body>
+
+<h1>CISO 보안 보고서</h1>
+
+<div class="meta-row">프로젝트: <strong th:text="${projectName}">-</strong></div>
+<div class="meta-row">생성일시: <strong th:text="${generatedAt}">-</strong></div>
+<div class="meta-row">분석 취약점 총 건수: <strong th:text="${totalCount}">0</strong> 건</div>
+
+<!-- 위험도별 요약 -->
+<h2>1. 위험도 분포 요약</h2>
+<div class="summary">
+  <div class="summary-box">
+    <div class="num" style="color:#dc2626" th:text="${criticalCount}">0</div>
+    <div class="lbl">Critical</div>
+  </div>
+  <div class="summary-box">
+    <div class="num" style="color:#ea580c" th:text="${highCount}">0</div>
+    <div class="lbl">High</div>
+  </div>
+  <div class="summary-box">
+    <div class="num" style="color:#d97706" th:text="${mediumCount}">0</div>
+    <div class="lbl">Medium</div>
+  </div>
+  <div class="summary-box">
+    <div class="num" style="color:#16a34a" th:text="${lowCount}">0</div>
+    <div class="lbl">Low</div>
+  </div>
+</div>
+
+<!-- Critical / High 미조치 항목 목록 -->
+<h2>2. Critical / High 취약점 상세</h2>
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>취약점 유형</th>
+      <th>위험도</th>
+      <th>파일 경로</th>
+      <th>라인</th>
+      <th>CWE</th>
+      <th>상태</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr th:each="v, stat : ${criticalHighVulns}">
+      <td th:text="${stat.count}">1</td>
+      <td th:text="${v.vulnType}">-</td>
+      <td>
+        <span th:if="${v.severity == 'CRITICAL'}" class="badge-crit">CRITICAL</span>
+        <span th:if="${v.severity == 'HIGH'}"     class="badge-high">HIGH</span>
+      </td>
+      <td th:text="${v.filePath}">-</td>
+      <td th:text="${v.lineNumber}">-</td>
+      <td th:text="${v.cwe}">-</td>
+      <td th:text="${v.status}">open</td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(criticalHighVulns)}">
+      <td colspan="7" style="text-align:center; color:#16a34a; font-weight:600;">
+        Critical / High 취약점 없음
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- 전체 취약점 현황 표 -->
+<h2>3. 전체 취약점 현황</h2>
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>취약점 유형</th>
+      <th>위험도</th>
+      <th>파일 경로</th>
+      <th>라인</th>
+      <th>CWE</th>
+      <th>OWASP</th>
+      <th>상태</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr th:each="v, stat : ${allVulns}">
+      <td th:text="${stat.count}">1</td>
+      <td th:text="${v.vulnType}">-</td>
+      <td>
+        <span th:if="${v.severity == 'CRITICAL'}" class="badge-crit" th:text="${v.severity}">-</span>
+        <span th:if="${v.severity == 'HIGH'}"     class="badge-high" th:text="${v.severity}">-</span>
+        <span th:if="${v.severity == 'MEDIUM'}"   class="badge-med"  th:text="${v.severity}">-</span>
+        <span th:if="${v.severity == 'LOW'}"      class="badge-low"  th:text="${v.severity}">-</span>
+      </td>
+      <td th:text="${v.filePath}">-</td>
+      <td th:text="${v.lineNumber}">-</td>
+      <td th:text="${v.cwe}">-</td>
+      <td th:text="${v.owasp}">-</td>
+      <td th:text="${v.status}">open</td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(allVulns)}">
+      <td colspan="8" style="text-align:center; color:#16a34a; font-weight:600;">
+        발견된 취약점 없음
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  본 보고서는 SecureAI Engine에 의해 자동 생성되었습니다. 생성일시: <span th:text="${generatedAt}">-</span>
+</div>
+</body>
+</html>

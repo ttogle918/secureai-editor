@@ -1,4 +1,4 @@
-.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner help
+.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner perf-test ssl-cert help
 
 # ──────────────────────────────────────────────────────────────────
 # make dev        전체 서비스 (postgres, redis, backend, ai_engine, frontend)
@@ -68,6 +68,17 @@ viewer:
 	python scripts/build_session_log.py
 	@echo "▶ http://localhost:8082 에서 뷰어를 시작합니다 (Ctrl+C 로 종료)"
 	cd docs/portfolio/viewer && python -m http.server 8082
+
+perf-test: ## k6 부하 테스트 실행 (Docker 기동 상태 필요)
+	docker compose --profile perf run --rm k6 run /scripts/load-test.js
+
+ssl-cert: ## 개발용 자체 서명 인증서 생성 (nginx/certs/server.key, server.crt)
+	mkdir -p nginx/certs
+	openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+	  -keyout nginx/certs/server.key \
+	  -out nginx/certs/server.crt \
+	  -subj "/C=KR/ST=Seoul/L=Seoul/O=SecureAI/CN=localhost"
+	@echo "✓ 인증서 생성 완료: nginx/certs/server.crt, nginx/certs/server.key"
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | sort

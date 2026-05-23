@@ -1,7 +1,7 @@
 'use client';
 // components/analysis/SbomPage.tsx
-// SBOM & CVE 결과 화면 — mock 데이터로 렌더링.
-// 백엔드 API GET /api/v1/projects/{projectId}/sbom/components?sessionId= 미구현으로 mock 사용.
+// SBOM & CVE 결과 화면 — GET /api/v1/projects/{projectId}/sbom/components?sessionId= API 연결.
+// API 미응답(프로젝트/세션 미선택, 오류) 시 mock 데이터로 fallback.
 
 import { useState, useEffect } from 'react';
 import {
@@ -9,6 +9,8 @@ import {
   ChevronRight, Zap, ExternalLink, Copy, Code,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { apiClient } from '@/lib/api/client';
+import { useSecureStore } from '@/store/useSecureStore';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -32,7 +34,18 @@ interface Dependency {
   direct: boolean;
 }
 
-// ─── Mock data ───────────────────────────────────────────────────────────────
+// 백엔드 GET /api/v1/projects/{projectId}/sbom/components 응답 타입
+interface SbomComponentResponse {
+  id: string;
+  name: string;
+  version: string | null;
+  ecosystem: string;
+  license: string | null;
+  cveIds: string[];
+  isDirect: boolean;
+}
+
+// ─── Mock data (API 미응답 시 fallback) ──────────────────────────────────────
 
 const MOCK_DEPS: Dependency[] = [
   { name: 'next',          version: '15.0.3',  latest: '15.0.5',   ecosystem: 'npm',  cves: [], license: 'MIT',        direct: true },
@@ -55,6 +68,31 @@ const MOCK_DEPS: Dependency[] = [
   { name: 'pg',            version: '8.11.3',  latest: '8.13.1',   ecosystem: 'npm',  cves: [], license: 'MIT',        direct: false },
   { name: 'recharts',      version: '2.10.4',  latest: '2.13.3',   ecosystem: 'npm',  cves: [], license: 'MIT',        direct: false },
 ];
+
+// ─── API 응답 → Dependency 변환 헬퍼 ────────────────────────────────────────
+
+function toEcosystem(raw: string): Dependency['ecosystem'] {
+  if (raw === 'npm' || raw === 'maven' || raw === 'pip' || raw === 'cargo') return raw;
+  return 'npm';
+}
+
+function mapApiResponse(item: SbomComponentResponse): Dependency {
+  return {
+    name:      item.name,
+    version:   item.version ?? '—',
+    latest:    item.version ?? '—',  // 현재 API는 latest 버전 정보 미제공 — 동일값으로 설정
+    ecosystem: toEcosystem(item.ecosystem),
+    cves:      item.cveIds.map((id) => ({
+      id,
+      severity: 'high' as Severity,   // API가 severity 미제공 — 추후 CVE 도메인 연동 시 대체
+      cvss:     0,
+      summary:  '',
+      fixed:    '—',
+    })),
+    license: item.license ?? '—',
+    direct:  item.isDirect,
+  };
+}
 
 // ─── Severity helpers ────────────────────────────────────────────────────────
 
@@ -255,15 +293,43 @@ interface FilterState {
 }
 
 export function SbomPage({ projectName = 'shop-api' }: { projectName?: string }) {
-  // TODO: Replace mock data with API call when backend implements the endpoint
-  // useEffect(() => {
-  //   const params = new URLSearchParams({ sessionId: sessionId ?? '' });
-  //   apiClient.get<{ data: Dependency[] }>(`/projects/${projectId}/sbom/components?${params}`)
-  //     .then((res) => setDeps(res.data))
-  //     .catch(() => { /* keep mock */ });
-  // }, [projectId, sessionId]);
+  const projectId        = useSecureStore((s) => s.projectId);
+  const lockedSessionId  = useSecureStore((s) => s.lockedSessionId);
 
-  const [deps] = useState<Dependency[]>(MOCK_DEPS);
+  const [deps, setDeps]         = useState<Dependency[]>(MOCK_DEPS);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [usingMock, setUsingMock]   = useState(true);
+
+  useEffect(() => {
+    if (!projectId || !lockedSessionId) {
+      setDeps(MOCK_DEPS);
+      setUsingMock(true);
+      return;
+    }
+
+    setApiLoading(true);
+    const params = new URLSearchParams({ sessionId: lockedSessionId });
+    apiClient
+      .get<{ data: SbomComponentResponse[] }>(
+        `/projects/${projectId}/sbom/components?${params}`,
+      )
+      .then((res) => {
+        const items = res.data ?? [];
+        if (items.length > 0) {
+          setDeps(items.map(mapApiResponse));
+          setUsingMock(false);
+        } else {
+          setDeps([]);
+          setUsingMock(false);
+        }
+      })
+      .catch(() => {
+        // API 실패 시 mock 데이터 유지
+        setDeps(MOCK_DEPS);
+        setUsingMock(true);
+      })
+      .finally(() => setApiLoading(false));
+  }, [projectId, lockedSessionId]);
   const [selectedCve, setSelectedCve] = useState<{ dep: Dependency; cve: CveEntry } | null>(null);
   const [sortOrder, setSortOrder] = useState<'name' | 'severity'>('severity');
 
@@ -334,6 +400,21 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
           <span style={{ fontSize: 13, fontWeight: 700 }}>SBOM &amp; CVE</span>
           <ChevronRight size={11} color="var(--text-tertiary)" />
           <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{projectName}</span>
+          {apiLoading && (
+            <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+              로딩 중...
+            </span>
+          )}
+          {!apiLoading && usingMock && (
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+              color: 'var(--orange)', fontFamily: 'var(--font-mono)',
+              padding: '2px 6px', borderRadius: 3,
+              background: 'var(--orange-dim)', border: '1px solid rgba(249,115,22,0.3)',
+            }}>
+              MOCK
+            </span>
+          )}
         </div>
         <div style={{ flex: 1 }} />
         <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6, background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>

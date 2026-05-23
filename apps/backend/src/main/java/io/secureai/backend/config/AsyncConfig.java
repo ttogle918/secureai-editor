@@ -65,4 +65,15 @@ public class AsyncConfig {
         exec.initialize();
         return exec;
     }
+
+    @Bean("secDocExecutor")
+    public Executor secDocExecutor() {
+        ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
+        exec.setCorePoolSize(2);
+        exec.setMaxPoolSize(5);
+        exec.setQueueCapacity(20);
+        exec.setThreadNamePrefix("sec-doc-");
+        exec.initialize();
+        return exec;
+    }
 }

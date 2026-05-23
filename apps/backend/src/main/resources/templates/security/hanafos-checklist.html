@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<title>행안부 SW개발보안 가이드 체크리스트</title>
+<style>
+  body     { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; margin: 40px; color: #1a1a1a; font-size: 12px; }
+  h1       { font-size: 20px; border-bottom: 2px solid #1e40af; padding-bottom: 8px; }
+  h2       { font-size: 14px; color: #1e40af; margin-top: 24px; }
+  table    { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th       { background: #1e40af; color: #fff; padding: 7px 9px; text-align: left; }
+  td       { border: 1px solid #cbd5e1; padding: 6px 9px; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .pass    { color: #16a34a; font-weight: 700; }
+  .fail    { color: #dc2626; font-weight: 700; }
+  .na      { color: #6b7280; }
+  .meta    { font-size: 11px; color: #555; margin-bottom: 4px; }
+  .footer  { margin-top: 36px; border-top: 1px solid #ddd; padding-top: 8px; font-size: 10px; color: #888; }
+  .section-header td { background: #dbeafe !important; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>행안부 SW개발보안 가이드 체크리스트</h1>
+<div class="meta">프로젝트: <strong th:text="${projectName}">-</strong></div>
+<div class="meta">생성일시: <strong th:text="${generatedAt}">-</strong></div>
+<div class="meta" style="margin-bottom:16px;">
+  준수: <strong th:text="${passCount}" style="color:#16a34a">0</strong> /
+  미준수: <strong th:text="${failCount}" style="color:#dc2626">0</strong> /
+  해당없음: <strong th:text="${naCount}" style="color:#6b7280">0</strong>
+</div>
+
+<h2>43개 보안 항목 점검 결과</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:6%">번호</th>
+      <th style="width:20%">분류</th>
+      <th style="width:32%">점검 항목</th>
+      <th style="width:22%">관련 취약점</th>
+      <th style="width:10%">준수 여부</th>
+      <th style="width:10%">비고</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr th:each="item : ${checklistItems}">
+      <td th:text="${item.itemNo}">1</td>
+      <td th:text="${item.category}">-</td>
+      <td th:text="${item.itemName}">-</td>
+      <td th:text="${item.relatedVulns}">-</td>
+      <td>
+        <span th:if="${item.complianceStatus == 'PASS'}" class="pass">준수</span>
+        <span th:if="${item.complianceStatus == 'FAIL'}" class="fail">미준수</span>
+        <span th:if="${item.complianceStatus == 'NA'}"   class="na">해당없음</span>
+      </td>
+      <td th:text="${item.note}">-</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  행안부 소프트웨어 개발보안 가이드 기준. 본 보고서는 SecureAI Engine에 의해 자동 생성되었습니다.
+  생성일시: <span th:text="${generatedAt}">-</span>
+</div>
+</body>
+</html>

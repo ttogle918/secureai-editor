@@ -10,6 +10,7 @@ import logging
 import os
 
 import redis.asyncio as aioredis
+from opentelemetry import trace
 from anthropic import AsyncAnthropic
 from jinja2 import Environment, FileSystemLoader
 
@@ -19,6 +20,7 @@ from config.settings import settings
 from infrastructure.backend_api_client import save_patch_results
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 _redis: aioredis.Redis | None = None
 _client: AsyncAnthropic | None = None
@@ -133,12 +135,18 @@ async def patch_node(state: AgentState) -> dict:
 
     - 개별 취약점 오류는 경고 로그 후 스킵 (전체 세션은 유지)
     - 완료 후 Backend에 결과를 저장한다
+    - asyncio Task 경계에서 ContextVar 단절 방지를 위해 수동 span 사용
     """
     session_id = state["session_id"]
     project_id = state["project_id"]
     sast_results: list[dict] = state.get("sast_results", [])
     user_api_key: str | None = state.get("user_api_key")
     preferred_model: str | None = state.get("preferred_model")
+
+    with tracer.start_as_current_span("patch_node") as span:
+        span.set_attribute("session_id", session_id)
+        span.set_attribute("project_id", str(project_id))
+        span.set_attribute("sast_result_count", len(sast_results))
 
     patch_results: list[dict] = []
     for file_result in sast_results:

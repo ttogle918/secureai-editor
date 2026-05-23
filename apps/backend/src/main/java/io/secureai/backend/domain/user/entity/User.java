@@ -121,6 +121,16 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private Boolean githubBlockMergeOnCritical = false;
 
+    /** TOTP 비밀 키 — AES-256-GCM 암호화하여 저장 */
+    @Convert(converter = AesEncryptionConverter.class)
+    @Column(name = "totp_secret", columnDefinition = "TEXT")
+    private String totpSecret;
+
+    /** TOTP 2단계 인증 활성화 여부 */
+    @Column(name = "totp_enabled", nullable = false)
+    @Builder.Default
+    private boolean totpEnabled = false;
+
     @Override
     @PrePersist
     protected void onCreate() {

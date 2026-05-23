@@ -93,7 +93,7 @@ backend/
     │   │   ├── config/                               # ─── 전역 설정 ───────────────────────────────
     │   │   │   ├── AsyncConfig.java                  # @Async Thread Pool 5종 정의 (analysis/dast/report/email/aiCall)
     │   │   │   ├── CacheConfig.java                  # Redis CacheManager + 도메인별 TTL 정책 설정
-    │   │   │   ├── SecurityConfig.java               # ⭐ Spring Security 6: JWT 필터체인, CORS, CSRF, 엔드포인트 권한
+    │   │   │   ├── SecurityConfig.java               # ⭐ Spring Security 7: JWT 필터체인, CORS, CSRF, 엔드포인트 권한
     │   │   │   ├── JwtConfig.java                    # JWT 서명 키, 만료시간 프로퍼티 바인딩 (@ConfigurationProperties)
     │   │   │   ├── RedisConfig.java                  # RedisTemplate 빈, Pub/Sub MessageListenerContainer 설정
     │   │   │   ├── DockerConfig.java                 # Docker Java SDK DockerClient 빈 등록 (DAST용 Socket 연결)

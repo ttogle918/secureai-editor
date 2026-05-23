@@ -372,3 +372,66 @@ Refresh Token은 **SHA-256 해시값만 DB(`refresh_tokens` 테이블)에 저장
 2. SHA-256(Raw Token) → DB 저장
 3. HttpOnly Cookie로 Raw Token 설정 (Secure, SameSite=Strict, Max-Age=2592000)
 ```
+
+---
+
+## ADR-016 — MCP PostgreSQL 쿼리 전략: f-string 예외 처리
+
+> 작성일: 2026-05-23 | 상태: 확정
+
+### 배경
+
+`@modelcontextprotocol/server-postgres`의 `query` 툴은 **파라미터 바인딩을 지원하지 않는다.**  
+툴 인터페이스가 `{ "query": "<raw SQL string>" }` 단일 인수만 허용하며, prepared statement 또는 `$1/$2` 플레이스홀더를 전달할 방법이 없다.
+
+이로 인해 MCP PostgreSQL을 통한 조회(`sast_node.py`, `patch_node.py`)에서  
+프로젝트 전체 코딩 규칙(`general.md`) **"SQL 쿼리는 파라미터 바인딩 필수"** 원칙을 그대로 적용할 수 없다.
+
+### 결정
+
+MCP PostgreSQL 조회에 한해 **f-string SQL을 허용**한다.  
+단, 삽입되는 모든 값은 반드시 아래 안전 등급 중 하나에 해당해야 한다.
+
+| 안전 등급 | 설명 | 적용 예 |
+|----------|------|--------|
+| **UUID 검증** | `str(_uuid.UUID(str(value)))` 통과 값만 삽입 — 형식 불일치 시 쿼리 실행 중단 | `project_id` |
+| **서버 내부 열거값** | 사용자 입력이 아닌, 서버 측 함수(`_detect_language()`, vuln_type 분류기)가 생성한 값 — 외부 문자열 직접 치환 불가 | `language`, `vuln_type` |
+
+### 적용 위치
+
+| 파일 | 함수 | 삽입 파라미터 | 안전 등급 |
+|------|------|-------------|----------|
+| `apps/ai_engine/agent/nodes/sast_node.py` | `_fetch_prev_vuln_context()` | `project_id` | UUID 검증 |
+| `apps/ai_engine/agent/nodes/patch_node.py` | `_fetch_prev_patch_example()` | `vuln_type`, `language` | 서버 내부 열거값 |
+
+### 안전성 근거
+
+```python
+# sast_node.py — UUID 검증 후 f-string 치환
+try:
+    safe_project_id = str(_uuid.UUID(str(project_id)))
+except ValueError:
+    logger.warning("[sast] prev_vuln_context skipped: project_id is not a valid UUID")
+    return ""  # 검증 실패 시 쿼리 실행 안 함
+
+sql = f"... WHERE project_id = '{safe_project_id}' ..."
+```
+
+```python
+# patch_node.py — 내부 열거값 치환 (사용자 입력 아님)
+# vuln_type: VulnerabilityClassifier 분류 결과
+# language: _detect_language()가 파일 확장자로 결정한 내부 상수
+sql = f"... WHERE vuln_type = '{vuln_type}' AND file_path LIKE '%.{language}' ..."
+```
+
+### 제약 사항 (의무)
+
+- MCP PostgreSQL f-string SQL에는 **사용자 입력(HTTP 요청 파라미터, 파일 내용 등)을 절대 삽입 금지**
+- 새로운 MCP 쿼리 함수 추가 시 삽입 값이 위 두 등급 중 하나임을 주석으로 명시해야 한다
+- `@modelcontextprotocol/server-postgres`가 파라미터 바인딩을 지원하는 버전으로 업그레이드될 경우,  
+  즉시 f-string을 prepared statement로 교체하고 이 ADR을 폐기한다
+
+### 코딩 규칙 예외 처리
+
+이 ADR은 `general.md` "SQL 쿼리는 파라미터 바인딩 필수" 규칙의 **명시적 예외**로 기록된다.  
+위 두 적용 위치 외의 모든 SQL 쿼리에는 원칙이 그대로 적용된다.

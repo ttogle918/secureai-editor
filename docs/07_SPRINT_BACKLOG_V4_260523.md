@@ -508,6 +508,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - [x] 복구 코드 8개 생성 (1회용, BCrypt 해시 저장, `@Lock(PESSIMISTIC_WRITE)` = `SELECT FOR UPDATE` 트랜잭션, SecureRandom 64-bit 엔트로피)
 - [x] `POST /api/v1/auth/2fa/setup`, `POST /api/v1/auth/2fa/verify`, `DELETE /api/v1/auth/2fa` API
 - [ ] Team 이상 플랜 강제 활성화 옵션 (Enterprise 관리자 설정)
+- [ ] 관리자 2FA 강제 리셋 API → **FEAT-SEC-007** (미래 기능 후보로 이관)
 
 **테스트 체크리스트**
 - [x] 🧪 TOTP 코드 생성·검증 정확성
@@ -867,6 +868,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 | FEAT-SEC-003 | 세션 활동 이력 조회 | 🟠 High | 사용자 활성 세션(기기별) 확인·강제 로그아웃. `user_sessions` 테이블, 동시 접속 기기 제한 |
 | FEAT-SEC-004 | Secrets Detection 강화 | 🟠 High | 코드 업로드 시 시크릿 패턴 즉시 감지 (AWS키, GCP SA키, GitHub PAT, Stripe키 등 50+ 패턴) |
 | FEAT-SEC-005 | 취약점 SLA 관리 | 🟡 Medium | 취약점 수정 기한 설정 및 초과 알림. Critical 3일, High 7일, Medium 30일, Low 90일 기본값 |
+| FEAT-SEC-007 | 2FA 강제 리셋 관리자 API | 🟠 High | 관리자가 특정 사용자의 2FA를 강제 비활성화하는 API. 사용자가 TOTP 디바이스 분실 + 복구 코드 소진 시 계정 잠금 해제. `POST /api/v1/admin/users/{userId}/2fa/reset`. 감사 로그(`AuditLog`) 기록 필수. Admin 전용 엔드포인트 — `ROLE_ADMIN` 권한 체크. (주의: FEAT-SEC-006은 pgvector 임베딩으로 사용됨) |
 
 ### API 기능 보완
 

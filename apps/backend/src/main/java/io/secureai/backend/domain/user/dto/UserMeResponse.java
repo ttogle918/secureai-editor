@@ -19,8 +19,13 @@ public class UserMeResponse {
     private String githubLogin;
     private String timezone;
     private String locale;
+    private boolean isAdmin;
+    private String avatarUrl;
+    private String bio;
+    private boolean publicProfile;
     private PlanInfo plan;
     private UsageInfo usage;
+    private CreditInfo credits;
     private OffsetDateTime createdAt;
 
     public static UserMeResponse from(User user) {
@@ -33,11 +38,19 @@ public class UserMeResponse {
                 .githubLogin(user.getGithubLogin())
                 .timezone(user.getTimezone())
                 .locale(user.getLocale())
+                .isAdmin(Boolean.TRUE.equals(user.getIsAdmin()))
+                .avatarUrl(user.getAvatarUrl())
+                .bio(user.getBio())
+                .publicProfile(Boolean.TRUE.equals(user.getPublicProfile()))
                 .plan(PlanInfo.from(plan))
                 .usage(new UsageInfo(
                         user.getSastUsageThisMonth(),
                         plan.getMonthlySastLimit(),
                         user.getSastUsageResetAt()))
+                .credits(new CreditInfo(
+                        user.getCreditBalance(),
+                        user.getAnthropicApiKey() != null,
+                        user.getPreferredModel()))
                 .createdAt(user.getCreatedAt())
                 .build();
     }
@@ -60,6 +73,14 @@ public class UserMeResponse {
                     .allowMonitoring(plan.getAllowMonitoring())
                     .build();
         }
+    }
+
+    @Getter
+    @Builder
+    public static class CreditInfo {
+        private int balance;
+        private boolean hasByok;
+        private String preferredModel;
     }
 
     @Getter

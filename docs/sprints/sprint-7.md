@@ -1,0 +1,277 @@
+# Sprint 7 — 리포트 & 대시보드 & Android MVP
+**기간**: 2026-05-18 ~ 2026-05-31 (Week 15–16)  
+**목표**: PDF 리포트(iText7/OpenPDF) + 웹 대시보드 5개 차트 + Android MVP(로그인·대시보드·취약점 목록·FCM 알림) 완성
+
+---
+
+## 사전 발견 사항 (착수 전 보정)
+
+| 항목 | 백로그 명세 | 실제 상태 | 조치 |
+|------|-----------|---------|------|
+| Flyway V010 | Report 테이블 | **이미 사용됨** (다른 마이그레이션) | **V035**로 변경 |
+| iText7 의존성 | `build.gradle.kts` | **미포함** — Maven Central에서 추가 필요 | AGPL 라이선스 검토 후 의존성 추가 |
+| Recharts | 프론트엔드 차트 | **설치됨** (2.12.4) | 별도 설치 불필요 |
+| `apps/android/` | Android 프로젝트 | **빈 shell** — Compose/Hilt/Room/Firebase 전무 | `libs.versions.toml` 세팅이 TASK-703 첫 번째 하위 할일 |
+| `VulnerabilityQueryService` trend | 일별 집계 API | **없음** — `countBySeverity`/`countByFilePath`만 존재 | TASK-702 백엔드에서 JPQL 집계 쿼리 신규 작성 |
+| Firebase 프로젝트 | `google-services.json` | **미생성** | Stage 4 진입 전 Firebase Console 수동 등록 필요 |
+
+---
+
+## 이월 태스크
+
+- **TASK-501/502/505** (Sprint 5 GitHub Layer): `feat/sprint5-github` 브랜치에서 별도 진행 — Sprint 7 범위 외
+
+---
+
+## Stage 0 — 사전 결정 사항 (착수 전 확정)
+
+> 코드 구현 없음. 아래 항목을 먼저 결정한 뒤 Stage 1 진입.
+
+| # | 항목 | 내용 | 결정 |
+|---|------|------|------|
+| 1 | **PDF 라이브러리** | iText7 Community = AGPL (상용 배포 시 라이선스 계약 필요). OpenPDF(LGPL)로 대체 가능 | ⬜ |
+| 2 | **Firebase Console 등록** | `google-services.json` + Admin SDK 서비스 계정 키 발급 (Stage 4 전 수동 작업) | ⬜ |
+| 3 | **`google-services.json` `.gitignore` 등록** | `apps/android/app/google-services.json` | ⬜ |
+| 4 | **대시보드 API 스키마** | `GET /projects/{id}/dashboard` 단일 엔드포인트 — securityScore·severityCounts·trend(7일)·fileHeatmap·owaspCoverage 일괄 반환, Redis 캐시 1키 | ✅ |
+| 5 | **FCM 페이로드 스키마** | `data: { sessionId, projectId, deeplink: "secureai://session/{id}" }` (권장) | ⬜ |
+
+---
+
+## 실행 계획
+
+### Stage 1 — 기반 구축 (병렬)
+
+| TASK | 제목 | 서비스 | 파일 | 선행 |
+|------|------|--------|------|------|
+| TASK-701 (백엔드) | PDF/JSON 리포트 생성 | backend | `Report.java`, `V035__create_reports.sql`, `PdfGeneratorService.java`, `JsonReportGenerator.java`, `ReportController.java`, 다운로드 토큰 | Stage 0 #1 |
+| TASK-703 | Android 프로젝트 초기화 & 인증 | android | `libs.versions.toml`, `NetworkModule.kt`, `TokenStorage.kt`, `LoginScreen.kt`, `RegisterScreen.kt`, `AuthViewModel.kt`, `NavGraph.kt` | — |
+
+> **병렬 안전**: TASK-701은 `apps/backend/`, TASK-703은 `apps/android/` — 파일 영역 완전 분리
+
+---
+
+### Stage 2 — 백엔드 집계 + Android 화면 (병렬)
+
+| TASK | 제목 | 서비스 | 파일 | 선행 |
+|------|------|--------|------|------|
+| TASK-702 (백엔드) | 차트 집계 API | backend | `VulnerabilityRepository` 일별 GROUP BY `@Query`, `VulnerabilityQueryService` 집계 메서드, `GET /projects/{id}/vulnerabilities/trend`, Redis 캐시 | Stage 0 #4 |
+| TASK-704 | Android 대시보드 & 취약점 목록 | android | `DashboardScreen.kt`, `VulnListScreen.kt`, `VulnDetailScreen.kt`, `SecurityScoreGauge.kt`, Room DB 엔티티 + DAO, `VulnRepository.kt` | TASK-703 |
+
+> TASK-702(백엔드)와 TASK-704(Android)는 독립 서비스 — 병렬 가능. 단 TASK-704는 TASK-703 완료 후 시작.
+
+---
+
+### Stage 3 — 프론트엔드 통합 + FCM 백엔드
+
+| TASK | 제목 | 서비스 | 파일 | 선행 |
+|------|------|--------|------|------|
+| TASK-701 (프론트엔드) | 리포트 다운로드 UI | frontend | 리포트 생성 버튼, 다운로드 토큰 처리, 상태 폴링 | Stage 1 TASK-701 |
+| TASK-702 (프론트엔드) | 대시보드 차트 5종 | frontend | `SecurityScoreRing`, `SeverityBarChart`, `TrendLineChart`, `FileHeatmap`, `OwaspCoverageMatrix`, `dashboard/page.tsx` | Stage 2 TASK-702 |
+| TASK-705 (백엔드) | FCM Push 백엔드 | backend | Firebase Admin SDK 의존성, `FcmPushService.java`, `AnalysisService`의 `SessionCompletedEvent` 발행 지점 연동 | Stage 0 #2 #5 |
+
+> Stage 3 프론트엔드 두 태스크(`dashboard/page.tsx` 공유 가능)는 공유 레이아웃 수정 겹칠 경우 순차 진행 권장.
+
+---
+
+### Stage 4 — FCM Android 연동 & E2E 검증
+
+| TASK | 제목 | 서비스 | 파일 | 선행 |
+|------|------|--------|------|------|
+| TASK-705 (Android) | FCM Android + SSE 이중 전략 | android | `google-services.json`, `SecureAiFcmService.kt`, `SseClient.kt`, `AnalysisViewModel.kt`, 알림 채널 설정 | Stage 3 TASK-705 백엔드, TASK-704 |
+
+---
+
+## 병렬 실행 그룹
+
+```
+Stage 1 (동시 시작 — 선행 의존성 없음)
+├── TASK-701 (BE) : backend Report 엔티티 + V035 + PdfGeneratorService + ReportController
+└── TASK-703      : android 의존성 세팅 + NetworkModule + TokenStorage + Login/Register + NavGraph
+
+           ↓ Stage 1 완료 후
+
+Stage 2 (병렬 — 다른 서비스)
+├── TASK-702 (BE) : backend VulnerabilityRepository 집계 쿼리 + trend API + Redis 캐시
+└── TASK-704      : android DashboardScreen + VulnListScreen + Room DAO
+  (TASK-704는 TASK-703 완료 후에만 시작 가능)
+
+           ↓ Stage 2 완료 후
+
+Stage 3 (프론트엔드 순차 + 백엔드 병렬)
+├── TASK-701 (FE) : frontend 리포트 다운로드 UI
+├── TASK-702 (FE) : frontend 5개 차트 컴포넌트 + dashboard/page.tsx
+└── TASK-705 (BE) : backend FCM Push + SessionCompletedEvent 연동
+
+           ↓ Stage 3 완료 후
+
+Stage 4 (순차)
+└── TASK-705 (Android) : android FCM + SSE 이중 전략 + E2E 검증
+```
+
+---
+
+## 리스크 & 완화
+
+| 리스크 | 영향도 | 완화 |
+|--------|-------|------|
+| **iText7 AGPL** — 상용 배포 시 라이선스 계약 필요 | 🔴 | Stage 0에서 OpenPDF(LGPL) 대체 여부 확정 후 의존성 추가 |
+| **Flyway V010 충돌** — 이미 다른 마이그레이션이 사용 | 🔴 | V035로 즉시 수정 (실행 시 즉시 오류 발생) |
+| **Firebase 미등록** — `google-services.json` 없으면 Stage 4 전체 차단 | 🔴 | Stage 3 진행 중 사용자가 Firebase Console에서 프로젝트 생성 병행 |
+| **Android 의존성 전무** — Compose/Hilt/Room/OkHttp/Security-Crypto 미등록 | 🔴 | TASK-703 첫 번째 하위 할일로 `libs.versions.toml` 세팅 필수 |
+| **대시보드 API 스키마 미정** — 프론트/백엔드 경계 불분명 | 🟠 | Stage 0 #4에서 응답 JSON 구조 합의 후 진입 |
+| **PDF 생성 30초 SLA** — 취약점·패치 코드 많을 경우 초과 가능 | 🟠 | `@Async` + `GET /reports/{id}/status` 폴링 엔드포인트 설계에 포함 |
+| **Android 인증서 피닝 개발환경** — 자체 서명 인증서에서 즉시 연결 실패 | 🟡 | `NetworkSecurityConfig`로 debug flavor에서만 피닝 비활성화, release에서 활성화 |
+| **Stage 3 프론트엔드 파일 충돌** — `dashboard/page.tsx` 두 태스크 동시 수정 | 🟡 | 공유 파일 수정 시 순차 진행 또는 Dev 에이전트에 파일 경계 명시 |
+
+---
+
+## 테스트 마일스톤
+
+| # | 마일스톤 | 달성 기준 | TASK |
+|---|---------|---------|------|
+| M1 | 리포트 생성 API | `POST /api/v1/reports` → 30초 내 PDF 파일 생성 + 다운로드 토큰 반환 | TASK-701 |
+| M2 | Android 로그인 | 에뮬레이터에서 로그인 성공 → 대시보드 화면 진입 | TASK-703 |
+| M3 | 차트 집계 API | `GET /projects/{id}/vulnerabilities/trend` → 7일 일별 집계 응답 정확성 | TASK-702 |
+| M4 | Android 취약점 화면 | 목록 → 상세 네비게이션 + 오프라인 시 Room 캐시 표시 | TASK-704 |
+| M5 ⭐ | 웹 대시보드 완성 | 5개 차트 모두 렌더링 + 리포트 PDF 다운로드 성공 | TASK-701+702 |
+| M6 ⭐ | FCM E2E | 분석 완료 → FCM Push 수신 → 딥링크로 해당 세션 진입 (foreground/background 전환 포함) | TASK-705 |
+
+---
+
+## 구현 완료 기록
+
+### Stage 1 완료 (2026-05-18)
+
+**커밋**: `e01dd5e` — `feat(sprint7-stage1): PDF 리포트 백엔드 + Android 인증 기반`
+
+#### TASK-701 (백엔드)
+- `build.gradle.kts`: OpenPDF 1.3.30 (LGPL) 의존성 추가
+- `V035__create_reports.sql`: reports 테이블 (UUID PK, download_token UNIQUE, expires_at 90일)
+- `Report.java`: 엔티티 — `markGenerating()`, `markCompleted()`, `markFailed()` 도메인 메서드
+- `PdfReportGenerator.java`: Template Method — 표지→심각도 요약→취약점 목록→OWASP 매핑
+- `JsonReportGenerator.java`: CycloneDX 1.5 포맷
+- `ReportService.java`: 생성 요청, 상태 조회, 다운로드 — `REPORT_BASE_DIR.startsWith()` Path Traversal 방어
+- `ReportAsyncProcessor.java`: `@Async` 분리 — SRP (비동기 실행만 담당)
+- `ReportController.java`: POST/GET/다운로드 엔드포인트
+- **단위 테스트**: ReportServiceTest 10개 + PdfReportGeneratorTest 4개 = 14개 통과
+
+**Reviewer 지적 사항**: `readFileAsResource()`에 `REPORT_BASE_DIR` 기반 경로 검증 추가로 해결
+
+#### TASK-703 (Android)
+- `libs.versions.toml`: Compose BOM, Hilt, Retrofit, OkHttp, Room, Security-Crypto 등 세팅
+- `TokenStorage.kt`: EncryptedSharedPreferences + Android Keystore AES256_GCM
+- `NetworkModule.kt`: OkHttp (Authorization 인터셉터, DEBUG=BODY/release=NONE)
+- `AuthRepository.kt` (인터페이스) + `AuthRepositoryImpl.kt` — DIP
+- `AuthViewModel.kt`: `sealed interface AuthUiState`, SharedFlow 네비게이션 이벤트
+- `LoginScreen.kt`, `RegisterScreen.kt`: Compose UI
+- `NavGraph.kt`: `isLoggedIn()` 기반 startDestination 동적 결정
+- `RootDetector.kt`: su 바이너리 + 루트 패키지 감지
+- `network_security_config.xml`: release cleartext 차단, debug 10.0.2.2 예외
+- **단위 테스트**: AuthViewModelTest 8 + TokenStorageTest 8 + AuthRepositoryImplTest 6 = 22개 통과 (JVM 타겟 11 수정, Loading 중복 호출 방어 버그 수정 포함)
+
+---
+
+### Stage 2 완료 (2026-05-18)
+
+**커밋**: `b16fad0` — `feat(sprint7-stage2): 대시보드 집계 API + Android 대시보드·취약점 화면`
+
+#### TASK-702 (백엔드)
+- `DashboardQueryService.java`: 접근 권한 검증 전담
+- `DashboardCacheService.java`: `@Cacheable` 5분 TTL + 집계 로직 (self-invocation 방지 2-Bean 패턴)
+- `DashboardController.java`: `GET /api/v1/projects/{projectId}/dashboard`
+- `DashboardResponse.java`: record — SeverityCounts, TrendPoint, FileHeatPoint, OwaspCoverage
+- `RedisCacheConfig.java`: dashboard 5분, projectDetail 10분
+- `VulnerabilityQueryService.java`: 집계 위임 메서드 4개 추가 (도메인 간 Repository 직접 주입 제거)
+- `VulnerabilityRepository.java`: `countDailyByProjectId` JPQL → nativeQuery PostgreSQL `created_at::date`
+- **단위 테스트**: DashboardQueryServiceTest 17개 통과
+
+**Reviewer 지적 사항 (수정 완료)**:
+1. `DashboardCacheService`가 `VulnerabilityRepository` 직접 주입 → `VulnerabilityQueryService` 위임으로 BC 경계 준수
+2. `FUNCTION('date', v.createdAt)` JPQL → `nativeQuery=true` + `created_at::date` PostgreSQL 문법
+3. Android `DashboardApi` 반환 타입 `DashboardResponse` → `ApiResponse<DashboardResponse>` (백엔드 래퍼 불일치 수정)
+
+#### TASK-704 (Android)
+- `DashboardScreen.kt` + `SecurityScoreGauge.kt` (Canvas 원형 게이지)
+- `VulnListScreen.kt` + `VulnDetailScreen.kt`
+- `DashboardViewModel.kt` + `VulnListViewModel.kt` + `VulnDetailViewModel.kt`
+- `VulnerabilityEntity.kt` + `DashboardCacheEntity.kt` + DAO + `AppDatabase.kt`
+- `VulnRepository.kt` / `DashboardRepository.kt` 인터페이스 + 구현체 (네트워크 실패 시 Room 캐시 fallback)
+- `ApiResponse.kt` 래퍼 + `requireData()` 언래핑 메서드
+- `NavGraph.kt`: vulnList/{projectId}, vulnDetail/{projectId}/{vulnId} destination 추가
+- Kotlin 1.9.22 → 2.0.21, KSP 2.0.21-1.0.28 (firebase-bom 호환)
+- **단위 테스트**: DashboardViewModelTest 4개 + VulnerabilityDaoContractTest 4개 통과
+
+---
+
+### Stage 3 완료 (2026-05-19)
+
+**커밋**: `e39484e` — `feat(sprint7-stage3): FCM Push 백엔드 + 글로벌 CSS 유틸리티`
+
+#### TASK-701 (프론트엔드)
+- `PdfReportModal.tsx`: 프로젝트 선택 → PDF/JSON 포맷 선택 → 생성 요청 → 상태 폴링 → 다운로드 UI
+- 커밋 `c8cfcdb` (이전 세션) 포함
+
+#### TASK-702 (프론트엔드)
+- `SecurityScoreRing.tsx`, `SeverityBarChart.tsx`, `TrendLineChart.tsx`, `FileHeatmap.tsx`, `OwaspCoverageMatrix.tsx` — 차트 5종
+- `DashboardPage.tsx`: Executive/Analyst 뷰 토글 + 날짜 범위 선택 + KPI 카드 + PDF 리포트 버튼
+- `KpiCard.tsx`, `AppHeader.tsx` (V4 Hybrid), `EmptyState.tsx` 리뉴얼
+- `globals.css`: card/btn/field/progress-bar 유틸리티 클래스 추가
+- 커밋 `2f2da6b`, `c458bae`, `c8cfcdb`, `e39484e` 포함
+- **DashboardPage 백엔드 API 연결** (커밋 `28f28c3`):
+  - `useDashboard.ts` 훅 신규 — `GET /api/v1/projects/{projectId}/dashboard` 조회
+  - trend `count` → 정규화 score(0~100), heatmap `count` → severity 버킷, `owaspCoverage` Map → `OwaspCell[]` 변환
+  - `ApiStatusChip` 컴포넌트: 로딩/에러/실시간 상태 표시 + 재조회 버튼
+  - `isApiLive` 플래그로 API 데이터 우선, 로컬 Zustand 스토어 폴백 하이브리드 전략
+
+#### TASK-705 (백엔드)
+- Firebase Admin SDK 9.2.0 의존성 추가
+- `V036__create_device_tokens.sql`: device_tokens 테이블 (user_id FK, UNIQUE(user_id, token))
+- `notification` 도메인: `DeviceToken` 엔티티, Repository, `DeviceTokenService`
+- `DeviceTokenController`: `POST/DELETE /api/v1/fcm/device-tokens` (JWT 인증 필수)
+- `FcmPushPort` 인터페이스 (DIP) + `FcmPushService` (Firebase 활성 시) + `FcmPushServiceNoOp` (폴백)
+- `FcmConfig`: `firebase.enabled=true` 조건부 — 개발 환경 graceful degradation
+- `SessionCompletedEvent` + `SessionCompletedEventListener` (`@Async analysisExecutor`)
+- `RedisSubscriber`: `markCompleted()` 이후 `SessionCompletedEvent` 발행
+- FCM 페이로드: `{ sessionId, projectId, deeplink: "secureai://session/{id}" }`
+- **단위 테스트**: FcmPushServiceTest 4개 + DeviceTokenServiceTest 5개 통과
+
+**Reviewer 지적 사항**: `firebase-service-account.json` `.gitignore` 등록 누락 → `.gitignore` 에 추가로 해결
+
+---
+
+### Stage 4 완료 (2026-05-19)
+
+**커밋**: `0beb7ed` — `feat(sprint7-stage4): FCM Push + SSE 이중 전략 Android 구현`
+
+#### TASK-705 (Android)
+- `libs.versions.toml`: firebase-bom 33.6.0, firebase-messaging-ktx, lifecycle-process, okhttp-mockwebserver 추가
+- `build.gradle.kts`: Firebase BOM + FCM 의존성 활성화 (analytics 제외 — Kotlin 2.0.21 호환)
+- `AndroidManifest.xml`: POST_NOTIFICATIONS 권한, FCM 서비스, `secureai://session/{sessionId}` 딥링크 intent-filter, launchMode="singleTop"
+- `SecureAiApplication.kt`: `createNotificationChannels()` — analysis_complete 채널(IMPORTANCE_HIGH) 앱 시작 시 등록
+- `SecureAiFcmService.kt`: Firebase 수신 서비스 — EntryPoint 패턴(Hilt), foreground 판단(ProcessLifecycleOwner), background 알림 표시 + 딥링크 PendingIntent. serviceJob.cancel() onDestroy 정리
+- `FcmTokenService.kt`: FCM 토큰 서버 등록 (`POST /api/v1/fcm/device-tokens`) — 비로그인 시 defer, 실패 비치명적
+- `FcmTokenApi.kt`: Retrofit 인터페이스
+- `SseClient.kt`: OkHttp callbackFlow 기반 SSE 파싱 — `session.completed` 이벤트 감지, close() 명시적 채널 종료
+- `AnalysisViewModel.kt`: SSE(foreground)/FCM(background) 이중 전략 상태 관리, sessionId UUID 검증([0-9a-f-]{36}) + early return
+- `NavGraph.kt`: `Screen.Session` 라우트 + deepLink uriPattern 추가
+- `MainActivity.kt`: `onNewIntent` 딥링크 처리 + UUID 검증
+- `NetworkModule.kt`: `redactHeader("Authorization")` — DEBUG BODY 레벨에서도 토큰 Logcat 노출 차단
+- **단위 테스트**: SseClientTest 5개 + AnalysisViewModelTest 7개 = 12개 통과
+
+**Reviewer 지적 사항 (수정 완료)**:
+1. `NetworkModule.kt` — `loggingInterceptor.redactHeader("Authorization")` 누락 → 추가
+2. `SseClient.kt` — sessionId URL 삽입 전 UUID 검증 없음 → `AnalysisViewModel.startSseObservation()`에 UUID_PATTERN.matches() + early return 추가
+
+---
+
+## 완료 기준 (DoD)
+
+```
+[ ] PDF 리포트 30초 내 생성 + 다운로드 토큰 24시간 만료 동작 ⭐
+[ ] 대시보드 5개 차트 모두 렌더링 (2초 내 로딩, Redis 캐시) ⭐
+[ ] Android 로그인 → 대시보드 → 취약점 목록 네비게이션 완성 ⭐
+[ ] FCM Push (background) + SSE (foreground) 이중 전략 동작 ⭐
+[ ] 다운로드 토큰 만료 후 접근 거부 (403)
+[ ] Room 오프라인 캐시 — 네트워크 끊김 시 마지막 데이터 표시
+[ ] 단위·통합 테스트 모두 통과 (CI 그린)
+```

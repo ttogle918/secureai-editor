@@ -6,10 +6,16 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.middleware.internal_key_auth import InternalKeyAuthMiddleware
 from api.routes.analyze import router as analyze_router
+from api.routes.chat import router as chat_router
+from api.routes.dast import router as dast_router
+from api.routes.sbom import router as sbom_router
+from api.routes.translate import router as translate_router
+from api.routes.secret_scan import router as secret_scan_router
 from config.settings import settings
 from infrastructure.checkpointer import set_checkpointer
 
@@ -57,8 +63,21 @@ app = FastAPI(
 )
 
 app.add_middleware(InternalKeyAuthMiddleware)
+# CORSMiddleware는 InternalKeyAuth 바깥(outermost)에 위치해야 OPTIONS preflight가 먼저 처리됨
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(analyze_router)
+app.include_router(chat_router)
+app.include_router(dast_router)
+app.include_router(sbom_router)
+app.include_router(translate_router)
+app.include_router(secret_scan_router)
 
 
 @app.get("/health")

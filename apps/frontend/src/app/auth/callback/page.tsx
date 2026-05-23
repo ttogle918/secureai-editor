@@ -10,20 +10,24 @@ function CallbackHandler() {
   const { setAccessToken: storeSetToken, setUser, setError } = useAuthStore();
 
   useEffect(() => {
-    const token = searchParams.get('accessToken');
-    if (!token) {
+    const code = searchParams.get('code');
+    if (!code) {
       setError('GitHub 인증에 실패했습니다.');
       router.push('/login');
       return;
     }
 
-    setAccessToken(token);
-    storeSetToken(token);
-
-    apiClient.get<{ data: {
-      id: string; email: string; username: string;
-      plan: { name: string }; githubLogin: string | null;
-    } }>('/users/me')
+    // 일회용 코드를 서버에 제출하여 실제 액세스 토큰으로 교환
+    apiClient.get<{ data: { accessToken: string } }>(`/auth/exchange/${code}`)
+      .then((res) => {
+        const token = res.data.accessToken;
+        setAccessToken(token);
+        storeSetToken(token);
+        return apiClient.get<{ data: {
+          id: string; email: string; username: string;
+          plan: { name: string }; githubLogin: string | null;
+        } }>('/users/me');
+      })
       .then((res) => {
         const u = res.data;
         setUser({
@@ -32,11 +36,14 @@ function CallbackHandler() {
           username: u.username,
           plan: u.plan.name as 'free' | 'pro' | 'team',
           githubConnected: !!u.githubLogin,
+          isAdmin: false,
+          avatarUrl: null,
+          displayName: null,
         });
-        router.push('/');
+        router.push('/editor');
       })
       .catch(() => {
-        setError('사용자 정보를 불러오는 데 실패했습니다.');
+        setError('GitHub 인증에 실패했습니다.');
         router.push('/login');
       });
   }, [searchParams, router, storeSetToken, setUser, setError]);

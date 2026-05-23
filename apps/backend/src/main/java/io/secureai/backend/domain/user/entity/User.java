@@ -3,6 +3,7 @@ package io.secureai.backend.domain.user.entity;
 import io.secureai.backend.domain.plan.Plan;
 import io.secureai.backend.global.crypto.AesEncryptionConverter;
 import io.secureai.backend.global.entity.BaseTimeEntity;
+import io.secureai.backend.global.model.ModelConstants;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -46,7 +47,7 @@ public class User extends BaseTimeEntity {
     private String githubLogin;
 
     @Convert(converter = AesEncryptionConverter.class)
-    @Column(columnDefinition = "bytea")
+    @Column(columnDefinition = "TEXT")
     private String githubToken;
 
     private OffsetDateTime githubTokenExpiresAt;
@@ -88,6 +89,37 @@ public class User extends BaseTimeEntity {
     private String locale = "ko";
 
     private OffsetDateTime deletedAt;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isAdmin = false;
+
+    @Column(length = 500)
+    private String avatarUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean publicProfile = false;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer creditBalance = 100;
+
+    @Convert(converter = AesEncryptionConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private String anthropicApiKey;
+
+    @Column(length = 60, nullable = false)
+    @Builder.Default
+    private String preferredModel = ModelConstants.HAIKU;
+
+    /** Critical 취약점 발견 시 GitHub PR 머지 차단 여부 */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean githubBlockMergeOnCritical = false;
 
     @Override
     @PrePersist

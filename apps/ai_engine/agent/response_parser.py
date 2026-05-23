@@ -67,4 +67,8 @@ def _extract_list(data: dict, file_path: str) -> list[dict]:
     if not isinstance(vulns, list):
         logger.warning("[parser] 'vulnerabilities' is not a list for %s", file_path)
         return []
+    # category 필드 기본값 보장
+    for v in vulns:
+        if "category" not in v:
+            v["category"] = "SECURITY"
     return vulns

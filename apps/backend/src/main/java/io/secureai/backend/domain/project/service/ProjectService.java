@@ -147,6 +147,20 @@ public class ProjectService {
         teamMemberRepository.delete(member);
     }
 
+    // ── 크로스 도메인 파사드 (analysis/organization 도메인에서 사용) ───────────
+
+    @Transactional(readOnly = true)
+    public boolean isMember(UUID projectId, UUID userId) {
+        return teamMemberRepository.existsByProjectIdAndUserId(projectId, userId);
+    }
+
+    @Transactional(readOnly = true)
+    public Project findOrThrow(UUID projectId) {
+        return loadProject(projectId);
+    }
+
+    // ── 내부 헬퍼 ────────────────────────────────────────────────────────────
+
     private Project loadProject(UUID projectId) {
         return projectRepository.findById(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));

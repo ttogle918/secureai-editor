@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 _client: AsyncAnthropic | None = None
 
 _SYSTEM_PROMPT = """\
-You are a security expert specializing in source code vulnerability analysis (SAST).
-Analyze the provided source code and identify ALL security vulnerabilities.
+You are a senior security engineer performing SAST (Static Application Security Testing).
+Your goal is to find REAL, EXPLOITABLE security vulnerabilities — not code style issues.
 
 Respond ONLY with valid JSON in this exact format — no markdown, no explanation:
 {
@@ -24,6 +24,7 @@ Respond ONLY with valid JSON in this exact format — no markdown, no explanatio
     {
       "type": "SQL_INJECTION",
       "severity": "HIGH",
+      "category": "SECURITY",
       "cwe": "CWE-89",
       "owasp": "A03:2021",
       "line": 42,
@@ -33,31 +34,74 @@ Respond ONLY with valid JSON in this exact format — no markdown, no explanatio
   ]
 }
 
-Rules:
-- severity MUST be one of: LOW, MEDIUM, HIGH, CRITICAL
+Field rules:
+- severity: LOW | MEDIUM | HIGH | CRITICAL
+- category: SECURITY (exploitable vuln) | CODE_QUALITY (maintainability/reliability, not exploitable)
 - If no vulnerabilities found, return: {"vulnerabilities": []}
-- Never include text outside the JSON object\
+- Never include text outside the JSON object
+
+Severity calibration:
+- CRITICAL: directly exploitable with no user interaction (SQLi with data exfil, RCE, auth bypass)
+- HIGH: exploitable but requires some conditions (stored XSS, IDOR, path traversal)
+- MEDIUM: security concern but limited direct impact, or requires attacker-controlled infrastructure
+- LOW: defense-in-depth, best-practice deviation with minimal direct risk
+- CODE_QUALITY category: memory leaks, missing animations, unused variables, style issues — set severity LOW
+
+Framework-aware rules (do NOT report these as HIGH/MEDIUM SECURITY):
+- React JSX text rendering `{variable}` auto-escapes HTML — NOT XSS unless dangerouslySetInnerHTML is used
+- React inline styles `style={{ color: val }}` are JS objects — NOT CSS injection
+- Mock/test data files (mockData.ts, fixtures, seeds) contain intentional demo patterns — mark CODE_QUALITY or skip
+- CSS class name generation in JS (e.g. tailwind, clsx) is NOT injection
+- `Date.now()` / `Math.random()` for non-security IDs is CODE_QUALITY, not CRITICAL
+
+PHP-specific patterns (ALWAYS report these as CRITICAL/HIGH SECURITY):
+- `$_GET`, `$_POST`, `$_REQUEST` used directly in SQL queries → SQL_INJECTION CRITICAL
+- `echo $_GET[...]` or `echo $_POST[...]` without htmlspecialchars → XSS HIGH
+- `include($_GET[...])` or `require($_GET[...])` → PATH_TRAVERSAL CRITICAL
+- `system()`, `exec()`, `shell_exec()` with user input → COMMAND_INJECTION CRITICAL
+- `mysql_query()` with unescaped user input → SQL_INJECTION CRITICAL
+- `$_FILES` without proper validation → UNRESTRICTED_FILE_UPLOAD HIGH\
 """
 
 
-def _get_client() -> AsyncAnthropic:
+def _get_client(api_key: str | None = None) -> AsyncAnthropic:
+    """플랫폼 클라이언트(싱글턴)를 반환하거나, BYOK 키가 있으면 1회용 클라이언트를 생성한다."""
+    if api_key:
+        return AsyncAnthropic(api_key=api_key)
     global _client
     if _client is None:
         _client = AsyncAnthropic(api_key=settings.claude_api_key)
     return _client
 
 
-async def analyze_for_sast(file_path: str, content: str) -> str:
-    """파일 하나에 대한 SAST 분석을 Claude에 요청하고 원문 응답을 반환한다."""
-    client = _get_client()
+async def analyze_for_sast(
+    file_path: str,
+    content: str,
+    guidelines: str = "",
+    model: str | None = None,
+    api_key: str | None = None,
+) -> tuple[str, dict]:
+    """파일 하나에 대한 SAST 분석을 Claude에 요청하고 (원문 응답, token_usage)를 반환한다.
+
+    model/api_key가 제공되면 사용자 BYOK 설정을 우선 적용한다.
+    가이드라인 포함 시 1,024 tokens 초과 → prompt caching 실제 동작.
+    """
+    client = _get_client(api_key)
+    effective_model = model or settings.claude_model
+
+    system_text = (
+        f"{_SYSTEM_PROMPT}\n\n---\n\n# Stack-Specific Security Patterns\n\n{guidelines}"
+        if guidelines
+        else _SYSTEM_PROMPT
+    )
 
     response = await client.messages.create(
-        model=settings.claude_model,
+        model=effective_model,
         max_tokens=4096,
         system=[
             {
                 "type": "text",
-                "text": _SYSTEM_PROMPT,
+                "text": system_text,
                 "cache_control": {"type": "ephemeral"},
             }
         ],
@@ -70,5 +114,17 @@ async def analyze_for_sast(file_path: str, content: str) -> str:
     )
 
     raw = response.content[0].text
-    logger.debug("[claude] file=%s response_chars=%d", file_path, len(raw))
-    return raw
+    u = response.usage
+    usage = {
+        "input_tokens":                  u.input_tokens,
+        "output_tokens":                 u.output_tokens,
+        "cache_creation_input_tokens":   getattr(u, "cache_creation_input_tokens", 0) or 0,
+        "cache_read_input_tokens":       getattr(u, "cache_read_input_tokens", 0) or 0,
+    }
+    logger.debug(
+        "[claude] file=%s model=%s in=%d out=%d cache_write=%d cache_read=%d",
+        file_path, effective_model,
+        usage["input_tokens"], usage["output_tokens"],
+        usage["cache_creation_input_tokens"], usage["cache_read_input_tokens"],
+    )
+    return raw, usage

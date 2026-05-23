@@ -14,6 +14,7 @@ public enum ErrorCode {
     AUTH_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     AUTH_USERNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 사용자명입니다."),
     AUTH_OAUTH_STATE_INVALID(HttpStatus.BAD_REQUEST, "유효하지 않은 OAuth state 파라미터입니다. CSRF 공격이 의심됩니다."),
+    AUTH_OAUTH_CODE_INVALID(HttpStatus.BAD_REQUEST, "유효하지 않거나 만료된 OAuth 인증 코드입니다."),
 
     PLAN_FEATURE_NOT_ALLOWED(HttpStatus.FORBIDDEN, "현재 플랜에서 지원하지 않는 기능입니다."),
     PLAN_LIMIT_EXCEEDED(HttpStatus.FORBIDDEN, "월별 사용 한도를 초과했습니다."),
@@ -40,7 +41,9 @@ public enum ErrorCode {
     PROGRESS_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "진행 로그를 찾을 수 없습니다."),
 
     DAST_DOMAIN_NOT_VERIFIED(HttpStatus.FORBIDDEN, "도메인 소유권이 확인되지 않았습니다."),
+    DAST_CONSENT_REQUIRED(HttpStatus.FORBIDDEN, "DAST 실행 전 면책 동의가 필요합니다."),
     DAST_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "도메인별 DAST 횟수를 초과했습니다."),
+    DAST_CONCURRENT_SCAN(HttpStatus.CONFLICT, "해당 도메인에 이미 진행 중인 DAST가 있습니다."),
 
     GITHUB_AUTH_REQUIRED(HttpStatus.FORBIDDEN, "GitHub 연동이 필요합니다."),
     GITHUB_WEBHOOK_INVALID(HttpStatus.BAD_REQUEST, "Webhook 서명이 유효하지 않습니다."),
@@ -51,6 +54,17 @@ public enum ErrorCode {
     PATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "패치 제안을 찾을 수 없습니다."),
 
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "리포트를 찾을 수 없습니다."),
+
+    ADMIN_SELF_MODIFICATION_DENIED(HttpStatus.FORBIDDEN, "자기 자신의 플랜 또는 상태를 변경할 수 없습니다."),
+    ADMIN_PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "플랜을 찾을 수 없습니다."),
+    ADMIN_CREDIT_DELTA_INVALID(HttpStatus.BAD_REQUEST, "크레딧 delta 범위가 유효하지 않습니다."),
+
+    ORG_NOT_FOUND(HttpStatus.NOT_FOUND, "조직을 찾을 수 없습니다."),
+    ORG_ACCESS_DENIED(HttpStatus.FORBIDDEN, "조직에 대한 접근 권한이 없습니다."),
+    ORG_ALREADY_MEMBER(HttpStatus.CONFLICT, "이미 조직 멤버입니다."),
+    ORG_SLUG_DUPLICATE(HttpStatus.CONFLICT, "이미 사용 중인 조직 슬러그입니다."),
+    INVITATION_NOT_FOUND(HttpStatus.NOT_FOUND, "초대를 찾을 수 없습니다."),
+    INVITATION_EXPIRED(HttpStatus.GONE, "만료된 초대입니다."),
 
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "입력값이 유효하지 않습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");

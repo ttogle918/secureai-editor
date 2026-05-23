@@ -18,6 +18,7 @@ public record SaveVulnerabilitiesRequest(
             Integer lineNumber,
             @NotBlank String vulnType,
             @NotBlank String severity,
+            String category,
             String cwe,
             String owasp,
             String description,

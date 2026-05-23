@@ -23,6 +23,7 @@ yarn-error.log*
 .eslintcache
 .turbo/
 .vercel/
+*.tsbuildinfo
 
 # Java (Spring Boot / Gradle / Maven)
 build/
@@ -79,14 +80,17 @@ secrets/
 application-secret.yml
 application-secret.properties
 
+
 # Database files
 *.db
 *.sqlite
 *.sqlite3
+docs/analysis_results*.sql
 
 # Android / Firebase
 google-services.json
 google-services-dev.json
+firebase-service-account.json
 local.properties
 captures/
 .externalNativeBuild/
@@ -114,11 +118,20 @@ temp/
 files.zip
 
 # Project Specific
-/secureai---white-hat-security-auditor/
+/docs/frontend-reference/secureai---white-hat-security-auditor/
+/docs/frontend-reference/packages/
 /apps/sandbox/temp/
 /bash
+/docs/portfolio/*.md
+/docs/portfolio/viewer/logs-data.js
 
 # Claude Code memory
 .claude/
 CLAUDE.md
 
+# Tauri App Icon
+apps/frontend/src-tauri/icons/**/*.*
+docs/portfolio/*
+
+
+dvwa-source/

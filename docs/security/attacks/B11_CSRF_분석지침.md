@@ -254,7 +254,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(403).json({ error: 'CSRF protection: origin not allowed' });
     }
 
-    if (req.method !== 'POST') return res.status(405).end();
+    if (req.method === 'POST') return res.status(405).end();
 
     // CSRF 토큰 검증 (Double Submit Cookie)
     const cookieToken = req.cookies['csrf_token'];

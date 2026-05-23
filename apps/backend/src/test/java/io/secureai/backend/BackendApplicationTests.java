@@ -1,12 +1,17 @@
 package io.secureai.backend;
 
-import org.junit.jupiter.api.Disabled;
+import io.secureai.backend.config.DataInitializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
-@Disabled("DB 연결 필요 — docker compose up 환경에서만 실행")
+@ActiveProfiles("test")
 class BackendApplicationTests {
+
+	@MockitoBean
+	DataInitializer dataInitializer;
 
 	@Test
 	void contextLoads() {

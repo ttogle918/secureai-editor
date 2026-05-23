@@ -35,6 +35,14 @@ public class EmailService {
                 "아래 링크를 클릭하여 비밀번호를 재설정하세요.\n\n" + link + "\n\n링크는 1시간 동안 유효합니다.");
     }
 
+    @Async("emailExecutor")
+    public void sendOrgInvitation(String to, String token, String orgName) {
+        String link = "%s/invite/%s".formatted(frontendUrl, token);
+        send(to, "[SecureAI] %s 조직 초대".formatted(orgName),
+                "%s 조직에 초대되었습니다.\n\n아래 링크를 클릭하여 초대를 수락하세요.\n\n%s\n\n링크는 72시간 동안 유효합니다."
+                        .formatted(orgName, link));
+    }
+
     private void send(String to, String subject, String text) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();

@@ -1,6 +1,7 @@
 package io.secureai.backend.domain.analysis.service;
 
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
+import io.secureai.backend.domain.analysis.entity.SessionStatus;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,7 @@ public class SessionInterruptionScheduler {
     public void detectInterruptedSessions() {
         if (!aiAgentClient.isCircuitOpen()) return;
 
-        List<AnalysisSession> runningSessions = sessionRepository.findAllRunning();
+        List<AnalysisSession> runningSessions = sessionRepository.findAllByStatus(SessionStatus.RUNNING);
         if (runningSessions.isEmpty()) return;
 
         for (AnalysisSession session : runningSessions) {

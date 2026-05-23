@@ -23,7 +23,7 @@ class AesEncryptionConverterTest {
     @Test
     void encryptThenDecrypt_returnsOriginal() {
         String plaintext = "ghp_test_github_token_12345";
-        byte[] encrypted = converter.convertToDatabaseColumn(plaintext);
+        String encrypted = converter.convertToDatabaseColumn(plaintext);
         String decrypted = converter.convertToEntityAttribute(encrypted);
         assertThat(decrypted).isEqualTo(plaintext);
     }
@@ -31,9 +31,17 @@ class AesEncryptionConverterTest {
     @Test
     void samePlaintext_producesDifferentCiphertext() {
         String plaintext = "same_token";
-        byte[] enc1 = converter.convertToDatabaseColumn(plaintext);
-        byte[] enc2 = converter.convertToDatabaseColumn(plaintext);
+        String enc1 = converter.convertToDatabaseColumn(plaintext);
+        String enc2 = converter.convertToDatabaseColumn(plaintext);
         assertThat(enc1).isNotEqualTo(enc2); // random IV ensures different output
+    }
+
+    @Test
+    void ciphertextIsBase64_notPlaintext() {
+        String plaintext = "http://target.example.com/login";
+        String encrypted = converter.convertToDatabaseColumn(plaintext);
+        assertThat(encrypted).doesNotContain(plaintext);
+        assertThat(encrypted).matches("[A-Za-z0-9+/=]+");
     }
 
     @Test

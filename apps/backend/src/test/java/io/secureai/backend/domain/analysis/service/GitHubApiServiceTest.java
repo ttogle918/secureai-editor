@@ -1,7 +1,6 @@
 package io.secureai.backend.domain.analysis.service;
 
-import io.secureai.backend.domain.user.entity.User;
-import io.secureai.backend.domain.user.repository.UserRepository;
+import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
@@ -11,7 +10,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
@@ -20,7 +18,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class GitHubApiServiceTest {
 
-    @Mock UserRepository userRepository;
+    @Mock UserService userService;
     @Mock GitHubRestClient gitHubRestClient;
 
     @InjectMocks GitHubApiService gitHubApiService;
@@ -84,9 +82,7 @@ class GitHubApiServiceTest {
     @DisplayName("GitHub 토큰이 있으면 validateRepoAccess가 호출된다")
     void resolveAndValidate_with_token_calls_validate() {
         UUID userId = UUID.randomUUID();
-        User user = mock(User.class);
-        when(user.getGithubToken()).thenReturn("decrypted-token");
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userService.getDecryptedGithubToken(userId)).thenReturn("decrypted-token");
 
         GitHubApiService.GithubRepoInfo info = gitHubApiService.resolveAndValidate(
                 userId, "https://github.com/owner/repo", "main");
@@ -102,9 +98,7 @@ class GitHubApiServiceTest {
     @DisplayName("GitHub 토큰이 없으면 validateRepoAccess가 호출되지 않는다 (공개 레포)")
     void resolveAndValidate_without_token_skips_validate() {
         UUID userId = UUID.randomUUID();
-        User user = mock(User.class);
-        when(user.getGithubToken()).thenReturn(null);
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userService.getDecryptedGithubToken(userId)).thenReturn(null);
 
         GitHubApiService.GithubRepoInfo info = gitHubApiService.resolveAndValidate(
                 userId, "https://github.com/public/repo", null);
@@ -118,7 +112,8 @@ class GitHubApiServiceTest {
     @DisplayName("사용자를 찾을 수 없으면 USER_NOT_FOUND 예외가 발생한다")
     void resolveAndValidate_user_not_found_throws() {
         UUID userId = UUID.randomUUID();
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        when(userService.getDecryptedGithubToken(userId))
+                .thenThrow(new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         assertThatThrownBy(() -> gitHubApiService.resolveAndValidate(
                 userId, "https://github.com/owner/repo", null))
@@ -131,9 +126,7 @@ class GitHubApiServiceTest {
     @DisplayName("validateRepoAccess가 GITHUB_REPO_NOT_FOUND를 던지면 그대로 전파된다")
     void resolveAndValidate_repo_not_found_propagates() {
         UUID userId = UUID.randomUUID();
-        User user = mock(User.class);
-        when(user.getGithubToken()).thenReturn("token");
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userService.getDecryptedGithubToken(userId)).thenReturn("token");
         doThrow(new BusinessException(ErrorCode.GITHUB_REPO_NOT_FOUND))
                 .when(gitHubRestClient).validateRepoAccess(any(), any(), any());
 

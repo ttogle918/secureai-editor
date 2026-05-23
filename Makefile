@@ -1,4 +1,4 @@
-.PHONY: dev infra down logs clean rebuild backend frontend ai-engine help
+.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner help
 
 # ──────────────────────────────────────────────────────────────────
 # make dev        전체 서비스 (postgres, redis, backend, ai_engine, frontend)
@@ -10,6 +10,7 @@
 # make backend    백엔드 로컬 실행 (Gradle, infra 필요)
 # make frontend   프론트엔드 로컬 실행 (npm dev)
 # make ai-engine  AI 엔진 로컬 실행 (uvicorn, infra 필요)
+# make viewer     세션 로그 뷰어 빌드 & 서빙 (localhost:8082)
 # ──────────────────────────────────────────────────────────────────
 
 dev:
@@ -42,6 +43,11 @@ rebuild:
 	docker compose up -d --build backend
 	@echo "✓ 백엔드 재빌드 완료"
 
+dast-runner:
+	@echo "▶ DAST 샌드박스 이미지 빌드 중..."
+	docker build -f apps/dast_runner/Dockerfile -t secureai/dast-runner:latest apps/ai_engine/
+	@echo "✓ secureai/dast-runner:latest 빌드 완료"
+
 backend:
 	cd apps/backend && ./gradlew bootRun
 
@@ -56,6 +62,12 @@ db:
 
 redis-cli:
 	docker compose exec redis redis-cli -a $${REDIS_PASSWORD}
+
+viewer:
+	@echo "▶ 세션 로그 빌드 중..."
+	python scripts/build_session_log.py
+	@echo "▶ http://localhost:8082 에서 뷰어를 시작합니다 (Ctrl+C 로 종료)"
+	cd docs/portfolio/viewer && python -m http.server 8082
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | sort

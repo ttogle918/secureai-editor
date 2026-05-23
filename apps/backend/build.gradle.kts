@@ -30,9 +30,9 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web:4.0.5")
 	implementation("org.springframework.boot:spring-boot-starter-mail:4.0.5")
 	
-	// Spring Boot 4.0.5에서 찾을 수 없는 스타터 대신 직접 의존성 추가
-	// implementation("org.springframework:spring-aspects:7.0.6")
-	// implementation("org.springframework:spring-aop:7.0.6")
+	// spring-aop + aspectjweaver 는 기존 스타터들의 전이 의존성으로 이미 포함됨
+	// AspectJ 프록시 활성화를 위해 spring-aspects만 추가
+	implementation("org.springframework:spring-aspects:7.0.6")
 	implementation("org.springframework.boot:spring-boot-starter-flyway")
 	implementation("org.flywaydb:flyway-database-postgresql")
 
@@ -52,8 +52,23 @@ dependencies {
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testAnnotationProcessor("org.projectlombok:lombok:1.18.36")
 
+	// TestContainers — Redis + PostgreSQL 통합 테스트
+	testImplementation("org.testcontainers:testcontainers:1.20.4")
+	testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+	testImplementation("org.testcontainers:postgresql:1.20.4")
+
+	// Docker Java SDK — DAST 샌드박스 컨테이너 관리
+	implementation("com.github.docker-java:docker-java-core:3.3.6")
+	implementation("com.github.docker-java:docker-java-transport-httpclient5:3.3.6")
+
 	// Swagger / OpenAPI
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
+
+	// PDF 생성 — OpenPDF (LGPL)
+	implementation("com.github.librepdf:openpdf:1.3.30")
+
+	// Firebase Admin SDK — FCM Push 알림 (선택적 활성화)
+	implementation("com.google.firebase:firebase-admin:9.2.0")
 }
 
 tasks.withType<Test> {

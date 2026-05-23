@@ -5,14 +5,17 @@ import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.repository.UserRepository;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -26,7 +29,6 @@ public class GitHubOAuthService {
 
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
-    private final RestTemplate restTemplate;
 
     @Value("${secureai.github.client-id}")
     private String clientId;
@@ -36,6 +38,20 @@ public class GitHubOAuthService {
 
     @Value("${secureai.frontend.url}")
     private String frontendUrl;
+
+    private RestClient gitHubClient;
+
+    @PostConstruct
+    void init() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10_000);
+        factory.setReadTimeout(30_000);
+        this.gitHubClient = RestClient.builder()
+                .requestFactory(factory)
+                .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
+                .defaultHeader("User-Agent", "secureai-backend/1.0")
+                .build();
+    }
 
     public String buildAuthorizationUrl(String state) {
         return "https://github.com/login/oauth/authorize?client_id=%s&scope=user:email,repo&state=%s"
@@ -63,7 +79,6 @@ public class GitHubOAuthService {
 
     private User createUserFromGitHub(long githubId, String githubLogin, String email, String token) {
         if (email != null && userRepository.existsByEmailAndDeletedAtIsNull(email)) {
-            // 기존 이메일 계정에 GitHub 연동
             return userRepository.findByEmailAndDeletedAtIsNull(email).map(user -> {
                 user.setGithubId(githubId);
                 user.setGithubLogin(githubLogin);
@@ -90,41 +105,32 @@ public class GitHubOAuthService {
     }
 
     private String exchangeCodeForToken(String code) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Accept", "application/json");
-
-        Map<String, String> body = Map.of(
+        Map<String, Object> body = Map.of(
                 "client_id", clientId,
                 "client_secret", clientSecret,
                 "code", code
         );
 
-        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                "https://github.com/login/oauth/access_token",
-                HttpMethod.POST,
-                new HttpEntity<>(body, headers),
-                new ParameterizedTypeReference<>() {}
-        );
+        Map<String, Object> response = gitHubClient.post()
+                .uri("https://github.com/login/oauth/access_token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
 
-        if (response.getBody() == null || !response.getBody().containsKey("access_token")) {
+        if (response == null || !response.containsKey("access_token")) {
             throw new BusinessException(ErrorCode.GITHUB_AUTH_REQUIRED, "GitHub 토큰 교환 실패");
         }
-        return (String) response.getBody().get("access_token");
+        return (String) response.get("access_token");
     }
 
     private Map<String, Object> fetchGitHubProfile(String accessToken) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer " + accessToken);
-        headers.set("Accept", "application/vnd.github.v3+json");
-
-        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                "https://api.github.com/user",
-                HttpMethod.GET,
-                new HttpEntity<>(headers),
-                new ParameterizedTypeReference<>() {}
-        );
-        return response.getBody();
+        return gitHubClient.get()
+                .uri("https://api.github.com/user")
+                .header("Authorization", "Bearer " + accessToken)
+                .header("Accept", "application/vnd.github.v3+json")
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
     }
 
     private String resolveEmail(Map<String, Object> profile, String accessToken) {
@@ -133,15 +139,11 @@ public class GitHubOAuthService {
             return (String) emailVal;
         }
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + accessToken);
-            ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
-                    "https://api.github.com/user/emails",
-                    HttpMethod.GET,
-                    new HttpEntity<>(headers),
-                    new ParameterizedTypeReference<>() {}
-            );
-            List<Map<String, Object>> emails = response.getBody();
+            List<Map<String, Object>> emails = gitHubClient.get()
+                    .uri("https://api.github.com/user/emails")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {});
             if (emails != null) {
                 for (Map<String, Object> emailEntry : emails) {
                     if (Boolean.TRUE.equals(emailEntry.get("primary"))) {
@@ -149,8 +151,8 @@ public class GitHubOAuthService {
                     }
                 }
             }
-        } catch (Exception e) {
-            log.warn("GitHub email fetch failed", e);
+        } catch (RestClientException e) {
+            log.warn("GitHub email fetch failed: {}", e.getMessage());
         }
         return null;
     }

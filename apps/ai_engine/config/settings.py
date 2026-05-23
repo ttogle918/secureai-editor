@@ -45,5 +45,9 @@ class Settings(BaseSettings):
         alias="POSTGRES_URL",
     )
 
+    # 임베딩 설정 (fastembed BAAI/bge-small-en-v1.5)
+    embedding_model: str = Field("BAAI/bge-small-en-v1.5", alias="EMBEDDING_MODEL")
+    embedding_top_k: int = Field(5, alias="EMBEDDING_TOP_K")
+
 
 settings = Settings()

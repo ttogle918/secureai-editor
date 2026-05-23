@@ -3,10 +3,10 @@ package io.secureai.backend.domain.cve.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.secureai.backend.domain.cve.entity.CveData;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -22,7 +22,6 @@ import java.util.HexFormat;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class NvdApiClient {
 
     private static final String NVD_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0";
@@ -32,9 +31,18 @@ public class NvdApiClient {
     private static final int MAX_RETRY        = 3;
     private static final long[] BACKOFF_SECONDS = {30L, 60L, 120L};
 
-    private final RestClient.Builder restClientBuilder;
+    private final RestClient restClient;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+
+    public NvdApiClient(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10_000);
+        factory.setReadTimeout(30_000);
+        this.restClient = RestClient.builder().requestFactory(factory).build();
+    }
 
     @Value("${secureai.nvd.api-key:}")
     private String nvdApiKey;
@@ -66,11 +74,9 @@ public class NvdApiClient {
     }
 
     private String fetchWithRetry(String queryParams) {
-        RestClient client = restClientBuilder.baseUrl(NVD_BASE_URL).build();
-
         for (int attempt = 0; attempt < MAX_RETRY; attempt++) {
             try {
-                RestClient.RequestHeadersSpec<?> spec = client.get().uri(queryParams);
+                RestClient.RequestHeadersSpec<?> spec = restClient.get().uri(NVD_BASE_URL + queryParams);
                 if (!nvdApiKey.isBlank()) {
                     spec = spec.header("apiKey", nvdApiKey);
                 }

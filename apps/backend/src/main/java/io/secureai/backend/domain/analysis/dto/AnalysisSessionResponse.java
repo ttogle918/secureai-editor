@@ -20,7 +20,7 @@ public record AnalysisSessionResponse(
         return new AnalysisSessionResponse(
                 s.getId(),
                 s.getProject().getId(),
-                s.getStatus(),
+                s.getStatus() != null ? s.getStatus().toDbValue() : null,
                 s.getTotalFiles(),
                 s.getScannedFiles(),
                 s.getVulnCount(),

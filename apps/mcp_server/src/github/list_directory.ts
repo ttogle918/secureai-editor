@@ -64,7 +64,7 @@ export async function handleListDirectory(
     ref,
     token,
     recursive = false,
-  } = args as ListDirectoryArgs;
+  } = args as unknown as ListDirectoryArgs;
 
   try {
     const result = await getContents(owner, repo, dirPath, ref, token);

@@ -35,5 +35,5 @@ if not _in_docker:
     _db_pass = os.environ.get("DB_PASSWORD", "changeme_in_production")
     _db_name = os.environ.get("DB_NAME", "secureai")
     os.environ["POSTGRES_URL"] = (
-        f"postgresql://{_db_user}:{_db_pass}@localhost:5432/{_db_name}"
+        f"postgresql://{_db_user}:{_db_pass}@localhost:5434/{_db_name}"
     )

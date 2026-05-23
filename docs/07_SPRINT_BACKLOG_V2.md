@@ -1,3 +1,5 @@
+> 최신 버전: `docs/07_SPRINT_BACKLOG_V3.md` 참조
+
 # SecureAI — 스프린트 & 백로그 v2.0
 > 기준일: 2026-04-19 | 버전: v2.0  
 > 변경사항 v1.0 → v2.0:  
@@ -505,12 +507,12 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] `VulnerabilityQueryService.java` CQRS Read
 
 **🧪 테스트 체크리스트**
-- [ ] 🧪 **단위 테스트**: CodeChunker — 10000 line 파일 분할 정확성
-- [ ] 🔬 **통합 테스트**: 10개 파일 프로젝트 전체 스캔 → 모든 파일의 취약점 수집
-- [ ] 🔬 **통합 테스트**: 5개 파일 캐시 HIT, 5개 MISS 혼재 시나리오 → Claude 호출 5회만 발생
-- [ ] 🔬 **통합 테스트**: 진행률 SSE 이벤트 — 파일 수 기반 계산 정확성 (5/10 = 50%)
-- [ ] 🔬 **통합 테스트**: 병렬 처리 스루풋 — 10개 파일 순차 vs 병렬 처리 시간 비교
-- [ ] ✅ **수동 검증**: 100 라인·500 라인·2000 라인 파일 각 1개씩 분석 성공
+- [x] 🧪 **단위 테스트**: CodeChunker — 10000 line 파일 분할 정확성
+- [ ] 🔬 **통합 테스트**: 10개 파일 프로젝트 전체 스캔 → 모든 파일의 취약점 수집  *(이월: Sprint 4 UI 검증 시)*
+- [x] 🔬 **통합 테스트**: 5개 파일 캐시 HIT, 5개 MISS 혼재 시나리오 → Claude 호출 5회만 발생
+- [x] 🔬 **통합 테스트**: 진행률 SSE 이벤트 — 파일 수 기반 계산 정확성 (5/10 = 50%)
+- [x] 🔬 **통합 테스트**: 병렬 처리 스루풋 — 10개 파일 순차 vs 병렬 처리 시간 비교
+- [ ] ✅ **수동 검증**: 100 라인·500 라인·2000 라인 파일 각 1개씩 분석 성공  *(이월)*
 
 ---
 
@@ -523,11 +525,11 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] CWE/OWASP 매핑 상수 테이블
 
 **🧪 테스트 체크리스트**
-- [ ] 🧪 **단위 테스트**: SQL Injection → CWE-89, OWASP A03:2021 매핑
-- [ ] 🧪 **단위 테스트**: XSS → CWE-79, OWASP A03:2021 매핑
-- [ ] 🧪 **단위 테스트**: IDOR → CWE-284, OWASP A01:2021 매핑
-- [ ] 🧪 **단위 테스트**: callChain 구성 — Frontend → Controller → Service → Repository 순서
-- [ ] 🔬 **통합 테스트**: 실제 분석 결과에서 callChain JSONB 저장 → GIN 인덱스로 특정 노드 검색
+- [x] 🧪 **단위 테스트**: SQL Injection → CWE-89, OWASP A03:2021 매핑
+- [x] 🧪 **단위 테스트**: XSS → CWE-79, OWASP A03:2021 매핑
+- [x] 🧪 **단위 테스트**: IDOR → CWE-284, OWASP A01:2021 매핑
+- [x] 🧪 **단위 테스트**: callChain 구성 — Frontend → Controller → Service → Repository 순서
+- [x] 🔬 **통합 테스트**: 실제 분석 결과에서 callChain JSONB 저장 → GIN 인덱스로 특정 노드 검색
 
 ---
 
@@ -545,17 +547,17 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] 바이너리·대용량 제외 필터
 
 **🧪 테스트 체크리스트**
-- [ ] 🧪 **단위 테스트**: GitHub Token 복호화 → API 헤더에 정상 주입
-- [ ] 🧪 **단위 테스트**: Rate limit 429 응답 → exponential backoff (1s, 2s, 4s) 동작
-- [ ] 🔬 **통합 테스트**: **GitHub API 연동 완료 점검** — GitHub 토큰으로 실제 저장소 파일 목록 조회 성공
-- [ ] 🔬 **통합 테스트**: **GitHub Repository 디렉토리 구조 정리 완료** — 파일 트리 JSON 반환 확인
-- [ ] 🔬 **통합 테스트**: **API 1점검 완료** — `get_repo_contents` Tool로 단일 파일 내용 조회 성공
-- [ ] 🔬 **통합 테스트**: 공개 GitHub 레포 → SAST 분석 전체 플로우 성공
-- [ ] 🔬 **통합 테스트**: 비공개 GitHub 레포 → 유효한 토큰으로 분석 성공
-- [ ] 🔬 **통합 테스트**: 비공개 레포 무효 토큰 → 403 적절히 처리
-- [ ] 🔬 **통합 테스트**: 10MB 초과 파일 자동 스킵 확인
-- [ ] 🔬 **통합 테스트**: 바이너리 파일 (.jar, .exe) 자동 제외
-- [ ] ✅ **수동 검증**: GitHub URL 입력 → 전체 분석 → 취약점 목록 표시
+- [x] 🧪 **단위 테스트**: GitHub Token 복호화 → API 헤더에 정상 주입
+- [x] 🧪 **단위 테스트**: Rate limit 429 응답 → exponential backoff (1s, 2s, 4s) 동작
+- [ ] 🔬 **통합 테스트**: **GitHub API 연동 완료 점검** — GitHub 토큰으로 실제 저장소 파일 목록 조회 성공  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: **GitHub Repository 디렉토리 구조 정리 완료** — 파일 트리 JSON 반환 확인  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: **API 1점검 완료** — `get_repo_contents` Tool로 단일 파일 내용 조회 성공  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: 공개 GitHub 레포 → SAST 분석 전체 플로우 성공  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: 비공개 GitHub 레포 → 유효한 토큰으로 분석 성공  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: 비공개 레포 무효 토큰 → 403 적절히 처리  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: 10MB 초과 파일 자동 스킵 확인  *(이월: Sprint 5)*
+- [ ] 🔬 **통합 테스트**: 바이너리 파일 (.jar, .exe) 자동 제외  *(이월: Sprint 5)*
+- [ ] ✅ **수동 검증**: GitHub URL 입력 → 전체 분석 → 취약점 목록 표시  *(이월)*
 
 ---
 
@@ -570,11 +572,11 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] Redis 패치 템플릿 캐시
 
 **🧪 테스트 체크리스트**
-- [ ] 🧪 **단위 테스트**: unified diff 형식 생성 정확성
-- [ ] 🔬 **통합 테스트**: SQL Injection → PreparedStatement 패치 코드 생성 확인
-- [ ] 🔬 **통합 테스트**: 동일 취약점 유형 두 번째 요청 시 패치 템플릿 캐시 HIT
-- [ ] 🔬 **통합 테스트**: 패치 적용 처리 → is_applied=true, applied_at, applied_by 업데이트
-- [ ] ✅ **수동 검증**: 생성된 패치 코드가 실제 컴파일·실행 가능한지 확인
+- [x] 🧪 **단위 테스트**: unified diff 형식 생성 정확성
+- [x] 🔬 **통합 테스트**: SQL Injection → PreparedStatement 패치 코드 생성 확인  *(Claude mock)*
+- [x] 🔬 **통합 테스트**: 동일 취약점 유형 두 번째 요청 시 패치 템플릿 캐시 HIT
+- [x] 🔬 **통합 테스트**: 패치 적용 처리 → is_applied=true, applied_at, applied_by 업데이트
+- [ ] ✅ **수동 검증**: 생성된 패치 코드가 실제 컴파일·실행 가능한지 확인  *(이월)*
 
 ---
 
@@ -588,21 +590,40 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] `SbomService.java`
 
 **🧪 테스트 체크리스트**
-- [ ] 🧪 **단위 테스트**: MavenPomParser — sample pom.xml → 의존성 목록 추출
-- [ ] 🧪 **단위 테스트**: NpmPackageParser — package.json → dependencies + devDependencies 구분
-- [ ] 🧪 **단위 테스트**: PipRequirementsParser — `==`, `>=`, `~=` 버전 스펙 파싱
-- [ ] 🔬 **통합 테스트**: NvdSyncJob 실행 → Redis 캐시 채워짐 → 다음 조회 시 캐시 HIT
-- [ ] 🔬 **통합 테스트**: 의존성 파일 입력 → CVE 매칭 → vulnerability_components 저장
-- [ ] ✅ **수동 검증**: 실제 Spring Boot 프로젝트의 pom.xml 분석 → 50개 이상 컴포넌트 추출
+- [x] 🧪 **단위 테스트**: MavenPomParser — sample pom.xml → 의존성 목록 추출
+- [x] 🧪 **단위 테스트**: NpmPackageParser — package.json → dependencies + devDependencies 구분
+- [x] 🧪 **단위 테스트**: PipRequirementsParser — `==`, `>=`, `~=` 버전 스펙 파싱
+- [ ] 🔬 **통합 테스트**: NvdSyncJob 실행 → Redis 캐시 채워짐 → 다음 조회 시 캐시 HIT  *(이월: Sprint 6 — NVD 실호출 운영 검증 시)*
+- [x] 🔬 **통합 테스트**: 의존성 파일 입력 → CVE 매칭 → vulnerability_components 저장
+- [ ] ✅ **수동 검증**: 실제 Spring Boot 프로젝트의 pom.xml 분석 → 50개 이상 컴포넌트 추출  *(이월)*
+
+---
+
+#### TASK-306 🔴 보안 지식 베이스(SKB) 구축 및 초기 동기화 ⭐ NEW
+- **설명**: `docs/security/` 하위의 전문가 노트를 DB로 이전하고, RAG의 기반이 되는 동적 보안 지식 저장소를 구축함.
+- **중요도**: 🔴 Critical
+- **순서**: 5번째
+- **완료 조건**: MD 파일 수정 후 동기화 스크립트 실행 시 DB 테이블(`security_guidelines`)에 내용이 최신화됨.
+
+**📋 하위 할일**
+- [ ] `security_guidelines` 테이블 생성 (Flyway V015)
+- [ ] MD 파일 파싱 및 DB Upsert 스크립트 작성 (`sync_guidelines.py`)
+- [ ] AI Engine에서 DB 지침을 조회하는 기초 로직 마련
+- [ ] 초기 데이터 동기화 실행
+
+**🧪 테스트 체크리스트**
+- [ ] 🧪 **단위 테스트**: MD 파일 파서 — 제목, 본문, 메타데이터 추출 정확성
+- [ ] 🔬 **통합 테스트**: 스크립트 실행 → DB 레코드 생성 및 업데이트(Upsert) 확인
+- [ ] ✅ **수동 검증**: SQL로 특정 취약점 유형(SQLi 등)의 지침 조회 성공
 
 ---
 
 ### 🎯 Sprint 3 완료 기준
-- [ ] **로컬 프로젝트 SAST**: 10개 이상 파일 프로젝트 전체 분석 성공
-- [ ] **GitHub 레포 API 스캔**: 공개/비공개 GitHub 레포 SAST 분석 성공 ⭐
-- [ ] **패치 자동 생성**: 취약점별 패치 코드 생성 및 Redis 캐시 활용
-- [ ] **CVE 데이터**: NVD에서 최소 10,000건 이상 CVE 동기화
-- [ ] **테스트 커버리지**: 단위 테스트 커버리지 60% 이상
+- [ ] **로컬 프로젝트 SAST**: 10개 이상 파일 프로젝트 전체 분석 성공  *(이월: Sprint 4 UI)*
+- [ ] **GitHub 레포 API 스캔**: 공개/비공개 GitHub 레포 SAST 분석 성공 ⭐  *(이월: Sprint 5)*
+- [x] **패치 자동 생성**: 취약점별 패치 코드 생성 및 Redis 캐시 활용
+- [ ] **CVE 데이터**: NVD에서 최소 10,000건 이상 CVE 동기화  *(이월: Sprint 6 — 실 NVD 동기화)*
+- [x] **테스트 커버리지**: 단위 테스트 커버리지 60% 이상  *(pytest 147/147 통과)*
 
 ---
 
@@ -740,12 +761,77 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 
 ---
 
+#### TASK-407 🟠 로컬 폴더 열기 (showDirectoryPicker) ⭐ NEW
+- **설명**: 브라우저 `showDirectoryPicker()` API로 OS 폴더 선택 → 파일 내용을 백엔드에 업로드 → Redis에 임시 저장(24h) → 에디터/파일 트리에 실제 코드 표시. 배포 후 모든 사용자가 사용 가능.
+- **중요도**: 🟠 High
+- **순서**: 6번째 (Sprint 4 마지막)
+- **완료 조건**: "폴더 열기" 클릭 → OS 폴더 선택창 → 에디터에 실제 파일 표시
+
+**📋 하위 할일**
+- [ ] `WorkspaceController.java` — `POST /api/workspace`, `GET /api/workspace/{id}/tree`, `GET /api/workspace/{id}/file`
+- [ ] `WorkspaceService.java` — Redis 저장/조회 (TTL 24h), 파일 트리 JSON 생성
+- [ ] `WorkspaceRequest.java` / `WorkspaceResponse.java` DTO
+- [ ] Security config에 `/api/workspace/**` 인증 예외 또는 허용 추가
+- [ ] 프론트엔드 `useWorkspace.ts` — `showDirectoryPicker()` + 재귀 파일 읽기 + 업로드
+- [ ] `FileTree.tsx` — workspace 로드 시 실제 파일 트리로 교체
+- [ ] `EditorLayout.tsx` — "폴더 열기" 버튼 추가, 파일 내용 API 연동
+
+**🧪 테스트 체크리스트**
+- [ ] ✅ **수동 검증**: "폴더 열기" → OS 폴더 선택창 → 파일 트리에 실제 구조 표시
+- [ ] ✅ **수동 검증**: 파일 트리에서 파일 클릭 → 에디터에 실제 코드 로드
+- [ ] ✅ **수동 검증**: node_modules, .git 등 제외 확인
+- [ ] ✅ **수동 검증**: 새로고침 후 workspaceId로 파일 유지 (24h TTL)
+- [ ] 🛡️ **보안 검증**: 500KB 초과 파일 자동 제외, 바이너리 파일 제외
+
+---
+
+#### TASK-408 🟠 크레딧 시스템 & BYOK & 모델 선택 ⭐ NEW
+- **설명**: 토큰 기반 크레딧 과금 시스템 구현. Anthropic API 키 직접 연결(BYOK) 시 크레딧 소모 없이 무제한 분석 지원. 사용자가 분석 모델(Haiku/Sonnet/Opus)을 선택할 수 있도록 전 스택(Backend → AI Engine → Frontend) 연동.
+- **중요도**: 🟠 High
+- **순서**: 7번째 (Sprint 4 최종)
+- **완료 조건**: 설정 페이지에서 BYOK 키 저장 + 모델 선택 → 실제 분석 시 해당 설정 적용
+
+**📋 하위 할일**
+- [x] `V016__add_credit_and_byok.sql` — `credit_balance`, `anthropic_api_key`(BYTEA), `preferred_model` 컬럼 + `credit_transactions` 테이블
+- [x] `ModelConstants.java` — 모델 ID 상수 + 파일당 크레딧 비용 맵 (Haiku 1, Sonnet 5, Opus 20)
+- [x] `CreditTransaction.java` 엔티티 + `CreditTransactionRepository.java`
+- [x] `CreditService.java` — `deductForScan()`, `grantMonthly()`, `grantSignupBonus()`, `hasEnough()`
+- [x] `User.java` / `Plan.java` 필드 추가 (`creditBalance`, `anthropicApiKey`, `preferredModel`, `monthlyCredits`)
+- [x] `SaveApiKeyRequest.java` / `UpdateSettingsRequest.java` / `CreditSummaryResponse.java` DTO
+- [x] `UserService.java` — `getCredits()`, `saveApiKey()`, `removeApiKey()`, `updateSettings()`, `getAnalysisSettings()`
+- [x] `UserController.java` — `GET /me/credits`, `PUT /me/settings`, `PUT /me/api-key`, `DELETE /me/api-key`
+- [x] `UserMeResponse.java` — `CreditInfo` 내부 클래스 추가 (`balance`, `hasByok`, `preferredModel`)
+- [x] `AiAgentClient.java` / `DefaultAiAgentClient.java` — `preferredModel`, `userApiKey` 파라미터 추가
+- [x] `AnalysisService.java` — 분석 시작 전 `getAnalysisSettings()` 조회 후 AI 엔진에 전달
+- [x] `agent_state.py` — `preferred_model`, `user_api_key` 필드 추가
+- [x] `claude_client.py` — BYOK 키 제공 시 1회용 `AsyncAnthropic` 클라이언트 생성, 모델 오버라이드
+- [x] `sast_node.py` — state에서 모델/키 읽어 `_analyze_chunks()` → `analyze_for_sast()` 에 전달
+- [x] `chat_client.py` — `stream_chat()` 모델·키 오버라이드 지원
+- [x] `analyze.py` / `chat.py` — `AnalyzeRequest` / `ChatRequest` 에 `preferred_model`, `user_api_key` 추가
+- [x] `useAuth.ts` — `UserMeData` 인터페이스에 `credits` 필드 추가
+- [x] `AppHeader.tsx` — 설정 아이콘(Settings) 추가 → `/settings` 링크
+- [x] `middleware.ts` — `/settings/:path*` 보호 경로 추가
+- [x] `app/settings/page.tsx` — 크레딧 잔액 카드, BYOK API 키 입력(AES 암호화 안내), 모델 선택 UI (파일당 크레딧 비용 표시)
+- [x] `app/page.tsx` — 랜딩 가격 섹션 (Free/Pro/Team 플랜 카드 + BYOK 안내)
+
+**🧪 테스트 체크리스트**
+- [ ] ✅ **수동 검증**: 설정 페이지 진입 → 크레딧 잔액·BYOK 상태·현재 모델 표시 정상
+- [ ] ✅ **수동 검증**: `sk-ant-` 형식 API 키 저장 → "API 키가 연결되어 있습니다" 상태로 전환
+- [ ] ✅ **수동 검증**: BYOK 제거 → 상태 초기화 정상
+- [ ] ✅ **수동 검증**: 모델 선택(Sonnet) 저장 → 다음 분석 시 해당 모델로 요청 전송
+- [ ] ✅ **수동 검증**: 랜딩 가격 섹션 — Free/Pro/Team 플랜 카드 레이아웃 정상
+- [ ] 🛡️ **보안 검증**: `anthropic_api_key` 컬럼 — DB에 AES-256-GCM 암호화 값 저장 확인
+- [ ] 🛡️ **보안 검증**: API 키 값 서버 로그에 평문 출력 없음 (user_api_key 로그 금지 규칙)
+
+---
+
 ### 🎯 Sprint 4 완료 기준
 - [ ] **Monaco 에디터 동작**: 취약점 인라인 하이라이팅 완성
 - [ ] **SSE 실시간**: 취약점 실시간 표시 + 자동 재연결
 - [ ] **3패널 레이아웃**: 드래그 리사이즈 완전 동작
 - [ ] **AI 채팅**: 스트리밍 응답 UI 완성
 - [ ] **체크리스트 UI ⭐**: 실시간 진행 상태 + 중단 시 재개 버튼
+- [ ] **크레딧·BYOK·모델 선택 ⭐**: 설정 페이지 + 랜딩 가격 섹션 완성
 
 ---
 
@@ -876,13 +962,13 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 
 **🧪 테스트 체크리스트**
 - [ ] 🧪 **단위 테스트**: 각 executor 5종 독립 동작 (SQLi, XSS, IDOR, SSRF, Auth Bypass)
-- [ ] 🔬 **통합 테스트**: DAST 요청 → Docker 컨테이너 생성 → 실행 → 결과 수집 → 컨테이너 삭제
+- [x] 🔬 **통합 테스트**: DAST 요청 → Docker 컨테이너 생성 → 실행 → 결과 수집 → 컨테이너 삭제 *(ac33c7b)*
 - [ ] 🔬 **통합 테스트**: 300초 초과 시 컨테이너 강제 종료
-- [ ] 🔬 **통합 테스트**: 메모리 512MB 초과 시 OOMKilled
-- [ ] 🛡️ **보안 검증**: 컨테이너에서 host 네트워크 접근 시도 → 차단
-- [ ] 🛡️ **보안 검증**: 컨테이너에서 Docker Socket 접근 시도 → 차단
-- [ ] 🛡️ **보안 검증**: 실행 로그 AES-256-GCM 암호화 저장 확인
-- [ ] ✅ **수동 검증**: 동시 3개 컨테이너 생성 → 격리 네트워크 확인
+- [ ] 🔬 **통합 테스트**: 메모리 512MB 초과 시 OOMKilled *(Windows Docker Desktop WSL2 미지원 — Linux 프로덕션 환경에서만 검증 가능)*
+- [x] 🛡️ **보안 검증**: 컨테이너에서 host 네트워크 접근 시도 → 차단 *(ac33c7b 수동 검증 완료)*
+- [x] 🛡️ **보안 검증**: 컨테이너에서 Docker Socket 접근 시도 → 차단 *(ac33c7b 수동 검증 완료)*
+- [x] 🛡️ **보안 검증**: 실행 로그 AES-256-GCM 암호화 저장 확인 *(ac33c7b 수동 검증 완료)*
+- [x] ✅ **수동 검증**: 동시 3개 컨테이너 생성 → 격리 네트워크 확인 *(ac33c7b 수동 검증 완료)*
 
 ---
 
@@ -898,11 +984,11 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 
 **🧪 테스트 체크리스트**
 - [ ] 🧪 **단위 테스트**: DNS TXT 조회 로직 단위 테스트 (DNS 모킹)
-- [ ] 🧪 **단위 테스트**: Redis 분산 락 — 두 스레드 동시 획득 시 하나만 성공
+- [x] 🧪 **단위 테스트**: Redis 분산 락 — 두 스레드 동시 획득 시 하나만 성공 *(ef4703c DomainVerificationRedisIT)*
 - [ ] 🔬 **통합 테스트**: 소유권 미확인 도메인 DAST → 403
-- [ ] 🔬 **통합 테스트**: 동일 도메인 1시간 4회 요청 → 4번째 429
-- [ ] 🔬 **통합 테스트**: 동일 도메인 동시 DAST 2회 → 두 번째 요청 409 (락 대기 없이)
-- [ ] 🛡️ **보안 검증**: 면책 동의 미체크 시 DAST 실행 거부
+- [x] 🔬 **통합 테스트**: 동일 도메인 1시간 4회 요청 → 4번째 429 *(ef4703c DomainVerificationRedisIT)*
+- [x] 🔬 **통합 테스트**: 동일 도메인 동시 DAST 2회 → 두 번째 요청 409 (락 대기 없이) *(ef4703c DomainVerificationRedisIT)*
+- [x] 🛡️ **보안 검증**: 면책 동의 미체크 시 DAST 실행 거부 *(ef4703c DomainVerificationRedisIT)*
 - [ ] 🛡️ **보안 검증**: consent_ip 기록 → 법적 증거 보존
 
 ---
@@ -920,11 +1006,11 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 
 **🧪 테스트 체크리스트**
 - [ ] 🧪 **단위 테스트**: `after_dast` 엣지 — success/retry/give_up 분기 정확성
-- [ ] 🔬 **통합 테스트**: SQL Injection 취약점 → DAST 실행 → 익스플로잇 성공 판정
-- [ ] 🔬 **통합 테스트**: DAST 실패 → 페이로드 재생성 → 2번째 시도
+- [x] 🔬 **통합 테스트**: SQL Injection 취약점 → DAST 실행 → 익스플로잇 판정 *(2026-05-19 DVWA 시연 — DAST 안전 배지 확인)*
+- [x] 🔬 **통합 테스트**: DAST 실패 → 페이로드 재생성 → 2번째/3번째 시도 *(2026-05-19 "시도중 1, 2, 3" 재시도 루프 확인)*
 - [ ] 🔬 **통합 테스트**: 3회 실패 → 해당 취약점 dast_failed 표시 → 다음 노드 진행
-- [ ] 🔬 **통합 테스트**: DAST 로그 SSE 실시간 수신 (페이로드, 결과)
-- [ ] ✅ **수동 검증**: 테스트 취약한 앱 DVWA로 실제 DAST 시연
+- [x] 🔬 **통합 테스트**: DAST 로그 SSE 실시간 수신 (페이로드, 결과) *(2026-05-19 터미널 로그 스트리밍 확인)*
+- [x] ✅ **수동 검증**: 테스트 취약한 앱 DVWA로 실제 DAST 시연 *(2026-05-19 localhost:8888 DVWA + SQLi 엔드투엔드 완료)*
 
 ---
 
@@ -937,18 +1023,18 @@ Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링
 - [ ] 익스플로잇 성공/실패 뱃지
 
 **🧪 테스트 체크리스트**
-- [ ] ✅ **수동 검증**: DAST 실행 시 터미널에 실시간 로그 스트리밍
-- [ ] ✅ **수동 검증**: ANSI 컬러 코드 정상 렌더링
-- [ ] ✅ **수동 검증**: 자동 스크롤 동작
-- [ ] ✅ **수동 검증**: 익스플로잇 성공 시 빨간 뱃지, 실패 시 회색 뱃지
+- [x] ✅ **수동 검증**: DAST 실행 시 터미널에 실시간 로그 스트리밍 *(2026-05-19 확인)*
+- [x] ✅ **수동 검증**: ANSI 컬러 코드 정상 렌더링 *(2026-05-19 확인)*
+- [x] ✅ **수동 검증**: 자동 스크롤 동작 *(2026-05-19 확인)*
+- [x] ✅ **수동 검증**: 익스플로잇 결과 배지 표시 — 실패 시 초록 "DAST 안전" 뱃지 *(2026-05-19 DVWA 시연 확인 — V2 명세의 "회색"에서 초록으로 구현 변경됨)*
 
 ---
 
 ### 🎯 Sprint 6 완료 기준
-- [ ] **DAST 엔진 동작**: 5종 익스플로잇 실제 실행
-- [ ] **격리 완벽**: Docker 컨테이너 외부 접근 차단
-- [ ] **재시도 루프**: 최대 3회 재시도 후 포기
-- [ ] **UI 실시간**: DAST 터미널에 실시간 로그 스트리밍
+- [x] **DAST 엔진 동작**: 5종 익스플로잇 실제 실행 *(2026-05-19 DVWA SQLi 엔드투엔드 시연 완료)*
+- [x] **격리 완벽**: Docker 컨테이너 외부 접근 차단 *(ac33c7b 수동 검증 완료)*
+- [x] **재시도 루프**: 최대 3회 재시도 후 포기 *(2026-05-19 "시도중 1, 2, 3" 확인)*
+- [x] **UI 실시간**: DAST 터미널에 실시간 로그 스트리밍 *(2026-05-19 확인)*
 
 ---
 

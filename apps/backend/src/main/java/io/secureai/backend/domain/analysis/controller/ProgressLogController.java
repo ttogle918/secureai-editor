@@ -1,6 +1,7 @@
 package io.secureai.backend.domain.analysis.controller;
 
 import io.secureai.backend.domain.analysis.dto.ProgressLogResponse;
+import io.secureai.backend.domain.analysis.dto.ProgressSummaryResponse;
 import io.secureai.backend.domain.analysis.dto.SaveProgressLogRequest;
 import io.secureai.backend.domain.analysis.service.ProgressLogService;
 import io.secureai.backend.global.response.ApiResponse;
@@ -36,5 +37,14 @@ public class ProgressLogController {
             @PathVariable UUID sessionId) {
         return ResponseEntity.ok(ApiResponse.success(
                 progressLogService.getBySessionId(userId, sessionId)));
+    }
+
+    /** 세션 진행률 요약 조회 (인증 필요) */
+    @GetMapping("/api/v1/analysis/sessions/{sessionId}/progress")
+    public ResponseEntity<ApiResponse<ProgressSummaryResponse>> getProgressSummary(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID sessionId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                progressLogService.getSummary(userId, sessionId)));
     }
 }

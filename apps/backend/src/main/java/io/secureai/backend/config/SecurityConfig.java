@@ -1,11 +1,14 @@
 package io.secureai.backend.config;
 
+import io.secureai.backend.global.security.InternalKeyAuthFilter;
 import io.secureai.backend.global.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -14,6 +17,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -28,6 +32,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final InternalKeyAuthFilter internalKeyAuthFilter;
 
     @Value("${secureai.cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
@@ -39,19 +44,35 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // SSE/비동기 재디스패치는 원래 요청에서 이미 인증됨 — 재인증 불필요
+                .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                 .requestMatchers(
                     "/api/v1/auth/**",
+                    "/api/workspace/**",
                     "/actuator/health",
                     "/actuator/info",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
-                    "/v3/api-docs/**"
+                    "/v3/api-docs/**",
+                    "/error"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/reports/*/download").permitAll()
-                .requestMatchers("/webhooks/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/invitations/**").permitAll()
+                // GitHub 웹훅 인바운드만 공개 — GET /history 등 나머지는 JWT 필요
+                .requestMatchers(HttpMethod.POST, "/webhooks/github").permitAll()
+                // 내부 통신 엔드포인트 — JWT 불필요, InternalKeyAuthFilter가 X-Internal-Key 헤더 검증
                 .requestMatchers("/api/v1/internal/**").permitAll()
+                // AI Engine 내부 호출 전용 — InternalKeyFilter 에서 인증
+                .requestMatchers("/api/v1/cve/search").permitAll()
+                .requestMatchers("/api/v1/sbom/components").permitAll()
+                // FCM 디바이스 토큰 등록/삭제 — JWT 인증 필요 (anyRequest 에 포함되나 명시)
+                // /api/v1/fcm/** 는 별도 permitAll 없으므로 JWT 인증 필수
                 .anyRequest().authenticated()
             )
+            .exceptionHandling(e -> e
+                .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+            )
+            .addFilterBefore(internalKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

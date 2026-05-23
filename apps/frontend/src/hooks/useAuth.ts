@@ -24,9 +24,12 @@ interface UserMeData {
   email: string;
   username: string;
   displayName: string;
+  avatarUrl: string | null;
+  isAdmin: boolean;
   githubLogin: string | null;
   plan: { id: number; name: string; displayName: string; allowDast: boolean; allowMonitoring: boolean };
   usage: { sastUsageThisMonth: number; sastMonthlyLimit: number; sastResetAt: string };
+  credits: { balance: number; hasByok: boolean; preferredModel: string };
   createdAt: string;
 }
 
@@ -64,13 +67,19 @@ export function useAuth() {
           storeSetToken(token);
           if (!user) await loadUser();
         } else {
+          // 리프레시 토큰 만료 — 로그인 상태만 해제, 이후 API 호출에서 리다이렉트 처리
           storeLogout();
         }
-      } else {
+      } else if (res.status === 401) {
+        // 리프레시 쿠키 만료 — 조용히 처리 (로그인 페이지 강제 이동 없음)
         storeLogout();
+      } else {
+        // 서버 오류 등 — user 정보는 유지, 토큰만 초기화
+        setAccessToken(null);
       }
     } catch {
-      storeLogout();
+      // 네트워크 오류 — user 정보 유지, 연결 복구 후 재시도 가능
+      setAccessToken(null);
     } finally {
       setInitialized(true);
     }
@@ -82,13 +91,15 @@ export function useAuth() {
     try {
       const res = await apiClient.get<{ data: UserMeData }>('/users/me');
       const u = res.data;
-      storeSetToken(accessToken);
       setUser({
         id: u.id,
         email: u.email,
         username: u.username,
         plan: u.plan.name as 'free' | 'pro' | 'team',
         githubConnected: !!u.githubLogin,
+        isAdmin: u.isAdmin ?? false,
+        avatarUrl: u.avatarUrl ?? null,
+        displayName: u.displayName ?? null,
       });
     } catch {
       storeLogout();
@@ -96,7 +107,7 @@ export function useAuth() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, setLoading, setUser, storeLogout, storeSetToken]);
+  }, [setLoading, setUser, storeLogout]);
 
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true);
@@ -106,8 +117,8 @@ export function useAuth() {
       const { accessToken: token, user: u } = res.data;
       setAccessToken(token);
       storeSetToken(token);
-      setUser({ id: u.id, email: u.email, username: u.username, plan: u.planName as 'free' | 'pro' | 'team', githubConnected: false });
-      router.push('/');
+      setUser({ id: u.id, email: u.email, username: u.username, plan: u.planName as 'free' | 'pro' | 'team', githubConnected: false, isAdmin: false, avatarUrl: null, displayName: null });
+      router.push('/editor');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '로그인에 실패했습니다.';
       setError(msg);
@@ -141,7 +152,7 @@ export function useAuth() {
     } catch { /* ignore */ }
     storeLogout();
     setAccessToken(null);
-    router.push('/login');
+    router.push('/');
   }, [storeLogout, router]);
 
   return { user, accessToken, isLoading, error, login, register, logout, loadUser, initAuth };

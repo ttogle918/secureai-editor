@@ -1,6 +1,14 @@
 # SecureAI — 스프린트 & 백로그 V4
 > 기준일: 2026-05-22 | 방법론: Scrum | 스프린트 단위: 2주  
-> 변경사항 V3 → V4: Sprint 10 (Enterprise B2B Features) 백로그 추가 (야간 스캔, 리포트 Export, 스캔 모드)
+> **정본 지정일**: 2026-05-23 | 구버전(`07_SPRINT_BACKLOG_V2.md`, `V3.md`) 아카이브 완료
+
+## 버전 이력
+
+| 버전 | 기준일 | 주요 변경 |
+|------|--------|---------|
+| V2 | Sprint 6 완료 | Sprint 6 DAST 완료 기록, Sprint 7(리포트·대시보드·Android) 계획 추가 |
+| V3 | Sprint 7 완료 | Sprint 7 완료 기록, Sprint 8(안정화·보안·런칭 준비) 계획 추가. 프론트엔드 Pagori 리디자인 현황 포함 |
+| **V4 (현재)** | 2026-05-22 | Sprint 8/9 완료 기록, Sprint 10 Enterprise 백로그 추가 (TASK-1001~1004: 야간 스캔·팀 대시보드·리포트 Export·스캔 모드). 미구현 프론트엔드 화면 7개 목록 추가 |
 
 ---
 
@@ -88,13 +96,17 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ### Sprint 5 — GitHub Layer 2 (일부 완료, 일부 이월) ✅/🟠
 
 > TASK-501~505는 DAST와 의존성 없어 Sprint 6 이후로 이월.  
-> `feat/sprint5-github` 브랜치에서 진행 중.
+> `feat/sprint5-github` 브랜치에서 진행 중.  
+>
+> **이월 처리 결정 (2026-05-23)**: Sprint 10에서 GitHub Integration Sprint로 묶어 처리.  
+> `feat/sprint5-github` 브랜치는 Sprint 10 시작 시 `feat/sprint10-github`로 재사용(리베이스).  
+> TASK-505(GitHub Security Advisory)는 Enterprise 기능 성격으로 EPIC-MISC로 이관.
 
 - [x] TASK-503: GitHub 레포 나머지 파일 전체 SAST 최적화
 - [x] TASK-504: SBOM 완성 & CVE 매칭
-- [ ] TASK-501: GitHub Webhook 이벤트 수신 (이월 → feat/sprint5-github)
-- [ ] TASK-502: PR 분석 자동 트리거 (이월 → feat/sprint5-github)
-- [ ] TASK-505: GitHub 연동 설정 UI (이월 → feat/sprint5-github)
+- [ ] TASK-501: GitHub Webhook 이벤트 수신 → **Sprint 10 배정** (🔴 Critical)
+- [ ] TASK-502: PR 분석 자동 트리거 → **Sprint 10 배정** (🔴 Critical, TASK-501 선행 필요)
+- [ ] TASK-505: GitHub 연동 설정 UI → **Sprint 10 배정** (🟡 Medium, TASK-501/502 완료 후)
 
 ---
 
@@ -162,11 +174,15 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ## feat/sprint5-github 브랜치 — Sprint 5 이월 구현
 
-> Sprint 7과 독립적으로 진행. `feat/sprint5-github` 브랜치에서 개발 후 main에 PR.
+> ~~Sprint 7과 독립적으로 진행. `feat/sprint5-github` 브랜치에서 개발 후 main에 PR.~~  
+> **처리 방향 결정 (2026-05-23)**: 아래 태스크는 **Sprint 10 GitHub Integration Sprint**로 공식 배정.  
+> Sprint 10 시작 시 `feat/sprint5-github` 브랜치를 `feat/sprint10-github`로 리베이스 후 진행.  
+> 단, TASK-505(GitHub Security Advisory)는 SBOM/Advisory 통합 관점에서 **EPIC-MISC**로 이관  
+> (Sprint 10에서 시간 내 처리 못할 경우 MCP-005와 통합 검토).
 
 ### TASK-501 🔴 GitHub Webhook 이벤트 수신
 
-- **중요도**: 🔴 Critical | **현재 상태**: 미구현
+- **중요도**: 🔴 Critical | **현재 상태**: 미구현 | **Sprint 10 배정**
 
 **하위 할일**
 - [ ] `list_commits.ts`, `get_commit_diff.ts` MCP Tool
@@ -186,7 +202,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ### TASK-502 🟠 PR 분석 자동 트리거
 
-- **중요도**: 🔴 Critical | **현재 상태**: 미구현
+- **중요도**: 🔴 Critical | **현재 상태**: 미구현 | **Sprint 10 배정** (TASK-501 선행 필요)
 
 **하위 할일**
 - [ ] `GitHubWebhookController.java` HMAC 검증
@@ -209,7 +225,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ### TASK-503 🟠 커밋 히스토리 시크릿 스캔
 
-- **중요도**: 🟠 High | **현재 상태**: 부분 완료 (Sprint 5 기반)
+- **중요도**: 🟠 High | **현재 상태**: 부분 완료 (Sprint 5 기반) | **Sprint 10 배정** (잔여 개선분)
 
 **하위 할일**
 - [ ] 파일 타입별 우선순위 정렬
@@ -226,7 +242,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ### TASK-504 🟡 SBOM GitHub Release 연동
 
-- **중요도**: 🟠 High | **현재 상태**: 기본 SBOM 완료, Release 연동 미구현
+- **중요도**: 🟠 High | **현재 상태**: 기본 SBOM 완료, Release 연동 미구현 | **Sprint 10 배정**
 
 **하위 할일**
 - [ ] 의존성 파일 자동 감지
@@ -244,7 +260,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ### TASK-505 🟡 GitHub Security Advisory 조회
 
-- **중요도**: 🟡 Medium | **현재 상태**: 미구현
+- **중요도**: 🟡 Medium | **현재 상태**: 미구현 | **EPIC-MISC 이관** (MCP-005 GitHub MCP 확장과 통합 검토)
 
 **하위 할일**
 - [ ] GitHub 설정 섹션
@@ -705,8 +721,11 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
-## Sprint 10 — Enterprise B2B Features
-> Week 21-22
+## Sprint 10 — Enterprise B2B + GitHub Integration
+> Week 21-22  
+> **2026-05-23 추가**: Sprint 5 이월 GitHub Layer 2 태스크(TASK-501~504)를 Sprint 10에 공식 편입.  
+> GitHub Integration(TASK-501/502) → Enterprise(TASK-1001~1004) 순서로 진행.  
+> `feat/sprint5-github` 브랜치를 `feat/sprint10-github`로 리베이스 후 작업.
 
 ### EPIC-12: Enterprise 고도화
 

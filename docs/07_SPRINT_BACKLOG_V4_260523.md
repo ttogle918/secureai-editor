@@ -886,8 +886,9 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 |----|------|---------|------|
 | FEAT-AI-001 | 멀티 파일 컨텍스트 분석 | 🔴 Critical | 파일 간 데이터 흐름 추적 (Taint Analysis). LangGraph에 `taint_analysis` 노드 추가, 파일 의존성 그래프 구축 |
 | FEAT-AI-002 | 패치 자동 적용 (PR 생성) | 🟠 High | 패치 승인 → GitHub API로 브랜치 생성 → 파일 수정 커밋 → PR 자동 생성. `POST /patches/{id}/create-pr` |
-| FEAT-AI-003 | 취약점 오탐(False Positive) 학습 | 🟠 High | 오탐 패턴을 프로젝트별로 학습해 재분석 시 동일 패턴 필터링. `false_positive_patterns` 테이블 |
+| FEAT-AI-003 | 취약점 오탐(False Positive) 학습 | 🟠 High | 오탐 패턴을 프로젝트별로 학습해 재분析 시 동일 패턴 필터링. `false_positive_patterns` 테이블 |
 | FEAT-AI-004 | 다국어 코드 지원 확장 | 🟡 Medium | 현재 Java/TypeScript/Python에서 Go, Rust, C/C++, PHP, Ruby 추가 |
+| FEAT-AI-005 | 패치 검증 자동화 | 🟡 Medium | 생성된 패치 코드를 임시 컨테이너에서 자동으로 단위 테스트 실행 후 pass 여부를 `patchSuggestions.verificationStatus`에 저장. 패치 생성 시 테스트 코드를 Claude API로 동시 생성 → 도커 컨테이너에서 실행 → 검증 통과(Verified) 패치만 사용자에게 추천. VC 피드백(AI 환각 제어) 핵심 구현 항목. `patch_suggestions.verified_at`, `test_code` 컬럼 추가 필요 (Flyway 미배정) |
 
 ### 컴플라이언스
 
@@ -976,6 +977,39 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
     }
   }
   ```
+
+---
+
+### 인프라 & 운영 자동화
+
+| ID | 항목 | 우선순위 | 설명 |
+|----|------|---------|------|
+| FEAT-INFRA-001 | GuidelineSyncJob 스케줄러 | 🟡 Medium | `docs/security/*.md` 파일이 변경될 때마다 `security_guidelines` 테이블을 자동 동기화. 현재는 `generate_guidelines_sql.py`를 수동 실행해야 하므로 가이드라인 최신화가 지연됨. `@Scheduled` Job 또는 Git Webhook 트리거로 구현. `source_path` 컬럼의 마지막 동기화 시각과 파일 수정 시각 비교 후 `UPSERT` 실행 |
+
+---
+
+## Hardening Sprint 로드맵 (미배정)
+
+> Sprint 10 이후, 제품 안정화 단계에서 전체 1~2 Sprint를 보안·성능·품질 강화에 집중 투입.  
+> 아래 항목들을 하나의 "Hardening Sprint"로 묶어 처리할 것을 권장함 (2026-05-23 로드맵 편입).
+
+### 보안 강화 대상
+
+| 항목 | 출처 | 세부 내용 |
+|------|------|---------|
+| ADR-016 전환 — Backend API 경유 | ADR-016 임시 결정 | `_fetch_prev_vuln_context()` + `_fetch_prev_patch_example()` f-string SQL → `GET /internal/v1/projects/{id}/vuln-context` Backend API 경유로 전환. SQL 파라미터 바인딩 원칙 완전 복원 |
+| 감사 로그 불변성 (FEAT-COMP-003) | 미래 기능 후보 | AuditLog 항목마다 이전 항목 해시 체이닝. 외부 SIEM(CloudTrail/Azure Monitor) 연동 |
+| FEAT-SEC-003 세션 활동 이력 | 미래 기능 후보 | 사용자 활성 세션(기기별) 확인·강제 로그아웃 |
+| FEAT-SEC-004 Secrets Detection 강화 | 미래 기능 후보 | 50+ 시크릿 패턴 (AWS Key, GCP SA Key, GitHub PAT, Stripe Key 등) |
+
+### 성능 & 품질 대상
+
+| 항목 | 세부 내용 |
+|------|---------|
+| Flyway 마이그레이션 통합 테스트 | CI 파이프라인에서 `flyway:migrate` + 롤백 시나리오 자동화 |
+| AI 파이프라인 병목 프로파일링 | Jaeger 트레이싱 기반 `sast_node` p99 지연 측정 + asyncio 병렬화 개선 |
+| k6 부하 테스트 자동화 | `make perf-test` → CI/CD 파이프라인 통합 (p95 < 500ms 게이트) |
+| OWASP ZAP 자동화 | `ghcr.io/zaproxy/zaproxy:stable` → CI 파이프라인 통합 (Critical 0건 게이트) |
 
 ---
 

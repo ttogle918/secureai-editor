@@ -6,12 +6,10 @@ import io.secureai.backend.domain.user.repository.RefreshTokenRepository;
 import io.secureai.backend.domain.user.repository.UserRepository;
 import io.secureai.backend.global.aop.AuditLogEntry;
 import io.secureai.backend.global.aop.AuditLogRepository;
-import io.secureai.backend.global.event.GdprAccountDeletedEvent;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,12 +20,12 @@ import java.util.UUID;
 /**
  * GDPR 데이터 이동권(export) 및 삭제권(delete) 서비스.
  *
- * <p>삭제 순서는 FK 제약을 위반하지 않도록 CASCADE가 없는 테이블부터 명시적으로 삭제한다.
- * <ul>
- *   <li>reports — users.id FK가 있으나 ON DELETE CASCADE 없음 → 먼저 삭제</li>
- *   <li>refresh_tokens — 토큰 무효화</li>
- *   <li>users — 삭제 시 projects, analysis_sessions, dast_results, vulnerabilities가 CASCADE 삭제됨</li>
- * </ul>
+ * <p>삭제 흐름:
+ * <ol>
+ *   <li>deleteAccount() 호출 시 소프트 삭제 — user.markAsDeleted() 로 deletedAt 기록</li>
+ *   <li>refresh_tokens 즉시 revoke (세션 무효화)</li>
+ *   <li>30일 후 GdprHardDeleteJob이 실제 데이터를 완전 삭제</li>
+ * </ol>
  */
 @Slf4j
 @Service
@@ -42,7 +40,6 @@ public class GdprService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final AuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 현재 인증된 사용자의 개인 데이터를 JSON 형식으로 내보낸다.
@@ -58,9 +55,10 @@ public class GdprService {
     }
 
     /**
-     * 현재 인증된 사용자의 계정 및 모든 관련 데이터를 즉시 하드 삭제한다.
+     * 현재 인증된 사용자의 계정을 소프트 삭제한다.
      *
-     * <p>삭제 전 audit_log에 GDPR_DELETE 이벤트를 기록한다.
+     * <p>deletedAt을 현재 시각으로 기록하고 계정을 비활성화한다.
+     * 실제 데이터 삭제(하드 삭제)는 30일 후 GdprHardDeleteJob이 수행한다.
      * 비밀번호가 설정된 사용자는 confirmPassword로 본인 확인을 수행한다.
      *
      * @param userId          JWT에서 추출된 인증 사용자 ID
@@ -72,9 +70,10 @@ public class GdprService {
         verifyPassword(user, confirmPassword);
 
         recordGdprDeleteAudit(userId);
-        cascadeDelete(userId);
+        user.markAsDeleted();
+        refreshTokenRepository.revokeAllByUserId(userId, OffsetDateTime.now(), "gdpr_soft_delete");
 
-        log.info("GDPR 계정 삭제 완료. actor={}", userId);
+        log.info("GDPR 계정 소프트 삭제 완료. actor={} deletedAt={}", userId, user.getDeletedAt());
     }
 
     // ── private helpers ────────────────────────────────────────────────────────
@@ -115,20 +114,5 @@ public class GdprService {
         }
     }
 
-    /**
-     * FK 순서를 준수하며 사용자 관련 데이터를 연쇄 삭제한다.
-     *
-     * <p>삭제 순서:
-     * <ol>
-     *   <li>reports — CASCADE 없으므로 users 삭제 전 명시적 삭제 필요</li>
-     *   <li>refresh_tokens — 세션 무효화</li>
-     *   <li>users — ON DELETE CASCADE로 projects, analysis_sessions, dast_results, vulnerabilities 자동 삭제</li>
-     * </ol>
-     */
-    private void cascadeDelete(UUID userId) {
-        // report 도메인은 ApplicationEvent 경유로 삭제 (cross-domain Repository 직접 주입 금지)
-        eventPublisher.publishEvent(new GdprAccountDeletedEvent(userId));
-        refreshTokenRepository.revokeAllByUserId(userId, OffsetDateTime.now(), "gdpr_delete");
-        userRepository.deleteById(userId);
-    }
+    // cascadeDelete 는 GdprHardDeleteService 로 이관 — 소프트 삭제 후 30일 후 실행
 }

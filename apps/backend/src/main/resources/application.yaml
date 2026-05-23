@@ -18,6 +18,8 @@ spring:
     baseline-version: 0
     out-of-order: true
     locations: classpath:db/migration
+    placeholders:
+      mcp-ro-password: ${MCP_RO_PASSWORD:changeme_mcp_ro}
 
   jpa:
     hibernate:
@@ -66,7 +68,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: when-authorized
@@ -96,6 +98,8 @@ secureai:
   internal-api-key: ${INTERNAL_API_KEY}
   nvd:
     api-key: ${NVD_API_KEY:}
+  slack:
+    webhook-url: ${SECUREAI_SLACK_WEBHOOK_URL:}
 
 firebase:
   # Firebase를 활성화하려면 true로 설정. 개발 환경에서는 false(no-op 동작).

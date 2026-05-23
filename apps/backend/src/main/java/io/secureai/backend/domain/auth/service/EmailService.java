@@ -43,6 +43,19 @@ public class EmailService {
                         .formatted(orgName, link));
     }
 
+    /**
+     * GDPR 하드 삭제 완료 알림 이메일.
+     * 계정과 모든 개인 데이터가 영구 삭제되었음을 사용자에게 알린다.
+     * 이메일 자체는 삭제되지 않은 별도 시스템(메일 서버)으로 발송한다.
+     */
+    @Async("emailExecutor")
+    public void sendAccountHardDeletedEmail(String to) {
+        send(to, "[SecureAI] 계정 영구 삭제 완료",
+                "귀하의 SecureAI 계정과 모든 관련 데이터가 영구적으로 삭제되었습니다.\n\n"
+                + "이 작업은 GDPR 제17조(삭제권)에 따라 처리되었습니다.\n\n"
+                + "SecureAI 서비스를 이용해 주셔서 감사합니다.");
+    }
+
     private void send(String to, String subject, String text) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -51,9 +64,9 @@ public class EmailService {
             message.setSubject(subject);
             message.setText(text);
             mailSender.send(message);
-            log.info("Email sent to={} subject={}", to, subject);
+            log.info("Email sent subject={}", subject);
         } catch (Exception e) {
-            log.error("Email send failed to={} subject={}", to, subject, e);
+            log.error("Email send failed subject={}", subject, e);
         }
     }
 }

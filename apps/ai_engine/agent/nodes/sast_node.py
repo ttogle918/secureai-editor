@@ -2,12 +2,15 @@ import asyncio
 import json
 import logging
 import os
+import uuid as _uuid
 
 import redis.asyncio as aioredis
 from opentelemetry import trace
+from prometheus_client import Counter
 
 from agent.agent_state import AgentState
 from agent.claude_client import analyze_for_sast
+from agent.mcp_client import get_tool
 from agent.nodes.code_chunker import chunk_file
 from agent.nodes.vuln_classifier import classify_and_enrich
 from agent.response_parser import parse_sast_response
@@ -20,6 +23,13 @@ from infrastructure.progress_log_client import log_completed, log_failed, log_st
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
+
+# Prometheus 커스텀 카운터 — 모듈 레벨 선언으로 프로세스당 한 번만 생성한다.
+_ai_tokens_counter = Counter(
+    "secureai_ai_tokens_total",
+    "Total AI tokens consumed",
+    ["service"],
+)
 
 _redis: aioredis.Redis | None = None
 _CACHE_PREFIX = "secureai:sast:cache:"
@@ -127,6 +137,54 @@ async def _analyze_chunks(
     return _dedup_vulns(all_vulns), total_usage
 
 
+async def _fetch_prev_vuln_context(session_id: str, project_id) -> str:
+    """이전에 발견된 취약점 유형 목록을 MCP PostgreSQL로 조회해 컨텍스트 문자열로 반환한다.
+
+    MCP PostgreSQL 미설정 또는 조회 실패 시 빈 문자열을 반환하며 분석을 중단하지 않는다.
+
+    project_id는 서버 내부 UUID이므로 f-string 치환이 안전하다.
+    (@modelcontextprotocol/server-postgres의 query 툴은 파라미터 바인딩을 지원하지 않는다.)
+    """
+    try:
+        tool = get_tool(session_id, "query")
+    except (ValueError, KeyError):
+        return ""  # MCP PostgreSQL 미설정
+
+    try:
+        # project_id는 Backend에서 전달받는 내부 UUID — UUID 형식 검증 후 f-string 치환
+        # @modelcontextprotocol/server-postgres의 query 툴은 파라미터 바인딩 미지원
+        try:
+            safe_project_id = str(_uuid.UUID(str(project_id)))
+        except ValueError:
+            logger.warning("[sast] prev_vuln_context skipped: project_id is not a valid UUID session=%s", session_id)
+            return ""
+        sql = (
+            f"SELECT vuln_type, COUNT(*) AS count, MAX(severity) AS max_severity "
+            f"FROM vulnerabilities WHERE project_id = '{safe_project_id}' "
+            f"AND created_at > NOW() - INTERVAL '30 days' "
+            f"GROUP BY vuln_type ORDER BY count DESC LIMIT 10"
+        )
+        result = await tool.ainvoke({"query": sql})
+
+        if not result:
+            return ""
+
+        # result가 문자열이면 그대로, 리스트/dict면 직렬화
+        if isinstance(result, str):
+            raw = result.strip()
+        elif isinstance(result, list):
+            raw = "\n".join(
+                str(row) for row in result if row
+            )
+        else:
+            raw = str(result)
+
+        return raw if raw else ""
+    except Exception as exc:
+        logger.warning("[sast] prev_vuln_context failed session=%s error=%s", session_id, exc)
+        return ""
+
+
 async def sast_node(state: AgentState) -> dict:
     """
     Claude + MCP 로 현재 파일을 SAST 분석한다.
@@ -173,10 +231,24 @@ async def sast_node(state: AgentState) -> dict:
 
         stack = _detect_stack(file_path)
         guidelines = await load_guidelines(stack)
+
+        # OTel span 안에서 조회하여 DB 조회 시간도 트레이싱에 포함된다.
+        prev_vuln_context = await _fetch_prev_vuln_context(session_id, state["project_id"])
+        if prev_vuln_context:
+            guidelines = (
+                guidelines
+                + "\n\n### Previous Vulnerabilities in This Project (last 30 days)\n"
+                + prev_vuln_context
+            )
+
         preferred_model = state.get("preferred_model")
         user_api_key = state.get("user_api_key")
         raw_vulns, file_usage = await _analyze_chunks(file_path, content, guidelines, preferred_model, user_api_key)
         vulns = classify_and_enrich(raw_vulns, file_path)
+
+        token_count = file_usage.get("input_tokens", 0) + file_usage.get("output_tokens", 0)
+        if token_count > 0:
+            _ai_tokens_counter.labels(service="sast").inc(token_count)
 
         if sha256:
             r = _get_redis()

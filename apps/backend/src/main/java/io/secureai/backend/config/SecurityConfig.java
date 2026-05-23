@@ -70,6 +70,7 @@ public class SecurityConfig {
                     "/api/workspace/**",
                     "/actuator/health",
                     "/actuator/info",
+                    "/actuator/prometheus",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/v3/api-docs/**",

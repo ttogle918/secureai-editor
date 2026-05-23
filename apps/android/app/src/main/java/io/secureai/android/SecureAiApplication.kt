@@ -1,12 +1,9 @@
 package io.secureai.android
 
 import android.app.Application
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.os.Build
 import dagger.hilt.android.HiltAndroidApp
-
-private const val CHANNEL_ID_ANALYSIS = "analysis_complete"
+import io.secureai.android.notification.NotificationChannelConfig
 
 /**
  * Hilt DI 컨테이너 진입점.
@@ -18,24 +15,16 @@ class SecureAiApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannels()
+        registerNotificationChannels()
     }
 
     /**
      * Android 8.0(Oreo, API 26)+에서 필수인 알림 채널을 앱 시작 시 등록한다.
-     * 채널이 이미 존재하면 createNotificationChannel()은 무시되므로 중복 호출 안전.
+     * NotificationChannelConfig에 채널 정의가 집중되어 있어 여기서는 호출만 한다.
      */
-    private fun createNotificationChannels() {
+    private fun registerNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID_ANALYSIS,
-                "분석 완료",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "보안 분석 완료 알림"
-            }
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
+            NotificationChannelConfig.createAll(this)
         }
     }
 }

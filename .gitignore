@@ -117,6 +117,9 @@ temp/
 *.temp
 files.zip
 
+# VSCode Extension
+*.vsix
+
 # Project Specific
 /docs/frontend-reference/secureai---white-hat-security-auditor/
 /docs/frontend-reference/packages/

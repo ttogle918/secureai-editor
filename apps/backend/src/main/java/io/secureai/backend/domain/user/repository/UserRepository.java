@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -45,4 +46,18 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                            @Param("planId") Short planId,
                            @Param("isActive") Boolean isActive,
                            Pageable pageable);
+
+    /**
+     * GDPR 하드 삭제 대상 조회 — deletedAt + 30일이 현재 시각 이하인 사용자.
+     * 배치 처리를 위해 Pageable 로 최대 50건씩 조회한다.
+     */
+    @Query("SELECT u FROM User u WHERE u.deletedAt IS NOT NULL AND u.deletedAt <= :cutoff")
+    Page<User> findExpiredSoftDeletedUsers(@Param("cutoff") OffsetDateTime cutoff, Pageable pageable);
+
+    /**
+     * GDPR 대기 삭제 목록 조회 — 소프트 삭제 후 아직 30일이 지나지 않은 사용자.
+     * 관리자 모니터링용 엔드포인트에서 사용한다.
+     */
+    @Query("SELECT u FROM User u WHERE u.deletedAt IS NOT NULL AND u.deletedAt > :cutoff ORDER BY u.deletedAt ASC")
+    Page<User> findPendingHardDeleteUsers(@Param("cutoff") OffsetDateTime cutoff, Pageable pageable);
 }

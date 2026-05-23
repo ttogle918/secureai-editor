@@ -5,7 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from config.settings import settings
 
-_OPEN_PATHS = {"/health", "/docs", "/openapi.json", "/redoc"}
+_OPEN_PATHS = {"/health", "/docs", "/openapi.json", "/redoc", "/metrics"}
 # SSE 로그 스트림은 브라우저가 직접 구독 — X-Internal-Key 불필요
 _OPEN_PREFIXES = ("/agent/dast/logs/",)
 

@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 
 class Settings(BaseSettings):
@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     postgres_url: str = Field(
         "postgresql://secureai:secureai@postgres:5432/secureai",
         alias="POSTGRES_URL",
+    )
+
+    # PostgreSQL MCP (AI Agent Read-Only 조회용)
+    # secureai_mcp_ro 전용 연결 문자열. 비어있으면 MCP DB 조회 비활성화.
+    postgres_mcp_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("POSTGRES_MCP_URL", "postgres_mcp_url"),
+        description="MCP Read-Only PostgreSQL URL (없으면 MCP DB 조회 비활성화)",
     )
 
     # 임베딩 설정 (fastembed BAAI/bge-small-en-v1.5)

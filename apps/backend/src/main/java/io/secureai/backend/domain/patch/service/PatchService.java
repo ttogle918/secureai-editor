@@ -2,6 +2,7 @@ package io.secureai.backend.domain.patch.service;
 
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
+import io.secureai.backend.domain.patch.dto.PatchExampleItem;
 import io.secureai.backend.domain.patch.dto.PatchSuggestionResponse;
 import io.secureai.backend.domain.patch.dto.SavePatchResultsRequest;
 import io.secureai.backend.domain.patch.entity.PatchSuggestion;
@@ -12,6 +13,7 @@ import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,6 +75,28 @@ public class PatchService {
     public List<PatchSuggestionResponse> listBySession(UUID sessionId) {
         return patchRepository.findBySession_Id(sessionId).stream()
                 .map(PatchSuggestionResponse::from)
+                .toList();
+    }
+
+    /**
+     * AI Engine 내부 API용 — 이전 성공 패치 예시 조회 (최대 3건).
+     * ADR-016: MCP PostgreSQL f-string SQL 대체. JPQL 파라미터 바인딩 사용.
+     *
+     * @param vulnType 취약점 유형 (SQL_INJECTION 등)
+     * @param language 파일 확장자 없는 언어 식별자 (java, python, javascript 등)
+     */
+    @Transactional(readOnly = true)
+    public List<PatchExampleItem> getPatchExamples(String vulnType, String language) {
+        // LIKE 패턴: '%.java' 형태 — JPQL 파라미터 바인딩으로 조립하므로 안전
+        String langSuffix = "%." + language;
+        return patchRepository
+                .findRecentByVulnTypeAndLangSuffix(vulnType, langSuffix, PageRequest.of(0, 3))
+                .stream()
+                .map(p -> new PatchExampleItem(
+                        p.getOriginalSnippet(),
+                        p.getPatchedSnippet(),
+                        p.getExplanation()
+                ))
                 .toList();
     }
 }

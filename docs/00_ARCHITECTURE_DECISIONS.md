@@ -375,9 +375,9 @@ Refresh Token은 **SHA-256 해시값만 DB(`refresh_tokens` 테이블)에 저장
 
 ---
 
-## ADR-016 — MCP PostgreSQL 쿼리 전략: f-string 예외 처리
+## ADR-016 — MCP PostgreSQL 컨텍스트 조회: Backend 내부 API 경유
 
-> 작성일: 2026-05-23 | 상태: **임시 결정 (전환 권장)**
+> 작성일: 2026-05-23 | 상태: **확정** (2026-05-23 전환 완료)
 
 ### 배경
 
@@ -388,67 +388,63 @@ Refresh Token은 **SHA-256 해시값만 DB(`refresh_tokens` 테이블)에 저장
 AI Engine 내부에서 stdio subprocess로 실행된다 (별도 Docker 컨테이너 아님).
 
 이로 인해 MCP PostgreSQL을 통한 조회(`sast_node.py`, `patch_node.py`)에서  
-프로젝트 전체 코딩 규칙(`general.md`) **"SQL 쿼리는 파라미터 바인딩 필수"** 원칙을 그대로 적용할 수 없다.
+프로젝트 전체 코딩 규칙(`general.md`) **"SQL 쿼리는 파라미터 바인딩 필수"** 원칙을 그대로 적용할 수 없었다.
 
 ### 검토된 대안
 
 | 대안 | 구현 방법 | 파라미터 바인딩 | 평가 |
 |------|----------|----------------|------|
-| **A. Backend API 경유 (권장)** | AI Engine → `GET /internal/v1/projects/{id}/vuln-context` | ✅ JPA 파라미터 바인딩 | 가장 원칙에 충실. Backend에 엔드포인트 1개 추가 필요 |
-| **B. asyncpg 직접 사용** | AI Engine의 `AsyncConnectionPool` 재사용 | ✅ `$1` 플레이스홀더 | 코드 최소 변경. "AI는 MCP를 통해서만 DB 접근" 일관성 저해 |
-| **C. f-string + 입력 검증 (현재)** | UUID 검증 / 내부 열거값만 삽입 | ❌ 원칙 위반 | 즉시 구현 가능하나 보안 규칙 예외 |
+| **A. Backend API 경유 ✅ 채택** | AI Engine → `GET /api/v1/internal/…` | ✅ JPQL 파라미터 바인딩 | 원칙 완전 준수. 기존 `backend_api_client.py` 패턴 재사용 |
+| B. asyncpg 직접 사용 | AI Engine의 `AsyncConnectionPool` 재사용 | ✅ `$1` 플레이스홀더 | "AI는 MCP를 통해서만 DB 접근" 일관성 저해 |
+| C. f-string + 입력 검증 (구현됐다 폐기) | UUID 검증 / 내부 열거값만 삽입 | ❌ 원칙 위반 | 2026-05-23 이전 임시 적용, 이후 삭제 |
 
-**전환 권장**: A 방안으로 전환하는 것이 가장 바람직하다. AI Engine은 이미 `BACKEND_INTERNAL_URL`로  
-Backend를 호출하는 패턴(`backend_api_client.py`)을 사용 중이므로 추가 인프라 변경 없이 구현 가능하다.
+### 확정 결정 (A 방안)
 
-### 현재 결정 (임시)
+AI Engine이 MCP PostgreSQL을 통해 컨텍스트를 조회하는 두 지점을  
+**Backend 내부 HTTP API 경유**로 전환한다.  
+AI Engine은 이미 `BACKEND_INTERNAL_URL` + `X-Internal-Key` 패턴으로 Backend를 호출 중이므로  
+추가 인프라 변경 없이 구현 가능하다.
 
-C 방안(f-string + 입력 검증)을 **임시 적용**한다. 단, 삽입 값은 반드시 아래 안전 등급 중 하나여야 한다.
+### 구현 위치
 
-| 안전 등급 | 설명 | 적용 예 |
-|----------|------|--------|
-| **UUID 검증** | `str(_uuid.UUID(str(value)))` 통과 값만 삽입 — 형식 불일치 시 쿼리 실행 중단 | `project_id` |
-| **서버 내부 열거값** | 사용자 입력이 아닌, 서버 측 함수(`_detect_language()`, vuln_type 분류기)가 생성한 값 | `language`, `vuln_type` |
+| 계층 | 파일 | 변경 내용 |
+|------|------|----------|
+| Backend | `VulnerabilityRepository` | `findVulnTypeSummaryByProjectId()` JPQL 추가 |
+| Backend | `VulnerabilityQueryService` | `getVulnTypeSummary()` 서비스 메서드 추가 |
+| Backend | `VulnerabilityController` | `GET /api/v1/internal/projects/{projectId}/vuln-context` 엔드포인트 추가 |
+| Backend | `PatchSuggestionRepository` | `findRecentByVulnTypeAndLangSuffix()` JPQL 추가 |
+| Backend | `PatchService` | `getPatchExamples()` 서비스 메서드 추가 |
+| Backend | `PatchController` | `GET /api/v1/internal/patch-examples` 엔드포인트 추가 |
+| Backend | `VulnContextItem` (DTO) | 신규 record DTO |
+| Backend | `PatchExampleItem` (DTO) | 신규 record DTO |
+| AI Engine | `backend_api_client.py` | `get_vuln_context()`, `get_patch_examples()` 추가 |
+| AI Engine | `sast_node.py` | `_fetch_prev_vuln_context()` — MCP 호출 → Backend API 호출로 교체 |
+| AI Engine | `patch_node.py` | `_fetch_prev_patch_example()` — MCP 호출 → Backend API 호출로 교체 |
 
-### 전환 조건 (중 하나 충족 시 즉시 전환)
-
-1. Backend 내부 API `GET /internal/v1/projects/{id}/vuln-context` 구현 완료 → **A 방안으로 전환**
-2. `@modelcontextprotocol/server-postgres`가 파라미터 바인딩 지원 버전 출시 → **prepared statement로 교체**
-3. AI Engine에 asyncpg 직접 쿼리 패턴 도입 결정 → **B 방안으로 전환**
-
-### 적용 위치
-
-| 파일 | 함수 | 삽입 파라미터 | 안전 등급 |
-|------|------|-------------|----------|
-| `apps/ai_engine/agent/nodes/sast_node.py` | `_fetch_prev_vuln_context()` | `project_id` | UUID 검증 |
-| `apps/ai_engine/agent/nodes/patch_node.py` | `_fetch_prev_patch_example()` | `vuln_type`, `language` | 서버 내부 열거값 |
-
-### 안전성 근거
+### 핵심 코드 패턴
 
 ```python
-# sast_node.py — UUID 검증 후 f-string 치환
-try:
-    safe_project_id = str(_uuid.UUID(str(project_id)))
-except ValueError:
-    logger.warning("[sast] prev_vuln_context skipped: project_id is not a valid UUID")
-    return ""  # 검증 실패 시 쿼리 실행 안 함
-
-sql = f"... WHERE project_id = '{safe_project_id}' ..."
+# sast_node.py — Backend 내부 API 경유 (JPQL 파라미터 바인딩)
+async def _fetch_prev_vuln_context(project_id) -> str:
+    items = await get_vuln_context(str(project_id))
+    lines = [f"{i['vulnType']} | count: {i['count']} | max_severity: {i['maxSeverity']}" for i in items if i.get("vulnType")]
+    return "\n".join(lines)
 ```
 
 ```python
-# patch_node.py — 내부 열거값 치환 (사용자 입력 아님)
-# vuln_type: VulnerabilityClassifier 분류 결과
-# language: _detect_language()가 파일 확장자로 결정한 내부 상수
-sql = f"... WHERE vuln_type = '{vuln_type}' AND file_path LIKE '%.{language}' ..."
+# patch_node.py — Backend 내부 API 경유 (JPQL LIKE 파라미터 바인딩)
+async def _fetch_prev_patch_example(vuln_type: str, language: str) -> str:
+    items = await get_patch_examples(vuln_type, language)
+    ...
 ```
 
-### 제약 사항 (의무)
+```java
+// VulnerabilityRepository.java — JPQL 파라미터 바인딩
+@Query("SELECT v.vulnType, COUNT(v), MAX(v.severity) FROM Vulnerability v WHERE v.project.id = :projectId AND v.createdAt > :since GROUP BY v.vulnType ORDER BY COUNT(v) DESC")
+List<Object[]> findVulnTypeSummaryByProjectId(@Param("projectId") UUID projectId, @Param("since") OffsetDateTime since, Pageable pageable);
+```
 
-- MCP PostgreSQL f-string SQL에는 **사용자 입력(HTTP 요청 파라미터, 파일 내용 등)을 절대 삽입 금지**
-- 새로운 MCP 쿼리 함수 추가 시 삽입 값이 위 두 등급 중 하나임을 주석으로 명시해야 한다
+### 보안 인증
 
-### 코딩 규칙 예외 처리
-
-이 ADR은 `general.md` "SQL 쿼리는 파라미터 바인딩 필수" 규칙의 **임시 예외**로 기록된다.  
-위 두 적용 위치 외의 모든 SQL 쿼리에는 원칙이 그대로 적용된다.
+두 내부 엔드포인트는 `InternalKeyAuthFilter`로 보호된다 (`X-Internal-Key` 헤더 검증).  
+`SecurityConfig`의 `/api/v1/internal/**` 패턴에 포함되어 JWT 없이 내부키만으로 접근된다.

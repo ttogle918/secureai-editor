@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import os
-import uuid as _uuid
 
 import redis.asyncio as aioredis
 from opentelemetry import trace
@@ -10,14 +9,13 @@ from prometheus_client import Counter
 
 from agent.agent_state import AgentState
 from agent.claude_client import analyze_for_sast
-from agent.mcp_client import get_tool
 from agent.nodes.code_chunker import chunk_file
 from agent.nodes.vuln_classifier import classify_and_enrich
+from infrastructure.backend_api_client import get_vuln_context, save_vulnerabilities
 from agent.response_parser import parse_sast_response
 from agent.tools.mcp_filesystem_tools import read_file
 from agent.tools.mcp_github_tools import get_github_file_content
 from config.settings import settings
-from infrastructure.backend_api_client import save_vulnerabilities
 from infrastructure.guidelines_client import load_guidelines
 from infrastructure.progress_log_client import log_completed, log_failed, log_started
 
@@ -137,51 +135,24 @@ async def _analyze_chunks(
     return _dedup_vulns(all_vulns), total_usage
 
 
-async def _fetch_prev_vuln_context(session_id: str, project_id) -> str:
-    """이전에 발견된 취약점 유형 목록을 MCP PostgreSQL로 조회해 컨텍스트 문자열로 반환한다.
+async def _fetch_prev_vuln_context(project_id) -> str:
+    """이전에 발견된 취약점 유형 목록을 Backend 내부 API로 조회해 컨텍스트 문자열로 반환한다.
 
-    MCP PostgreSQL 미설정 또는 조회 실패 시 빈 문자열을 반환하며 분석을 중단하지 않는다.
-
-    project_id는 서버 내부 UUID이므로 f-string 치환이 안전하다.
-    (@modelcontextprotocol/server-postgres의 query 툴은 파라미터 바인딩을 지원하지 않는다.)
+    ADR-016: MCP PostgreSQL f-string SQL 대체 — Backend JPQL 파라미터 바인딩 사용.
+    실패 시 빈 문자열을 반환하며 분석을 중단하지 않는다.
     """
     try:
-        tool = get_tool(session_id, "query")
-    except (ValueError, KeyError):
-        return ""  # MCP PostgreSQL 미설정
-
-    try:
-        # project_id는 Backend에서 전달받는 내부 UUID — UUID 형식 검증 후 f-string 치환
-        # @modelcontextprotocol/server-postgres의 query 툴은 파라미터 바인딩 미지원
-        try:
-            safe_project_id = str(_uuid.UUID(str(project_id)))
-        except ValueError:
-            logger.warning("[sast] prev_vuln_context skipped: project_id is not a valid UUID session=%s", session_id)
+        items = await get_vuln_context(str(project_id))
+        if not items:
             return ""
-        sql = (
-            f"SELECT vuln_type, COUNT(*) AS count, MAX(severity) AS max_severity "
-            f"FROM vulnerabilities WHERE project_id = '{safe_project_id}' "
-            f"AND created_at > NOW() - INTERVAL '30 days' "
-            f"GROUP BY vuln_type ORDER BY count DESC LIMIT 10"
-        )
-        result = await tool.ainvoke({"query": sql})
-
-        if not result:
-            return ""
-
-        # result가 문자열이면 그대로, 리스트/dict면 직렬화
-        if isinstance(result, str):
-            raw = result.strip()
-        elif isinstance(result, list):
-            raw = "\n".join(
-                str(row) for row in result if row
-            )
-        else:
-            raw = str(result)
-
-        return raw if raw else ""
+        lines = [
+            f"{item['vulnType']} | count: {item['count']} | max_severity: {item['maxSeverity']}"
+            for item in items
+            if item.get("vulnType")
+        ]
+        return "\n".join(lines) if lines else ""
     except Exception as exc:
-        logger.warning("[sast] prev_vuln_context failed session=%s error=%s", session_id, exc)
+        logger.warning("[sast] prev_vuln_context failed project=%s error=%s", project_id, exc)
         return ""
 
 
@@ -233,7 +204,7 @@ async def sast_node(state: AgentState) -> dict:
         guidelines = await load_guidelines(stack)
 
         # OTel span 안에서 조회하여 DB 조회 시간도 트레이싱에 포함된다.
-        prev_vuln_context = await _fetch_prev_vuln_context(session_id, state["project_id"])
+        prev_vuln_context = await _fetch_prev_vuln_context(state["project_id"])
         if prev_vuln_context:
             guidelines = (
                 guidelines

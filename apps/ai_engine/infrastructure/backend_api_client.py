@@ -96,3 +96,47 @@ async def save_patch_results(
     except Exception as exc:
         logger.error("[backend-api] save_patch_results failed session=%s: %s", session_id, exc)
         return 0
+
+
+async def get_vuln_context(project_id: str) -> list[dict]:
+    """프로젝트의 최근 30일 취약점 유형 집계를 Backend에서 조회한다.
+
+    ADR-016: MCP PostgreSQL f-string SQL 대체 — Backend JPQL 파라미터 바인딩 사용.
+    실패 시 빈 리스트를 반환하고 분석을 중단하지 않는다.
+
+    반환 형태: [{"vulnType": "SQL_INJECTION", "count": 3, "maxSeverity": "HIGH"}, ...]
+    """
+    try:
+        resp = await _client.get(
+            f"/api/v1/internal/projects/{project_id}/vuln-context"
+        )
+        resp.raise_for_status()
+        items: list = resp.json().get("data", []) or []
+        logger.debug("[backend-api] vuln_context project=%s items=%d", project_id, len(items))
+        return items
+    except Exception as exc:
+        logger.warning("[backend-api] get_vuln_context failed project=%s: %s", project_id, exc)
+        return []
+
+
+async def get_patch_examples(vuln_type: str, language: str) -> list[dict]:
+    """이전 성공 패치 예시를 Backend에서 조회한다 (최대 3건).
+
+    ADR-016: MCP PostgreSQL f-string SQL 대체 — Backend JPQL 파라미터 바인딩 사용.
+    프로젝트와 무관하게 vuln_type + language 조합으로 전역 패턴을 조회한다.
+    실패 시 빈 리스트를 반환하고 패치 생성을 계속 진행한다.
+
+    반환 형태: [{"originalSnippet": "...", "patchedSnippet": "...", "explanation": "..."}, ...]
+    """
+    try:
+        resp = await _client.get(
+            "/api/v1/internal/patch-examples",
+            params={"vulnType": vuln_type, "language": language},
+        )
+        resp.raise_for_status()
+        items: list = resp.json().get("data", []) or []
+        logger.debug("[backend-api] patch_examples vuln=%s lang=%s items=%d", vuln_type, language, len(items))
+        return items
+    except Exception as exc:
+        logger.warning("[backend-api] get_patch_examples failed vuln=%s lang=%s: %s", vuln_type, language, exc)
+        return []

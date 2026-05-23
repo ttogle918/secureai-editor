@@ -12,6 +12,7 @@ import androidx.navigation.navDeepLink
 import io.secureai.android.ui.auth.AuthViewModel
 import io.secureai.android.ui.auth.LoginScreen
 import io.secureai.android.ui.auth.RegisterScreen
+import io.secureai.android.ui.chat.ChatScreen
 import io.secureai.android.ui.dashboard.DashboardScreen
 import io.secureai.android.ui.vulndetail.VulnDetailScreen
 import io.secureai.android.ui.vulnlist.VulnListScreen
@@ -38,6 +39,11 @@ sealed class Screen(val route: String) {
     data object Session : Screen("session/{sessionId}") {
         fun createRoute(sessionId: String) = "session/$sessionId"
         const val DEEP_LINK_URI = "secureai://session/{sessionId}"
+    }
+
+    /** AI 채팅 스트리밍 화면 */
+    data object Chat : Screen("chat/{sessionId}") {
+        fun createRoute(sessionId: String) = "chat/$sessionId"
     }
 }
 
@@ -162,6 +168,20 @@ fun AppNavGraph(
             navController.navigate(Screen.Dashboard.createRoute(DEFAULT_PROJECT_ID)) {
                 popUpTo(Screen.Session.route) { inclusive = true }
             }
+        }
+
+        // AI 채팅 스트리밍 화면: chat/{sessionId}
+        composable(
+            route = Screen.Chat.route,
+            arguments = listOf(
+                navArgument("sessionId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
+            ChatScreen(
+                sessionId = sessionId,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

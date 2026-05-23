@@ -1,0 +1,39 @@
+{
+  "name": "secureai",
+  "displayName": "SecureAI Security Scanner",
+  "description": "AI-powered security vulnerability scanner",
+  "version": "0.1.0",
+  "publisher": "secureai-local",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Linters", "Other"],
+  "activationEvents": ["onCommand:secureai.analyze", "onCommand:secureai.setToken"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "secureai.analyze",
+        "title": "SecureAI: Analyze Current Workspace"
+      },
+      {
+        "command": "secureai.setToken",
+        "title": "SecureAI: Set API Token"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "@vscode/vsce": "^2.24.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}

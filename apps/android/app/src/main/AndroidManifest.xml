@@ -46,6 +46,21 @@
             </intent-filter>
         </service>
 
+        <!--
+            FileProvider: PDF 공유 시 file:// URI 대신 content:// URI 사용.
+            보안: exported=false + grantUriPermissions=true 로 최소 권한 부여.
+            허용 경로는 @xml/file_provider_paths 에 정의 (reports/ 경로만 허용).
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_provider_paths" />
+        </provider>
+
     </application>
 
 </manifest>

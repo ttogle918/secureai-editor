@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    FileProvider 공유 허용 경로 정의.
+
+    보안 원칙:
+    - 최소 권한 원칙: reports/ 하위 경로만 외부 공유 허용
+    - files-path: context.filesDir/reports/ (영구 저장 PDF)
+    - cache-path: context.cacheDir/reports/ (임시 생성 PDF)
+    - 앱 전체 filesDir 공개 금지 — 경로를 reports/로 제한
+-->
+<paths>
+    <files-path name="reports" path="reports/" />
+    <cache-path name="cache_reports" path="reports/" />
+</paths>

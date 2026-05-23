@@ -377,25 +377,44 @@ Refresh Token은 **SHA-256 해시값만 DB(`refresh_tokens` 테이블)에 저장
 
 ## ADR-016 — MCP PostgreSQL 쿼리 전략: f-string 예외 처리
 
-> 작성일: 2026-05-23 | 상태: 확정
+> 작성일: 2026-05-23 | 상태: **임시 결정 (전환 권장)**
 
 ### 배경
 
 `@modelcontextprotocol/server-postgres`의 `query` 툴은 **파라미터 바인딩을 지원하지 않는다.**  
 툴 인터페이스가 `{ "query": "<raw SQL string>" }` 단일 인수만 허용하며, prepared statement 또는 `$1/$2` 플레이스홀더를 전달할 방법이 없다.
 
+이 서버는 `mcp_client.py`에서 `npx -y @modelcontextprotocol/server-postgres <connstring>` 형태로  
+AI Engine 내부에서 stdio subprocess로 실행된다 (별도 Docker 컨테이너 아님).
+
 이로 인해 MCP PostgreSQL을 통한 조회(`sast_node.py`, `patch_node.py`)에서  
 프로젝트 전체 코딩 규칙(`general.md`) **"SQL 쿼리는 파라미터 바인딩 필수"** 원칙을 그대로 적용할 수 없다.
 
-### 결정
+### 검토된 대안
 
-MCP PostgreSQL 조회에 한해 **f-string SQL을 허용**한다.  
-단, 삽입되는 모든 값은 반드시 아래 안전 등급 중 하나에 해당해야 한다.
+| 대안 | 구현 방법 | 파라미터 바인딩 | 평가 |
+|------|----------|----------------|------|
+| **A. Backend API 경유 (권장)** | AI Engine → `GET /internal/v1/projects/{id}/vuln-context` | ✅ JPA 파라미터 바인딩 | 가장 원칙에 충실. Backend에 엔드포인트 1개 추가 필요 |
+| **B. asyncpg 직접 사용** | AI Engine의 `AsyncConnectionPool` 재사용 | ✅ `$1` 플레이스홀더 | 코드 최소 변경. "AI는 MCP를 통해서만 DB 접근" 일관성 저해 |
+| **C. f-string + 입력 검증 (현재)** | UUID 검증 / 내부 열거값만 삽입 | ❌ 원칙 위반 | 즉시 구현 가능하나 보안 규칙 예외 |
+
+**전환 권장**: A 방안으로 전환하는 것이 가장 바람직하다. AI Engine은 이미 `BACKEND_INTERNAL_URL`로  
+Backend를 호출하는 패턴(`backend_api_client.py`)을 사용 중이므로 추가 인프라 변경 없이 구현 가능하다.
+
+### 현재 결정 (임시)
+
+C 방안(f-string + 입력 검증)을 **임시 적용**한다. 단, 삽입 값은 반드시 아래 안전 등급 중 하나여야 한다.
 
 | 안전 등급 | 설명 | 적용 예 |
 |----------|------|--------|
 | **UUID 검증** | `str(_uuid.UUID(str(value)))` 통과 값만 삽입 — 형식 불일치 시 쿼리 실행 중단 | `project_id` |
-| **서버 내부 열거값** | 사용자 입력이 아닌, 서버 측 함수(`_detect_language()`, vuln_type 분류기)가 생성한 값 — 외부 문자열 직접 치환 불가 | `language`, `vuln_type` |
+| **서버 내부 열거값** | 사용자 입력이 아닌, 서버 측 함수(`_detect_language()`, vuln_type 분류기)가 생성한 값 | `language`, `vuln_type` |
+
+### 전환 조건 (중 하나 충족 시 즉시 전환)
+
+1. Backend 내부 API `GET /internal/v1/projects/{id}/vuln-context` 구현 완료 → **A 방안으로 전환**
+2. `@modelcontextprotocol/server-postgres`가 파라미터 바인딩 지원 버전 출시 → **prepared statement로 교체**
+3. AI Engine에 asyncpg 직접 쿼리 패턴 도입 결정 → **B 방안으로 전환**
 
 ### 적용 위치
 
@@ -428,10 +447,8 @@ sql = f"... WHERE vuln_type = '{vuln_type}' AND file_path LIKE '%.{language}' ..
 
 - MCP PostgreSQL f-string SQL에는 **사용자 입력(HTTP 요청 파라미터, 파일 내용 등)을 절대 삽입 금지**
 - 새로운 MCP 쿼리 함수 추가 시 삽입 값이 위 두 등급 중 하나임을 주석으로 명시해야 한다
-- `@modelcontextprotocol/server-postgres`가 파라미터 바인딩을 지원하는 버전으로 업그레이드될 경우,  
-  즉시 f-string을 prepared statement로 교체하고 이 ADR을 폐기한다
 
 ### 코딩 규칙 예외 처리
 
-이 ADR은 `general.md` "SQL 쿼리는 파라미터 바인딩 필수" 규칙의 **명시적 예외**로 기록된다.  
+이 ADR은 `general.md` "SQL 쿼리는 파라미터 바인딩 필수" 규칙의 **임시 예외**로 기록된다.  
 위 두 적용 위치 외의 모든 SQL 쿼리에는 원칙이 그대로 적용된다.

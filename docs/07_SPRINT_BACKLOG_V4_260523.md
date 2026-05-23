@@ -900,23 +900,23 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 > `frontend-refactoring/Pagori Redesign.html` 기준 — `apps/frontend/src/` 구현 여부 대조
 
-| 화면 | 디자인 파일 컴포넌트 | 구현 상태 | 경로 |
-|------|---------------------|----------|------|
-| 대시보드 | Dashboard, KpiCard, SecurityScoreRing, SeverityBarChart, TrendLineChart, FileHeatmap, OwaspCoverageMatrix | ✅ 완료 | `components/dashboard/` |
-| 코드 에디터 | EditorLayout, FileTree, InlineHighlight, SuggestionPanel, SessionLog | ✅ 완료 | `components/editor/` |
-| 프로젝트 목록 | ProjectCard, CreateProjectModal | ✅ 완료 | `components/project/` |
-| 로그인 / 회원가입 | LoginForm, RegisterForm, GitHubOAuthButton | ✅ 완료 | `app/auth/` |
-| PDF 리포트 모달 | PdfReportModal (포맷 선택, 상태 폴링) | ✅ 완료 | `components/analysis/PdfReportModal.tsx` |
-| 커밋 시크릿 스캔 | CommitSecretScanModal | ✅ 완료 | `components/analysis/CommitSecretScanModal.tsx` |
-| SBOM & CVE | SbomPage (컴포넌트 테이블, CVE 매핑) | ✅ 완료 | `components/analysis/SbomPage.tsx` + `app/projects/[projectId]/sbom/page.tsx` |
-| GitHub 레포 스캔 | GitHubScanModal (URL·브랜치 입력 → 직접 분석 트리거) | ❌ 미구현 | 신규 필요 (FEAT-FE-002) |
-| 컴플라이언스 리포트 | CompliancePage (ISO 27001 / NIST CSF 매핑 표) | ❌ 미구현 | 신규 필요 (FEAT-FE-003) |
-| 팀 관리 | TeamManagementPage (초대, 권한 설정) | ❌ 미구현 | 신규 필요 |
-| 설정 | SettingsPage (알림·플랜·API 키) | ❌ 미구현 | 신규 필요 |
-| 알림 센터 | NotificationsPage (FCM/In-App 알림 목록) | ❌ 미구현 | 신규 필요 |
-| 분석 비교 | DiffPage (두 세션 취약점 증감 비교) | ❌ 미구현 | FEAT-API-001 백엔드 선행 필요 |
+| 화면 | 디자인 파일 컴포넌트 | 구현 상태 | 경로 | Sprint 배정 |
+|------|---------------------|----------|------|------------|
+| 대시보드 | Dashboard, KpiCard, SecurityScoreRing, SeverityBarChart, TrendLineChart, FileHeatmap, OwaspCoverageMatrix | ✅ 완료 | `components/dashboard/` | — |
+| 코드 에디터 | EditorLayout, FileTree, InlineHighlight, SuggestionPanel, SessionLog | ✅ 완료 | `components/editor/` | — |
+| 프로젝트 목록 | ProjectCard, CreateProjectModal | ✅ 완료 | `components/project/` | — |
+| 로그인 / 회원가입 | LoginForm, RegisterForm, GitHubOAuthButton | ✅ 완료 | `app/auth/` | — |
+| PDF 리포트 모달 | PdfReportModal (포맷 선택, 상태 폴링) | ✅ 완료 | `components/analysis/PdfReportModal.tsx` | — |
+| 커밋 시크릿 스캔 | CommitSecretScanModal | ✅ 완료 | `components/analysis/CommitSecretScanModal.tsx` | — |
+| SBOM & CVE | SbomPage (컴포넌트 테이블, CVE 매핑) | ✅ 완료 | `components/analysis/SbomPage.tsx` + `app/projects/[projectId]/sbom/page.tsx` | — |
+| GitHub 레포 스캔 | GitHubScanModal (URL·브랜치 입력 → 직접 분석 트리거) | ❌ 미구현 | 신규 필요 (FEAT-FE-002) | **Sprint 10** (TASK-501/502 GitHub Integration 연계) |
+| 컴플라이언스 리포트 | CompliancePage (ISO 27001 / NIST CSF 매핑 표) | ❌ 미구현 | 신규 필요 (FEAT-FE-003) | **Sprint 10** (FEAT-COMP-002 백엔드와 동시 구현) |
+| 팀 관리 | TeamManagementPage (초대, 권한 설정) | ❌ 미구현 | 신규 필요 | **Sprint 10** (Enterprise TASK-1002 팀 대시보드와 연계) |
+| 설정 | SettingsPage (알림·플랜·API 키) | ❌ 미구현 | 신규 필요 | **Sprint 10** (Enterprise 플랜 관리 UI 필수) |
+| 알림 센터 | NotificationsPage (FCM/In-App 알림 목록) | ❌ 미구현 | 신규 필요 | **EPIC-MISC** (FCM 푸시 인프라 미구축 — 인프라 구축 후 편입) |
+| 분석 비교 | DiffPage (두 세션 취약점 증감 비교) | ❌ 미구현 | FEAT-API-001 백엔드 선행 필요 | **EPIC-MISC** (FEAT-API-001 Diff API 백엔드 완료 후 편입) |
 
-**미구현 화면 7개** — Sprint 8 이후 우선순위 결정 필요.
+**미구현 화면 6개** (원문 "7개"는 집계 오류) — Sprint 10: 4개, EPIC-MISC: 2개로 배정 완료 (2026-05-23).
 
 ---
 

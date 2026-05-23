@@ -31,7 +31,7 @@ secureai/                                           # 프로젝트 루트 (Git �
 │       ├── bug_report.md
 │       └── feature_request.md
 │
-├── backend/                                        # Spring Boot 3 백엔드
+├── backend/                                        # Spring Boot 4 백엔드
 │   └── (상세 구조: 섹션 2 참고)
 │
 ├── frontend/                                       # Next.js 15 프론트엔드

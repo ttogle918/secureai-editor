@@ -1,6 +1,6 @@
 # SecureAI — REST API 설계서
 > 작성자: 시니어 백엔드 개발자 / 데이터 아키텍처 전문가 공동 작성  
-> 기준 스택: Spring Boot 3 + Spring Security 6 + Spring AI  
+> 기준 스택: Spring Boot 4 + Spring Security 7 + Spring AI  
 > 인증 방식: JWT Bearer Token (Access 15min / Refresh 30day Rotation)  
 > 작성일: 2026-04-19 | 버전: v1.0
 

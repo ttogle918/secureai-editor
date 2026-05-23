@@ -1,8 +1,11 @@
 # SecureAI — GitHub Projects 자동 등록 v2.0
-# 변경사항 v1 → v2:
-#   ✅ 각 이슈 body에 "테스트 체크리스트" 섹션 추가
-#   ✅ 체크포인트 관련 TASK 3개 신규 추가 (TASK-205, 206, 207)
-#   ✅ 진행 체크리스트 UI TASK 추가 (TASK-406)
+# 정본 지정일: 2026-05-23 | 구버전(07_GITHUB_PROJECTS.yml) 아카이브 완료
+#
+# 버전 이력:
+#   V1 (2026-04): 초기 GitHub Projects YAML — Sprint 1~3 이슈 자동 등록
+#   V2 (현재): 각 이슈 body에 "테스트 체크리스트" 섹션 추가
+#              체크포인트 관련 TASK 3개 신규 추가 (TASK-205, 206, 207)
+#              진행 체크리스트 UI TASK 추가 (TASK-406)
 # 사용법:
 #   1. gh auth login
 #   2. bash setup_github_projects.sh [OWNER] [REPO]

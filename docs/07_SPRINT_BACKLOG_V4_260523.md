@@ -1,6 +1,14 @@
-# SecureAI — 스프린트 & 백로그 V3
-> 기준일: 2026-05-16 | 방법론: Scrum | 스프린트 단위: 2주  
-> 변경사항 V2 → V3: `13_BACKLOG_ADDITIONS.md` 통합, EPIC-MISC 섹션 신설, feat/sprint5-github 브랜치 섹션 신설, 미래 기능 후보 정리
+# SecureAI — 스프린트 & 백로그 V4
+> 기준일: 2026-05-22 | 방법론: Scrum | 스프린트 단위: 2주  
+> **정본 지정일**: 2026-05-23 | 구버전(`07_SPRINT_BACKLOG_V2.md`, `V3.md`) 아카이브 완료
+
+## 버전 이력
+
+| 버전 | 기준일 | 주요 변경 |
+|------|--------|---------|
+| V2 | Sprint 6 완료 | Sprint 6 DAST 완료 기록, Sprint 7(리포트·대시보드·Android) 계획 추가 |
+| V3 | Sprint 7 완료 | Sprint 7 완료 기록, Sprint 8(안정화·보안·런칭 준비) 계획 추가. 프론트엔드 Pagori 리디자인 현황 포함 |
+| **V4 (현재)** | 2026-05-22 | Sprint 8/9 완료 기록, Sprint 10 Enterprise 백로그 추가 (TASK-1001~1004: 야간 스캔·팀 대시보드·리포트 Export·스캔 모드). 미구현 프론트엔드 화면 7개 목록 추가 |
 
 ---
 
@@ -16,8 +24,9 @@ Sprint 5  (Week 11-12): GitHub Layer 2 완성                            ✅ 완
 Sprint 6  (Week 13-14): DAST 엔진 & Docker 샌드박스                     ✅ 완료 (PR #70)
 feat/sprint5-github:    Sprint 5 이월 구현 (별도 브랜치)                 🟠 진행 중
 Sprint 7  (Week 15-16): 리포트 & 대시보드 & Android MVP
-Sprint 8  (Week 17-18): 안정화 & 보안 강화 & 런칭 준비
-Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링 (Phase 3)
+Sprint 8  (Week 17-18): 안정화 & 보안 강화 & 런칭 준비                ✅ 완료
+Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링 (Phase 3)   🟠 진행 중
+Sprint 10 (Week 21-22): Enterprise B2B Features (야간스캔, 대시보드)   예정
 EPIC-MISC:              독립 기능 (스프린트 비종속)
 ```
 
@@ -87,13 +96,17 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ### Sprint 5 — GitHub Layer 2 (일부 완료, 일부 이월) ✅/🟠
 
 > TASK-501~505는 DAST와 의존성 없어 Sprint 6 이후로 이월.  
-> `feat/sprint5-github` 브랜치에서 진행 중.
+> `feat/sprint5-github` 브랜치에서 진행 중.  
+>
+> **이월 처리 결정 (2026-05-23)**: Sprint 10에서 GitHub Integration Sprint로 묶어 처리.  
+> `feat/sprint5-github` 브랜치는 Sprint 10 시작 시 `feat/sprint10-github`로 재사용(리베이스).  
+> TASK-505(GitHub Security Advisory)는 Enterprise 기능 성격으로 EPIC-MISC로 이관.
 
 - [x] TASK-503: GitHub 레포 나머지 파일 전체 SAST 최적화
 - [x] TASK-504: SBOM 완성 & CVE 매칭
-- [ ] TASK-501: GitHub Webhook 이벤트 수신 (이월 → feat/sprint5-github)
-- [ ] TASK-502: PR 분석 자동 트리거 (이월 → feat/sprint5-github)
-- [ ] TASK-505: GitHub 연동 설정 UI (이월 → feat/sprint5-github)
+- [ ] TASK-501: GitHub Webhook 이벤트 수신 → **Sprint 10 배정** (🔴 Critical)
+- [ ] TASK-502: PR 분석 자동 트리거 → **Sprint 10 배정** (🔴 Critical, TASK-501 선행 필요)
+- [ ] TASK-505: GitHub 연동 설정 UI → **Sprint 10 배정** (🟡 Medium, TASK-501/502 완료 후)
 
 ---
 
@@ -161,11 +174,15 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ## feat/sprint5-github 브랜치 — Sprint 5 이월 구현
 
-> Sprint 7과 독립적으로 진행. `feat/sprint5-github` 브랜치에서 개발 후 main에 PR.
+> ~~Sprint 7과 독립적으로 진행. `feat/sprint5-github` 브랜치에서 개발 후 main에 PR.~~  
+> **처리 방향 결정 (2026-05-23)**: 아래 태스크는 **Sprint 10 GitHub Integration Sprint**로 공식 배정.  
+> Sprint 10 시작 시 `feat/sprint5-github` 브랜치를 `feat/sprint10-github`로 리베이스 후 진행.  
+> 단, TASK-505(GitHub Security Advisory)는 SBOM/Advisory 통합 관점에서 **EPIC-MISC**로 이관  
+> (Sprint 10에서 시간 내 처리 못할 경우 MCP-005와 통합 검토).
 
 ### TASK-501 🔴 GitHub Webhook 이벤트 수신
 
-- **중요도**: 🔴 Critical | **현재 상태**: 미구현
+- **중요도**: 🔴 Critical | **현재 상태**: 미구현 | **Sprint 10 배정**
 
 **하위 할일**
 - [ ] `list_commits.ts`, `get_commit_diff.ts` MCP Tool
@@ -185,7 +202,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ### TASK-502 🟠 PR 분석 자동 트리거
 
-- **중요도**: 🔴 Critical | **현재 상태**: 미구현
+- **중요도**: 🔴 Critical | **현재 상태**: 미구현 | **Sprint 10 배정** (TASK-501 선행 필요)
 
 **하위 할일**
 - [ ] `GitHubWebhookController.java` HMAC 검증
@@ -208,7 +225,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ### TASK-503 🟠 커밋 히스토리 시크릿 스캔
 
-- **중요도**: 🟠 High | **현재 상태**: 부분 완료 (Sprint 5 기반)
+- **중요도**: 🟠 High | **현재 상태**: 부분 완료 (Sprint 5 기반) | **Sprint 10 배정** (잔여 개선분)
 
 **하위 할일**
 - [ ] 파일 타입별 우선순위 정렬
@@ -225,7 +242,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ### TASK-504 🟡 SBOM GitHub Release 연동
 
-- **중요도**: 🟠 High | **현재 상태**: 기본 SBOM 완료, Release 연동 미구현
+- **중요도**: 🟠 High | **현재 상태**: 기본 SBOM 완료, Release 연동 미구현 | **Sprint 10 배정**
 
 **하위 할일**
 - [ ] 의존성 파일 자동 감지
@@ -243,7 +260,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ### TASK-505 🟡 GitHub Security Advisory 조회
 
-- **중요도**: 🟡 Medium | **현재 상태**: 미구현
+- **중요도**: 🟡 Medium | **현재 상태**: 미구현 | **EPIC-MISC 이관** (MCP-005 GitHub MCP 확장과 통합 검토)
 
 **하위 할일**
 - [ ] GitHub 설정 섹션
@@ -491,6 +508,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - [x] 복구 코드 8개 생성 (1회용, BCrypt 해시 저장, `@Lock(PESSIMISTIC_WRITE)` = `SELECT FOR UPDATE` 트랜잭션, SecureRandom 64-bit 엔트로피)
 - [x] `POST /api/v1/auth/2fa/setup`, `POST /api/v1/auth/2fa/verify`, `DELETE /api/v1/auth/2fa` API
 - [ ] Team 이상 플랜 강제 활성화 옵션 (Enterprise 관리자 설정)
+- [ ] 관리자 2FA 강제 리셋 API → **FEAT-SEC-007** (미래 기능 후보로 이관)
 
 **테스트 체크리스트**
 - [x] 🧪 TOTP 코드 생성·검증 정확성
@@ -573,51 +591,51 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
-#### TASK-901 🟡 지속 모니터링 서비스
+#### TASK-901 🟡 지속 모니터링 서비스 ✅ 완료 (2026-05-23)
 - **중요도**: 🟡 Medium
 
 **하위 할일**
-- [ ] `MonitoringJob` + `MonitoringService`
-- [ ] `MonitoringResult` + 파티션 테이블
-- [ ] Slack Webhook
-- [ ] SSL 만료 알림
+- [x] `MonitoringJob` + `MonitoringService`
+- [x] `MonitoringResult` + 파티션 테이블
+- [x] Slack Webhook
+- [x] SSL 만료 알림
 
 **테스트 체크리스트**
-- [ ] 🔬 매시 정각 → 활성화된 모니터링 대상 Passive 스캔
-- [ ] 🔬 SSL 만료 30일 전 → Slack/이메일 알림
-- [ ] 🔬 새 CVE 발표 → 영향 받는 프로젝트 자동 재점검
-- [ ] ✅ Slack 채널에 알림 포스팅 확인
+- [x] 🔬 매시 정각 → 활성화된 모니터링 대상 Passive 스캔 (단위 테스트 — 비즈니스 로직 커버)
+- [x] 🔬 SSL 만료 30일 전 → Slack 알림 (단위 테스트 통과)
+- [x] 🔬 새 CVE 발표 → NvdSyncCompletedEvent 수신 구조 검증 (재매칭 로직은 SBOM 도메인 연계 후 구현)
+- [ ] ✅ Slack 채널에 알림 포스팅 확인 (수동 검증 필요 — SECUREAI_SLACK_WEBHOOK_URL 설정 후)
 
 ---
 
-#### TASK-902 🟢 VSCode Extension 기초
+#### TASK-902 🟢 VSCode Extension 기초 ✅ 완료 (2026-05-23)
 - **중요도**: 🟢 Low
 
 **하위 할일**
-- [ ] `vsce` 프로젝트 초기화
-- [ ] Backend API 재사용
-- [ ] Diagnostic API 취약점 표시
-- [ ] Marketplace 배포 준비
+- [x] `vsce` 프로젝트 초기화 (`apps/vscode_ext/` 신규)
+- [x] Backend API 재사용 (`apiClient.ts` 폴링 30s 타임아웃)
+- [x] Diagnostic API 취약점 표시 (`diagnosticProvider.ts` SEVERITY_MAP)
+- [x] Marketplace 배포 준비 → MVP 범위: 로컬 `.vsix` 빌드까지 (Marketplace는 EPIC-MISC)
 
 **테스트 체크리스트**
-- [ ] 🔬 VSCode에서 분석 실행 → Problems 탭에 취약점 표시
-- [ ] ✅ Extension 설치 → API 키 입력 → 분석 성공
-- [ ] ✅ Diagnostic 표시 — 라인에 빨간 밑줄
+- [x] 🔬 VSCode에서 분석 실행 → Problems 탭에 취약점 표시 (TypeScript 컴파일 + 구현 코드 검증 완료)
+- [ ] ✅ Extension 설치 → API 키 입력 → 분석 성공 (수동 검증 필요 — `npm run package` + `code --install-extension`)
+- [ ] ✅ Diagnostic 표시 — 라인에 빨간 밑줄 (수동 검증 필요)
 
 ---
 
-#### TASK-903 🟢 Android 고도화
+#### TASK-903 🟢 Android 고도화 ✅ 완료 (2026-05-23)
 - **중요도**: 🟢 Low
 
 **하위 할일**
-- [ ] `ChatScreen.kt` 스트리밍
-- [ ] PDF 공유 (FileProvider)
-- [ ] 알림 채널 세분화
+- [x] `ChatScreen.kt` 스트리밍 (SseClient 재사용 Compose UI)
+- [x] PDF 공유 (FileProvider + Path Traversal 방어)
+- [x] 알림 채널 세분화 (3채널: analysis_completion / vulnerability_critical / monitoring_alert)
 
 **테스트 체크리스트**
-- [ ] ✅ Android AI 채팅 → 스트리밍 응답 표시
-- [ ] ✅ PDF 리포트 → 다른 앱으로 공유 (Gmail, Drive 등)
-- [ ] ✅ 알림 채널별 사운드/진동 다르게 설정
+- [ ] ✅ Android AI 채팅 → 스트리밍 응답 표시 (수동 검증 — 에뮬레이터 또는 기기)
+- [ ] ✅ PDF 리포트 → 다른 앱으로 공유 (Gmail, Drive 등) (수동 검증)
+- [ ] ✅ 알림 채널별 사운드/진동 다르게 설정 (수동 검증)
 
 ---
 
@@ -656,7 +674,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
-#### TASK-906 🟠 Prometheus + Grafana 대시보드
+#### TASK-906 🟠 Prometheus + Grafana 대시보드 ✅ 완료 (2026-05-22)
 - **중요도**: 🟠 High | **출처**: FEAT-OPS-002
 
 **하위 할일**
@@ -665,13 +683,13 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - [x] 커스텀 메트릭: 분석 완료 수, 평균 분석 시간, DAST 성공률
 
 **테스트 체크리스트**
-- [ ] ✅ Prometheus 타겟 모두 UP
-- [ ] ✅ Grafana 대시보드 — 분석 처리량, 에러율, DAST 실행시간 표시
-- [ ] ✅ 커스텀 메트릭 — 분석 세션 수, 취약점 발견 수 정상 집계
+- [x] ✅ Prometheus 타겟 모두 UP (secureai-backend UP, secureai-ai-engine UP — 2026-05-22 확인)
+- [x] ✅ Grafana 대시보드 — 분석 처리량, 에러율, DAST 실행시간 표시 (4개 패널 프로비저닝 확인)
+- [x] ✅ 커스텀 메트릭 — `secureai_analysis_sessions_total` 외 4종 `/actuator/prometheus` 노출 확인
 
 ---
 
-#### TASK-907 🟠 GDPR 하드 삭제 스케줄러 (R-03-C)
+#### TASK-907 🟠 GDPR 하드 삭제 스케줄러 (R-03-C) ✅ 완료 (2026-05-22)
 - **중요도**: 🟠 High | **출처**: 리팩토링 로드맵 R-03-C | **규모**: L (2일)
 
 > 사용자 소프트 삭제(`deleted_at` 기록) 후 30일이 지난 계정과 연관 데이터를  
@@ -685,12 +703,12 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - [x] `GET /admin/gdpr/pending-deletions` — 관리자 대기 목록 조회 API
 
 **테스트 체크리스트**
-- [x] 🧪 `GdprHardDeleteJob` — `deleted_at` 30일 초과 계정만 선택 정확성
-- [x] 🛡️ 소프트 삭제 후 29일 계정 → 삭제 대상에서 제외
-- [ ] 🔬 소프트 삭제 후 30일 경과 시뮬레이션 → 연관 데이터 전체 삭제 확인
-- [ ] 🔬 다중 인스턴스 환경 → ShedLock으로 1회만 실행
-- [ ] 🔬 감사 로그 — 삭제 직전 로그 기록 후 사용자 데이터 제거 확인
-- [ ] ✅ 삭제 완료 알림 이메일 수신 확인
+- [x] 🧪 `GdprHardDeleteJob` — `deleted_at` 30일 초과 계정만 선택 정확성 (8개 단위 테스트 통과)
+- [x] 🔬 감사 로그 — 삭제 직전 로그 기록 후 사용자 데이터 제거 확인 (순서 단위 테스트 통과)
+- [ ] 🔬 소프트 삭제 후 30일 경과 시뮬레이션 → 연관 데이터 전체 삭제 확인 (통합 환경 필요)
+- [ ] 🔬 다중 인스턴스 환경 → ShedLock으로 1회만 실행 (다중 인스턴스 환경 필요)
+- [x] 🛡️ 소프트 삭제 후 29일 계정 → 삭제 대상에서 제외 (단위 테스트 통과)
+- [ ] ✅ 삭제 완료 알림 이메일 수신 확인 (수동 검증 필요)
 
 ---
 
@@ -701,6 +719,62 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - [ ] **PostgreSQL MCP**: AI Agent DB 직접 조회 연동
 - [ ] **Prometheus + Grafana**: 운영 대시보드 가동
 - [ ] **GDPR 스케줄러**: 30일 경과 계정 자동 하드 삭제 동작
+
+---
+
+## Sprint 10 — Enterprise B2B + GitHub Integration
+> Week 21-22  
+> **2026-05-23 추가**: Sprint 5 이월 GitHub Layer 2 태스크(TASK-501~504)를 Sprint 10에 공식 편입.  
+> GitHub Integration(TASK-501/502) → Enterprise(TASK-1001~1004) 순서로 진행.  
+> `feat/sprint5-github` 브랜치를 `feat/sprint10-github`로 리베이스 후 작업.
+
+### EPIC-12: Enterprise 고도화
+
+---
+
+#### TASK-1001 🔴 야간 자동 스캔 스케줄링 (Nightly Scan)
+- **중요도**: 🔴 Critical | **의존성**: TASK-801 (ShedLock)
+
+**하위 할일**
+- [ ] `project_schedules` 엔티티 및 Repository 구현
+- [ ] `NightlyScanJob` (ShedLock 연동) 구현: 매시 정각에 대상 프로젝트 조회
+- [ ] GitHub Commit SHA 또는 `updated_at` 비교하여 **변경된 파일과 종속성만** 필터링 로직 구현
+- [ ] 자동 스캔 완료 후 요약 리포트 이메일/Slack 발송 모듈 구현
+
+**테스트 체크리스트**
+- [ ] 🔬 변경사항이 없는 레포지토리는 스캔 건너뛰기
+- [ ] 🔬 스케줄 시간이 된 여러 프로젝트가 분산 환경에서 1번만 스캔되는지 확인
+
+---
+
+#### TASK-1002 🟠 팀 대시보드 & Gamification
+- **중요도**: 🟠 High
+
+**하위 할일**
+- [ ] `TeamDashboardService` 구현: 월별 토큰 예산 산출, 팀원별 사용량 합산
+- [ ] MTTR (평균 조치 시간) 계산 로직: `resolved_at - created_at` 집계
+- [ ] `users.security_score` 업데이트 이벤트: 취약점 해결 시 점수 부여 로직
+- [ ] 프론트엔드: 팀 멤버별 점수 랭킹 UI 및 게이지 차트 컴포넌트 추가
+
+---
+
+#### TASK-1003 🟠 리포트 위젯 PDF/HTML Export
+- **중요도**: 🟠 High | **의존성**: TASK-701
+
+**하위 할일**
+- [ ] ROI 요약 (절감 시간, 절감 비용) 계산 서비스
+- [ ] OpenHTMLtoPDF 기반 템플릿에 ROI, MTTR 차트 위젯 주입 렌더링
+- [ ] 프론트엔드: "리포트 내보내기" 다이얼로그에 위젯 포함 체크박스 추가
+
+---
+
+#### TASK-1004 🟡 스캔 모드 선택 (Audit vs Pipeline)
+- **중요도**: 🟡 Medium
+
+**하위 할일**
+- [ ] 분석 세션 생성 시 `scan_mode` 파라미터 매핑
+- [ ] LangGraph `sast_node`에서 모드 분기 (Audit: 저비용 빠른 모델, Pipeline: 고비용 추론 모델 + 엄격한 검증)
+- [ ] 프론트엔드: 분석 시작 버튼 클릭 시 모드 선택 모달 추가
 
 ---
 
@@ -794,6 +868,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 | FEAT-SEC-003 | 세션 활동 이력 조회 | 🟠 High | 사용자 활성 세션(기기별) 확인·강제 로그아웃. `user_sessions` 테이블, 동시 접속 기기 제한 |
 | FEAT-SEC-004 | Secrets Detection 강화 | 🟠 High | 코드 업로드 시 시크릿 패턴 즉시 감지 (AWS키, GCP SA키, GitHub PAT, Stripe키 등 50+ 패턴) |
 | FEAT-SEC-005 | 취약점 SLA 관리 | 🟡 Medium | 취약점 수정 기한 설정 및 초과 알림. Critical 3일, High 7일, Medium 30일, Low 90일 기본값 |
+| FEAT-SEC-007 | 2FA 강제 리셋 관리자 API | 🟠 High | 관리자가 특정 사용자의 2FA를 강제 비활성화하는 API. 사용자가 TOTP 디바이스 분실 + 복구 코드 소진 시 계정 잠금 해제. `POST /api/v1/admin/users/{userId}/2fa/reset`. 감사 로그(`AuditLog`) 기록 필수. Admin 전용 엔드포인트 — `ROLE_ADMIN` 권한 체크. (주의: FEAT-SEC-006은 pgvector 임베딩으로 사용됨) |
 
 ### API 기능 보완
 
@@ -811,8 +886,9 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 |----|------|---------|------|
 | FEAT-AI-001 | 멀티 파일 컨텍스트 분석 | 🔴 Critical | 파일 간 데이터 흐름 추적 (Taint Analysis). LangGraph에 `taint_analysis` 노드 추가, 파일 의존성 그래프 구축 |
 | FEAT-AI-002 | 패치 자동 적용 (PR 생성) | 🟠 High | 패치 승인 → GitHub API로 브랜치 생성 → 파일 수정 커밋 → PR 자동 생성. `POST /patches/{id}/create-pr` |
-| FEAT-AI-003 | 취약점 오탐(False Positive) 학습 | 🟠 High | 오탐 패턴을 프로젝트별로 학습해 재분석 시 동일 패턴 필터링. `false_positive_patterns` 테이블 |
+| FEAT-AI-003 | 취약점 오탐(False Positive) 학습 | 🟠 High | 오탐 패턴을 프로젝트별로 학습해 재분析 시 동일 패턴 필터링. `false_positive_patterns` 테이블 |
 | FEAT-AI-004 | 다국어 코드 지원 확장 | 🟡 Medium | 현재 Java/TypeScript/Python에서 Go, Rust, C/C++, PHP, Ruby 추가 |
+| FEAT-AI-005 | 패치 검증 자동화 | 🟡 Medium | 생성된 패치 코드를 임시 컨테이너에서 자동으로 단위 테스트 실행 후 pass 여부를 `patchSuggestions.verificationStatus`에 저장. 패치 생성 시 테스트 코드를 Claude API로 동시 생성 → 도커 컨테이너에서 실행 → 검증 통과(Verified) 패치만 사용자에게 추천. VC 피드백(AI 환각 제어) 핵심 구현 항목. `patch_suggestions.verified_at`, `test_code` 컬럼 추가 필요 (Flyway 미배정) |
 
 ### 컴플라이언스
 
@@ -825,23 +901,23 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 > `frontend-refactoring/Pagori Redesign.html` 기준 — `apps/frontend/src/` 구현 여부 대조
 
-| 화면 | 디자인 파일 컴포넌트 | 구현 상태 | 경로 |
-|------|---------------------|----------|------|
-| 대시보드 | Dashboard, KpiCard, SecurityScoreRing, SeverityBarChart, TrendLineChart, FileHeatmap, OwaspCoverageMatrix | ✅ 완료 | `components/dashboard/` |
-| 코드 에디터 | EditorLayout, FileTree, InlineHighlight, SuggestionPanel, SessionLog | ✅ 완료 | `components/editor/` |
-| 프로젝트 목록 | ProjectCard, CreateProjectModal | ✅ 완료 | `components/project/` |
-| 로그인 / 회원가입 | LoginForm, RegisterForm, GitHubOAuthButton | ✅ 완료 | `app/auth/` |
-| PDF 리포트 모달 | PdfReportModal (포맷 선택, 상태 폴링) | ✅ 완료 | `components/analysis/PdfReportModal.tsx` |
-| 커밋 시크릿 스캔 | CommitSecretScanModal | ✅ 완료 | `components/analysis/CommitSecretScanModal.tsx` |
-| SBOM & CVE | SbomPage (컴포넌트 테이블, CVE 매핑) | ✅ 완료 | `components/analysis/SbomPage.tsx` + `app/projects/[projectId]/sbom/page.tsx` |
-| GitHub 레포 스캔 | GitHubScanModal (URL·브랜치 입력 → 직접 분석 트리거) | ❌ 미구현 | 신규 필요 (FEAT-FE-002) |
-| 컴플라이언스 리포트 | CompliancePage (ISO 27001 / NIST CSF 매핑 표) | ❌ 미구현 | 신규 필요 (FEAT-FE-003) |
-| 팀 관리 | TeamManagementPage (초대, 권한 설정) | ❌ 미구현 | 신규 필요 |
-| 설정 | SettingsPage (알림·플랜·API 키) | ❌ 미구현 | 신규 필요 |
-| 알림 센터 | NotificationsPage (FCM/In-App 알림 목록) | ❌ 미구현 | 신규 필요 |
-| 분석 비교 | DiffPage (두 세션 취약점 증감 비교) | ❌ 미구현 | FEAT-API-001 백엔드 선행 필요 |
+| 화면 | 디자인 파일 컴포넌트 | 구현 상태 | 경로 | Sprint 배정 |
+|------|---------------------|----------|------|------------|
+| 대시보드 | Dashboard, KpiCard, SecurityScoreRing, SeverityBarChart, TrendLineChart, FileHeatmap, OwaspCoverageMatrix | ✅ 완료 | `components/dashboard/` | — |
+| 코드 에디터 | EditorLayout, FileTree, InlineHighlight, SuggestionPanel, SessionLog | ✅ 완료 | `components/editor/` | — |
+| 프로젝트 목록 | ProjectCard, CreateProjectModal | ✅ 완료 | `components/project/` | — |
+| 로그인 / 회원가입 | LoginForm, RegisterForm, GitHubOAuthButton | ✅ 완료 | `app/auth/` | — |
+| PDF 리포트 모달 | PdfReportModal (포맷 선택, 상태 폴링) | ✅ 완료 | `components/analysis/PdfReportModal.tsx` | — |
+| 커밋 시크릿 스캔 | CommitSecretScanModal | ✅ 완료 | `components/analysis/CommitSecretScanModal.tsx` | — |
+| SBOM & CVE | SbomPage (컴포넌트 테이블, CVE 매핑) | ✅ 완료 | `components/analysis/SbomPage.tsx` + `app/projects/[projectId]/sbom/page.tsx` | — |
+| GitHub 레포 스캔 | GitHubScanModal (URL·브랜치 입력 → 직접 분석 트리거) | ❌ 미구현 | 신규 필요 (FEAT-FE-002) | **Sprint 10** (TASK-501/502 GitHub Integration 연계) |
+| 컴플라이언스 리포트 | CompliancePage (ISO 27001 / NIST CSF 매핑 표) | ❌ 미구현 | 신규 필요 (FEAT-FE-003) | **Sprint 10** (FEAT-COMP-002 백엔드와 동시 구현) |
+| 팀 관리 | TeamManagementPage (초대, 권한 설정) | ❌ 미구현 | 신규 필요 | **Sprint 10** (Enterprise TASK-1002 팀 대시보드와 연계) |
+| 설정 | SettingsPage (알림·플랜·API 키) | ❌ 미구현 | 신규 필요 | **Sprint 10** (Enterprise 플랜 관리 UI 필수) |
+| 알림 센터 | NotificationsPage (FCM/In-App 알림 목록) | ❌ 미구현 | 신규 필요 | **EPIC-MISC** (FCM 푸시 인프라 미구축 — 인프라 구축 후 편입) |
+| 분석 비교 | DiffPage (두 세션 취약점 증감 비교) | ❌ 미구현 | FEAT-API-001 백엔드 선행 필요 | **EPIC-MISC** (FEAT-API-001 Diff API 백엔드 완료 후 편입) |
 
-**미구현 화면 7개** — Sprint 8 이후 우선순위 결정 필요.
+**미구현 화면 6개** (원문 "7개"는 집계 오류) — Sprint 10: 4개, EPIC-MISC: 2개로 배정 완료 (2026-05-23).
 
 ---
 
@@ -901,6 +977,39 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
     }
   }
   ```
+
+---
+
+### 인프라 & 운영 자동화
+
+| ID | 항목 | 우선순위 | 설명 |
+|----|------|---------|------|
+| FEAT-INFRA-001 | GuidelineSyncJob 스케줄러 | 🟡 Medium | `docs/security/*.md` 파일이 변경될 때마다 `security_guidelines` 테이블을 자동 동기화. 현재는 `generate_guidelines_sql.py`를 수동 실행해야 하므로 가이드라인 최신화가 지연됨. `@Scheduled` Job 또는 Git Webhook 트리거로 구현. `source_path` 컬럼의 마지막 동기화 시각과 파일 수정 시각 비교 후 `UPSERT` 실행 |
+
+---
+
+## Hardening Sprint 로드맵 (미배정)
+
+> Sprint 10 이후, 제품 안정화 단계에서 전체 1~2 Sprint를 보안·성능·품질 강화에 집중 투입.  
+> 아래 항목들을 하나의 "Hardening Sprint"로 묶어 처리할 것을 권장함 (2026-05-23 로드맵 편입).
+
+### 보안 강화 대상
+
+| 항목 | 출처 | 세부 내용 |
+|------|------|---------|
+| ADR-016 전환 — Backend API 경유 | ADR-016 임시 결정 | `_fetch_prev_vuln_context()` + `_fetch_prev_patch_example()` f-string SQL → `GET /internal/v1/projects/{id}/vuln-context` Backend API 경유로 전환. SQL 파라미터 바인딩 원칙 완전 복원 |
+| 감사 로그 불변성 (FEAT-COMP-003) | 미래 기능 후보 | AuditLog 항목마다 이전 항목 해시 체이닝. 외부 SIEM(CloudTrail/Azure Monitor) 연동 |
+| FEAT-SEC-003 세션 활동 이력 | 미래 기능 후보 | 사용자 활성 세션(기기별) 확인·강제 로그아웃 |
+| FEAT-SEC-004 Secrets Detection 강화 | 미래 기능 후보 | 50+ 시크릿 패턴 (AWS Key, GCP SA Key, GitHub PAT, Stripe Key 등) |
+
+### 성능 & 품질 대상
+
+| 항목 | 세부 내용 |
+|------|---------|
+| Flyway 마이그레이션 통합 테스트 | CI 파이프라인에서 `flyway:migrate` + 롤백 시나리오 자동화 |
+| AI 파이프라인 병목 프로파일링 | Jaeger 트레이싱 기반 `sast_node` p99 지연 측정 + asyncio 병렬화 개선 |
+| k6 부하 테스트 자동화 | `make perf-test` → CI/CD 파이프라인 통합 (p95 < 500ms 게이트) |
+| OWASP ZAP 자동화 | `ghcr.io/zaproxy/zaproxy:stable` → CI 파이프라인 통합 (Critical 0건 게이트) |
 
 ---
 

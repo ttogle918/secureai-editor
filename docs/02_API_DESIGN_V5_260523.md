@@ -1,8 +1,17 @@
-# SecureAI — REST API 설계서 v3.0
-> 기준: Sprint 4 완료 + TASK-306 (보안 가이드라인 DB) 완료  
-> 작성일: 2026-05-06  
-> 이전 버전: `02_API_DESIGN_V2.md` (Sprint 2 기준)  
-> 변경 요약: Chat API 추가, Workspace API 추가, Patches API 추가, Progress API 추가, 에러 코드 확장, SSE 이벤트 명세 완성
+# SecureAI — REST API 설계서 v5.0
+> 기준: Sprint 10 (Enterprise 기능 고도화 반영)  
+> 작성일: 2026-05-22  
+> **정본 지정일**: 2026-05-23 | 구버전(`02_API_DESIGN.md` ~ `V4`) 아카이브 완료
+
+## 버전 이력
+
+| 버전 | 기준일 | 주요 변경 |
+|------|--------|---------|
+| V1 | 2026-04-19 | 초기 API 설계 — Auth, Users, Projects, Analysis Sessions, SSE, Chat, Patches, Workspace (8개 그룹) |
+| V2 | 2026-04 (Sprint 3) | SAST 파이프라인 API 상세 추가, CVE 조회 API, SBOM 파서 인터페이스 |
+| V3 | 2026-04 (Sprint 5/6) | DAST API 추가 (도메인 소유권 확인, 샌드박스 실행, SSE 스트리밍). GitHub Webhook API |
+| V4 | 2026-05-21 (Sprint 8) | 2FA API, IP Allowlist API, GDPR Export/Delete API, 보안 문서 생성 API (CISO/ISMS-P/행안부), SBOM 경로 변경(`/projects/{id}/sbom/components`) |
+| **V5 (현재)** | 2026-05-22 (Sprint 10) | 위젯 리포트 Export, 팀 대시보드(Gamification·MTTR·ROI), 스캔 모드 선택, 야간 자동 스캔 스케줄링 API 추가 |
 
 ---
 
@@ -19,8 +28,11 @@
 9. [Workspace API](#9-workspace-api-인증-불필요)
 10. [Progress API](#10-progress-api)
 11. [AI Engine API (내부)](#11-ai-engine-api-내부)
-12. [에러 코드 전체 목록](#12-에러-코드-전체-목록)
-13. [변경 이력](#13-변경-이력)
+12. [AI 검증 & DAST 샌드박스 API (신규)](#12-ai-검증--dast-샌드박스-api-신규)
+13. [토큰 사용량 & 대시보드 API (Enterprise)](#13-토큰-사용량--대시보드-api-enterprise)
+14. [야간 자동 스캔 스케줄링 API (신규)](#14-야간-자동-스캔-스케줄링-api-신규)
+15. [에러 코드 전체 목록](#15-에러-코드-전체-목록)
+16. [변경 이력](#16-변경-이력)
 
 ---
 
@@ -610,7 +622,8 @@ Content-Type: application/json
 {
   "projectId": "550e8400-e29b-41d4-a716-446655440000",
   "workspaceRoot": "ws_abc123",
-  "sourceType": "local"
+  "sourceType": "local",
+  "scanMode": "audit"
 }
 ```
 
@@ -621,11 +634,13 @@ Content-Type: application/json
   "workspaceRoot": null,
   "sourceType": "github",
   "githubRepoUrl": "https://github.com/myorg/my-spring-app",
-  "githubRef": "main"
+  "githubRef": "main",
+  "scanMode": "pipeline"
 }
 ```
 
 `sourceType` 허용값: `local` | `github`  
+`scanMode` 허용값: `audit` (종합 감사, 저비용 모델) | `pipeline` (고정밀 선별, 고비용 추론형 모델)
 `workspaceRoot`는 `sourceType: local`일 때 Workspace API로 업로드한 `workspaceId`이다.
 
 **Response** `201 Created`
@@ -1377,7 +1392,181 @@ GET /health
 
 ---
 
-## 12. 에러 코드 전체 목록
+## 12. AI 검증 & DAST 샌드박스 API (신규)
+
+Base path: `/api/v1/sandbox`  
+인증: `Authorization: Bearer {accessToken}` 필수
+
+### 12.1 단위 테스트 자동 생성 및 검증 (Hallucination 제어)
+
+AI가 생성한 패치 코드가 기존 로직을 훼손하지 않는지 단위 테스트를 자동 생성하고 실행하여 검증한다.
+
+```http
+POST /api/v1/sessions/{sessionId}/patches/{patchId}/verify
+Authorization: Bearer {accessToken}
+```
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "patchId": "uuid",
+    "verified": true,
+    "testResults": {
+      "passed": 5,
+      "failed": 0,
+      "coverage": 95.5
+    },
+    "message": "패치 코드가 기존 비즈니스 로직을 통과했습니다."
+  }
+}
+```
+
+---
+
+### 12.2 DAST 샌드박스 대기열 상태 확인 (자원 관리)
+
+DAST 분석 요청이 몰릴 경우 호스트 자원 고갈을 막기 위해 큐잉된 상태를 조회한다.
+
+```http
+GET /api/v1/sandbox/queue/status
+Authorization: Bearer {accessToken}
+```
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "activeContainers": 3,
+    "maxContainers": 5,
+    "queueLength": 2,
+    "estimatedWaitTimeMs": 45000
+  }
+}
+```
+
+---
+
+## 13. 토큰 사용량 & 대시보드 API (Enterprise)
+
+### 13.1 팀별 대시보드 (Gamification, ROI, MTTR)
+
+Base path: `/api/v1/teams`
+
+```http
+GET /api/v1/teams/{teamId}/dashboard
+Authorization: Bearer {accessToken}
+```
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "teamId": "uuid",
+    "month": "2026-05",
+    "budget": {
+      "monthlyBudgetUsd": 50.0,
+      "costUsd": 4.5,
+      "isAlertTriggered": false
+    },
+    "members": [
+      {
+        "userId": "uuid",
+        "username": "dev1",
+        "securityScore": 850,
+        "patchedCount": 12,
+        "tokenUsage": 120000
+      }
+    ],
+    "metrics": {
+      "averageMttrSeconds": 172800,
+      "roi": {
+        "timeSavedHours": 120,
+        "costSavedUsd": 6000
+      }
+    }
+  }
+}
+```
+
+---
+
+### 13.2 보안 문서 및 위젯 리포트 생성 (Export)
+
+Base path: `/api/v1/projects`
+
+```http
+POST /api/v1/projects/{projectId}/reports/export
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+```
+
+**Request**
+```json
+{
+  "reportType": "ISMS_P",
+  "format": "pdf",
+  "includeWidgets": ["roi_summary", "mttr_trend", "owasp_coverage"]
+}
+```
+
+**Response** `202 Accepted`
+```json
+{
+  "success": true,
+  "data": {
+    "reportId": "uuid",
+    "status": "processing",
+    "downloadToken": "secure-random-token",
+    "message": "위젯이 포함된 보안 리포트 생성을 시작했습니다."
+  }
+}
+```
+
+---
+
+## 14. 야간 자동 스캔 스케줄링 API (신규)
+
+Base path: `/api/v1/projects`
+
+### 14.1 스케줄링 설정 (Nightly Scan)
+
+```http
+POST /api/v1/projects/{projectId}/schedules
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+```
+
+**Request**
+```json
+{
+  "cronExpression": "0 2 * * *",
+  "targetBranch": "main",
+  "scanMode": "audit",
+  "onlyModified": true
+}
+```
+`onlyModified`: `true`인 경우, 마지막 스캔 시점 이후 변경된 파일과 연관 종속성만 분석하여 비용을 최소화함.
+
+**Response** `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "scheduleId": "uuid",
+    "cronExpression": "0 2 * * *",
+    "nextRunAt": "2026-05-23T02:00:00Z",
+    "isActive": true
+  }
+}
+```
+
+---
+
+## 14. 에러 코드 전체 목록
 
 ### 12.1 Auth 에러
 
@@ -1445,10 +1634,11 @@ GET /health
 
 ---
 
-## 13. 변경 이력
+## 15. 변경 이력
 
 | 버전 | 기준 스프린트 | 작성일 | 변경 내용 |
 |------|-------------|--------|-----------|
 | v1.0 | Sprint 1 완료 | 2026-04-12 | Auth, Users, Projects API 초안 |
 | v2.0 | Sprint 2 완료 | 2026-04-28 | 분석 세션 확장 (resume, cancel), AI Engine API, 에러 코드 추가 |
 | v3.0 | Sprint 4 + TASK-306 완료 | 2026-05-06 | Chat API 추가, Workspace API 추가, Patches API 추가, Progress API 추가, SSE 이벤트 명세 완성, 에러 코드 4종 신규 (`PROJECT_ACCESS_DENIED`, `SESSION_NOT_RESUMABLE`, `AUTH_OAUTH_STATE_INVALID`, `CHAT_SESSION_NOT_FOUND`) |
+| v4.0 | Sprint 8 완료 (피드백 반영) | 2026-05-22 | AI 환각 방지(verify) API, DAST 샌드박스 상태조회 API, 토큰 사용량/비용 모니터링 API, 보안 문서 생성 API 추가 |

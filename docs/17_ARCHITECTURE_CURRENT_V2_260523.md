@@ -1,7 +1,16 @@
-# SecureAI — 현재 아키텍처 개요
-> 기준: Sprint 4 완료 + TASK-306 (보안 가이드라인 DB) 완료  
-> 작성일: 2026-05-06  
-> 완료된 스프린트: Sprint 0, 1, 2, 3, 4 + TASK-306
+# SecureAI — 현재 아키텍처 개요 v3.0
+> 기준: Sprint 9 완료  
+> 작성일: 2026-05-22 | 최종 업데이트: 2026-05-23  
+> 완료된 스프린트: Sprint 0 ~ Sprint 9  
+> **정본 지정일**: 2026-05-23 | 구버전(`16_ARCHITECTURE_CURRENT.md`) 아카이브 완료
+
+## 버전 이력
+
+| 버전 | 파일명 | 기준일 | 주요 변경 |
+|------|--------|--------|---------|
+| V1 | `16_ARCHITECTURE_CURRENT.md` | Sprint 6 완료 | 초기 아키텍처 스냅샷 — SAST+DAST+SSE 파이프라인, Sprint 1~6 기준, pgvector 임베딩, Redis 키 구조, 인증 흐름 |
+| V2 | `17_ARCHITECTURE_CURRENT_V2.md` | 2026-05-22 | Sprint 8 완료 기준 전면 개편: Nginx API Gateway, Jaeger 분산 트레이싱, 2FA/IP Allowlist/GDPR 보안 강화, VC 피드백 3항목(AI 환각 제어·DAST 자원 통제·API 토큰 Hard Limit) 대응 |
+| **V3 (현재)** | `17_ARCHITECTURE_CURRENT_V2_260523.md` | 2026-05-23 | Sprint 9 완료 기준 업데이트: PostgreSQL MCP + Docker DAST MCP 전환, Prometheus+Grafana 관측성 추가, GDPR 소프트→하드 삭제 분리, 지속 모니터링 서비스(MonitoringJob), VSCode Extension MVP, Android 고도화 |
 
 ---
 
@@ -18,6 +27,7 @@
 9. [Redis 키 구조](#9-redis-키-구조)
 10. [인증 흐름](#10-인증-흐름)
 11. [기술 스택 상세](#11-기술-스택-상세)
+12. [VC 피드백 대응 (보안/인프라 전략)](#12-vc-피드백-대응-보안인프라-전략)
 
 ---
 
@@ -27,41 +37,62 @@
 graph LR
     subgraph CLIENT["클라이언트"]
         Browser["브라우저\n(Next.js 15, port 3000)"]
+        VSCode["VSCode Extension\n(secureai-0.1.0.vsix)"]
+        Android["Android App\n(Kotlin + Compose)"]
     end
 
     subgraph APPNET["app-net"]
+        Nginx["Nginx\nAPI Gateway (:80/443)"]
         Frontend["Frontend\nNext.js 15\n:3000"]
-        Backend["Backend\nSpring Boot 4\n:8080"]
+        Backend["Backend\nSpring Boot 4\n:8080\nResilience4j CB"]
+        Prometheus["Prometheus\n:9090"]
+        Grafana["Grafana\n:3000(내부)"]
     end
 
     subgraph DATANET["data-net"]
-        AI["AI Engine\nFastAPI + LangGraph\n:8000"]
-        Postgres["PostgreSQL 15\n:5432"]
+        AI["AI Engine\nFastAPI + LangGraph\n:8000 (expose only)"]
+        Postgres["pgvector:15\n:5432"]
         Redis["Redis 7\n:6379"]
     end
 
-    subgraph DASTNET["dast-net (격리, Sprint 6)"]
-        DAST["DAST 샌드박스\n(미구현)"]
+    subgraph DASTNET["dast-net (격리)"]
+        DAST["DAST 샌드박스 큐\n(호스트 자원 제어)"]
+    end
+
+    subgraph TRACENET["trace-net"]
+        Jaeger["Jaeger (OpenTelemetry)"]
     end
 
     subgraph EXTERNAL["외부"]
-        ClaudeAPI["Anthropic Claude API\n(Haiku)"]
+        ClaudeAPI["Anthropic Claude API\n(Haiku/Sonnet)"]
         GitHubAPI["GitHub API"]
-        MCP["MCP Server\nNode.js :3100"]
+        SlackAPI["Slack Webhook\n(모니터링 알림)"]
     end
 
-    Browser -->|"HTTP/SSE"| Frontend
-    Frontend -->|"REST/SSE\nBearer Token"| Backend
+    Browser -->|"HTTP/SSE"| Nginx
+    VSCode -->|"SAST API\nJWT Bearer"| Nginx
+    Android -->|"HTTPS/SSE"| Nginx
+    Nginx --> Frontend
+    Nginx -->|"REST/SSE\nBearer Token"| Backend
     Backend -->|"X-Internal-Key"| AI
     Backend --- Postgres
     Backend --- Redis
     AI --- Postgres
     AI --- Redis
     AI -->|"Claude API"| ClaudeAPI
-    AI -->|"MCP Protocol"| MCP
-    MCP -->|"GitHub API"| GitHubAPI
+    AI -.->|"MCP subprocess\n(filesystem + DAST)"| Backend
     Backend -->|"GitHub OAuth"| GitHubAPI
+    Backend -.->|"OTLP"| Jaeger
+    AI -.->|"OTLP"| Jaeger
+    Prometheus -.->|"scrape /actuator/prometheus"| Backend
+    Prometheus -.->|"scrape /metrics"| AI
+    Grafana -->|"query"| Prometheus
+    Backend -.->|"SSL 만료·DOWN 알림"| SlackAPI
 ```
+
+> **Sprint 9 변경**: AI Engine 포트가 `ports: 8000` → `expose: 8000`으로 전환되어 외부 직접 접근 차단.  
+> MCP Server는 별도 컨테이너 없이 AI Engine subprocess(stdio)로 실행.  
+> `@modelcontextprotocol/server-postgres`(v0.6.2)는 `npx -y` 방식으로 AI Engine이 on-demand 기동.
 
 ### 1.1 서비스 포트 요약
 
@@ -69,21 +100,27 @@ graph LR
 |--------|------|------|---------|
 | Frontend | Next.js 15, React 18 | 3000 | app-net |
 | Backend | Spring Boot 4, Java 21 | 8080 | app-net, data-net |
-| AI Engine | Python 3.12, FastAPI + LangGraph | 8000 | data-net |
-| MCP Server | Node.js | 3100 | data-net |
-| PostgreSQL | postgres:15-alpine | 5432 | data-net |
+| AI Engine | Python 3.12, FastAPI + LangGraph | 8000 (내부 전용) | data-net |
+| MCP Server (filesystem/DAST) | Node.js subprocess | — | AI Engine 내부 |
+| MCP Server (PostgreSQL RO) | npx subprocess | — | AI Engine 내부 |
+| PostgreSQL | pgvector/pgvector:pg15 | 5432 | data-net |
 | Redis | redis:7-alpine | 6379 | data-net |
+| Jaeger | jaegertracing/all-in-one | 16686, 4317 | trace-net |
+| Prometheus | prom/prometheus | 9090 | app-net |
+| Grafana | grafana/grafana | 3000 (내부) | app-net |
 
 ### 1.2 네트워크 격리 정책
 
 | 네트워크 | 구성원 | 목적 |
 |---------|-------|------|
-| `app-net` | Frontend, Backend | 클라이언트 요청 처리 |
+| `app-net` | Nginx, Frontend, Backend, Prometheus, Grafana | 클라이언트 요청 처리, 관측성 |
 | `data-net` | Backend, AI Engine, PostgreSQL, Redis | 데이터 레이어 통신 |
-| `dast-net` | DAST 샌드박스 (Sprint 6 예정) | DAST 실행 격리 |
+| `trace-net` | Backend, AI Engine, Jaeger | OpenTelemetry 트레이싱 |
+| `dast-net` | DAST 샌드박스 컨테이너 | DAST 실행 격리 |
 
 Frontend는 `data-net`에 속하지 않으므로 PostgreSQL, Redis에 직접 접근할 수 없다.  
-AI Engine은 `app-net`에 속하지 않으므로 외부 클라이언트가 직접 접근할 수 없다.
+AI Engine은 `app-net`에 속하지 않으므로 외부 클라이언트가 직접 접근할 수 없다.  
+AI Engine의 `expose: 8000`은 Docker 내부 네트워크에서만 접근 가능 (호스트 포트 바인딩 없음).
 
 ---
 
@@ -594,11 +631,11 @@ graph TD
 | Sprint 3 | Week 07-08 | SAST 파이프라인 & GitHub 레포 스캔 | 완료 |
 | Sprint 4 | Week 09-10 | 웹 에디터 UI & 실시간 SSE | 완료 |
 | TASK-306 | 2026-05-06 | 보안 가이드라인 DB & SAST 주입 | 완료 |
-| Sprint 5 | Week 11-12 | GitHub Layer 2 완성 | 예정 |
-| Sprint 6 | Week 13-14 | DAST 엔진 & Docker 샌드박스 | 예정 |
-| Sprint 7 | Week 15-16 | 리포트 & 대시보드 & Android MVP | 예정 |
-| Sprint 8 | Week 17-18 | 안정화 & 성능 최적화 | 예정 |
-| Sprint 9 | Week 19-20 | VSCode Extension & 지속 모니터링 | 예정 |
+| Sprint 5 | Week 11-12 | GitHub 연동 고도화 (Webhooks) | 완료 |
+| Sprint 6 | Week 13-14 | DAST 엔진 & Docker 샌드박스 제어 | 완료 |
+| Sprint 7 | Week 15-16 | 리포트 & 대시보드 & Android MVP | 완료 |
+| Sprint 8 | Week 17-18 | 안정화 & 성능 최적화, 보안 피드백 반영 | 완료 |
+| Sprint 9 | Week 19-20 | MCP 전환 + 관측성 + GDPR + 모니터링 + VSCode Extension + Android 고도화 | 완료 |
 
 ### 8.2 Sprint별 구현 완료 항목
 
@@ -648,6 +685,46 @@ graph TD
 - `guidelines_client.py`: 비동기 PostgreSQL 조회 + 프로세스 메모리 캐시
 - 15개 가이드라인 적재 (공격 패턴 7개 + 스택별 6개 + common 2개)
 - sast_node에 가이드라인 주입 → Prompt Caching 활성화
+
+#### Sprint 5 — GitHub Layer 2 (일부 완료, 일부 Sprint 10 이월)
+- GitHub 레포 파일 전체 SAST 최적화 (TASK-503)
+- SBOM 완성 & CVE 매칭 (TASK-504): `pom.xml`/`package.json`/`requirements.txt`/`go.mod` 파서, NVD API 연동
+- pgvector 임베딩 (FEAT-SEC-006): `security_guidelines` embedding 컬럼, IVFFlat 인덱스
+- 이월: TASK-501(Webhook), TASK-502(PR Auto-trigger), TASK-505(GitHub Settings UI) → Sprint 10 배정
+
+#### Sprint 6 — DAST 엔진 & Docker 샌드박스
+- `dast_node.py`: OWASP ZAP 기반 능동 스캔, `dast-isolated-net` 네트워크 격리
+- Docker SDK 기반 샌드박스 컨테이너 생명주기 관리
+- DAST 결과 `exploit_results` 테이블 저장 (Flyway V016~V020)
+- DomainVerificationService: SSRF 방어용 도메인 소유권 검증
+
+#### Sprint 7 — 리포트 & 대시보드 & Android MVP
+- PDF 리포트 (OpenPDF): `ReportAsyncProcessor`, `PdfReportGenerator`, `Report` 엔티티 (Flyway V035)
+- JSON 리포트 생성, 다운로드 토큰 + Path Traversal 방어
+- 보안 문서 자동 생성 (TASK-MISC-002): CISO/행안부/ISMS-P 3종 (OpenHTMLtoPDF)
+- Android MVP: `AnalysisViewModel`, `SseClient` (SSE 스트리밍), Room DB, FCM 푸시
+- AuditLog 활성화 (Flyway V030, V031)
+- Dashboard UI: KpiCard, SecurityScoreRing, SeverityBarChart, TrendLineChart, FileHeatmap, OwaspCoverageMatrix
+
+#### Sprint 8 — 안정화 & 보안 강화 & 런칭 준비
+- Nginx API Gateway (`:80/443`), SSL 터미네이션
+- Jaeger + OpenTelemetry 분산 트레이싱 (`trace-net`)
+- Resilience4j Circuit Breaker (Backend → AI Engine)
+- 2FA/TOTP (`dev.samstevens.totp`), 복구 코드 8개 (Flyway V038)
+- IP Allowlist 관리 (Flyway V036)
+- ShedLock 분산 스케줄링 (6개 Job: NvdSyncJob, ExpiredDataCleanupJob, PartitionMaintenanceJob, SastUsageResetJob, SessionInterruptionScheduler, RefreshTokenCleanupJob)
+- GDPR 소프트 삭제 API (`POST /me/gdpr/delete`) — Sprint 9에서 실제 소프트 삭제로 전환
+- pgvector 시맨틱 가이드라인 검색 (TASK-808)
+- k6 성능 테스트 컨테이너 환경
+
+#### Sprint 9 — MCP 전환 & 관측성 & GDPR & 모니터링 & 클라이언트 확장
+- **PostgreSQL MCP** (TASK-904): `@modelcontextprotocol/server-postgres` v0.6.2 채택 (npm), `secureai_mcp_ro` Read-Only 계정 (Flyway V041), `_fetch_prev_vuln_context()` + `_fetch_prev_patch_example()` MCP 조회
+- **Docker DAST MCP** (TASK-905): `dast_backend.ts` thin wrapper (Option B — AI Engine → MCP → Backend HTTP → Docker), `mcp_client.py` AsyncExitStack 멀티서버 관리
+- **Prometheus + Grafana** (TASK-906): `micrometer-registry-prometheus` (backend), `prometheus-fastapi-instrumentator` (ai_engine), 커스텀 메트릭 6종, Grafana 4패널 대시보드 프로비저닝
+- **GDPR 하드 삭제** (TASK-907): `User.markAsDeleted()` 소프트 삭제 전환, `GdprHardDeleteJob` (매일 04:00, PT30M ShedLock), `GdprUserHardDeleteEvent` ApplicationEvent 패턴, 배치 50건 삭제
+- **지속 모니터링** (TASK-901): `MonitoringJob` (매시, PT50M ShedLock), `SslCertChecker` X.509 파싱, `SlackWebhookAdapter` (ConditionalOnProperty), `MonitoringPartitionJob`, `NvdSyncCompletedEvent` (Flyway V042, V043)
+- **VSCode Extension MVP** (TASK-902): `apps/vscode_ext/` TypeScript, JWT SecretStorage, DiagnosticProvider, `.vsix` 빌드
+- **Android 고도화** (TASK-903): `ChatScreen.kt` SSE 스트리밍, `SharePdfIntent.kt` (FileProvider), `NotificationChannelConfig.kt` 3채널
 
 ---
 
@@ -795,11 +872,15 @@ sequenceDiagram
 | 언어 | Java | 21 | Virtual Threads (Project Loom) |
 | 프레임워크 | Spring Boot | 4.x | 웹 레이어, DI, 자동 구성 |
 | ORM | Spring Data JPA (Hibernate 6) | 6.x | DB 접근 |
-| DB | PostgreSQL | 15 | 메인 데이터 저장소 |
+| DB | PostgreSQL | 15 (pgvector) | 메인 데이터 저장소 + 벡터 검색 |
 | 캐시/메시지 | Redis | 7 | SAST 캐시, 워크스페이스, SSE 채널 |
-| 마이그레이션 | Flyway | - | DB 스키마 버전 관리 (V001-V015) |
-| 인증 | JWT (JJWT) | - | Access/Refresh Token |
+| 마이그레이션 | Flyway | - | DB 스키마 버전 관리 (V001-V043) |
+| 인증 | JWT (JJWT) + 2FA (TOTP) | - | Access/Refresh Token + OTP |
 | SSE | SseEmitter | Spring 내장 | 실시간 분석 결과 스트리밍 |
+| 분산 락 | ShedLock | - | 9개 스케줄 Job 중복 실행 방지 |
+| 메트릭 | Micrometer + Prometheus | - | `/actuator/prometheus` 노출 |
+| 트레이싱 | OpenTelemetry (OTLP) | - | Jaeger로 분산 트레이싱 전송 |
+| 복원성 | Resilience4j | - | Circuit Breaker (AI Engine 연결) |
 
 ### 11.2 AI Engine (FastAPI)
 
@@ -808,10 +889,12 @@ sequenceDiagram
 | 언어 | Python | 3.12 | - |
 | 웹 프레임워크 | FastAPI | - | REST + SSE API |
 | AI 오케스트레이션 | LangGraph | - | SAST 파이프라인 상태 머신 |
-| AI 모델 | Claude Haiku | (Anthropic) | SAST 분석, 패치 생성, 채팅 |
-| DB 접근 | asyncpg | - | 비동기 PostgreSQL (guidelines_client) |
+| AI 모델 | Claude Haiku/Sonnet | (Anthropic) | SAST 분석, 패치 생성, 채팅 |
+| DB 접근 | psycopg3 (asyncpg) | - | 비동기 PostgreSQL (LangGraph 체크포인터) |
 | 캐시 | Redis (aioredis) | - | SAST 결과, 패치 캐시 |
-| MCP 통신 | MCP Protocol | - | 파일시스템, GitHub, Docker 도구 |
+| MCP 통신 | langchain-mcp-adapters | - | MultiServerMCPClient (filesystem + postgres_ro) |
+| 메트릭 | prometheus-fastapi-instrumentator | 7.1.0 | `/metrics` 노출 |
+| 트레이싱 | OpenTelemetry | - | Jaeger로 분산 트레이싱 전송 |
 
 ### 11.3 Frontend (Next.js 15)
 
@@ -824,16 +907,54 @@ sequenceDiagram
 | SSE 클라이언트 | fetch + ReadableStream | 브라우저 내장 | Authorization 헤더 지원 |
 | 파일 접근 | File System Access API | 브라우저 내장 | 로컬 폴더 선택 |
 
-### 11.4 MCP Server (Node.js)
+### 11.4 MCP Server (Node.js subprocess)
+
+> Sprint 9 이후 MCP Server는 별도 Docker 컨테이너 없이 AI Engine subprocess(stdio)로 실행된다.
+
+| 구분 | 기술 | 기동 방식 | 용도 |
+|------|------|----------|------|
+| filesystem + DAST | `apps/mcp_server/dist/index.js` | AI Engine subprocess (항상) | 워크스페이스 파일 읽기, DAST thin wrapper |
+| PostgreSQL Read-Only | `@modelcontextprotocol/server-postgres` v0.6.2 | `npx -y` subprocess (POSTGRES_MCP_URL 설정 시) | 이전 취약점·패치 이력 조회 (Read-Only) |
+
+### 11.5 관측성 스택 (Sprint 8/9 추가)
+
+| 구분 | 기술 | 포트 | 용도 |
+|------|------|------|------|
+| 분산 트레이싱 | Jaeger (all-in-one) | 16686 (UI), 4317 (OTLP) | Backend + AI Engine 스팬 수집 |
+| 메트릭 수집 | Prometheus | 9090 | Backend + AI Engine 메트릭 스크레이프 |
+| 메트릭 시각화 | Grafana | 3000 (내부) | 4패널 운영 대시보드 (분석 처리량·에러율·DAST·AI 토큰) |
+
+### 11.6 클라이언트 확장 (Sprint 9 추가)
 
 | 구분 | 기술 | 용도 |
 |------|------|------|
-| 런타임 | Node.js | MCP 프로토콜 서버 |
-| 도구 | filesystem | 워크스페이스 파일 읽기 |
-| 도구 | GitHub | 레포지토리 파일 트리, 내용 조회 |
-| 도구 | Docker | (DAST, Sprint 6 예정) |
+| VSCode Extension | TypeScript, `@vscode/vsce` | 인라인 취약점 Diagnostic, Backend SAST API 연동 |
+| Android | Kotlin, Jetpack Compose, Room DB | SSE 스트리밍 채팅, PDF 공유, FCM 푸시 3채널 |
 
 ---
 
-*이 문서는 Sprint 4 완료 + TASK-306 완료 시점(2026-05-06)의 구현 상태를 반영한다.*  
-*다음 업데이트 예정: Sprint 5 완료 후*
+---
+
+## 12. VC 피드백 대응 (보안/인프라 전략)
+
+Sprint 8에서 투자자(엑셀러레이터) 피드백을 기반으로 다음 3가지 핵심 아키텍처 방어책을 도입했다.
+
+### 12.1 단위 테스트를 통한 AI 환각 제어
+- AI가 생성한 패치 코드가 기존 로직을 파괴하지 않도록 보장한다.
+- 패치 적용 전 단위 테스트 코드를 동시 생성하여 임시 컨테이너에서 실행.
+- 테스트 통과(Verified) 상태인 패치만 사용자에게 추천되도록 파이프라인 보강.
+
+### 12.2 DAST 샌드박스 호스트 자원 통제
+- Docker API를 통해 동적으로 샌드박스 컨테이너를 띄울 때 호스트 자원이 고갈되는 문제를 해결.
+- `dast-net` 내부 큐잉 시스템을 도입하여 활성 컨테이너 수를 제한 (예: Max 5개).
+- 초과 요청은 대기 상태(`queued`)로 전환되며 예상 대기 시간(`estimatedWaitTimeMs`)을 반환.
+
+### 12.3 API 토큰 사용량 제어 (Hard Limit)
+- 무제한 프롬프트 사용으로 인한 LLM 비용 폭탄(Bill Shock) 방지.
+- 팀/프로젝트 단위로 월별 최대 사용 예산(USD)과 토큰 수를 할당.
+- Redis의 Rate Limiter 및 Token Counter를 통해 실시간 차감, 초과 시 `429 Too Many Requests` + 경고 알림 전송.
+
+---
+
+*이 문서는 Sprint 9 완료 시점(2026-05-23)의 구현 상태를 반영한다.*
+*다음 업데이트 예정: Sprint 10 완료 후*

@@ -1,5 +1,6 @@
 package io.secureai.backend.domain.patch.controller;
 
+import io.secureai.backend.domain.patch.dto.PatchExampleItem;
 import io.secureai.backend.domain.patch.dto.PatchSuggestionResponse;
 import io.secureai.backend.domain.patch.dto.SavePatchResultsRequest;
 import io.secureai.backend.domain.patch.service.PatchService;
@@ -28,6 +29,25 @@ public class PatchController {
         int saved = patchService.savePatchResults(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(Map.of("saved", saved)));
+    }
+
+    /**
+     * AI Engine 컨텍스트용 이전 패치 예시 조회 (최대 3건).
+     * X-Internal-Key 인증 (InternalKeyAuthFilter), JWT 불필요.
+     *
+     * <p>프로젝트와 무관하게 vulnType + language 조합으로 전역 패턴을 조회한다.
+     * ADR-016: MCP PostgreSQL f-string SQL 대체 엔드포인트.
+     * JPQL 파라미터 바인딩으로 SQL Injection 방어.
+     *
+     * @param vulnType 취약점 유형 (SQL_INJECTION 등)
+     * @param language 파일 확장자 없는 언어 식별자 (java, python, javascript 등)
+     */
+    @GetMapping("/api/v1/internal/patch-examples")
+    public ResponseEntity<ApiResponse<List<PatchExampleItem>>> getPatchExamples(
+            @RequestParam String vulnType,
+            @RequestParam String language) {
+        List<PatchExampleItem> examples = patchService.getPatchExamples(vulnType, language);
+        return ResponseEntity.ok(ApiResponse.success(examples));
     }
 
     /** 세션별 패치 제안 목록 조회 (인증 필요) */

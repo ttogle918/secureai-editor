@@ -55,6 +55,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-security:4.0.5")
 	implementation("org.springframework.boot:spring-boot-starter-validation:4.0.5")
 	implementation("org.springframework.boot:spring-boot-starter-web:4.0.5")
+	implementation("org.springframework.boot:spring-boot-starter-webflux:4.0.5")
 	implementation("org.springframework.boot:spring-boot-starter-mail:4.0.5")
 	
 	// spring-aop + aspectjweaver 는 기존 스타터들의 전이 의존성으로 이미 포함됨

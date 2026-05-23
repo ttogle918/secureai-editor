@@ -361,6 +361,21 @@
 
 **커밋**: `4992551` `feat(sprint9/stage2): Prometheus + Grafana 운영 대시보드 (TASK-906)`
 
+### Stage 2 수동 검증 결과 (2026-05-22)
+
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| Prometheus `secureai-backend` UP | ✅ | `/actuator/prometheus` 401 → SecurityConfig 수정(`cdd7e92`) 후 UP |
+| Prometheus `secureai-ai-engine` UP | ✅ | `/metrics` 200 OK 확인 |
+| Grafana 대시보드 4개 패널 | ✅ | "SecureAI Engine — Operations" 프로비저닝 확인 |
+| `secureai_*` 커스텀 메트릭 노출 | ✅ | 4종 메트릭 `/actuator/prometheus` 출력 확인 |
+
+**추가 수정 사항 (수동 검증 중 발견)**:
+- `nginx/nginx.conf`: `frontend` 미기동 시 nginx crash-loop → `resolver 127.0.0.11 + set $frontend_upstream` 동적 리졸브 전환 (`4bc1300`)
+- `SecurityConfig.java`: `/actuator/prometheus` permitAll 누락 → 추가 (`cdd7e92`)
+- `V041__create_mcp_readonly_user.sql`: Flyway placeholder 키 불일치 (`${MCP_RO_PASSWORD}` → `${mcp-ro-password}`) 수정 (`687945c`)
+- `.env` `GF_SECURITY_ADMIN_PASSWORD` 인라인 주석 포함 → 주석 제거
+
 ---
 
 ## Stage 3 완료 기록 (2026-05-22)
@@ -390,3 +405,16 @@
 - `GdprServiceTest` 7개 (소프트 삭제 전환 검증)
 
 **커밋**: `e2175fc` `feat(sprint9/stage3): GDPR 하드 삭제 스케줄러 (TASK-907)`
+
+### Stage 3 자동 검증 결과 (2026-05-22)
+
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| 🧪 `GdprHardDeleteServiceTest` 8개 | ✅ | 30일 초과 선택, 29일 제외, 감사로그 순서, skip&log, 이메일 발송 등 |
+| 🧪 `GdprServiceTest` 11개 | ✅ | 소프트 삭제 전환, isActive=false, refresh_token revoke 등 |
+| 🧪 감사 로그 기록 → 이벤트 발행 → deleteById 순서 | ✅ | `processOneUser — 감사 로그 기록 후 이벤트 발행 후 deleteById 순서로 처리된다` 통과 |
+| 🛡️ 29일 계정 제외 단위 테스트 | ✅ | cutoff 경계 조건 통과 |
+| 🛡️ `/api/v1/admin/gdpr/pending-deletions` 인증 요구 | ✅ | 미인증 요청 → 401 반환 확인 |
+| 🔬 30일 경과 시뮬레이션 통합 테스트 | ⏳ | 통합 환경 필요 — 추후 진행 |
+| 🔬 ShedLock 다중 인스턴스 검증 | ⏳ | 다중 인스턴스 환경 필요 — 추후 진행 |
+| ✅ 삭제 완료 이메일 수신 확인 | ⏳ | 수동 검증 필요 |

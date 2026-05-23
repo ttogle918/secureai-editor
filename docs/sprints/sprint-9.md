@@ -418,3 +418,40 @@
 | 🔬 30일 경과 시뮬레이션 통합 테스트 | ⏳ | 통합 환경 필요 — 추후 진행 |
 | 🔬 ShedLock 다중 인스턴스 검증 | ⏳ | 다중 인스턴스 환경 필요 — 추후 진행 |
 | ✅ 삭제 완료 이메일 수신 확인 | ⏳ | 수동 검증 필요 |
+
+---
+
+## Stage 4 완료 기록 (2026-05-23)
+
+### TASK-901 — 지속 모니터링 서비스
+
+**구현 내용**:
+- `V043__create_monitoring_results.sql`: `monitoring_results` 파티션 마스터 테이블 + 첫 달 파티션(`monitoring_results_2026_05`)
+- `MonitoringResult.java`: 파티션 엔티티 (`MonitoringStatus` enum 연동)
+- `MonitoringStatus.java`: `UP / DOWN / SSL_EXPIRING / SSL_EXPIRED` enum
+- `SslCertChecker.java`: `javax.net.ssl.HttpsURLConnection` 기반 X.509 인증서 만료일 파싱 (5s 타임아웃)
+- `MonitoringService.java`: HTTPS 헬스체크 + SSL 상태 판정 + Slack 알림 트리거. `WebClient` TCP 연결 타임아웃(`HttpClient` + `ReactorClientHttpConnector`) 적용. SSRF 방어: `findByVerifiedTrue()` 화이트리스트
+- `MonitoringJob.java`: `@Scheduled(cron="0 0 * * * *")` + `@SchedulerLock(name="monitoringJob", lockAtMostFor="PT50M")`
+- `MonitoringPartitionJob.java`: 매월 1일 다음 달 파티션 생성. DDL String 포맷 전 정규식 화이트리스트 검증 (`^monitoring_results_\\d{4}_\\d{2}$`)
+- `MonitoringCveReMatchListener.java`: `@EventListener NvdSyncCompletedEvent` — CVE 재매칭 트리거 (SBOM 도메인 연계 후 구현 예정)
+- `NvdSyncCompletedEvent.java`: CVE 동기화 완료 ApplicationEvent 레코드
+- `NvdSyncJob.java` 수정: 동기화 완료 후 `NvdSyncCompletedEvent` 발행
+- `SlackNotificationPort.java`: `sendSslExpiryAlert` + `sendMonitoringDownAlert` 인터페이스
+- `SlackWebhookAdapter.java`: `@ConditionalOnProperty(name="secureai.slack.webhook-url")` WebClient 구현체
+- `SlackNotificationNoOp.java`: Webhook URL 미설정 시 no-op fallback
+- `MonitoringMetrics.java`: `secureai_monitoring_job_runs_total` Counter
+
+**Reviewer 경고 및 수정**:
+| # | 경고 | 수정 |
+|---|------|------|
+| 1 | `MonitoringPartitionJob` DDL 포맷 검증 미비 | 정규식 화이트리스트 검증 추가 |
+| 2 | status 매직 문자열 산재 | `MonitoringStatus` enum 추출 |
+| 3 | `MonitoringService`에 NVD 이벤트 핸들러 혼재 (SRP 위반) | `MonitoringCveReMatchListener` 별도 컴포넌트 분리 |
+| 4 | WebClient 연결 타임아웃 미설정 | `HttpClient.CONNECT_TIMEOUT_MILLIS` + `responseTimeout` 적용 |
+
+**단위 테스트**: 7개 통과
+- `MonitoringServiceTest` 5개 (verified 필터, HTTP UP/DOWN, SSL 알림, skip&log)
+- `MonitoringCveReMatchListenerTest` 1개 (이벤트 수신 예외 없음)
+- 회귀: CVE 4개, Notification 9개 전체 통과
+
+**커밋**: `5303b4d` `feat(sprint9/stage4): 지속 모니터링 서비스 HTTPS 헬스체크 + SSL 알림 + CVE 재매칭 (TASK-901)`

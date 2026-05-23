@@ -455,3 +455,39 @@
 - 회귀: CVE 4개, Notification 9개 전체 통과
 
 **커밋**: `5303b4d` `feat(sprint9/stage4): 지속 모니터링 서비스 HTTPS 헬스체크 + SSL 알림 + CVE 재매칭 (TASK-901)`
+
+---
+
+## Stage 5 완료 기록 (2026-05-23)
+
+### TASK-902 — VSCode Extension MVP
+
+**구현 내용**:
+- `apps/vscode_ext/` 신규 디렉토리 (TypeScript Extension MVP)
+- `package.json`: publisher `secureai-local`, `engines.vscode ^1.85.0`, 2개 명령어(`analyze`, `setToken`), `@vscode/vsce` devDep
+- `src/extension.ts`: `activate`/`deactivate` — `secureai.setToken`(SecretStorage 저장), `secureai.analyze`(진행 표시 + Diagnostic 갱신)
+- `src/apiClient.ts`: Backend SAST API 폴링 (30s 타임아웃 `POLL_TIMEOUT_MS`). JWT는 SecretStorage에서만 읽기 — 로그 출력 완전 차단. API URL `process.env['SECUREAI_API_URL']` 환경변수 우선
+- `src/diagnosticProvider.ts`: `SEVERITY_MAP` 테이블 기반 `vscode.DiagnosticSeverity` 변환 + 파일별 Diagnostic 그룹화
+- TypeScript 컴파일 (`npm run compile`) 성공 확인
+
+**Reviewer 경고 및 수정**: 없음 (PASS)
+
+**커밋**: `9b7cf5d` `feat(sprint9/stage5): VSCode Extension MVP + Android 고도화 (TASK-902, TASK-903)`
+
+---
+
+### TASK-903 — Android 고도화
+
+**구현 내용**:
+- `NotificationChannelConfig.kt`: 알림 채널 3개 분리 (`analysis_completion` / `vulnerability_critical`(TYPE_ALARM) / `monitoring_alert`(진동만))
+- `SecureAiApplication.onCreate()`: `NotificationChannelConfig.createAll(this)` 호출
+- `SecureAiFcmService.kt`: `resolveChannelId(type)` 메서드 — `message.data["type"]`에 따라 3채널 분기
+- `ChatScreen.kt` + `ChatViewModel.kt`: `SseClient.observeSession()` Flow 수집 → Compose LazyColumn 실시간 스트리밍. UUID 형식 검증 (`[0-9a-f\\-]{36}`)
+- `SharePdfIntent.kt`: `FileProvider.getUriForFile()` 경유 PDF 공유. Path Traversal 방어: `canonicalFile` + `File.separator` 경계 검증
+- `AndroidManifest.xml`: `FileProvider` provider 블록 추가 (`exported=false`, `grantUriPermissions=true`)
+- `file_provider_paths.xml`: `reports/` 경로만 허용
+- `NavGraph.kt`: `Screen.Chat` + `chat/{sessionId}` composable 라우트 등록
+
+**Reviewer 경고 및 수정**: 없음 (PASS), WARNING 2건 (블로커 아님 — UUID 패턴 강화·VSCode 설정 기여 권고)
+
+**커밋**: `9b7cf5d` `feat(sprint9/stage5): VSCode Extension MVP + Android 고도화 (TASK-902, TASK-903)`

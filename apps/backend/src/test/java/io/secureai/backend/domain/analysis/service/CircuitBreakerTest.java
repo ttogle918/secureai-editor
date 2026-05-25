@@ -204,7 +204,7 @@ class CircuitBreakerTest {
         assertThatThrownBy(() ->
                 ReflectionTestUtils.invokeMethod(client, "startAnalysisFallback",
                         UUID.randomUUID(), UUID.randomUUID(), "/workspace", "local",
-                        null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, // scanMode(TASK-1004) 추가
                         new RuntimeException("connection refused"))
         )
                 .isInstanceOf(BusinessException.class)

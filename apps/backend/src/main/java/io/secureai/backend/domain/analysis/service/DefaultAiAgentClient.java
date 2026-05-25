@@ -50,7 +50,7 @@ public class DefaultAiAgentClient implements AiAgentClient {
     @Override
     @CircuitBreaker(name = CB_NAME, fallbackMethod = "startAnalysisLocalFallback")
     public void startAnalysis(UUID sessionId, UUID projectId, String workspaceRoot) {
-        doStartAnalysis(sessionId, projectId, workspaceRoot, "local", null, null, null, null, null, null);
+        doStartAnalysis(sessionId, projectId, workspaceRoot, "local", null, null, null, null, null, null, "PIPELINE");
     }
 
     @SuppressWarnings("unused")
@@ -64,22 +64,23 @@ public class DefaultAiAgentClient implements AiAgentClient {
     public void startAnalysis(
             UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
             String githubOwner, String githubRepo, String githubRef, String githubToken,
-            String preferredModel, String userApiKey
+            String preferredModel, String userApiKey, String scanMode
     ) {
         doStartAnalysis(sessionId, projectId, workspaceRoot, sourceType,
-                githubOwner, githubRepo, githubRef, githubToken, preferredModel, userApiKey);
+                githubOwner, githubRepo, githubRef, githubToken, preferredModel, userApiKey, scanMode);
     }
 
     private void doStartAnalysis(
             UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
             String githubOwner, String githubRepo, String githubRef, String githubToken,
-            String preferredModel, String userApiKey
+            String preferredModel, String userApiKey, String scanMode
     ) {
         Map<String, Object> body = new HashMap<>();
         body.put("session_id", sessionId.toString());
         body.put("project_id", projectId.toString());
         body.put("workspace_root", workspaceRoot != null ? workspaceRoot : "");
         body.put("source_type", sourceType != null ? sourceType : "local");
+        body.put("scan_mode", scanMode != null ? scanMode : "PIPELINE");
         if (githubOwner != null) body.put("github_owner", githubOwner);
         if (githubRepo != null) body.put("github_repo", githubRepo);
         if (githubRef != null) body.put("github_ref", githubRef);
@@ -94,14 +95,15 @@ public class DefaultAiAgentClient implements AiAgentClient {
                 .retrieve()
                 .toBodilessEntity();
 
-        log.info("[agent-client] startAnalysis sessionId={} sourceType={}", sessionId, sourceType);
+        log.info("[agent-client] startAnalysis sessionId={} sourceType={} scanMode={}",
+                sessionId, sourceType, scanMode);
     }
 
     @SuppressWarnings("unused")
     private void startAnalysisFallback(
             UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
             String githubOwner, String githubRepo, String githubRef, String githubToken,
-            String preferredModel, String userApiKey, Throwable t
+            String preferredModel, String userApiKey, String scanMode, Throwable t
     ) {
         log.warn("[circuit] startAnalysis fallback triggered sessionId={} cause={}", sessionId, t.getMessage());
         throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);

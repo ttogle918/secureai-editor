@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # Anthropic
     claude_api_key: str = Field(..., alias="CLAUDE_API_KEY")
     claude_model: str = Field("claude-haiku-4-5-20251001", alias="CLAUDE_MODEL")
+    # Audit: 빠른 비용 효율. Pipeline: 고품질 정밀 분석
+    audit_model: str = Field("claude-haiku-4-5-20251001", alias="AUDIT_MODEL")
+    pipeline_model: str = Field("claude-sonnet-4-6", alias="PIPELINE_MODEL")
 
     # OpenAI
     openai_api_key: str = Field("", alias="OPENAI_API_KEY")

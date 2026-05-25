@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,4 +40,32 @@ public interface AnalysisSessionRepository extends JpaRepository<AnalysisSession
 
     /** 프로젝트의 가장 최근 분석 세션 1건을 조회한다 (야간 스캔 변경 감지에 사용). */
     Optional<AnalysisSession> findTopByProjectIdOrderByCreatedAtDesc(UUID projectId);
+
+    /**
+     * 복수 사용자별 분석 세션 수를 집계한다.
+     * 팀 대시보드 MemberStat.totalSessions 계산에 사용된다.
+     *
+     * @param userIds 집계 대상 사용자 ID 목록
+     * @return Object[]{userId(UUID), count(Long)} 목록
+     */
+    @Query("SELECT s.user.id, COUNT(s) FROM AnalysisSession s WHERE s.user.id IN :userIds GROUP BY s.user.id")
+    List<Object[]> countByUserIdIn(@Param("userIds") List<UUID> userIds);
+
+    /**
+     * 완료된 세션의 평균 처리 시간(MTTR)을 시간 단위로 반환한다.
+     * startedAt ~ completedAt 평균을 구한다.
+     *
+     * @param userIds 집계 대상 사용자 ID 목록
+     * @return 평균 MTTR (시간 단위, 데이터 없으면 0.0)
+     */
+    @Query(value = """
+            SELECT COALESCE(
+                AVG(EXTRACT(EPOCH FROM (s.completed_at - s.started_at)) / 3600), 0
+            )
+            FROM analysis_sessions s
+            WHERE s.user_id IN (:userIds)
+              AND s.completed_at IS NOT NULL
+              AND s.started_at IS NOT NULL
+            """, nativeQuery = true)
+    Double avgMttrHoursByUserIdIn(@Param("userIds") List<UUID> userIds);
 }

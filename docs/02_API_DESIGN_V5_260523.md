@@ -1569,6 +1569,49 @@ Content-Type: application/json
 
 ---
 
+## 13.3 세션 ROI JSON 조회 (TASK-1003)
+
+```http
+GET /api/v1/reports/projects/{projectId}/sessions/{sessionId}/roi?hourlyRate=50.0
+Authorization: Bearer {accessToken}
+```
+
+| 파라미터 | 위치 | 타입 | 설명 |
+|---------|------|------|------|
+| `projectId` | path | UUID | 프로젝트 ID |
+| `sessionId` | path | UUID | 분석 세션 ID |
+| `hourlyRate` | query | double | 시간당 인건비 단가 (기본값: 50.0, 0 이하면 기본값 적용) |
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "criticalCount": 3,
+    "highCount": 5,
+    "totalVulnCount": 12,
+    "savedHours": 48.0,
+    "savedCost": 2400.0,
+    "hourlyRate": 50.0
+  }
+}
+```
+
+---
+
+### 13.4 세션 ROI PDF 다운로드 (TASK-1003)
+
+```http
+GET /api/v1/reports/projects/{projectId}/sessions/{sessionId}/roi/pdf?hourlyRate=50.0
+Authorization: Bearer {accessToken}
+```
+
+**Response** `200 OK`  
+`Content-Type: application/pdf`  
+`Content-Disposition: attachment; filename="roi-report-{sessionId}.pdf"`
+
+---
+
 ## 14. 야간 자동 스캔 스케줄링 API (신규)
 
 Base path: `/api/v1/projects`

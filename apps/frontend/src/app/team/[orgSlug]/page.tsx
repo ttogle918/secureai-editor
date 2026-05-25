@@ -2,7 +2,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Users, Settings, BarChart2 } from 'lucide-react';
+import { ArrowLeft, Users, Settings, BarChart2, Trophy, ShieldAlert } from 'lucide-react';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient } from '@/lib/api/client';
 
@@ -33,6 +41,32 @@ interface Member {
   joinedAt: string | null;
 }
 
+interface MemberStat {
+  userId: string;
+  username: string;
+  securityScore: number;
+  totalSessions: number;
+  rank: number;
+}
+
+interface TeamDashboard {
+  teamId: string;
+  teamName: string;
+  members: MemberStat[];
+  totalCritical: number;
+  totalHigh: number;
+  avgMttrHours: number;
+  monthlyTokenUsage: number;
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const SEVERITY_COLORS: Record<string, string> = {
+  Critical: '#e24b4b',
+  High: '#ea580c',
+  Other: 'rgba(255,255,255,0.12)',
+};
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function OrgDashboardPage() {
@@ -43,6 +77,7 @@ export default function OrgDashboardPage() {
   const [org, setOrg] = useState<OrgDetail | null>(null);
   const [usage, setUsage] = useState<OrgUsage | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  const [teamDashboard, setTeamDashboard] = useState<TeamDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -66,13 +101,27 @@ export default function OrgDashboardPage() {
       setMembers(membersRes.data ?? []);
 
       const isAdmin = orgData.role === 'owner' || orgData.role === 'admin';
+
+      // 사용량 집계 (Admin/Owner만)
       if (isAdmin) {
         try {
           const usageRes = await apiClient.get<{ data: OrgUsage }>(`/organizations/${orgSlug}/usage`);
           setUsage(usageRes.data);
-        } catch {
+        } catch (err) {
           // 사용량 조회 실패 시 무시 (권한 없음 등)
+          console.warn('[TeamPage] 사용량 조회 실패 — 권한 부족 또는 일시적 오류', err);
         }
+      }
+
+      // 팀 대시보드 (Gamification + 보안 지표) — org.id 필요
+      try {
+        const dashRes = await apiClient.get<{ data: TeamDashboard }>(
+          `/teams/${orgData.id}/dashboard`
+        );
+        setTeamDashboard(dashRes.data);
+      } catch (err) {
+        // 팀 대시보드 조회 실패는 비치명적으로 처리 (대시보드 섹션 미표시)
+        console.warn('[TeamPage] 팀 대시보드 조회 실패', err);
       }
     } catch {
       setError('팀 정보를 불러올 수 없습니다.');
@@ -117,6 +166,32 @@ export default function OrgDashboardPage() {
             <StatCard label="프로젝트 수" value={usage.projectCount.toString()} />
           </div>
         </Section>
+      )}
+
+      {/* 팀 보안 대시보드 */}
+      {teamDashboard && (
+        <>
+          {/* 심각도 도넛 차트 */}
+          <Section icon={<ShieldAlert size={16} />} title="팀 취약점 현황">
+            <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'center' }}>
+              <SeverityDonutChart
+                totalCritical={teamDashboard.totalCritical}
+                totalHigh={teamDashboard.totalHigh}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 140 }}>
+                <StatCard label="Critical" value={teamDashboard.totalCritical.toLocaleString()} highlight />
+                <StatCard label="High" value={teamDashboard.totalHigh.toLocaleString()} />
+                <StatCard label="평균 MTTR" value={`${teamDashboard.avgMttrHours.toFixed(1)}h`} />
+                <StatCard label="월간 토큰 사용" value={teamDashboard.monthlyTokenUsage.toLocaleString()} />
+              </div>
+            </div>
+          </Section>
+
+          {/* 멤버 랭킹 테이블 */}
+          <Section icon={<Trophy size={16} />} title="팀 멤버 랭킹">
+            <MemberRankTable members={teamDashboard.members} />
+          </Section>
+        </>
       )}
 
       {/* 멤버 미리보기 */}
@@ -247,6 +322,180 @@ function StatCard({ label, value, highlight }: { label: string; value: string; h
     <div style={{ minWidth: 120 }}>
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color, fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em' }}>{value}</div>
+    </div>
+  );
+}
+
+// ── Severity Donut Chart ──────────────────────────────────────────────────────
+
+function SeverityDonutChart({ totalCritical, totalHigh }: { totalCritical: number; totalHigh: number }) {
+  const total = totalCritical + totalHigh;
+  const other = Math.max(0, 100 - total);
+
+  const data = [
+    { name: 'Critical', value: totalCritical },
+    { name: 'High', value: totalHigh },
+    { name: 'Other', value: other },
+  ].filter((d) => d.value > 0);
+
+  if (data.length === 0) {
+    data.push({ name: 'Other', value: 1 });
+  }
+
+  return (
+    <div style={{ width: 200, height: 200, flexShrink: 0 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={55}
+            outerRadius={80}
+            paddingAngle={2}
+            dataKey="value"
+          >
+            {data.map((entry) => (
+              <Cell
+                key={entry.name}
+                fill={SEVERITY_COLORS[entry.name] ?? 'rgba(255,255,255,0.12)'}
+              />
+            ))}
+          </Pie>
+          <Tooltip
+            contentStyle={{
+              background: '#1a1a1f',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 8,
+              fontSize: 12,
+              color: '#e8e8ee',
+            }}
+          />
+          <Legend
+            iconType="circle"
+            iconSize={8}
+            wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ── Member Rank Table ─────────────────────────────────────────────────────────
+
+const RANK_MEDAL: Record<number, string> = { 1: '1', 2: '2', 3: '3' };
+const RANK_COLOR: Record<number, string> = {
+  1: '#f59e0b',
+  2: '#9ca3af',
+  3: '#b45309',
+};
+
+function MemberRankTable({ members }: { members: MemberStat[] }) {
+  if (members.length === 0) {
+    return (
+      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '20px 0' }}>
+        랭킹 데이터가 없습니다.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            <Th>순위</Th>
+            <Th>사용자</Th>
+            <Th align="right">보안 점수</Th>
+            <Th align="right">총 세션</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {members.map((stat) => (
+            <tr
+              key={stat.userId}
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+            >
+              <Td>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 24, height: 24, borderRadius: '50%',
+                  background: stat.rank <= 3 ? `${RANK_COLOR[stat.rank]}22` : 'rgba(255,255,255,0.05)',
+                  color: stat.rank <= 3 ? RANK_COLOR[stat.rank] : 'rgba(255,255,255,0.4)',
+                  fontSize: 11, fontWeight: 800,
+                }}>
+                  {RANK_MEDAL[stat.rank] ?? stat.rank}
+                </span>
+              </Td>
+              <Td>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%',
+                    background: 'rgba(234,88,12,0.15)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 700, color: '#ea580c', flexShrink: 0,
+                  }}>
+                    {stat.username.charAt(0).toUpperCase()}
+                  </div>
+                  <span style={{ color: '#e8e8ee', fontWeight: 600 }}>{stat.username}</span>
+                </div>
+              </Td>
+              <Td align="right">
+                <ScoreBar score={stat.securityScore} />
+              </Td>
+              <Td align="right">
+                <span style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--font-mono)' }}>
+                  {stat.totalSessions.toLocaleString()}
+                </span>
+              </Td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Th({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'right' }) {
+  return (
+    <th style={{
+      padding: '8px 12px', textAlign: align,
+      fontSize: 11, color: 'rgba(255,255,255,0.3)',
+      fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em',
+    }}>
+      {children}
+    </th>
+  );
+}
+
+function Td({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'right' }) {
+  return (
+    <td style={{ padding: '10px 12px', textAlign: align }}>
+      {children}
+    </td>
+  );
+}
+
+function ScoreBar({ score }: { score: number }) {
+  const clamped = Math.min(100, Math.max(0, score));
+  const color = clamped >= 80 ? '#22c55e' : clamped >= 50 ? '#ea580c' : '#e24b4b';
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+      <div style={{
+        width: 64, height: 6, borderRadius: 3,
+        background: 'rgba(255,255,255,0.08)', overflow: 'hidden',
+      }}>
+        <div style={{
+          width: `${clamped}%`, height: '100%',
+          background: color, borderRadius: 3,
+          transition: 'width 0.3s ease',
+        }} />
+      </div>
+      <span style={{ color, fontWeight: 700, fontFamily: 'var(--font-mono)', fontSize: 12, minWidth: 28 }}>
+        {clamped}
+      </span>
     </div>
   );
 }

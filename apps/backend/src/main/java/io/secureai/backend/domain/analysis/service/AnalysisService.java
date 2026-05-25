@@ -43,7 +43,11 @@ public class AnalysisService {
         handleRunningSession(request.projectId(), request.isForce());
 
         User user = userService.findOrThrow(userId);
-        AnalysisSession session = AnalysisSession.builder().project(project).user(user).build();
+        AnalysisSession session = AnalysisSession.builder()
+                .project(project)
+                .user(user)
+                .scanMode(request.effectiveScanMode())
+                .build();
         sessionRepository.save(session);
         session.markRunning();
         sessionRepository.save(session);
@@ -58,8 +62,8 @@ public class AnalysisService {
             throw e;
         }
 
-        log.info("[analysis] started sessionId={} projectId={} sourceType={}",
-                session.getId(), project.getId(), request.effectiveSourceType());
+        log.info("[analysis] started sessionId={} projectId={} sourceType={} scanMode={}",
+                session.getId(), project.getId(), request.effectiveSourceType(), request.effectiveScanMode());
         return AnalysisSessionResponse.from(session);
     }
 
@@ -80,14 +84,14 @@ public class AnalysisService {
             aiAgentClient.startAnalysis(
                     session.getId(), project.getId(), null,
                     "github", info.owner(), info.repo(), info.ref(), info.token(),
-                    settings.preferredModel(), settings.apiKey());
+                    settings.preferredModel(), settings.apiKey(), request.effectiveScanMode());
         } else {
             String workspaceRoot = request.workspaceRoot() != null
                     ? request.workspaceRoot() : "/workspace/" + project.getId();
             aiAgentClient.startAnalysis(
                     session.getId(), project.getId(), workspaceRoot,
                     "local", null, null, null, null,
-                    settings.preferredModel(), settings.apiKey());
+                    settings.preferredModel(), settings.apiKey(), request.effectiveScanMode());
         }
     }
 

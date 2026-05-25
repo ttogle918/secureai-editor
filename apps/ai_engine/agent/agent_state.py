@@ -37,6 +37,9 @@ class AgentState(TypedDict):
     # 진행률 (0.0 ~ 100.0) — SSE 이벤트로 프론트엔드에 전달
     progress_percent: float
 
+    # 스캔 모드 — "AUDIT" (빠른 비용 효율) | "PIPELINE" (고품질 정밀 분석, 기본값)
+    scan_mode: str | None
+
     # 사용자 모델·키 오버라이드 (BYOK)
     preferred_model: str | None
     user_api_key: str | None  # 복호화된 값 (로그 출력 금지)

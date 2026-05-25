@@ -28,6 +28,7 @@ class AnalyzeRequest(BaseModel):
     project_id: str
     workspace_root: str = ""
     source_type: str = "local"
+    scan_mode: str = "PIPELINE"          # "AUDIT" | "PIPELINE"
     github_owner: str | None = None
     github_repo: str | None = None
     github_ref: str | None = None
@@ -86,6 +87,7 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
             "project_id": req.project_id,
             "workspace_root": workspace_root,
             "source_type": req.source_type,
+            "scan_mode": req.scan_mode,
             "github_owner": req.github_owner,
             "github_repo": req.github_repo,
             "github_ref": req.github_ref,

@@ -288,3 +288,38 @@ Sprint 9 완료 기록 (2026-05-23 기준):
 - `test_mcp_github_tools.py` 15개
 
 **커밋**: `addd96a` `feat(sprint10/stage1): GitHub 커밋 MCP 툴 + 시크릿 탐지 노드 (TASK-501)`
+
+---
+
+## Stage 2 완료 기록 (2026-05-25)
+
+### TASK-502 — PR 분석 자동 트리거 + Check Run API
+### TASK-503 — 커밋 히스토리 시크릿 스캔 개선
+
+**구현 내용**:
+
+**Backend (TASK-502)**:
+- `GitHubRestClient.java`: 기본 생성자 → `@Qualifier("githubRestClient") RestClient` 생성자 주입 전환 (DIP). `createPrComment()` / `getPrChangedFiles()` 메서드 추가 — HTTP 클라이언트 책임을 `GitHubRestClientConfig` 단일 위치로 집중
+- `GitHubWebhookService.java`: 중복 `RestClient githubRestClient` 직접 빌드 필드 제거 및 `@Deprecated` 메서드 2개(`createCheckRun`, `completeCheckRun`) 제거. `createPrComment` / `getPrChangedFiles` 호출을 주입된 `gitHubRestClient`에 위임. `extractInstallationToken()` blank 가드 추가 — 토큰 없으면 `log.warn()` + Check Run / 파일 조회 skip (런타임 403 방지). `completeCheckRunAfterAnalysis()` 분석 완료 후 Check Run 완료 + PR 코멘트 등록
+- `application.yaml`: `secureai.github.webhook-secret` / `check-run-app-id` 바인딩 추가
+
+**Frontend (TASK-502)**:
+- `GitHubScanModal.tsx`: owner/repo/ref/prNumber 입력 폼, `POST /api/v1/analysis/commits/scan` 연동. JWT는 auth store에서 조회 (localStorage 미사용)
+
+**AI Engine (TASK-503)**:
+- `scan_files_node.py`: `PRIORITY_EXTENSIONS` dict로 우선순위 스캔 (`.env`/`.pem`/`.key` → 설정 파일 → 소스). `BINARY_EXTENSIONS` + `_is_binary()` 이진 파일 필터링. `asyncio.gather` 병렬 파일 스캔. SSE progress 스캔 가능 파일 수 기준
+
+**Reviewer FAIL → 수정 이력**:
+
+*1차 FAIL (SRP + 중복 RestClient + extractInstallationToken)*:
+| # | 위반 | 수정 |
+|---|------|------|
+| 1 | `GitHubWebhookService`에 `RestClient githubRestClient` 직접 빌드 중복 — HTTP 클라이언트 구성 책임이 두 클래스에 분산 | `GitHubRestClient` 생성자 주입 전환 + `@Deprecated` 직접 호출 메서드 제거 |
+| 2 | `createPrComment` / `getPrChangedFiles`가 `GitHubWebhookService`에서 직접 HTTP 호출 — SRP 위반 | 두 메서드를 `GitHubRestClient`로 이전, `GitHubWebhookService`에서 위임 |
+| 3 | `extractInstallationToken()` 빈 문자열 반환 상태에서 Check Run / 파일 조회 API 호출 → 런타임 403 확실 | `hasToken` 플래그로 blank 여부 확인, blank이면 모든 GitHub API 호출 skip & log |
+
+**단위 테스트**: 19개 통과 (GitHubRestClientTest 7개 + GitHubWebhookServiceTest 12개)
+- `GitHubRestClientTest`: `spy(new GitHubRestClient(mockRestClient))` 패턴으로 생성자 주입 반영
+- `GitHubWebhookServiceTest`: 토큰 blank 시 Check Run skip 검증 2개 추가
+
+**커밋**: `af2ce44` `feat(sprint10-stage2): PR 자동 트리거 + Check Run API + 스캔 개선 (TASK-502, TASK-503)`

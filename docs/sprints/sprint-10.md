@@ -260,3 +260,31 @@ Sprint 9 완료 기록 (2026-05-23 기준):
 ---
 
 *Sprint 10 계획 작성일: 2026-05-25*
+
+---
+
+## Stage 1 완료 기록 (2026-05-25)
+
+### TASK-501 — GitHub 커밋 MCP 툴 + 시크릿 탐지 노드
+
+**구현 내용**:
+- `GitHubRestClientConfig.java`: `githubRestClient` @Bean 등록. `baseUrl("https://api.github.com")` + 5s 타임아웃 단일 관리
+- `CommitHistoryScanner.java`: `@Async("analysisExecutor")` + `@Qualifier("githubRestClient")` 생성자 주입. 최대 100페이지 페이지네이션, lastScannedSha 도달 시 조기 중단, 개별 커밋 실패 skip & log
+- `secret_scan_node.py`: AWS Key(`AKIA[0-9A-Z]{16}`), GitHub PAT(`ghp_`/`github_pat_`), 고엔트로피(Shannon >4.5, 32자+) 정규식 탐지. `matched_value`는 항상 `"****"` 마스킹. OTel span 포함
+- `mcp_github_tools.py`: `list_commits_via_mcp` / `get_commit_diff_via_mcp` 래퍼 추가
+- `apps/mcp_server/src/index.ts`: `list_commits` / `get_commit_diff` MCP 툴 추가 (기존 DAST 툴 공존)
+- `agent_state.py`: `commits: list[dict]` / `secrets_found: list[dict]` 필드 추가
+
+**Reviewer 경고 및 수정**:
+| # | 경고 | 수정 |
+|---|------|------|
+| 1 | `CommitHistoryScanner` 기본 생성자에서 `SimpleClientHttpRequestFactory` 직접 `new` (DIP 위반) | `GitHubRestClientConfig` @Bean 분리 + 생성자 주입 교체 |
+| 2 | `AgentState`에 `commits`/`secrets_found` 키 미정의 (`# type: ignore` 억제) | `agent_state.py`에 필드 추가, `# type: ignore` 제거 |
+| 3 | `CommitHistoryScanner`와 `GitHubRestClientConfig` 양쪽에 `GITHUB_API_BASE` 상수 중복 | `CommitHistoryScanner` 상수 제거, 상대 경로(`/repos/...`)로 전환 |
+
+**단위 테스트**: 46개 통과
+- `CommitHistoryScannerTest` 8개
+- `test_secret_scan_node.py` 23개
+- `test_mcp_github_tools.py` 15개
+
+**커밋**: `addd96a` `feat(sprint10/stage1): GitHub 커밋 MCP 툴 + 시크릿 탐지 노드 (TASK-501)`

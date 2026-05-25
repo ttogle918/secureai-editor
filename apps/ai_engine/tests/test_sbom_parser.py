@@ -4,6 +4,7 @@ TASK-504: SBOM 파서 단위 테스트.
 import pytest
 
 from agent.tools.sbom_parser import (
+    parse_cargo_toml,
     parse_go_mod,
     parse_package_json,
     parse_pom_xml,
@@ -237,6 +238,106 @@ go 1.21
 
 
 # ---------------------------------------------------------------------------
+# Cargo.toml 파서
+# ---------------------------------------------------------------------------
+
+class TestParseCargoToml:
+    def test_parses_inline_version(self):
+        """인라인 버전(name = "1.0") 형식을 파싱해야 한다."""
+        content = """
+[dependencies]
+serde = "1.0"
+tokio = "1.28"
+"""
+        result = parse_cargo_toml(content)
+        names = [r["name"] for r in result]
+        assert "serde" in names
+        assert "tokio" in names
+        serde = next(r for r in result if r["name"] == "serde")
+        assert serde["version"] == "1.0"
+        assert serde["ecosystem"] == "cargo"
+
+    def test_parses_table_version(self):
+        """상세 테이블(name = { version = "1.0", ... }) 형식의 버전을 파싱해야 한다."""
+        content = """
+[dependencies]
+serde = { version = "1.0.163", features = ["derive"] }
+tokio = { version = "1.28", default-features = false }
+"""
+        result = parse_cargo_toml(content)
+        serde = next((r for r in result if r["name"] == "serde"), None)
+        assert serde is not None
+        assert serde["version"] == "1.0.163"
+        assert serde["ecosystem"] == "cargo"
+
+        tokio = next((r for r in result if r["name"] == "tokio"), None)
+        assert tokio is not None
+        assert tokio["version"] == "1.28"
+
+    def test_parses_dev_dependencies(self):
+        """[dev-dependencies] 섹션도 파싱해야 한다."""
+        content = """
+[dependencies]
+serde = "1.0"
+
+[dev-dependencies]
+mockall = "0.11"
+tempfile = "3.8"
+"""
+        result = parse_cargo_toml(content)
+        names = [r["name"] for r in result]
+        assert "serde" in names
+        assert "mockall" in names
+        assert "tempfile" in names
+
+    def test_path_dependency_has_none_version(self):
+        """path/git 의존성처럼 version 없는 테이블은 version=None 으로 포함되어야 한다."""
+        content = """
+[dependencies]
+my-local-crate = { path = "../local-crate" }
+"""
+        result = parse_cargo_toml(content)
+        assert len(result) == 1
+        assert result[0]["name"] == "my-local-crate"
+        assert result[0]["version"] is None
+        assert result[0]["ecosystem"] == "cargo"
+
+    def test_ignores_comment_lines(self):
+        """# 주석 라인은 무시해야 한다."""
+        content = """
+[dependencies]
+# this is a comment
+serde = "1.0"
+"""
+        result = parse_cargo_toml(content)
+        assert len(result) == 1
+        assert result[0]["name"] == "serde"
+
+    def test_returns_empty_for_no_dependencies_section(self):
+        """[dependencies] 섹션이 없으면 빈 목록을 반환해야 한다."""
+        content = """
+[package]
+name = "my-app"
+version = "0.1.0"
+"""
+        result = parse_cargo_toml(content)
+        assert result == []
+
+    def test_stops_at_next_section(self):
+        """[dependencies] 다음 섹션 시작 시 파싱을 종료해야 한다."""
+        content = """
+[dependencies]
+serde = "1.0"
+
+[profile.release]
+opt-level = 3
+"""
+        result = parse_cargo_toml(content)
+        # serde 만 포함되어야 한다 (opt-level 은 의존성이 아님)
+        assert all(r["name"] == "serde" for r in result)
+
+
+# ---------------------------------------------------------------------------
 # parse_file 자동 감지
 # ---------------------------------------------------------------------------
 
@@ -260,6 +361,28 @@ class TestParseFile:
         content = "requests==2.28.0\n"
         result = parse_file("backend/requirements.txt", content)
         assert len(result) == 1
+
+    def test_dispatches_cargo_toml_to_cargo_parser(self):
+        """Cargo.toml 파일명이면 parse_cargo_toml 로 라우팅해야 한다."""
+        content = '[dependencies]\nserde = "1.0"\n'
+        result = parse_file("Cargo.toml", content)
+        assert len(result) == 1
+        assert result[0]["name"] == "serde"
+        assert result[0]["ecosystem"] == "cargo"
+
+    def test_dispatches_cargo_toml_lowercase(self):
+        """cargo.toml (소문자) 파일명도 올바르게 라우팅되어야 한다."""
+        content = '[dependencies]\ntokio = "1.28"\n'
+        result = parse_file("cargo.toml", content)
+        assert len(result) == 1
+        assert result[0]["name"] == "tokio"
+
+    def test_dispatches_cargo_toml_with_path(self):
+        """경로에 Cargo.toml 이 포함된 경우에도 올바르게 라우팅되어야 한다."""
+        content = '[dependencies]\nanyhow = "1.0"\n'
+        result = parse_file("my-app/Cargo.toml", content)
+        assert len(result) == 1
+        assert result[0]["name"] == "anyhow"
 
 
 # ---------------------------------------------------------------------------

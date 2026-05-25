@@ -3,7 +3,7 @@
 // SBOM & CVE 결과 화면 — GET /api/v1/projects/{projectId}/sbom/components?sessionId= API 연결.
 // API 미응답(프로젝트/세션 미선택, 오류) 시 mock 데이터로 fallback.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Package, Download, RefreshCw, Search,
   ChevronRight, Zap, ExternalLink, Copy, Code,
@@ -300,6 +300,9 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
   const [apiLoading, setApiLoading] = useState(false);
   const [usingMock, setUsingMock]   = useState(true);
 
+  const [cdxDownloading, setCdxDownloading] = useState(false);
+  const [cdxError, setCdxError]             = useState<string | null>(null);
+
   useEffect(() => {
     if (!projectId || !lockedSessionId) {
       setDeps(MOCK_DEPS);
@@ -330,6 +333,44 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
       })
       .finally(() => setApiLoading(false));
   }, [projectId, lockedSessionId]);
+  /**
+   * CycloneDX 1.4 JSON을 GET /api/v1/projects/{projectId}/sbom/cyclonedx 로 요청하고
+   * 브라우저 다운로드를 트리거한다.
+   * JWT는 apiClient가 메모리의 accessToken을 자동으로 Authorization 헤더에 추가한다.
+   */
+  const handleCycloneDxDownload = useCallback(async () => {
+    if (!projectId || !lockedSessionId) {
+      setCdxError('프로젝트 또는 세션이 선택되지 않았습니다.');
+      return;
+    }
+
+    setCdxDownloading(true);
+    setCdxError(null);
+
+    try {
+      const params = new URLSearchParams({ sessionId: lockedSessionId });
+      const response = await apiClient.get<{ data: unknown }>(
+        `/projects/${projectId}/sbom/cyclonedx?${params}`,
+      );
+
+      const json = JSON.stringify(response.data ?? response, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+
+      const anchor  = document.createElement('a');
+      anchor.href   = url;
+      anchor.download = 'sbom.cdx.json';
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch {
+      setCdxError('CycloneDX 내보내기에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setCdxDownloading(false);
+    }
+  }, [projectId, lockedSessionId]);
+
   const [selectedCve, setSelectedCve] = useState<{ dep: Dependency; cve: CveEntry } | null>(null);
   const [sortOrder, setSortOrder] = useState<'name' | 'severity'>('severity');
 
@@ -417,9 +458,29 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
           )}
         </div>
         <div style={{ flex: 1 }} />
-        <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6, background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
-          <Download size={11} />SBOM 내보내기 (SPDX)
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+          <button
+            onClick={handleCycloneDxDownload}
+            disabled={cdxDownloading || !projectId || !lockedSessionId}
+            title={!projectId || !lockedSessionId ? '프로젝트와 세션을 먼저 선택하세요' : 'CycloneDX 1.4 JSON 다운로드'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '5px 12px', borderRadius: 6,
+              background: 'var(--bg-3)', border: '1px solid var(--border)',
+              color: cdxDownloading ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+              fontSize: 12, cursor: (cdxDownloading || !projectId || !lockedSessionId) ? 'not-allowed' : 'pointer',
+              fontWeight: 600, opacity: (!projectId || !lockedSessionId) ? 0.5 : 1,
+            }}
+          >
+            <Download size={11} />
+            {cdxDownloading ? '다운로드 중...' : 'SBOM 내보내기 (CycloneDX)'}
+          </button>
+          {cdxError && (
+            <span style={{ fontSize: 10, color: 'var(--critical)', fontFamily: 'var(--font-mono)' }}>
+              {cdxError}
+            </span>
+          )}
+        </div>
         <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6, background: 'var(--orange-2)', color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
           <RefreshCw size={11} />재스캔
         </button>

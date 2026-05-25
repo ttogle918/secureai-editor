@@ -36,4 +36,7 @@ public interface AnalysisSessionRepository extends JpaRepository<AnalysisSession
     @Modifying
     @Query("UPDATE AnalysisSession s SET s.vulnCount = s.vulnCount + :count WHERE s.id = :sessionId")
     void incrementVulnCount(@Param("sessionId") UUID sessionId, @Param("count") int count);
+
+    /** 프로젝트의 가장 최근 분석 세션 1건을 조회한다 (야간 스캔 변경 감지에 사용). */
+    Optional<AnalysisSession> findTopByProjectIdOrderByCreatedAtDesc(UUID projectId);
 }

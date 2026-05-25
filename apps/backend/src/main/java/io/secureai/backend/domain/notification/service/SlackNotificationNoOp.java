@@ -24,4 +24,9 @@ public class SlackNotificationNoOp implements SlackNotificationPort {
     public void sendMonitoringDownAlert(String domain, String errorMessage) {
         log.debug("[slack-noop] 다운 알림 생략 domain={}", domain);
     }
+
+    @Override
+    public void sendNightlyScanResult(String projectName, String summary) {
+        log.debug("[slack-noop] 야간 스캔 결과 알림 생략 project={}", projectName);
+    }
 }

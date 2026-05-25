@@ -323,3 +323,44 @@ Sprint 9 완료 기록 (2026-05-23 기준):
 - `GitHubWebhookServiceTest`: 토큰 blank 시 Check Run skip 검증 2개 추가
 
 **커밋**: `af2ce44` `feat(sprint10-stage2): PR 자동 트리거 + Check Run API + 스캔 개선 (TASK-502, TASK-503)`
+
+---
+
+## Stage 3 완료 기록 (2026-05-25)
+
+### TASK-504 — SBOM CycloneDX 내보내기
+### TASK-1001 — 야간 자동 스캔 스케줄링
+
+**구현 내용**:
+
+**TASK-504 Backend**:
+- `CycloneDxBom.java`: CycloneDX 1.4 BOM 응답 record (Component/Vulnerability/Rating 중첩 record, `bom-ref` @JsonProperty 적용)
+- `CycloneDxExportService.java`: 내보내기 전용 서비스 (SRP). `CveSearchService` 경유 CVE 조회 (DIP). 팀 멤버 검증, CVE 매칭 오류 skip & log
+- `SbomController.java`: `GET /api/v1/projects/{id}/sbom/cyclonedx?sessionId=` 엔드포인트 추가
+
+**TASK-504 AI Engine**:
+- `sbom_parser.py`: `parse_cargo_toml()` 추가 (인라인/테이블 버전, dev-dependencies, path 의존성). `parse_file()` Cargo.toml 라우팅 등록
+
+**TASK-504 Frontend**:
+- `SbomPage.tsx`: CycloneDX JSON 다운로드 버튼 (Blob URL, JWT는 auth store)
+
+**TASK-1001 Backend (신규 도메인)**:
+- `V044__create_project_schedules.sql`: project_schedules 테이블 (Flyway V044)
+- `NightlyScanJob.java`: `@Scheduled(0 0 16 * * *)` = KST 01:00 + `@SchedulerLock(PT2H/PT10M)`
+- `NightlyScanService.java`: 변경 감지 (GitHub SHA 비교 / 30일 경과 여부) + 스캔 위임 + 알림 skip & log
+- `ProjectScheduleService.java` + `ProjectScheduleController.java`: `GET+PUT /api/v1/projects/{id}/schedule` Upsert
+
+**Reviewer FAIL → 수정 이력**:
+
+*1차 FAIL (API 설계 문서 불일치)*:
+| # | 위반 | 수정 |
+|---|------|------|
+| 1 | `GET /sbom/cyclonedx` 엔드포인트 문서 미등재 | `docs/02_API_DESIGN_V5_260523.md` 4.9절 신규 추가 |
+| 2 | 스케줄 엔드포인트 `POST /schedules`(복수) vs 구현 `GET+PUT /schedule`(단수) | 14.1~14.2절을 실제 Upsert 패턴으로 수정 (단수형 경로, 요청/응답 필드 일치) |
+
+**단위 테스트**: 20개 통과 (Backend) + 36개 통과 (Python)
+- `CycloneDxExportServiceTest`: 11/11 PASS
+- `NightlyScanJobTest` + `NightlyScanServiceTest`: 9/9 PASS (`@MockitoSettings(LENIENT)` 적용)
+- `test_sbom_parser.py`: 36/36 PASS (Cargo 파서 7개 + 라우팅 3개 포함)
+
+**커밋**: `cc5ee73` `feat(sprint10-stage3): SBOM CycloneDX 내보내기 + 야간 스캔 스케줄링 (TASK-504, TASK-1001)`

@@ -364,3 +364,79 @@ Sprint 9 완료 기록 (2026-05-23 기준):
 - `test_sbom_parser.py`: 36/36 PASS (Cargo 파서 7개 + 라우팅 3개 포함)
 
 **커밋**: `cc5ee73` `feat(sprint10-stage3): SBOM CycloneDX 내보내기 + 야간 스캔 스케줄링 (TASK-504, TASK-1001)`
+
+---
+
+## Stage 4 완료 기록 (2026-05-26)
+
+### TASK-1002 — 팀 대시보드 & Gamification
+
+**Backend**:
+- `V045__add_security_score_to_users.sql`: `users.security_score INTEGER DEFAULT 0` (IF NOT EXISTS)
+- `TeamDashboardResponse.java`: `teamId`, `teamName`, `members: List<MemberStat>`, `totalCritical`, `totalHigh`, `avgMttrHours`, `monthlyTokenUsage` record
+- `TeamDashboardService.java`: JdbcTemplate 전용 집계 (도메인 간 Repository 직접 주입 없음, DIP 준수)
+  - `loadOrgNameOrThrow()`, `verifyTeamMember()`, `loadAcceptedMemberIds()` — org_members/organizations JDBC 쿼리
+  - `loadUserStats()` — users 테이블 RowMapper 방식 (mock 친화적)
+  - `buildMemberStats()` — securityScore 내림차순 rank 부여
+  - 패키지-프라이빗 `record UserStat(UUID id, String username, int securityScore)` 내부 DTO
+- `DashboardController.java`: `GET /api/v1/teams/{teamId}/dashboard` 추가 (기존 엔드포인트 보존)
+- `User.java`: `securityScore` 필드 추가 (Flyway V045 동기)
+
+**Frontend**:
+- `team/[orgSlug]/page.tsx`: 팀원별 랭킹 테이블 + 도넛 차트(Recharts) + 빈 catch → console.warn 수정
+
+---
+
+### TASK-1003 — 리포트 위젯 PDF/HTML Export (ROI)
+
+**Backend**:
+- `RoiCalculationService.java`: `savedHours = vulnCount × 4h`, `savedCost = savedHours × hourlyRate`  
+  상수: `DEFAULT_HOURLY_RATE = 50.0`, `HOURS_PER_VULNERABILITY = 4.0`  
+  hourlyRate <= 0 시 기본값 적용
+- `roi-report.html`: openhtmltopdf용 HTML 템플릿 (인라인 CSS, Thymeleaf 변수)
+- `SecurityDocAsyncProcessor.java`: `processRoiReport()` 확장 + `RoiCalculationService` 의존성 주입
+- `ReportController.java`: `GET .../roi` + `GET .../roi/pdf` 엔드포인트 추가
+- `VulnerabilityRepository.java`: `countBySeverityForSession` 쿼리 메서드 추가
+
+**Frontend**:
+- `PdfReportModal.tsx`: ROI 위젯 포함 체크박스 + hourlyRate 입력 + ROI 미리보기 섹션
+
+---
+
+### TASK-1004 — 스캔 모드 선택 (Audit vs Pipeline)
+
+**Backend**:
+- `V046__add_scan_mode_to_analysis_sessions.sql`: `scan_mode TEXT DEFAULT 'PIPELINE'` (IF NOT EXISTS)
+- `StartAnalysisRequest.java`: `scanMode` 필드 + `@Pattern(AUDIT|PIPELINE)` 검증 + `effectiveScanMode()` 헬퍼
+- `AnalysisSession.java`: `@Column(name = "scan_mode") String scanMode` (기본값 "PIPELINE")
+- `AiAgentClient` 인터페이스 + `DefaultAiAgentClient`: `scanMode` 파라미터 전달
+- `AnalysisService.java`: 세션 빌더에 `scanMode` 적용
+
+**AI Engine**:
+- `settings.py`: `audit_model = Field("claude-haiku-4-5-20251001")`, `pipeline_model = Field("claude-sonnet-4-6")`
+- `agent_state.py`: `scan_mode: str | None` 필드 추가
+- `sast_node.py`: `scan_mode == "AUDIT"` → `settings.audit_model`, 기본값 → `settings.pipeline_model`
+- `analyze.py`: `AnalyzeRequest.scan_mode` 필드 + `initial_state` 주입
+- `.env.example`: `AUDIT_MODEL`, `PIPELINE_MODEL` 항목 추가
+
+**Frontend**:
+- `ScanModeSelector.tsx`: 모드 선택 라디오 UI (`ScanMode = 'AUDIT' | 'PIPELINE'`)
+- `useStartAnalysis.ts`: `scanMode` 상태 관리 + API 호출 시 전달
+
+---
+
+**Reviewer FAIL → 수정 이력**:
+
+| # | 위반 | 수정 |
+|---|------|------|
+| 1 | `TeamDashboardService`: `UserRepository`/`OrgMemberRepository`/`OrganizationRepository` 도메인 간 직접 주입 | JdbcTemplate 전용 집계로 전환, JPA Repository 의존성 제거 |
+| 2 | `StartAnalysisRequest.scanMode`: Controller 레이어 입력 검증 부재 | `@Pattern(regexp = "^(AUDIT\|PIPELINE)$")` 추가 |
+| 3 | `TeamDashboardServiceTest`: JPA stub 기반 → JdbcTemplate doReturn/doAnswer 방식으로 재작성 | `@MockitoSettings(LENIENT)` + jdbcTemplate stub helper 메서드 분리 |
+| 4 | `CircuitBreakerTest`: `startAnalysisFallback` 리플렉션 인자 불일치 | `null` 1개 추가 (scanMode) |
+| 5 | 빈 catch 블록 (프론트엔드) | `console.warn` 추가 |
+| 6 | API 문서 ROI 엔드포인트 미등재 | 13.3/13.4절 신규 추가 |
+
+**단위 테스트**: 백엔드 PASS (TeamDashboard 7개 + RoiCalculation 5개 + AnalysisService + CircuitBreaker)  
+AI Engine 신규 3개 PASS (Audit/Pipeline 모드 + preferred_model 우선순위)
+
+**커밋**: `b42a51a` `feat(enterprise): Sprint 10 Stage 4 — 팀 대시보드 + ROI Export + 스캔 모드 (TASK-1002/1003/1004)`

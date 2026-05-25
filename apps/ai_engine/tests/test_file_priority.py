@@ -1,5 +1,12 @@
 """
 TASK-503: 파일 우선순위 정렬 및 필터 단위 테스트.
+
+우선순위 기준 (PRIORITY_EXTENSIONS 딕셔너리):
+0 — 시크릿/키/인증서 (.env, .key, .pem, .p12, .pfx)
+1 — 설정 파일      (.yml, .yaml, .json, .xml, .conf 등)
+2 — 소스 코드      (.py, .java, .ts, .js, .kt 등)
+3 — 문서/기타      (.md, .txt)
+99 — 알 수 없는 확장자
 """
 import pytest
 
@@ -35,38 +42,57 @@ class TestGetExtension:
 # ---------------------------------------------------------------------------
 
 class TestPrioritizeFiles:
-    def test_source_files_come_before_config_files(self):
-        """소스 파일(.java, .py)은 설정 파일(.yml, .json)보다 앞에 위치해야 한다."""
+    def test_secret_files_come_before_config_files(self):
+        """시크릿 파일(.env, .key, .pem)은 설정 파일(.yml, .json)보다 앞에 위치해야 한다."""
         files = [
             "config/application.yml",
-            "pom.xml",
-            "src/Service.java",
-            "requirements.txt",
-            "src/main.py",
+            "secrets/api.key",
+            ".env",
+            "src/config.json",
+            "certs/server.pem",
         ]
         result = prioritize_files(files)
-        # 소스 파일 인덱스가 설정 파일 인덱스보다 작아야 함
-        java_idx = result.index("src/Service.java")
-        py_idx = result.index("src/main.py")
+
+        env_idx = result.index(".env")
+        key_idx = result.index("secrets/api.key")
+        pem_idx = result.index("certs/server.pem")
         yml_idx = result.index("config/application.yml")
-        xml_idx = result.index("pom.xml")
+        json_idx = result.index("src/config.json")
 
-        assert java_idx < yml_idx
-        assert py_idx < yml_idx
-        assert java_idx < xml_idx
+        assert env_idx < yml_idx
+        assert key_idx < yml_idx
+        assert pem_idx < json_idx
 
-    def test_priority_extensions_all_grouped_first(self):
-        """PRIORITY_EXTENSIONS 파일이 CONFIG_EXTENSIONS 파일보다 먼저 나와야 한다."""
-        files = ["app.yml", "server.go", "config.json", "service.ts"]
+    def test_config_files_come_before_source_files(self):
+        """설정 파일(.yml, .json)은 소스 코드(.java, .py)보다 앞에 위치해야 한다."""
+        files = [
+            "src/Service.java",
+            "config/application.yml",
+            "src/main.py",
+            "src/config.json",
+        ]
         result = prioritize_files(files)
 
-        last_priority_idx = max(
-            result.index(f) for f in files if _get_extension(f) in PRIORITY_EXTENSIONS
-        )
-        first_config_idx = min(
+        yml_idx = result.index("config/application.yml")
+        json_idx = result.index("src/config.json")
+        java_idx = result.index("src/Service.java")
+        py_idx = result.index("src/main.py")
+
+        assert yml_idx < java_idx
+        assert json_idx < py_idx
+
+    def test_config_extensions_come_before_source_extensions(self):
+        """CONFIG_EXTENSIONS 파일이 소스 코드 파일(.go, .ts)보다 먼저 나와야 한다."""
+        files = ["server.go", "app.yml", "service.ts", "config.json"]
+        result = prioritize_files(files)
+
+        last_config_idx = max(
             result.index(f) for f in files if _get_extension(f) in CONFIG_EXTENSIONS
         )
-        assert last_priority_idx < first_config_idx
+        first_source_idx = min(
+            result.index(f) for f in files if _get_extension(f) in {".go", ".ts"}
+        )
+        assert last_config_idx < first_source_idx
 
     def test_unknown_extension_files_placed_last(self):
         """알 수 없는 확장자 파일은 소스와 설정 파일 뒤에 위치해야 한다."""

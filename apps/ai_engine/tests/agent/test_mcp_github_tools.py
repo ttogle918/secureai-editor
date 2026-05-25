@@ -9,6 +9,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from agent.tools.mcp_github_tools import (
     list_github_files,
     get_github_file_content,
+    list_commits_via_mcp,
+    get_commit_diff_via_mcp,
     SCANNABLE_EXTENSIONS,
 )
 
@@ -31,7 +33,7 @@ async def test_list_github_files_passes_token():
     tool_mock = _make_tool_mock(raw_listing)
 
     with patch("agent.tools.mcp_github_tools.get_tool", return_value=tool_mock):
-        result = await list_github_files(
+        files, _ = await list_github_files(
             session_id="sess-001",
             owner="myorg",
             repo="myrepo",
@@ -46,8 +48,8 @@ async def test_list_github_files_passes_token():
     assert call_args["repo"] == "myrepo"
     assert call_args["ref"] == "main"
     assert call_args["recursive"] is True
-    assert "src/Main.java" in result
-    assert "src/utils/Helper.java" in result
+    assert "src/Main.java" in files
+    assert "src/utils/Helper.java" in files
 
 
 @pytest.mark.asyncio
@@ -66,20 +68,20 @@ async def test_list_github_files_filters_extensions():
     tool_mock = _make_tool_mock(raw_listing)
 
     with patch("agent.tools.mcp_github_tools.get_tool", return_value=tool_mock):
-        result = await list_github_files(
+        files, _ = await list_github_files(
             session_id="sess-002",
             owner="testowner",
             repo="testrepo",
         )
 
-    assert "src/Main.java" in result
-    assert "src/Service.kt" in result
-    assert "app.py" in result
-    assert "index.ts" in result
-    assert "src/image.png" not in result
-    assert "build.gradle" not in result
-    assert "pom.xml" not in result
-    assert "README.md" not in result
+    assert "src/Main.java" in files
+    assert "src/Service.kt" in files
+    assert "app.py" in files
+    assert "index.ts" in files
+    assert "src/image.png" not in files
+    assert "build.gradle" not in files
+    assert "pom.xml" not in files
+    assert "README.md" not in files
 
 
 @pytest.mark.asyncio
@@ -96,16 +98,16 @@ async def test_list_github_files_excludes_dirs():
     tool_mock = _make_tool_mock(raw_listing)
 
     with patch("agent.tools.mcp_github_tools.get_tool", return_value=tool_mock):
-        result = await list_github_files(
+        files, _ = await list_github_files(
             session_id="sess-003",
             owner="testowner",
             repo="testrepo",
         )
 
     # 디렉토리 항목은 포함되지 않아야 함
-    assert not any(e.endswith("/") for e in result)
-    assert "src/main/java/App.java" in result
-    assert "src/main/resources/config.py" in result
+    assert not any(e.endswith("/") for e in files)
+    assert "src/main/java/App.java" in files
+    assert "src/main/resources/config.py" in files
 
 
 @pytest.mark.asyncio
@@ -197,3 +199,146 @@ def test_scannable_extensions_contains_common_languages():
     """주요 언어 확장자가 SCANNABLE_EXTENSIONS에 포함된다."""
     expected = {".java", ".kt", ".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs"}
     assert expected.issubset(SCANNABLE_EXTENSIONS)
+
+
+# ─── list_commits_via_mcp ─────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_list_commits_via_mcp_returns_list():
+    """MCP list_commits 툴 응답(JSON 배열)을 파싱해 list를 반환한다."""
+    import json
+    commits = [
+        {"sha": "abc123", "message": "fix bug", "date": "2026-01-01T00:00:00Z", "author": "alice"},
+        {"sha": "def456", "message": "add feature", "date": "2026-01-02T00:00:00Z", "author": "bob"},
+    ]
+    tool_mock = _make_tool_mock(json.dumps(commits))
+
+    with patch("agent.tools.mcp_github_tools.get_tool", return_value=tool_mock):
+        result = await list_commits_via_mcp(
+            session_id="sess-100",
+            owner="myorg",
+            repo="myrepo",
+            page=1,
+            per_page=30,
+        )
+
+    assert len(result) == 2
+    assert result[0]["sha"] == "abc123"
+    assert result[1]["author"] == "bob"
+
+
+@pytest.mark.asyncio
+async def test_list_commits_via_mcp_per_page_capped_at_100():
+    """per_page가 100 초과면 100으로 제한되어 tool에 전달된다."""
+    import json
+    tool_mock = _make_tool_mock(json.dumps([]))
+
+    with patch("agent.tools.mcp_github_tools.get_tool", return_value=tool_mock):
+        await list_commits_via_mcp(
+            session_id="sess-101",
+            owner="owner",
+            repo="repo",
+            per_page=200,
+        )
+
+    call_args = tool_mock.ainvoke.call_args[0][0]
+    assert call_args["per_page"] == 100
+
+
+@pytest.mark.asyncio
+async def test_list_commits_via_mcp_token_not_included_when_none():
+    """token이 None이면 ainvoke 인자에 'token' 키가 포함되지 않는다."""
+    import json
+    tool_mock = _make_tool_mock(json.dumps([]))
+
+    with patch("agent.tools.mcp_github_tools.get_tool", return_value=tool_mock):
+        await list_commits_via_mcp(
+            session_id="sess-102",
+            owner="owner",
+            repo="repo",
+            token=None,
+        )
+
+    call_args = tool_mock.ainvoke.call_args[0][0]
+    assert "token" not in call_args
+
+
+@pytest.mark.asyncio
+async def test_list_commits_via_mcp_invalid_json_returns_empty():
+    """MCP 응답이 JSON 파싱 불가이면 빈 목록을 반환한다."""
+    tool_mock = _make_tool_mock("not valid json {{")
+
+    with patch("agent.tools.mcp_github_tools.get_tool", return_value=tool_mock):
+        result = await list_commits_via_mcp(
+            session_id="sess-103",
+            owner="owner",
+            repo="repo",
+        )
+
+    assert result == []
+
+
+# ─── get_commit_diff_via_mcp ─────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_commit_diff_via_mcp_returns_dict():
+    """MCP get_commit_diff 툴 응답(JSON 객체)을 파싱해 dict를 반환한다."""
+    import json
+    diff = {
+        "sha": "abc123",
+        "message": "fix bug",
+        "date": "2026-01-01T00:00:00Z",
+        "files": [
+            {"filename": "src/app.py", "patch": "+secret_key = 'abc'", "status": "modified"}
+        ],
+    }
+    tool_mock = _make_tool_mock(json.dumps(diff))
+
+    with patch("agent.tools.mcp_github_tools.get_tool", return_value=tool_mock):
+        result = await get_commit_diff_via_mcp(
+            session_id="sess-200",
+            owner="myorg",
+            repo="myrepo",
+            sha="abc123",
+        )
+
+    assert result["sha"] == "abc123"
+    assert len(result["files"]) == 1
+    assert result["files"][0]["filename"] == "src/app.py"
+
+
+@pytest.mark.asyncio
+async def test_get_commit_diff_via_mcp_token_passed():
+    """token이 지정되면 ainvoke 인자에 포함된다."""
+    import json
+    tool_mock = _make_tool_mock(json.dumps({"sha": "abc", "files": []}))
+
+    with patch("agent.tools.mcp_github_tools.get_tool", return_value=tool_mock):
+        await get_commit_diff_via_mcp(
+            session_id="sess-201",
+            owner="owner",
+            repo="repo",
+            sha="abc123",
+            token="ghp_test_pat_token",
+        )
+
+    call_args = tool_mock.ainvoke.call_args[0][0]
+    assert call_args["token"] == "ghp_test_pat_token"
+    assert call_args["sha"] == "abc123"
+
+
+@pytest.mark.asyncio
+async def test_get_commit_diff_via_mcp_invalid_json_returns_fallback():
+    """MCP 응답이 JSON 파싱 불가이면 sha만 있는 fallback dict를 반환한다."""
+    tool_mock = _make_tool_mock("ERROR: not found")
+
+    with patch("agent.tools.mcp_github_tools.get_tool", return_value=tool_mock):
+        result = await get_commit_diff_via_mcp(
+            session_id="sess-202",
+            owner="owner",
+            repo="repo",
+            sha="abc123def456",
+        )
+
+    assert result["sha"] == "abc123def456"
+    assert result["files"] == []

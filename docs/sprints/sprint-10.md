@@ -1,0 +1,262 @@
+# Sprint 10 — Enterprise B2B + GitHub Integration
+**기간**: 2026-05-25 ~ 2026-06-07 (Week 21–22)
+**목표**: GitHub Webhook 자동 분석 파이프라인 완성 + Enterprise 고도화(야간 스캔·팀 대시보드·리포트 Export·스캔 모드) + 미구현 프론트엔드 화면 4종
+
+---
+
+## 사전 발견 사항 (Dev 평가 결과 — 착수 전 보정)
+
+| 항목 | 백로그 명세 | 실제 상태 | 조치 |
+|------|-----------|---------|------|
+| `GitHubWebhookController` / `GitHubWebhookService` | TASK-502 "신규 구현 필요" | **이미 존재** — `domain/analysis/controller/GitHubWebhookController.java`, `domain/analysis/service/GitHubWebhookService.java` (HMAC-SHA256 서명 검증 포함) | TASK-502는 신규 구현이 아닌 **확장** — 기존 Webhook 수신 로직에 PR 분석 트리거 + `create_pr_comment.ts` MCP 툴 + GitHub Check Run API 연동만 추가 |
+| `PrReviewHistory.java` + Flyway | TASK-502 "Flyway V015 신규" | **V019__create_pr_review_history.sql 이미 존재**, `PrReviewHistory.java` 엔티티·`PrReviewHistoryRepository.java` 존재 | Flyway 스크립트 신규 작성 불필요. 기존 테이블에 필요 컬럼만 확인 후 ALTER |
+| `project_schedules` 엔티티 | TASK-1001 "신규 구현" | **미존재** — `domain/scheduling/` 디렉토리 없음. `NightlyScanJob`도 미존재 | 완전 신규 도메인 생성. Flyway V044 예약 |
+| `TeamDashboardService` | TASK-1002 "신규 구현" | **미존재** — `team` 도메인에 `TeamSettings`(IP Allowlist) 관련 5개 파일만 존재. `security_score` 컬럼·`MTTR` 계산 로직 모두 없음 | `users.security_score` 컬럼 추가 Flyway 필요. `dashboard` 도메인에 팀 집계 서비스로 배치 |
+| `SecurityDocPage.tsx` (프론트엔드 설정 페이지) | 미구현 4화면 중 SettingsPage | `apps/frontend/src/app/settings/page.tsx` **이미 존재** (기본 UI) | 기존 파일에 알림·플랜·API 키 섹션 **확장**이 필요 — 신규 생성 아님 |
+| `GitHubScanModal.tsx` | FEAT-FE-002 "미구현" | `apps/frontend/src/app/github-scan/page.tsx` **이미 존재** | page.tsx 존재 확인 필요 — 내용 확인 후 Modal 컴포넌트 추가 또는 페이지 확장 |
+| ROI 계산 서비스 (TASK-1003) | "신규 서비스" | `ReportService.java`, `PdfReportGenerator.java`, `SecurityDocAsyncProcessor.java` 등 리포트 인프라 완비 | ROI 계산 로직만 추가하면 됨. OpenHTMLtoPDF(`openhtmltopdf-pdfbox`) 이미 `build.gradle.kts`에 포함 여부 확인 필요 |
+| `scan_mode` 파라미터 | TASK-1004 "신규" | `StartAnalysisRequest.java` 존재, `AnalysisSession.java` 존재 | `scan_mode` 컬럼 추가 Flyway + `StartAnalysisRequest`에 필드 추가. LangGraph `sast_node.py`에 모드 분기 로직 추가 |
+| Flyway 최고 번호 | V043 (Sprint 9) | V043 확인됨 (`V043__create_monitoring_results.sql`) | Sprint 10 신규 마이그레이션은 V044부터 시작 |
+| `feat/sprint5-github` 브랜치 | Sprint 10 리베이스 예정 | 백로그에 명시됨 (`feat/sprint10-github`로 리베이스) | Stage 0 #1에서 브랜치 상태 확인 후 리베이스 또는 main 기반 신규 브랜치 결정 |
+
+---
+
+## Flyway 번호 예약
+
+| 번호 | 태스크 | 파일명 | 비고 |
+|------|--------|--------|------|
+| V044 | TASK-1001 | `V044__create_project_schedules.sql` | `project_schedules` 테이블 신규 |
+| V045 | TASK-1002 | `V045__add_security_score_to_users.sql` | `users.security_score` INTEGER 컬럼 추가 |
+| V046 | TASK-1004 | `V046__add_scan_mode_to_analysis_sessions.sql` | `analysis_sessions.scan_mode` TEXT 컬럼 추가 |
+| V047 | TASK-502 | `V047__alter_pr_review_history_add_check_run.sql` | `pr_review_history`에 `check_run_id` 등 컬럼 추가 (기존 테이블 존재 확인 후 필요 시에만) |
+
+---
+
+## 스프린트 시작 전 완료 사항
+
+Sprint 9 완료 기록 (2026-05-23 기준):
+- TASK-901 지속 모니터링 서비스: 완료
+- TASK-902 VSCode Extension MVP: 완료
+- TASK-903 Android 고도화: 완료
+- TASK-904 PostgreSQL MCP (ADR-016 전환): 완료 (f-string SQL → Backend 내부 API 경유로 전환)
+- TASK-905 Docker DAST MCP thin-wrapper: 완료
+- TASK-906 Prometheus + Grafana: 완료
+- TASK-907 GDPR 하드 삭제 스케줄러: 완료
+
+---
+
+## 이월 태스크
+
+| TASK | 출처 | 사유 | Sprint 10 처리 |
+|------|------|------|---------------|
+| TASK-501 GitHub Webhook 이벤트 수신 | Sprint 5 | GitHub Integration 통합 처리 | Stage 1 — Critical 우선 |
+| TASK-502 PR 분석 자동 트리거 | Sprint 5 | TASK-501 선행 필요 | Stage 2 (TASK-501 완료 후) |
+| TASK-503 커밋 히스토리 시크릿 스캔 개선 | Sprint 5 | 잔여 개선분 | Stage 2와 병렬 |
+| TASK-504 SBOM GitHub Release 연동 | Sprint 5 | SBOM 기본 완료, Release 연동 미구현 | Stage 3 |
+| `make perf-test` k6 p95 < 500ms | Sprint 8 이월 | 인프라 실행 필요 | Stage 2 병행 (Prometheus 가동 상태) |
+| OWASP ZAP Critical 0건 | Sprint 8 이월 | 수동 검증 | Stage 2 병행 |
+| 2FA QR 스캔 수동 검증 | Sprint 8 이월 | UI 수동 확인 | Stage 1 병행 |
+| Nginx HTTPS 리다이렉트 | Sprint 8 이월 | `make ssl-cert` + `make dev` | Stage 1 병행 |
+| GDPR 통합 테스트 (30일 시뮬레이션) | Sprint 9 이월 | 통합 환경 필요 | Stage 3 병행 |
+| VSCode Extension 수동 설치 검증 | Sprint 9 이월 | `npm run package` + `code --install-extension` | Stage 3 병행 |
+
+---
+
+## Stage 0 — 사전 결정 사항 (착수 전 확정)
+
+> 코드 구현 없음. 아래 항목을 먼저 결정한 뒤 Stage 1 진입.
+
+| # | 항목 | 내용 | 결정 |
+|---|------|------|------|
+| 1 | **`feat/sprint5-github` 브랜치 전략** | `feat/sprint5-github` 브랜치를 `feat/sprint10-github`로 리베이스할지, main 기반 신규 브랜치로 갈지 확인 | Stage 1 착수 직전 `git log feat/sprint5-github`로 커밋 현황 확인 |
+| 2 | **TASK-501 `list_commits.ts` / `get_commit_diff.ts` MCP 툴 위치** | `apps/mcp_server/src/index.ts`에 GitHub 툴 추가 (Sprint 9 DAST 툴과 동일 파일)로 통합할지, 별도 `github_tools.ts` 파일로 분리할지 | 통합 파일 방식 채택 권장 — `index.ts` 단일 진입점 유지. 단, 파일이 300줄 초과 시 분리 검토 |
+| 3 | **GitHub Check Run API 범위** | PR 분석 완료 시 Check Run `status=completed` + `conclusion=failure|success`만 구현 (Annotation은 EPIC-MISC) | Stage 0에서 확정 후 TASK-502 하위 할일에 반영 |
+| 4 | **TASK-1001 야간 스캔 스케줄 기준** | 매시 정각 조회 vs. 프로젝트별 사용자 설정 크론. MVP: 고정 매일 01:00 KST (단일 크론) | 매일 01:00 KST 고정으로 확정 권장 (사용자 설정 크론은 FEAT-API-005로 이관) |
+| 5 | **TASK-1001 변경 감지 기준** | GitHub Commit SHA 비교 vs. `projects.updated_at` 비교. GitHub 레포가 없는 프로젝트(로컬 업로드) 처리 방침 | GitHub SHA 우선, 없으면 `analysis_sessions.created_at` 최신 시각 비교 |
+| 6 | **TASK-1002 `security_score` 점수 계산 방식** | Critical: -20, High: -10, Medium: -5, Low: -1 (100점 만점 감산 방식) vs. 기존 `SecurityScoreRing` 계산 로직 재사용 | 기존 `DashboardQueryService`의 보안 점수 계산 로직 재사용. 이벤트 기반 업데이트 (`VulnerabilityFoundEvent` + `PatchAppliedEvent`) |
+| 7 | **TASK-1003 ROI 계산 단가** | "절감 시간" = 취약점 수 × 평균 수작업 시간(4h). "절감 비용" = 절감 시간 × 시간당 단가 (기본 $50). 프론트엔드에서 단가 입력 가능 | 기본값만 제공, 커스텀은 쿼리 파라미터로 주입 (`hourlyRate=50`) |
+| 8 | **TASK-1004 `scan_mode` 모델 분기** | Audit 모드: `claude-haiku-4-5` (저비용·빠른 속도). Pipeline 모드: `claude-sonnet-4-6` (고품질·엄격). 프론트엔드 기본값: Pipeline | `settings.py`에 `AUDIT_MODEL`, `PIPELINE_MODEL` 환경변수로 외부화 |
+| 9 | **프론트엔드 미구현 화면 4종 범위** | GitHubScanModal, CompliancePage, TeamManagementPage, SettingsPage(확장) — Sprint 10에서 백엔드 API와 동시 구현 | GitHubScanModal(TASK-502와 연동), CompliancePage(TASK-502/504 완료 후), TeamManagementPage(TASK-1002와 연동), SettingsPage(TASK-1001/1004 연동) |
+| 10 | **Flyway 번호** | V044~V047 사전 예약 | 확정 |
+
+---
+
+## 실행 계획
+
+### Stage 1 — GitHub Webhook + Commit 시크릿 스캔 기반 (Critical, 선행)
+
+| TASK | 제목 | 서비스 | 파일 | 선행 | 비고 |
+|------|------|--------|------|------|------|
+| TASK-501 | GitHub Webhook 이벤트 수신 | mcp_server + backend + ai_engine | `apps/mcp_server/src/index.ts`(`list_commits`, `get_commit_diff` MCP 툴 추가), `apps/ai_engine/agent/tools/mcp_github_tools.py`(커밋 툴 래퍼 — 기존 파일 확장), 시크릿 탐지 프롬프트 신규 노드(`secret_scan_node.py`), `CommitHistoryScanner.java`(`@Async` 페이지네이션, `GitHubApiService` 재사용) | Stage 0 #1, #2 | `GitHubWebhookController`는 기존 파일 확장. `mcp_github_tools.py` 이미 존재 → 확장만 |
+
+**순차 강제 이유**: Stage 1은 Stage 2(PR 분석 트리거)의 선행 조건. `mcp_server/src/index.ts` 동일 파일을 Stage 1에서 먼저 수정하고 Stage 2가 이어서 MCP 호출 추가.
+
+---
+
+### Stage 2 — PR 자동 트리거 + 시크릿 스캔 개선 (Critical + High, Stage 1 완료 후)
+
+| TASK | 제목 | 서비스 | 파일 | 선행 | 비고 |
+|------|------|--------|------|------|------|
+| TASK-502 | PR 분석 자동 트리거 | backend + mcp_server | `GitHubWebhookService.java`(PR 이벤트 처리 로직 확장 — 기존 파일 확장), `apps/mcp_server/src/index.ts`(`create_pr_comment` MCP 툴 추가), `V047__alter_pr_review_history_add_check_run.sql`(필요 컬럼 확인 후 선택적 적용), GitHub Check Run API 호출 (`GitHubRestClient.java` 확장), `apps/frontend/src/components/analysis/GitHubScanModal.tsx`(신규 또는 기존 페이지 확장) | TASK-501 | `GitHubWebhookController` + `GitHubWebhookService` 이미 존재 → HMAC 검증 보존하며 PR 처리 로직만 추가 |
+| TASK-503 | 커밋 히스토리 시크릿 스캔 개선 | ai_engine | `apps/ai_engine/agent/nodes/scan_files_node.py`(파일 타입 우선순위 정렬·바이너리 필터·asyncio.gather 병렬화·SSE 진행률 정확도), `apps/ai_engine/tests/test_file_priority.py`(기존 테스트 확장) | TASK-501 | 독립 도메인이나 TASK-501의 시크릿 탐지 노드 완성 후 착수 권장 |
+
+**병렬 안전 조건**: TASK-502와 TASK-503은 서로 다른 파일 영역 — 병렬 진행 가능. 단, TASK-502의 `index.ts` 수정과 TASK-503의 `scan_files_node.py` 수정이 충돌하지 않음.
+
+---
+
+### Stage 3 — SBOM GitHub Release + Enterprise 야간 스캔 (High, Stage 2와 병렬 가능)
+
+| TASK | 제목 | 서비스 | 파일 | 선행 | 비고 |
+|------|------|--------|------|------|------|
+| TASK-504 | SBOM GitHub Release 연동 | backend + ai_engine | `apps/backend/src/main/java/io/secureai/backend/domain/sbom/`(의존성 파일 자동 감지 + SBOM 파서 4종 완성 + CycloneDX JSON 내보내기), `apps/ai_engine/agent/tools/sbom_parser.py`(기존 파일 확장), `apps/frontend/src/components/analysis/SbomPage.tsx`(CycloneDX 다운로드 버튼 추가) | — | SBOM 기본 인프라(`DependencyComponent`, 파서 4종) 이미 존재 → Release 연동 + CycloneDX 포맷만 추가 |
+| TASK-1001 | 야간 자동 스캔 스케줄링 | backend | `V044__create_project_schedules.sql`(`project_schedules` 테이블: project_id, is_active, last_scan_sha, last_scan_at, scan_hour), `domain/scheduling/entity/ProjectSchedule.java`, `domain/scheduling/repository/ProjectScheduleRepository.java`, `domain/scheduling/service/NightlyScanJob.java`(`@Scheduled(cron="0 0 1 * * *")` + `@SchedulerLock(name="nightlyScan", lockAtMostFor="PT2H")`), `domain/scheduling/service/NightlyScanService.java`(변경 감지 + AI Engine 분석 위임 + 요약 리포트 이메일/Slack), `domain/scheduling/controller/ProjectScheduleController.java`(`PUT /api/v1/projects/{id}/schedule`) | Stage 0 #4, #5, Sprint 8 TASK-801(ShedLock) | 완전 신규 도메인. `NvdSyncJob` 패턴 참고. `AiAgentClient` + `EmailService` + `SlackWebhookAdapter` 재사용 |
+
+**병렬 안전 조건**: TASK-504(SBOM 도메인)와 TASK-1001(신규 scheduling 도메인) — 파일 영역 완전 분리 → Stage 2 완료를 기다릴 필요 없이 병렬 진행 가능. 단, TASK-1001은 Sprint 9의 `SlackWebhookAdapter`(TASK-901)를 재사용하므로 Sprint 9 코드 완성 필수(이미 완료).
+
+---
+
+### Stage 4 — 팀 대시보드 + 리포트 Export + 스캔 모드 (High+Medium, Stage 3 완료 후)
+
+| TASK | 제목 | 서비스 | 파일 | 선행 | 비고 |
+|------|------|--------|------|------|------|
+| TASK-1002 | 팀 대시보드 & Gamification | backend + frontend | `V045__add_security_score_to_users.sql`(`users.security_score INTEGER DEFAULT 0`), `domain/dashboard/service/TeamDashboardService.java`(월별 토큰 예산·팀원별 사용량·MTTR 계산), `domain/dashboard/controller/DashboardController.java`(`GET /api/v1/teams/{teamId}/dashboard` 추가), `VulnerabilityFoundEventListener.java` 확장(보안 점수 업데이트 이벤트 추가), `apps/frontend/src/app/team/[orgSlug]/page.tsx`(팀원별 랭킹 UI + 게이지 차트) | Stage 0 #6, Sprint 8 TASK-801 | `team` 도메인에 `TeamSettings` 존재 — 같은 패키지에 서비스 추가. `DashboardQueryService` 재사용 |
+| TASK-1003 | 리포트 위젯 PDF/HTML Export | backend + frontend | `domain/report/service/RoiCalculationService.java`(ROI 계산: 취약점 수×4h×hourlyRate), `SecurityDocAsyncProcessor.java` 확장(ROI·MTTR 위젯 데이터 주입), `isms-p-evidence.html` 또는 신규 `roi-report.html` 템플릿 추가, `apps/frontend/src/components/analysis/PdfReportModal.tsx`(위젯 포함 체크박스 추가) | TASK-701(완료), Stage 0 #7 | `openhtmltopdf-pdfbox` 이미 도입됨 — 신규 의존성 없음. `ReportService` 패턴 재사용 |
+| TASK-1004 | 스캔 모드 선택 (Audit vs Pipeline) | backend + ai_engine + frontend | `V046__add_scan_mode_to_analysis_sessions.sql`, `StartAnalysisRequest.java`(`scanMode` 필드 추가), `AnalysisSession.java`(`scanMode` 컬럼 매핑), `apps/ai_engine/agent/nodes/sast_node.py`(모드 분기: Audit=haiku, Pipeline=sonnet), `apps/ai_engine/config/settings.py`(`AUDIT_MODEL`, `PIPELINE_MODEL` 환경변수), `apps/frontend/src/components/analysis/AnalysisLoadingOverlay.tsx`(또는 신규 모달 컴포넌트 — 모드 선택 UI) | Stage 0 #8 | `AnalysisController` + `AiAgentClient` 기존 파일 확장 |
+
+**병렬 안전 조건**: TASK-1002(대시보드·사용자 점수), TASK-1003(리포트 Export), TASK-1004(스캔 모드) — 서로 다른 도메인 파일 영역. Stage 4 안에서 세 태스크 동시 진행 가능. 단, `AnalysisSession.java`는 TASK-1004에서 수정 → TASK-1002에서 건드리지 않으므로 충돌 없음.
+
+---
+
+### Stage 5 — 프론트엔드 미구현 화면 완성 (Medium, Stage 4 완료 후)
+
+| TASK | 제목 | 서비스 | 파일 | 선행 | 비고 |
+|------|------|--------|------|------|------|
+| FEAT-FE-003 | CompliancePage 구현 | frontend + backend | `ComplianceMappingService.java`(OWASP Top 10 → ISO 27001 / NIST CSF 매핑 로직), `ComplianceController.java`(`GET /api/v1/projects/{id}/compliance?framework=ISO27001`), `apps/frontend/src/components/compliance/CompliancePage.tsx`(컨트롤별 준수/미준수 표) | TASK-502 완료(취약점 데이터 풍부화 후) | 백엔드 매핑 로직이 핵심. `CWE_TO_OWASP` 매핑 테이블 재사용 |
+| FEAT-FE-004 | TeamManagementPage 완성 | frontend | `apps/frontend/src/app/team/[orgSlug]/members/page.tsx`(초대 + 권한 설정 UI 완성 — 파일 이미 존재, 내용 점검 필요) | TASK-1002 | 기존 `team/[orgSlug]/members/page.tsx` 파일 존재 여부 확인 후 확장 또는 신규 |
+| FEAT-FE-005 | SettingsPage 확장 | frontend | `apps/frontend/src/app/settings/page.tsx`(기존 파일에 알림 설정·플랜 표시·API 키·스캔 모드 기본값 섹션 추가) | TASK-1004 | 파일 이미 존재 → 확장 |
+
+**병렬 안전 조건**: 3개 모두 프론트엔드 독립 파일 영역 — 동시 진행 가능. 단, CompliancePage는 백엔드 API(FEAT-FE-003) 완료 후 프론트엔드 연동.
+
+---
+
+## 전체 실행 순서 요약
+
+| 순서 | TASK | 제목 | 선행 | 에이전트 | 우선순위 |
+|------|------|------|------|---------|---------|
+| 1 | TASK-501 | GitHub Webhook 이벤트 수신 + 시크릿 스캔 기반 | Stage 0 #1, #2 | Dev + Tester | Critical |
+| 2a | TASK-502 | PR 분석 자동 트리거 + Check Run | TASK-501 | Dev + Tester | Critical |
+| 2b | TASK-503 | 커밋 히스토리 시크릿 스캔 개선 | TASK-501 | Dev + Tester | High |
+| 3a | TASK-504 | SBOM GitHub Release 연동 | — | Dev + Tester | High |
+| 3b | TASK-1001 | 야간 자동 스캔 스케줄링 | Stage 0 #4, #5 | Dev + Tester | Critical |
+| 4a | TASK-1002 | 팀 대시보드 & Gamification | Stage 0 #6 | Dev + Tester | High |
+| 4b | TASK-1003 | 리포트 위젯 PDF/HTML Export | Stage 0 #7, TASK-701 | Dev + Tester | High |
+| 4c | TASK-1004 | 스캔 모드 선택 (Audit vs Pipeline) | Stage 0 #8 | Dev + Tester | Medium |
+| 5a | FEAT-FE-003 | CompliancePage | TASK-502 완료 | Dev + Tester | Medium |
+| 5b | FEAT-FE-004 | TeamManagementPage 완성 | TASK-1002 | Dev | Medium |
+| 5c | FEAT-FE-005 | SettingsPage 확장 | TASK-1004 | Dev | Medium |
+
+**병렬 실행 그룹**:
+- **Stage 1 (순차)**: TASK-501 (MCP 툴 + 시크릿 탐지 노드 완성 후 Stage 2 진입)
+- **Stage 2 (TASK-501 완료 후, 병렬)**: TASK-502 + TASK-503
+- **Stage 3 (Stage 2와 병렬 시작 가능)**: TASK-504 + TASK-1001
+- **Stage 4 (Stage 3 완료 후, 병렬)**: TASK-1002 + TASK-1003 + TASK-1004
+- **Stage 5 (Stage 4 완료 후, 병렬)**: FEAT-FE-003 + FEAT-FE-004 + FEAT-FE-005
+
+---
+
+## 리스크 분석
+
+### 의존성 리스크
+
+1. **`mcp_server/src/index.ts` 순차 접촉 (Stage 1~2)**: Stage 1에서 GitHub MCP 툴 추가, Stage 2에서 `create_pr_comment` 추가 — 순차 커밋으로 충돌 회피. Sprint 9 DAST 툴 코드와 동일 파일 공존 시 함수 충돌 없음 확인 필수
+2. **`GitHubWebhookService.java` 기존 HMAC 검증 보존 (Stage 2)**: PR 이벤트 처리 로직 추가 시 기존 `verifySignature()` 메서드 보존. `GitHubWebhookServiceTest`의 기존 8개 테스트가 회귀하지 않는지 Reviewer 필수 점검
+3. **`PrReviewHistory` 테이블 컬럼 추가 (Stage 2, V047)**: 테이블이 이미 존재하므로 `ALTER TABLE` 방식 사용. Flyway `REPEATABLE` 스크립트가 아닌 버전 지정 마이그레이션으로 안전하게 적용
+4. **`NightlyScanJob` AI Engine 동시 호출 (Stage 3)**: 여러 프로젝트의 야간 스캔이 동시에 AI Engine을 호출할 경우 부하 집중. Circuit Breaker(`AiAgentClient`) 이미 적용됨 — 개별 프로젝트 실패 시 skip & log 패턴 적용 필수
+5. **`AnalysisSession.scan_mode` 추가 (Stage 4, TASK-1004)**: 기존 세션은 `NULL` → `DEFAULT 'PIPELINE'` 지정으로 하위 호환. `StartAnalysisRequest` DTO에 `@NotNull` 추가 금지
+
+### 기술 복잡도 리스크
+
+6. **GitHub Check Run API 연동 (TASK-502)**: GitHub Apps 설치 토큰 권한(`checks:write`) 필요. 현재 `GitHubOAuthService`가 사용하는 OAuth 토큰과 권한 범위 다를 수 있음 → Stage 0 #3에서 범위 확정 필수
+7. **CycloneDX JSON 내보내기 (TASK-504)**: 스키마 유효성 검증 라이브러리 필요 여부 판단 — 테스트에서 `schema validator`를 직접 실행할지, 수동 검증으로 대체할지 결정 필요
+8. **ROI 계산 공식 합의 (TASK-1003)**: 절감 시간 단가 기본값 $50/h는 미국 기준. 글로벌 배포 시 로케일별 단가 테이블로 확장 가능하도록 상수 외부화 필수 (`application.yaml`)
+9. **`sast_node.py` 모드 분기 (TASK-1004)**: Claude API 모델명이 하드코딩되면 모델 업그레이드 시 전체 재배포 필요 → `settings.py` 환경변수 외부화 필수 (ADR-016 교훈 반영)
+10. **프론트엔드 `settings/page.tsx` 확장 범위**: 기존 파일이 어느 수준까지 구현됐는지 Stage 0에서 확인 필요. 과도한 리팩토링 없이 섹션 추가 방식으로 확장
+
+### 보안 리스크
+
+11. **GitHub Webhook HMAC 서명 우회 (TASK-501/502)**: `webhookSecret` 미설정 시 서명 검증을 생략하는 개발 환경 코드가 프로덕션에 노출되면 위험. Reviewer가 `GitHubWebhookService.verifySignature()` 프로덕션 환경에서 시크릿 강제 요구 로직 점검
+12. **PR 분석 결과 댓글 노출 (TASK-502)**: PR 코멘트에 취약점 파일 경로·라인 번호가 포함되어 공개 레포에서 악용될 수 있음 → 비공개 레포만 Check Run 코멘트 허용 옵션 검토 (or 코멘트 내용 최소화)
+13. **야간 스캔 GitHub 토큰 만료 (TASK-1001)**: `users.github_token` (AES-256-GCM 암호화)이 만료된 경우 야간 스캔 실패 → skip & log + Slack 알림으로 사용자 재인증 유도. 토큰 갱신 로직은 EPIC-MISC `TokenRefreshJob`으로 이관
+14. **SBOM GitHub Release 업로드 권한 (TASK-504)**: GitHub API `contents:write` 권한 필요. 현재 OAuth 스코프가 `repo:read`만 허용할 경우 Release 업로드 불가 → 백로그 TASK-504는 **내보내기(다운로드)만** 구현하고 Release 업로드는 EPIC-MISC로 분리 검토
+
+---
+
+## 스프린트 테스트 마일스톤
+
+| 마일스톤 | 기준 |
+|---------|------|
+| **Stage 1 게이트** | MCP `list_commits` / `get_commit_diff` 툴이 GitHub API에서 커밋 목록·diff 반환 + 시크릿 탐지 노드가 AWS Key / GitHub PAT 패턴 정규식으로 1건 이상 탐지 + `CommitHistoryScanner` 100개 커밋 페이지네이션 완료 + 기존 Webhook 수신(`POST /webhooks/github`) 회귀 없음 |
+| **Stage 2 게이트** | GitHub PR 생성 → Webhook 수신(`X-Hub-Signature-256` 검증 통과) → 분석 세션 자동 생성 → 변경 파일만 스캔 → PR 코멘트 등록 확인 + Check Run `status=completed` API 호출 성공 + 잘못된 HMAC 서명 요청 → 400 반환 + 커밋 스캔 100파일 기준 15분 이내 완료 |
+| **Stage 3 게이트** | `project_schedules` 테이블 생성 + `NightlyScanJob` 수동 트리거 → 변경된 프로젝트만 분석 위임 → 요약 이메일/Slack 발송 + 변경 없는 프로젝트 스킵 로그 확인 + SBOM CycloneDX JSON 포맷 출력 + pom.xml 파싱 → Spring Core CVE 매칭 |
+| **Stage 4 게이트** | `users.security_score` 컬럼 추가 + 취약점 발견 이벤트 시 점수 갱신 + 팀 대시보드 API 응답(월별 토큰·MTTR) + ROI 계산 PDF에 포함 + `scan_mode=AUDIT` 요청 시 haiku 모델 사용 로그 확인 + `scan_mode=PIPELINE` 요청 시 sonnet 사용 |
+| **Stage 5 게이트** | CompliancePage ISO 27001 컨트롤 목록 렌더링 + TeamManagementPage 초대·권한 설정 동작 + SettingsPage 스캔 모드 기본값 저장 + 페이지 새로고침 후 유지 |
+| **이월 수동 검증** | k6 p95 < 500ms (Stage 2 병행) + OWASP ZAP Critical 0건 (Stage 2 병행) + 2FA QR 스캔 (Stage 1 병행) + Nginx HTTPS 리다이렉트 (Stage 1 병행) + VSCode Extension 수동 설치 (Stage 3 병행) + GDPR 30일 통합 테스트 (Stage 3 병행) |
+| **Sprint 10 완료** | 위 5개 Stage 게이트 + Sprint 10 완료 기준 모두 통과 |
+
+---
+
+## Sprint 10 완료 기준
+
+- [ ] **GitHub Webhook**: PR 생성 시 자동 분석 트리거 + HMAC 서명 검증 + PR 코멘트 등록
+- [ ] **GitHub Check Run**: PR 분석 완료 시 `checks:write` 권한으로 Check Run `completed` 상태 전송
+- [ ] **커밋 시크릿 스캔**: 100파일 레포 15분 이내 + 우선순위 정렬 + 바이너리 필터
+- [ ] **SBOM CycloneDX**: JSON 내보내기 (pom.xml / package.json / requirements.txt / Cargo.toml 4종 파서 완성)
+- [ ] **야간 자동 스캔**: `project_schedules` 기반 매일 01:00 KST 변경 감지 후 스캔 + 요약 리포트 발송
+- [ ] **팀 대시보드**: 월별 토큰 예산·MTTR·보안 점수 랭킹 표시
+- [ ] **리포트 ROI Export**: ROI·MTTR 위젯이 포함된 PDF 생성
+- [ ] **스캔 모드**: Audit(haiku)/Pipeline(sonnet) 분기 + 프론트엔드 모드 선택 UI
+- [ ] **CompliancePage**: ISO 27001 / NIST CSF 매핑 표 프론트엔드 구현
+- [ ] **TeamManagementPage**: 팀원 초대·권한 설정 UI 완성
+- [ ] **SettingsPage**: 알림·플랜·API 키·스캔 모드 기본값 섹션 완성
+- [ ] **Sprint 8 이월 수동 검증**: k6 p95 < 500ms + OWASP ZAP Critical 0건 + 2FA QR + Nginx HTTPS
+
+---
+
+## 실행 명령어
+
+```
+/stage 1   — TASK-501 (GitHub Webhook 기반 + 시크릿 탐지 MCP 툴)
+/stage 2   — TASK-502 (PR 분석 자동 트리거) + TASK-503 (시크릿 스캔 개선)  ※ 병렬 가능
+/stage 3   — TASK-504 (SBOM CycloneDX) + TASK-1001 (야간 스캔)  ※ Stage 2와 병렬 시작 가능
+/stage 4   — TASK-1002 (팀 대시보드) + TASK-1003 (리포트 Export) + TASK-1004 (스캔 모드)
+/stage 5   — FEAT-FE-003 (CompliancePage) + FEAT-FE-004 (TeamManagementPage) + FEAT-FE-005 (SettingsPage)
+```
+
+**병행 권장 타이밍**:
+- 2FA QR 스캔 + Nginx HTTPS 리다이렉트 → `/stage 1` 시작 직후
+- k6 p95 + OWASP ZAP → `/stage 2` 시작 직후 (Prometheus 기동 상태 유지)
+- VSCode Extension 수동 설치 검증 + GDPR 30일 통합 테스트 → `/stage 3` 진행 중
+
+---
+
+## 에이전트 평가 요약
+
+### PM 에이전트 (스테이지 설계)
+- Sprint 5 이월 4개 + Sprint 10 신규 4개 + 프론트엔드 미구현 3개 = 총 11개 태스크를 5개 스테이지로 배치
+- Critical(TASK-501/502/1001) → High(TASK-503/504/1002/1003) → Medium(TASK-1004/FE-003~005) 우선순위 순서 준수
+- Stage 0 사전 결정 사항 10건으로 착수 후 결정 지연 방지
+- Sprint 8 이월 수동 검증 6건을 Stage 별 병행 타이밍에 매칭
+
+### Dev 에이전트 (현실성 평가)
+- **계획 수정 필요: Y** — 6건의 코드베이스 불일치 발견
+  1. `GitHubWebhookController` + `GitHubWebhookService` 이미 존재 → TASK-502는 신규가 아닌 확장
+  2. `PrReviewHistory` 테이블(V019) + 엔티티 이미 존재 → Flyway V047은 `ALTER TABLE`로 변경
+  3. `settings/page.tsx` 이미 존재 → 신규 생성이 아닌 섹션 확장
+  4. `mcp_github_tools.py` 이미 존재 → 커밋 툴 래퍼 추가 방식으로 정정
+  5. `openhtmltopdf-pdfbox` 이미 도입됨 → TASK-1003 신규 의존성 없음
+  6. `github-scan/page.tsx` 존재 가능성 → Stage 0에서 확인 후 확장/신규 결정
+- 모든 수정 사항을 본 계획에 반영 완료
+
+---
+
+*Sprint 10 계획 작성일: 2026-05-25*

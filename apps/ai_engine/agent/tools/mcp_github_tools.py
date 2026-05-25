@@ -7,7 +7,10 @@ local source_type에서는 mcp_filesystem_tools.py 를 사용한다.
 MCP 서버에 등록된 툴:
 - github_list_directory : {owner, repo, path?, ref?, token?, recursive?} → 파일 목록
 - github_get_file_content: {owner, repo, path, ref?, token?} → 파일 내용
+- github_list_commits    : {owner, repo, ref?, per_page?, token?} → 커밋 요약 목록
+- github_get_commit_diff : {owner, repo, sha, token?} → 커밋 diff (files[].patch)
 """
+import json
 import logging
 
 from agent.mcp_client import get_tool
@@ -146,3 +149,72 @@ async def get_github_file_content(
 
     result = await tool.ainvoke(args)
     return _extract_text(result)
+
+
+async def list_commits_via_mcp(
+    session_id: str,
+    owner: str,
+    repo: str,
+    page: int = 1,
+    per_page: int = 30,
+    ref: str | None = None,
+    token: str | None = None,  # 로그에 token 출력 금지
+) -> list[dict]:
+    """MCP github_list_commits 툴을 호출해 커밋 요약 목록을 반환한다.
+
+    결과는 캐싱하지 않는다 — 커밋은 항상 최신 상태를 조회해야 한다.
+
+    반환 형식 (MCP 서버 CommitSummary 기준):
+        [{"sha": "...", "message": "...", "date": "...", "author": "..."}, ...]
+    """
+    tool = get_tool(session_id, "github_list_commits")
+    safe_per_page = min(max(1, per_page), 100)
+    args: dict = {"owner": owner, "repo": repo, "per_page": safe_per_page}
+    if ref:
+        args["ref"] = ref
+    if token:
+        args["token"] = token
+
+    result = await tool.ainvoke(args)
+    raw = _extract_text(result)
+
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return parsed
+        logger.warning("[github-tools] session=%s list_commits unexpected format", session_id)
+        return []
+    except json.JSONDecodeError as exc:
+        logger.warning("[github-tools] session=%s list_commits JSON parse error: %s", session_id, exc)
+        return []
+
+
+async def get_commit_diff_via_mcp(
+    session_id: str,
+    owner: str,
+    repo: str,
+    sha: str,
+    token: str | None = None,  # 로그에 token 출력 금지
+) -> dict:
+    """MCP github_get_commit_diff 툴을 호출해 특정 커밋의 diff를 반환한다.
+
+    반환 형식 (MCP 서버 CommitDiff 기준):
+        {"sha": "...", "message": "...", "date": "...", "files": [{"filename": "...", "patch": "...", "status": "..."}]}
+    """
+    tool = get_tool(session_id, "github_get_commit_diff")
+    args: dict = {"owner": owner, "repo": repo, "sha": sha}
+    if token:
+        args["token"] = token
+
+    result = await tool.ainvoke(args)
+    raw = _extract_text(result)
+
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return parsed
+        logger.warning("[github-tools] session=%s get_commit_diff unexpected format sha=%s", session_id, sha[:8])
+        return {"sha": sha, "files": []}
+    except json.JSONDecodeError as exc:
+        logger.warning("[github-tools] session=%s get_commit_diff JSON parse error sha=%s: %s", session_id, sha[:8], exc)
+        return {"sha": sha, "files": []}

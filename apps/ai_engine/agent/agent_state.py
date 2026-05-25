@@ -30,6 +30,10 @@ class AgentState(TypedDict):
     sast_results: list[dict]
     patch_results: list[dict]
 
+    # secret_scan_node 입출력
+    commits: list[dict]          # GitHub 커밋 목록 (secret_scan_node 입력)
+    secrets_found: list[dict]    # 시크릿 탐지 결과 (secret_scan_node 출력)
+
     # 진행률 (0.0 ~ 100.0) — SSE 이벤트로 프론트엔드에 전달
     progress_percent: float
 

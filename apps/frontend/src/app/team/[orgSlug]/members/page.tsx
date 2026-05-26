@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, UserPlus, ChevronDown } from 'lucide-react';
+import { ArrowLeft, UserPlus, ChevronDown, Users } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient } from '@/lib/api/client';
 import { Modal } from '@/components/ui/Modal';
@@ -10,14 +10,13 @@ import { Modal } from '@/components/ui/Modal';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type MemberRole = 'owner' | 'admin' | 'member';
-type MemberStatus = 'active' | 'pending';
 
 interface Member {
   userId: string;
   username: string;
   email: string;
   role: MemberRole;
-  status: MemberStatus;
+  acceptedAt: string | null;
   joinedAt: string | null;
 }
 
@@ -36,10 +35,34 @@ const ROLE_BADGE: Record<MemberRole, { bg: string; color: string }> = {
   member: { bg: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' },
 };
 
-const STATUS_BADGE: Record<MemberStatus, { bg: string; color: string; label: string }> = {
-  active:  { bg: 'rgba(34,197,94,0.1)',   color: '#22c55e', label: '활성' },
-  pending: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', label: '대기 중' },
-};
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
+function useToast() {
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  return { toast, showToast };
+}
+
+function ToastBanner({ toast }: { toast: { message: string; type: 'success' | 'error' } | null }) {
+  if (!toast) return null;
+  return (
+    <div style={{
+      position: 'fixed', bottom: 24, right: 24, zIndex: 2000,
+      padding: '12px 20px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+      background: toast.type === 'success' ? 'rgba(34,197,94,0.15)' : 'rgba(226,75,75,0.15)',
+      border: `1px solid ${toast.type === 'success' ? 'rgba(34,197,94,0.35)' : 'rgba(226,75,75,0.35)'}`,
+      color: toast.type === 'success' ? '#22c55e' : '#e24b4b',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+    }}>
+      {toast.message}
+    </div>
+  );
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -47,20 +70,29 @@ export default function MembersPage() {
   const router = useRouter();
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const { user, isInitialized } = useAuthStore();
+  const { toast, showToast } = useToast();
 
   const [meta, setMeta] = useState<OrgMeta | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // 초대 모달
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<MemberRole>('member');
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState('');
-  const [inviteSuccess, setInviteSuccess] = useState(false);
 
+  // 역할 드롭다운
   const [roleDropdown, setRoleDropdown] = useState<string | null>(null);
+
+  // 제거 확인 다이얼로그
+  const [removeConfirmMember, setRemoveConfirmMember] = useState<Member | null>(null);
+  const [removing, setRemoving] = useState(false);
+
+  // 재전송 중인 멤버 ID 집합
+  const [resendingIds, setResendingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isInitialized && !user) router.replace('/login');
@@ -68,6 +100,7 @@ export default function MembersPage() {
 
   const isAdminOrAbove = meta?.role === 'owner' || meta?.role === 'admin';
   const isSelf = (m: Member) => m.userId === user?.id;
+  const isPending = (m: Member) => m.acceptedAt == null;
 
   const fetchMembers = useCallback(async () => {
     if (!orgSlug) return;
@@ -80,7 +113,8 @@ export default function MembersPage() {
       ]);
       setMeta(metaRes.data);
       setMembers(membersRes.data ?? []);
-    } catch {
+    } catch (e: unknown) {
+      console.warn('[MembersPage] 멤버 목록 불러오기 실패:', e);
       setError('멤버 목록을 불러올 수 없습니다.');
     } finally {
       setLoading(false);
@@ -91,24 +125,27 @@ export default function MembersPage() {
     if (user) fetchMembers();
   }, [user, fetchMembers]);
 
+  const closeInviteModal = () => {
+    setInviteOpen(false);
+    setInviteError('');
+    setInviteEmail('');
+    setInviteRole('member');
+  };
+
   const handleInvite = async () => {
     if (!inviteEmail.trim()) return;
     setInviting(true);
     setInviteError('');
-    setInviteSuccess(false);
     try {
-      await apiClient.post(`/organizations/${orgSlug}/invite`, {
+      await apiClient.post(`/organizations/${orgSlug}/members/invite`, {
         email: inviteEmail.trim(),
         role: inviteRole,
       });
-      setInviteSuccess(true);
-      setInviteEmail('');
+      showToast('초대 메일을 발송했습니다.');
+      closeInviteModal();
       fetchMembers();
-      setTimeout(() => {
-        setInviteOpen(false);
-        setInviteSuccess(false);
-      }, 1500);
     } catch (e: unknown) {
+      console.warn('[MembersPage] 초대 발송 실패:', e);
       const msg = e instanceof Error ? e.message : '초대에 실패했습니다.';
       setInviteError(msg);
     } finally {
@@ -118,20 +155,55 @@ export default function MembersPage() {
 
   const handleRoleChange = async (member: Member, newRole: MemberRole) => {
     setRoleDropdown(null);
+    const prev = member.role;
+    // 낙관적 업데이트
+    setMembers((list) => list.map((m) => m.userId === member.userId ? { ...m, role: newRole } : m));
     try {
       await apiClient.patch(`/organizations/${orgSlug}/members/${member.userId}/role`, { role: newRole });
-      setMembers((prev) => prev.map((m) => m.userId === member.userId ? { ...m, role: newRole } : m));
-    } catch {
-      // 실패 시 UI 변경 없이 원상복귀 (setMembers 재호출 없음)
+      showToast(`${member.username}의 역할을 ${newRole}로 변경했습니다.`);
+    } catch (e: unknown) {
+      console.warn('[MembersPage] 역할 변경 실패:', e);
+      // 롤백
+      setMembers((list) => list.map((m) => m.userId === member.userId ? { ...m, role: prev } : m));
+      showToast('역할 변경에 실패했습니다.', 'error');
     }
   };
 
-  const handleRemove = async (member: Member) => {
+  const openRemoveConfirm = (member: Member) => {
+    setRemoveConfirmMember(member);
+  };
+
+  const handleRemoveConfirmed = async () => {
+    if (!removeConfirmMember) return;
+    const target = removeConfirmMember;
+    setRemoving(true);
     try {
-      await apiClient.delete(`/organizations/${orgSlug}/members/${member.userId}`);
-      setMembers((prev) => prev.filter((m) => m.userId !== member.userId));
-    } catch {
-      // 실패 무시
+      await apiClient.delete(`/organizations/${orgSlug}/members/${target.userId}`);
+      setMembers((list) => list.filter((m) => m.userId !== target.userId));
+      showToast(`${target.username}을(를) 팀에서 제거했습니다.`);
+    } catch (e: unknown) {
+      console.warn('[MembersPage] 멤버 제거 실패:', e);
+      showToast('멤버 제거에 실패했습니다.', 'error');
+    } finally {
+      setRemoving(false);
+      setRemoveConfirmMember(null);
+    }
+  };
+
+  const handleResendInvite = async (member: Member) => {
+    setResendingIds((prev) => new Set(prev).add(member.userId));
+    try {
+      await apiClient.post(`/organizations/${orgSlug}/members/${member.userId}/resend-invite`);
+      showToast(`${member.email}로 초대를 재전송했습니다.`);
+    } catch (e: unknown) {
+      console.warn('[MembersPage] 초대 재전송 실패:', e);
+      showToast('초대 재전송에 실패했습니다.', 'error');
+    } finally {
+      setResendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(member.userId);
+        return next;
+      });
     }
   };
 
@@ -172,7 +244,7 @@ export default function MembersPage() {
         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, overflow: 'hidden' }}>
           {/* 테이블 헤더 */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 100px 80px 100px 120px',
+            display: 'grid', gridTemplateColumns: '1fr 100px 80px 100px 160px',
             padding: '12px 20px',
             borderBottom: '1px solid rgba(255,255,255,0.07)',
             fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.3)',
@@ -186,11 +258,42 @@ export default function MembersPage() {
           </div>
 
           {loading ? (
-            <div style={{ padding: '32px 20px', fontSize: 13, color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>불러오는 중...</div>
+            <div style={{ padding: '32px 20px', fontSize: 13, color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>
+              불러오는 중...
+            </div>
           ) : error ? (
             <div style={{ padding: '32px 20px', fontSize: 13, color: '#e24b4b', textAlign: 'center' }}>{error}</div>
           ) : members.length === 0 ? (
-            <div style={{ padding: '32px 20px', fontSize: 13, color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>멤버가 없습니다.</div>
+            /* 빈 팀 상태 */
+            <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: '50%',
+                background: 'rgba(234,88,12,0.08)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}>
+                <Users size={24} color="rgba(234,88,12,0.6)" />
+              </div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.5)', margin: '0 0 8px' }}>
+                아직 팀원이 없습니다.
+              </p>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', margin: '0 0 20px' }}>
+                이메일로 동료를 초대해보세요!
+              </p>
+              {isAdminOrAbove && (
+                <button
+                  onClick={() => setInviteOpen(true)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                    background: 'rgba(234,88,12,0.12)', color: '#ea580c',
+                    border: '1px solid rgba(234,88,12,0.25)', cursor: 'pointer',
+                  }}
+                >
+                  <UserPlus size={14} /> 첫 번째 팀원 초대하기
+                </button>
+              )}
+            </div>
           ) : (
             members.map((m) => (
               <MemberTableRow
@@ -198,10 +301,13 @@ export default function MembersPage() {
                 member={m}
                 isSelf={isSelf(m)}
                 isAdminOrAbove={isAdminOrAbove}
+                isPending={isPending(m)}
                 roleDropdownOpen={roleDropdown === m.userId}
+                resending={resendingIds.has(m.userId)}
                 onToggleRoleDropdown={() => setRoleDropdown(roleDropdown === m.userId ? null : m.userId)}
                 onRoleChange={(role) => handleRoleChange(m, role)}
-                onRemove={() => handleRemove(m)}
+                onRemove={() => openRemoveConfirm(m)}
+                onResendInvite={() => handleResendInvite(m)}
               />
             ))
           )}
@@ -209,58 +315,92 @@ export default function MembersPage() {
       </div>
 
       {/* 초대 모달 */}
-      <Modal
-        isOpen={inviteOpen}
-        onClose={() => { setInviteOpen(false); setInviteError(''); setInviteEmail(''); setInviteSuccess(false); }}
-        title="팀원 초대"
-      >
+      <Modal isOpen={inviteOpen} onClose={closeInviteModal} title="팀원 초대">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', display: 'block', marginBottom: 6 }}>이메일 주소</label>
+            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', display: 'block', marginBottom: 6 }}>
+              이메일 주소
+            </label>
             <input
               type="email"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleInvite(); }}
               placeholder="teammate@example.com"
               style={inputStyle}
             />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', display: 'block', marginBottom: 6 }}>역할</label>
+            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', display: 'block', marginBottom: 6 }}>
+              역할
+            </label>
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value as MemberRole)}
               style={{ ...inputStyle, cursor: 'pointer' }}
             >
               {ROLE_OPTIONS.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option key={r} value={r}>{r === 'admin' ? '관리자 (admin)' : '일반 멤버 (member)'}</option>
               ))}
             </select>
           </div>
           {inviteError && <p style={{ fontSize: 12, color: '#e24b4b', margin: 0 }}>{inviteError}</p>}
-          {inviteSuccess && <p style={{ fontSize: 12, color: '#22c55e', margin: 0 }}>초대 메일을 발송했습니다.</p>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button
-              onClick={() => { setInviteOpen(false); setInviteError(''); setInviteEmail(''); setInviteSuccess(false); }}
-              style={secondaryBtnStyle}
-            >
-              취소
-            </button>
+            <button onClick={closeInviteModal} style={secondaryBtnStyle}>취소</button>
             <button
               onClick={handleInvite}
               disabled={!inviteEmail.trim() || inviting}
               style={{
                 padding: '9px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700,
-                background: inviteSuccess ? '#22c55e' : '#ea580c',
-                color: '#fff', border: 'none', cursor: 'pointer',
+                background: '#ea580c', color: '#fff', border: 'none', cursor: 'pointer',
                 opacity: !inviteEmail.trim() || inviting ? 0.5 : 1,
               }}
             >
-              {inviting ? '발송 중...' : inviteSuccess ? '발송됨' : '초대 보내기'}
+              {inviting ? '발송 중...' : '초대 보내기'}
             </button>
           </div>
         </div>
       </Modal>
+
+      {/* 제거 확인 다이얼로그 */}
+      <Modal
+        isOpen={removeConfirmMember !== null}
+        onClose={() => setRemoveConfirmMember(null)}
+        title="팀원 제거"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', margin: 0, lineHeight: 1.6 }}>
+            <strong style={{ color: '#e8e8ee' }}>{removeConfirmMember?.username}</strong>
+            ({removeConfirmMember?.email})을(를) 팀에서 제거하시겠습니까?
+            <br />
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>이 작업은 되돌릴 수 없습니다.</span>
+          </p>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setRemoveConfirmMember(null)}
+              disabled={removing}
+              style={secondaryBtnStyle}
+            >
+              취소
+            </button>
+            <button
+              onClick={handleRemoveConfirmed}
+              disabled={removing}
+              style={{
+                padding: '9px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                background: 'rgba(226,75,75,0.15)', color: '#e24b4b',
+                border: '1px solid rgba(226,75,75,0.3)', cursor: 'pointer',
+                opacity: removing ? 0.5 : 1,
+              }}
+            >
+              {removing ? '제거 중...' : '제거 확인'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 토스트 */}
+      <ToastBanner toast={toast} />
     </div>
   );
 }
@@ -271,21 +411,27 @@ function MemberTableRow({
   member,
   isSelf,
   isAdminOrAbove,
+  isPending,
   roleDropdownOpen,
+  resending,
   onToggleRoleDropdown,
   onRoleChange,
   onRemove,
+  onResendInvite,
 }: {
   member: Member;
   isSelf: boolean;
   isAdminOrAbove: boolean;
+  isPending: boolean;
   roleDropdownOpen: boolean;
+  resending: boolean;
   onToggleRoleDropdown: () => void;
   onRoleChange: (role: MemberRole) => void;
   onRemove: () => void;
+  onResendInvite: () => void;
 }) {
   const roleBadge = ROLE_BADGE[member.role];
-  const statusBadge = STATUS_BADGE[member.status];
+  // owner는 역할 변경·제거 불가, 자기 자신도 제거 불가
   const canManage = isAdminOrAbove && !isSelf && member.role !== 'owner';
   const initial = (member.username || member.email).charAt(0).toUpperCase();
 
@@ -295,7 +441,7 @@ function MemberTableRow({
 
   return (
     <div style={{
-      display: 'grid', gridTemplateColumns: '1fr 100px 80px 100px 120px',
+      display: 'grid', gridTemplateColumns: '1fr 100px 80px 100px 160px',
       padding: '14px 20px', alignItems: 'center',
       borderBottom: '1px solid rgba(255,255,255,0.04)',
     }}>
@@ -324,13 +470,14 @@ function MemberTableRow({
         {member.role}
       </span>
 
-      {/* 상태 배지 */}
+      {/* 상태 배지 (pending 여부) */}
       <span style={{
         fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-        background: statusBadge.bg, color: statusBadge.color,
+        background: isPending ? 'rgba(245,158,11,0.12)' : 'rgba(34,197,94,0.1)',
+        color: isPending ? '#f59e0b' : '#22c55e',
         display: 'inline-block', width: 'fit-content',
       }}>
-        {statusBadge.label}
+        {isPending ? '대기 중' : '활성'}
       </span>
 
       {/* 가입일 */}
@@ -341,7 +488,25 @@ function MemberTableRow({
       {/* 액션 */}
       {isAdminOrAbove && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-          {canManage && member.status === 'active' && (
+          {/* 초대 재전송 버튼 — pending 멤버에게만 */}
+          {canManage && isPending && (
+            <button
+              onClick={onResendInvite}
+              disabled={resending}
+              title="초대 재전송"
+              style={{
+                padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                background: 'rgba(245,158,11,0.08)', color: '#f59e0b',
+                border: '1px solid rgba(245,158,11,0.2)', cursor: 'pointer',
+                opacity: resending ? 0.5 : 1,
+              }}
+            >
+              {resending ? '전송 중' : '재전송'}
+            </button>
+          )}
+
+          {/* 역할 변경 드롭다운 — active 멤버이고 관리 가능할 때 */}
+          {canManage && !isPending && (
             <div style={{ position: 'relative' }}>
               <button
                 onClick={onToggleRoleDropdown}
@@ -358,7 +523,7 @@ function MemberTableRow({
                 <div style={{
                   position: 'absolute', right: 0, top: '100%', marginTop: 4, zIndex: 10,
                   background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: 8, overflow: 'hidden', minWidth: 100,
+                  borderRadius: 8, overflow: 'hidden', minWidth: 120,
                   boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
                 }}>
                   {ROLE_OPTIONS.map((r) => (
@@ -373,13 +538,18 @@ function MemberTableRow({
                         border: 'none', cursor: 'pointer',
                       }}
                     >
-                      {r}
+                      {r === 'admin' ? '관리자' : '멤버'}
+                      {r === member.role && (
+                        <span style={{ marginLeft: 6, fontSize: 10, color: '#ea580c' }}>✓</span>
+                      )}
                     </button>
                   ))}
                 </div>
               )}
             </div>
           )}
+
+          {/* 제거/초대취소 버튼 */}
           {canManage && (
             <button
               onClick={onRemove}
@@ -389,7 +559,7 @@ function MemberTableRow({
                 border: '1px solid rgba(226,75,75,0.2)', cursor: 'pointer',
               }}
             >
-              {member.status === 'pending' ? '취소' : '제거'}
+              {isPending ? '초대 취소' : '제거'}
             </button>
           )}
         </div>

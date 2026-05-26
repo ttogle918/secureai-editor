@@ -22,11 +22,17 @@ Sprint 3  (Week 07-08): SAST 파이프라인 & GitHub 레포 스캔             
 Sprint 4  (Week 09-10): 웹 에디터 UI & 실시간 SSE + 체크리스트 UI        ✅ 완료
 Sprint 5  (Week 11-12): GitHub Layer 2 완성                            ✅ 완료 (일부 이월 → feat/sprint5-github)
 Sprint 6  (Week 13-14): DAST 엔진 & Docker 샌드박스                     ✅ 완료 (PR #70)
-feat/sprint5-github:    Sprint 5 이월 구현 (별도 브랜치)                 🟠 진행 중
-Sprint 7  (Week 15-16): 리포트 & 대시보드 & Android MVP
+feat/sprint5-github:    Sprint 5 이월 구현 (별도 브랜치)                 ✅ 완료 (Sprint 10 흡수)
+Sprint 7  (Week 15-16): 리포트 & 대시보드 & Android MVP                  ✅ 완료
 Sprint 8  (Week 17-18): 안정화 & 보안 강화 & 런칭 준비                ✅ 완료
-Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링 (Phase 3)   🟠 진행 중
-Sprint 10 (Week 21-22): Enterprise B2B Features (야간스캔, 대시보드)   예정
+Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링 (Phase 3)   ✅ 완료
+Sprint 10 (Week 21-22): Enterprise B2B + GitHub Integration             🟠 진행 중 (Stage 1~4 완료)
+Sprint 11 (Week 23-24): Workspace UI Redesign (온보딩 및 맞춤형 레이아웃) 예정
+Sprint 12 (Week 25-26): Hardening & System Stabilization                 예정
+Sprint 13 (Week 27-28): AI Agent Advanced I (API 호출 경로 스캔 & 오탐 학습) 예정
+Sprint 14 (Week 29-30): AI Agent Advanced II (패치 자동화 및 격리 검증)  예정
+Sprint 15 (Week 31-32): Ecosystem & MCP Server Expansion                 예정
+Sprint 16 (Week 33-34): Live Scan Visual Simulator & Observability      예정
 EPIC-MISC:              독립 기능 (스프린트 비종속)
 ```
 
@@ -778,7 +784,168 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
+## Sprint 11 — Workspace UI Redesign (온보딩 및 맞춤형 레이아웃)
+> Week 23-24 | 목표: 사용자 페르소나별 가입 온보딩 구축, Next.js 레이아웃의 역할 분기 및 `frontend-refactoring` 스타일 이식
+
+### TASK-1101 🔴 Onboarding Step 0 역할 선택 UI 구현
+- **중요도**: 🔴 Critical | **순서**: 1번째
+- **하위 할일**
+  - [ ] 온보딩 시작 페이지에 개발자(Developer) 및 보안 관리자(Security Manager) 모드 선택 카드 구현
+  - [ ] 선택한 역할을 `PATCH /api/v1/users/me/workspace-mode` API를 호출해 백엔드에 반영하고 `useAuthStore` 갱신
+- **테스트 체크리스트**
+  - [ ] ✅ 가입 온보딩 시 역할을 선택하면 다음 단계가 활성화되고 백엔드 DB 컬럼 값이 동기화되는지 확인
+
+### TASK-1102 🔴 로그인 후 페르소나별 맞춤형 랜딩 및 레이아웃 분기
+- **중요도**: 🔴 Critical | **순서**: 2번째
+- **하위 할일**
+  - [ ] `DEVELOPER` 모드 ➡️ 로그인 후 `/editor` 에디터로 다이렉트 랜딩, IDE 다크 테마 레이아웃 제공
+  - [ ] `SECURITY_MANAGER` ➡️ 로그인 후 `/dashboard` 대시보드로 다이렉트 랜딩, 차트 중심 대시보드 레이아웃 제공
+  - [ ] 좌측 사이드바 내비게이션 메뉴를 모드별로 동적 노출/숨김 처리
+- **테스트 체크리스트**
+  - [ ] ✅ 개발자로 로그인 시 사이드바에서 CISO용 대시보드가 숨겨지고 에디터가 메인에 뜨는지 확인
+  - [ ] ✅ 보안 관리자로 로그인 시 에디터가 단순 '읽기 전용 코드 뷰어'로 표시되고 대시보드가 활성화되는지 확인
+
+### TASK-1103 🟠 `frontend-refactoring` 디자인 토큰 및 CSS 이식
+- **중요도**: 🟠 High | **순서**: 3번째
+- **하위 할일**
+  - [ ] `frontend-refactoring/redesign-tokens.css`를 Next.js `app/globals.css`에 병합
+  - [ ] 온보딩(Step 1~3), 에디터(V4 하이브리드 스타일), 대시보드(통합 차트 스타일)를 프로토타입 스타일로 리팩토링
+- **테스트 체크리스트**
+  - [ ] ✅ 모든 페이지의 다크 테마, 카드 외곽선, 섀도우, 폰트가 Pagori Redesign 스타일과 완전 일치하는지 확인
+
+---
+
+## Sprint 12 — Hardening & System Stabilization (시스템 안정화)
+> Week 25-26 | 목표: SQL 파라미터 바인딩 원칙 복원 및 CI/CD 성능/보안 게이트웨이 자동화
+
+### TASK-1201 🔴 ADR-016 전환 (Backend API 경유)
+- **중요도**: 🔴 Critical | **순서**: 1번째
+- **하위 할일**
+  - [ ] AI Engine에서 직접 PostgreSQL을 조회하는 f-string SQL 구문 제거
+  - [ ] Backend에 내부 통신 전용 API (`GET /internal/v1/projects/{id}/vuln-context` 및 `GET /internal/v1/projects/{id}/patch-example`) 구현 (파라미터 바인딩 및 REST API 규격화)
+  - [ ] AI Engine에서 Backend API를 호출하여 취약점 컨텍스트 및 패치 예시를 획득하도록 수정
+- **테스트 체크리스트**
+  - [ ] 🧪 AI Engine에서 직접 DB 연결 설정 제거 시에도 분석 기능 정상 작동
+  - [ ] 🔬 Backend API 호출 시 권한 검증 및 SQL 파라미터 바인딩 작동 여부 검증
+  - [ ] 🛡️ 외부에서 internal API 호출 시 차단 동작 검증 (`X-Internal-Key` 헤더 체크)
+
+### TASK-1202 🔴 감사 로그 불변성 및 세션 이력 관리
+- **중요도**: 🔴 Critical | **순서**: 2번째
+- **하위 할일**
+  - [ ] `AuditLog` 테이블에 해시 체이닝 구현 (이전 감사 로그 항목의 해시를 다음 로그가 포함하여 체인 형성 - FEAT-COMP-003)
+  - [ ] 사용자 활성 세션(기기별/토큰별) 조회를 위한 `user_sessions` 관리 테이블 추가 및 세션 이력 조회 API 구현
+  - [ ] 관리자 콘솔 또는 프로필 설정에서 특정 세션 강제 로그아웃 기능 구현 (FEAT-SEC-003)
+- **테스트 체크리스트**
+  - [ ] 🧪 감사 로그가 하나라도 위변조(중간 삭제 또는 해시 불일치)될 경우 무결성 검증 API에서 감지 성공
+  - [ ] 🔬 활성 세션 강제 로그아웃 시 즉시 JWT Access/Refresh Token 무효화 및 접근 거부
+
+### TASK-1203 🟡 k6 및 ZAP CI/CD 파이프라인 연동
+- **중요도**: 🟡 Medium | **순서**: 3번째
+- **하위 할일**
+  - [ ] k6 부하 테스트 스크립트(`make perf-test` gate)를 GitHub Actions 파이프라인에 통합하여 p95 < 500ms 성능 만족 여부 자동 검증
+  - [ ] OWASP ZAP 보안 스캔 이미지를 CI 파이프라인 내 빌드 태스크 단계에 주입하여 Critical/High 취약점 0건 게이트 구성
+- **테스트 체크리스트**
+  - [ ] 🔬 성능 저하가 있거나 보안 취약점이 발견된 빌드는 PR 병합(Merge) 단계에서 자동으로 빌드가 중단되는지 검증
+
+---
+
+## Sprint 13 — AI Agent Advanced I (API 호출 경로 스캔 & 오탐 학습)
+> Week 27-28 | 목표: API 의존성 기반의 Taint Analysis 구현 및 pgvector를 활용한 오탐 자동 회피
+
+### TASK-1301 🔴 멀티 파일 컨텍스트 분석 (API 호출 흐름 추적)
+- **중요도**: 🔴 Critical | **순서**: 1번째
+- **하위 할일**
+  - [ ] API 엔트리 포인트(Controller, Axios, Swagger)를 읽어 호출 가중치를 파악하는 `call_graph_builder` 모듈 구현
+  - [ ] LangGraph 분석 순서를 API 호출 순서(Controller -> Service -> Repository)에 따라 동적으로 가중치 정렬하여 스캔
+  - [ ] 스캔 진행 시 API 경로 매핑 상황과 진척 상태를 실시간 SSE progress로 스트리밍 (FEAT-AI-001)
+- **테스트 체크리스트**
+  - [ ] 🔬 API 진입점에 정의된 파일 및 직접 연결된 의존성 파일들이 스캔 큐 최상단에 우선 배치되는지 확인
+  - [ ] ✅ 프론트엔드 진행률 UI에서 "API 호출 경로 추적 중" 단계와 현재 매핑 스캔 중인 경로 텍스트가 정상 출력되는지 확인
+
+### TASK-1302 🟠 취약점 오탐 학습 & 산업 도메인 커스텀
+- **중요도**: 🟠 High | **순서**: 2번째
+- **하위 할일**
+  - [ ] 개발자가 '오탐(False Positive)'으로 지정한 코드 조각과 사유를 저장하는 `false_positive_patterns` 테이블 구현 (FEAT-AI-003)
+  - [ ] 분석 시작 시 프로젝트의 해당 오탐 패턴들을 pgvector 기반 검색하여 프롬프트 내 Few-shot(Negative Examples)으로 자동 주입
+  - [ ] 산업 도메인(핀테크, 의료, 공공 등) 설정에 맞춰 각 도메인 가이드라인(MD/DB) 및 규정 준수 패치 가이드를 프롬프트 컨텍스트에 주입하는 RAG 파이프라인 구현
+- **테스트 체크리스트**
+  - [ ] 🔬 오탐 지정된 파일 패턴과 완전히 동일한 오탐 시나리오가 다음 분석 시 자동으로 필터링 및 스킵되는지 검증
+  - [ ] 🔬 핀테크 도메인 프로젝트의 경우 암호화 규격(AES-GCM 등) 및 세션 만료 정책 관련 가이드라인이 프롬프트 컨텍스트에 올바르게 포함되는지 검증
+
+---
+
+## Sprint 14 — AI Agent Advanced II (패치 자동화 및 격리 검증)
+> Week 29-30 | 목표: 승인된 패치의 자동 PR 생성 및 Docker 샌드박스를 활용한 단위 테스트 기반 자가 검증
+
+### TASK-1401 🟠 패치 자동 적용 및 GitHub PR 생성
+- **중요도**: 🟠 High | **순서**: 1번째
+- **하위 할일**
+  - [ ] 취약점 패치 적용 요청 시, GitHub API를 통해 신규 패치 브랜치를 자동 생성하고 수정 사항을 커밋하는 로직 구현
+  - [ ] 원본 브랜치에 대해 Pull Request를 자동으로 개설하는 API 구현 (FEAT-AI-002)
+- **테스트 체크리스트**
+  - [ ] 🔬 패치 적용 완료 시 GitHub 저장소에 PR 코멘트와 함께 실제 PR이 등록되는지 검증
+
+### TASK-1402 🟠 패치 검증 자동화 (VC Feedback Loop)
+- **중요도**: 🟠 High | **순서**: 2번째
+- **하위 할일**
+  - [ ] AI가 제안한 패치 코드를 컴파일하고 검증할 임시 테스트 코드를 Claude API로 동시 생성하는 모듈 구현
+  - [ ] 임시 격리된 Docker 샌드박스 컨테이너 내부에서 패치 코드를 적용한 뒤 테스트를 실행하고 pass 여부를 수집 (FEAT-AI-005)
+  - [ ] 테스트를 성공적으로 통과한 검증된 패치만 `patchSuggestions.verificationStatus`에 Verified로 표기하여 사용자에게 추천
+- **테스트 체크리스트**
+  - [ ] 🔬 문법 에러가 있거나 기존 테스트를 깨뜨리는 패치 제안은 검증 상태가 Failed로 분류되는지 확인
+  - [ ] 🔬 정상 컴파일되고 취약점이 조치된 경우에만 Verified 상태로 업데이트되는지 확인
+
+---
+
+## Sprint 15 — Ecosystem & MCP Server Expansion (MCP/API 확장)
+> Week 31-32 | 목표: AI Agent 기능 확장을 위한 MCP 서버 추가 도입 및 보안 데이터 Outbound 연동
+
+### TASK-1501 🟠 MCP 서버 라인업 보강 (Redis & Brave Search)
+- **중요도**: 🟠 High | **순서**: 1번째
+- **하위 할일**
+  - [ ] AI Agent가 캐시 히트율, 분산 락 상태, SSE 채널 상태를 디버깅할 수 있는 `mcp-server-redis` (MCP-003) 구축
+  - [ ] NVD API 캐시 미스 시 AI Agent가 실시간 웹 검색으로 최신 CVE 및 보안 패치 우회법을 검색할 수 있도록 `mcp-server-brave-search` (MCP-004) 연동
+- **테스트 체크리스트**
+  - [ ] 🔬 AI Agent가 분석 중 외부 NVD 정보 수집을 위해 Exa/Brave Search MCP 도구를 자율적으로 호출하는지 확인
+  - [ ] 🔬 Redis 캐시 및 락 상태 조회가 MCP 도구를 통해 에이전트 컨텍스트에 주입되는지 확인
+
+### TASK-1502 🟠 Outbound Webhook 및 데이터 내보내기 고도화
+- **중요도**: 🟠 High | **순서**: 2번째
+- **하위 할일**
+  - [ ] 분석 완료, Critical 발견 시 외부 시스템으로 웹훅을 발송하는 Outbound Webhook 시스템 구현 (FEAT-API-003)
+  - [ ] 취약점 내보내기 형식을 SARIF (GitHub Code Scanning 호환), JIRA XML, CSV 포맷 등으로 다각화 (FEAT-API-002)
+- **테스트 체크리스트**
+  - [ ] 🔬 분석 완료 이벤트 발생 시 등록된 웹훅 엔드포인트로 정상 payload가 발송되는지 검증
+  - [ ] 🔬 SARIF 포맷으로 다운로드하여 GitHub Code Scanning 탭에 정상 업로드되는지 확인
+
+---
+
+## Sprint 16 — Live Scan Visual Simulator & Observability (실시간 시각화)
+> Week 33-34 | 목표: SSE 이벤트를 시각 정보로 변환하는 모던한 라이브 검사 시뮬레이터 및 운영 모니터링 활성화
+
+### TASK-1601 🟠 모던 실시간 스캔 라이브 시뮬레이터
+- **중요도**: 🟠 High | **순서**: 1번째
+- **하위 할일**
+  - [ ] DAST 테스트 동작 시 흘러나오는 실시간 공격 유형, 클릭 좌표, 페이로드 전송 등의 SSE 상세 이벤트를 파싱하는 리스너 구현 (FEAT-FE-007)
+  - [ ] 프론트엔드 대시보드 내에 모던하고 정갈하게 디자인된 가상 웹 브라우저/네트워크 모형 위젯 구현
+  - [ ] DAST 공격 이벤트 수신 시 가상 화면의 버튼 클릭, 폼 필드 페이로드 자동 타이핑 효과, DB로 흐르는 패킷 전기 신호 효과 등을 깔끔한 CSS/React 애니메이션으로 시각화 (해커 스크린 느낌을 빼고, 실시간 보안 검사 진행 상태를 모던하게 전달)
+- **테스트 체크리스트**
+  - [ ] ✅ DAST 스캔 시작 -> SSE 이벤트 유입 시 프론트엔드 모션 위젯이 끊김 없이 부드럽게(60fps) 동기화되어 동작하는지 확인
+  - [ ] ✅ 통계 탭 이외의 라이브 검사 창을 띄웠을 때, 직관적으로 현재 침투 테스트가 어느 구간(Web 클라이언트 vs DB 영역)에서 일어나고 있는지 눈으로 확인 가능한지 검증
+
+### TASK-1602 🟠 Prometheus 커스텀 메트릭 고도화 및 슬랙 연동
+- **중요도**: 🟠 High | **순서**: 2번째
+- **하위 할일**
+  - [ ] 모니터링 에러 트래킹을 위한 Slack 알림 채널 세분화 및 Grafana 대시보드 알림 연계
+  - [ ] AI Agent의 토큰 소모 속도 및 분석 시간 통계를 Prometheus 게이지로 연계
+- **테스트 체크리스트**
+  - [ ] ✅ 모니터링 시스템 장애 또는 만료 SSL 발견 시 지정 슬랙 채널 알림 수신 성공
+
+
+---
+
 ## EPIC-MISC — 독립 기능 (스프린트 비종속)
+
 
 > 스프린트 사이클과 독립적으로 개발되는 기능들.  
 > 각 기능은 별도 브랜치에서 개발 후 main에 PR.
@@ -869,6 +1036,9 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 | FEAT-SEC-004 | Secrets Detection 강화 | 🟠 High | 코드 업로드 시 시크릿 패턴 즉시 감지 (AWS키, GCP SA키, GitHub PAT, Stripe키 등 50+ 패턴) |
 | FEAT-SEC-005 | 취약점 SLA 관리 | 🟡 Medium | 취약점 수정 기한 설정 및 초과 알림. Critical 3일, High 7일, Medium 30일, Low 90일 기본값 |
 | FEAT-SEC-007 | 2FA 강제 리셋 관리자 API | 🟠 High | 관리자가 특정 사용자의 2FA를 강제 비활성화하는 API. 사용자가 TOTP 디바이스 분실 + 복구 코드 소진 시 계정 잠금 해제. `POST /api/v1/admin/users/{userId}/2fa/reset`. 감사 로그(`AuditLog`) 기록 필수. Admin 전용 엔드포인트 — `ROLE_ADMIN` 권한 체크. (주의: FEAT-SEC-006은 pgvector 임베딩으로 사용됨) |
+| FEAT-SEC-008 | SSO/SAML 싱글 사인온 연동 | 🟠 High | Okta, Azure AD, Google Workspace 등 기업용 계정 관리 시스템과 로그인 연동 |
+| FEAT-SEC-009 | 프로젝트 권한 모델(RBAC) 세분화 | 🟠 High | 팀 단위 결제 및 특정 마이크로서비스 폴더에만 개발자 접근 권한을 매핑하는 RBAC 스키마 확장 |
+
 
 ### API 기능 보완
 
@@ -879,16 +1049,35 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 | FEAT-API-003 | Outbound Webhook | 🟠 High | `analysis.completed`, `vulnerability.critical_found`, `sla.breached` 이벤트를 외부 시스템으로 발송 |
 | FEAT-API-004 | SBOM 다운로드 포맷 추가 | 🟡 Medium | SPDX 2.3 (NTIA 준수), CycloneDX XML, CSV 포맷 추가 |
 | FEAT-API-005 | 분석 스케줄링 API | 🟡 Medium | 정기 자동 분석 예약. `POST /projects/{id}/analysis/schedule`, cronExpression 지원 |
+| FEAT-API-006 | 양방향 Slack App ChatOps Bot | 🟠 High | Slack 커맨드 스캔 트리거 및 알림 메시지 내 버튼 클릭을 통한 패치 승인/반려 기능 |
+
 
 ### AI Agent 고도화
 
 | ID | 항목 | 우선순위 | 설명 |
 |----|------|---------|------|
-| FEAT-AI-001 | 멀티 파일 컨텍스트 분석 | 🔴 Critical | 파일 간 데이터 흐름 추적 (Taint Analysis). LangGraph에 `taint_analysis` 노드 추가, 파일 의존성 그래프 구축 |
+| FEAT-AI-001 | 멀티 파일 컨텍스트 분석 (API 호출 흐름 추적) | 🔴 Critical | API 엔트리 포인트(Controller/Axios/Swagger)를 선분석하여 호출 경로를 추출하고, 연관 파일(Service->Repository)을 우선적으로 추적·스캔하는 Taint Analysis 파이프라인. 스캔 진행 시 API 경로 매핑 상황을 실시간 SSE progress로 스트리밍. |
 | FEAT-AI-002 | 패치 자동 적용 (PR 생성) | 🟠 High | 패치 승인 → GitHub API로 브랜치 생성 → 파일 수정 커밋 → PR 자동 생성. `POST /patches/{id}/create-pr` |
-| FEAT-AI-003 | 취약점 오탐(False Positive) 학습 | 🟠 High | 오탐 패턴을 프로젝트별로 학습해 재분析 시 동일 패턴 필터링. `false_positive_patterns` 테이블 |
+| FEAT-AI-003 | 취약점 오탐 학습 & 산업 도메인 커스텀 | 🟠 High | 오탐 패턴을 프로젝트별로 학습해 재분석 시 Negative Few-shot으로 활용하는 `false_positive_patterns` 테이블 및 산업 도메인별 가이드라인(RAG)을 프롬프트 컨텍스트에 주입하는 기능. |
 | FEAT-AI-004 | 다국어 코드 지원 확장 | 🟡 Medium | 현재 Java/TypeScript/Python에서 Go, Rust, C/C++, PHP, Ruby 추가 |
 | FEAT-AI-005 | 패치 검증 자동화 | 🟡 Medium | 생성된 패치 코드를 임시 컨테이너에서 자동으로 단위 테스트 실행 후 pass 여부를 `patchSuggestions.verificationStatus`에 저장. 패치 생성 시 테스트 코드를 Claude API로 동시 생성 → 도커 컨테이너에서 실행 → 검증 통과(Verified) 패치만 사용자에게 추천. VC 피드백(AI 환각 제어) 핵심 구현 항목. `patch_suggestions.verified_at`, `test_code` 컬럼 추가 필요 (Flyway 미배정) |
+
+
+### VSCode Extension 고도화 (IDE 내 조치 완결)
+
+| ID | 항목 | 우선순위 | 설명 |
+|----|------|---------|------|
+| FEAT-IDE-001 | Quick Fix (IDE 원클릭 패치 적용) | 🟠 High | 코드 내 취약점 밑줄(squiggly line)에 마우스를 올리고 "Quick Fix" 클릭 시, AI 제안 패치를 해당 파일에 즉시 적용하는 기능. |
+| FEAT-IDE-002 | WebView Chat Panel (IDE 내 대화형 조치) | 🟠 High | 브라우저 이동 없이 VSCode 사이드바의 웹뷰 패널에서 AI Agent와 취약점 조치 관련 실시간 질의응답 및 수정 코드 조율. |
+| FEAT-IDE-003 | Status Bar Integration | 🟢 Low | 현재 활성화된 프로젝트의 보안 스코어와 분석 상태를 에디터 하단 상태 표시줄에 실시간 노출. |
+
+
+### AI 에이전트 자가 제어 및 안전장치
+
+| ID | 항목 | 우선순위 | 설명 |
+|----|------|---------|------|
+| FEAT-AI-006 | 패치 자동 롤백 및 이력 관리 | 🟠 High | 적용된 패치로 인해 빌드가 깨지거나 테스트가 실패할 경우 Git Revert 커밋을 자동 개설하여 패치를 이전 상태로 롤백하는 안전장치. |
+
 
 ### 컴플라이언스
 
@@ -916,6 +1105,8 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 | 설정 | SettingsPage (알림·플랜·API 키) | ❌ 미구현 | 신규 필요 | **Sprint 10** (Enterprise 플랜 관리 UI 필수) |
 | 알림 센터 | NotificationsPage (FCM/In-App 알림 목록) | ❌ 미구현 | 신규 필요 | **EPIC-MISC** (FCM 푸시 인프라 미구축 — 인프라 구축 후 편입) |
 | 분석 비교 | DiffPage (두 세션 취약점 증감 비교) | ❌ 미구현 | FEAT-API-001 백엔드 선행 필요 | **EPIC-MISC** (FEAT-API-001 Diff API 백엔드 완료 후 편입) |
+| 워크스페이스 모드 | Onboarding Step 0 (개발자 vs 보안팀 모드 온보딩 및 맞춤형 UI 제공) | ❌ 미구현 | 신규 필요 (FEAT-FE-004) | **Sprint 10** (Stage 5 프론트엔드 연계 및 모드 전환) |
+| 스캔 시뮬레이터 | DastVisualSimulator (SSE 기반 모의 침투 및 DB 접근 라이브 애니메이션) | ❌ 미구현 | 신규 필요 (FEAT-FE-007) | **EPIC-MISC** (AI Engine 실시간 상세 SSE 연계) |
 
 **미구현 화면 6개** (원문 "7개"는 집계 오류) — Sprint 10: 4개, EPIC-MISC: 2개로 배정 완료 (2026-05-23).
 
@@ -978,7 +1169,24 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   }
   ```
 
+#### FEAT-FE-004 워크스페이스 모드 전환 및 온보딩 API
+
+- **엔드포인트**: `PATCH /api/v1/users/me/workspace-mode`
+- **필요 파일**:
+  - `apps/backend/src/main/java/io/secureai/backend/domain/user/entity/User.java` (workspaceMode 필드 추가 및 기본값 DEVELOPER)
+  - `apps/backend/src/main/java/io/secureai/backend/domain/user/controller/UserController.java` (모드 전환 API 추가)
+  - `apps/frontend/src/store/useAuthStore.ts` (AuthUser 타입 및 persist 스토어 확장)
+  - `apps/frontend/src/app/onboarding/page.tsx` (Step 0 페르소나 선택 UI 추가)
+- **설명**: 가입 시 사용자가 개발자 또는 보안 관리자 중 선호하는 모드를 선택하게 하며, 선택에 따라 Next.js 라우팅(/editor vs /dashboard) 및 사이드바 메뉴가 자동으로 분기됩니다.
+- **요청 예시**:
+  ```json
+  {
+    "workspaceMode": "SECURITY_MANAGER"
+  }
+  ```
+
 ---
+
 
 ### 인프라 & 운영 자동화
 

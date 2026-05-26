@@ -440,3 +440,45 @@ Sprint 9 완료 기록 (2026-05-23 기준):
 AI Engine 신규 3개 PASS (Audit/Pipeline 모드 + preferred_model 우선순위)
 
 **커밋**: `b42a51a` `feat(enterprise): Sprint 10 Stage 4 — 팀 대시보드 + ROI Export + 스캔 모드 (TASK-1002/1003/1004)`
+
+---
+
+## Stage 5 완료 기록 (2026-05-26)
+
+### FEAT-FE-003 — CompliancePage (ISO 27001 / NIST CSF 매핑)
+
+**Backend**:
+- `ComplianceResponse.java`: record DTO (framework + List\<ControlResult\>) — controlId, controlName, owaspCategory, compliant, vulnerabilityCount
+- `ComplianceMappingService.java`: OWASP Top 10 → ISO 27001 / NIST CSF 정적 매핑  
+  - 8개 OWASP 카테고리 (A01/A02/A03/A05/A06/A07/A09/A10) 양쪽 프레임워크 매핑  
+  - `VulnerabilityQueryService` 경유 — analysis 도메인 Repository 직접 주입 제거 (도메인 격리 원칙)  
+  - framework 검증은 Controller 전담, Service 재검증 없음  
+  - `extractOwaspCode()`: "A01", "A01:2021", "A01:2021 Broken Access Control" 모두 "A01" 정규화
+- `ComplianceController.java`: `GET /api/v1/projects/{projectId}/sessions/{sessionId}/compliance?framework=ISO27001`  
+  - `@PreAuthorize("isAuthenticated()")`, framework 입력 검증 Controller 전담
+- `VulnerabilityQueryService.java`: `findOwaspCodesBySessionId()` 위임 메서드 추가
+
+**Frontend**:
+- `CompliancePage.tsx`: ISO 27001 / NIST CSF 탭 전환 + KPI 띠(전체/준수/미준수/준수율) + 컨트롤 테이블 + 준수율 진행 바  
+  - 행 클릭 시 상세 패널 확장 (준수 상태 + 조치 필요 안내)  
+  - `apiClient + useSecureStore(projectId, lockedSessionId)` + mock fallback 패턴 (SbomPage 동일)
+- `projects/[projectId]/compliance/page.tsx`: 독립 라우트 페이지
+
+### FEAT-FE-004 — TeamManagementPage
+**확인**: `apps/frontend/src/app/team/[orgSlug]/members/page.tsx` 이미 완전 구현 — 초대 모달, 권한 변경, 멤버 제거 확인, 재초대, 빈 팀 상태, 대기 중 배지 모두 포함. 추가 작업 없음.
+
+### FEAT-FE-005 — SettingsPage 확장
+- `settings/page.tsx`: `ScanModeDefaultSection` 추가 — `localStorage.setItem('scanModeDefault', mode)` 기본값 저장, 새로고침 후 유지, "저장되었습니다." 알림
+
+---
+
+**Reviewer FAIL → 수정 이력**:
+
+| # | 위반 | 수정 |
+|---|------|------|
+| 1 | `ComplianceMappingService`: `VulnerabilityRepository` 직접 주입 (도메인 격리 위반) | `VulnerabilityQueryService` 경유로 전환, `findOwaspCodesBySessionId()` 위임 메서드 추가 |
+| 2 | framework 검증이 Service 레이어에 위치 (Controller 전담 규칙 위반) | Service 검증 제거, Controller에 이동 |
+| 3 | `ComplianceMappingServiceTest`: `VulnerabilityRepository` mock → `VulnerabilityQueryService` mock으로 재작성 | `findOwaspCodesBySessionId` stub으로 교체, 5개 테스트 PASS |
+
+**단위 테스트**: `ComplianceMappingServiceTest` 5개 전원 통과  
+**커밋**: `32bcb3e` `feat(compliance): Sprint 10 Stage 5 — CompliancePage + ISO27001/NIST CSF 매핑`

@@ -1612,6 +1612,75 @@ Authorization: Bearer {accessToken}
 
 ---
 
+## 13.5 컴플라이언스 프레임워크 매핑 (FEAT-FE-003)
+
+Base path: `/api/v1/projects/{projectId}/sessions/{sessionId}/compliance`
+
+### 13.5.1 컴플라이언스 매핑 결과 조회
+
+```http
+GET /api/v1/projects/{projectId}/sessions/{sessionId}/compliance?framework=ISO27001
+Authorization: Bearer {accessToken}
+```
+
+세션의 취약점을 OWASP Top 10 기준으로 컴플라이언스 프레임워크에 매핑하여 컨트롤별 준수 여부를 반환한다.
+
+**Query Parameters**
+
+| 파라미터 | 필수 | 기본값 | 설명 |
+|---------|------|--------|------|
+| `framework` | 아니오 | `ISO27001` | `ISO27001` 또는 `NIST_CSF` — 그 외 값은 400 반환 |
+
+**지원 OWASP 카테고리**
+
+| OWASP | ISO 27001 컨트롤 | NIST CSF 컨트롤 |
+|-------|----------------|----------------|
+| A01 Broken Access Control | A.9.4.1 | PR.AC-4 |
+| A02 Cryptographic Failures | A.10.1.1 | PR.DS-1 |
+| A03 Injection | A.14.2.5 | DE.CM-4 |
+| A05 Security Misconfiguration | A.14.1.2 | PR.IP-12 |
+| A06 Vulnerable and Outdated Components | A.12.6.1 | ID.RA-1 |
+| A07 Identification and Authentication Failures | A.9.2.1 | PR.AC-1 |
+| A09 Security Logging and Monitoring Failures | A.12.4.1 | DE.AE-3 |
+| A10 Server-Side Request Forgery | A.6.1.2 | PR.AC-4 |
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "framework": "ISO27001",
+    "controls": [
+      {
+        "controlId": "A.9.4.1",
+        "controlName": "Use of Privileged Utility Programs",
+        "owaspCategory": "A01 Broken Access Control",
+        "compliant": false,
+        "vulnerabilityCount": 3
+      },
+      {
+        "controlId": "A.12.4.1",
+        "controlName": "Event logging",
+        "owaspCategory": "A09 Security Logging and Monitoring Failures",
+        "compliant": true,
+        "vulnerabilityCount": 0
+      }
+    ]
+  }
+}
+```
+
+정렬 순서: 미준수 컨트롤 우선 → controlId 오름차순.
+
+**Error Responses**
+
+| 상태 | 코드 | 사유 |
+|------|------|------|
+| 400 | `INVALID_INPUT` | 지원하지 않는 framework |
+| 403 | `PROJECT_ACCESS_DENIED` | 프로젝트 멤버가 아닌 경우 |
+
+---
+
 ## 14. 야간 자동 스캔 스케줄링 API (신규)
 
 Base path: `/api/v1/projects`

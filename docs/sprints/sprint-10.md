@@ -288,3 +288,197 @@ Sprint 9 완료 기록 (2026-05-23 기준):
 - `test_mcp_github_tools.py` 15개
 
 **커밋**: `addd96a` `feat(sprint10/stage1): GitHub 커밋 MCP 툴 + 시크릿 탐지 노드 (TASK-501)`
+
+---
+
+## Stage 2 완료 기록 (2026-05-25)
+
+### TASK-502 — PR 분석 자동 트리거 + Check Run API
+### TASK-503 — 커밋 히스토리 시크릿 스캔 개선
+
+**구현 내용**:
+
+**Backend (TASK-502)**:
+- `GitHubRestClient.java`: 기본 생성자 → `@Qualifier("githubRestClient") RestClient` 생성자 주입 전환 (DIP). `createPrComment()` / `getPrChangedFiles()` 메서드 추가 — HTTP 클라이언트 책임을 `GitHubRestClientConfig` 단일 위치로 집중
+- `GitHubWebhookService.java`: 중복 `RestClient githubRestClient` 직접 빌드 필드 제거 및 `@Deprecated` 메서드 2개(`createCheckRun`, `completeCheckRun`) 제거. `createPrComment` / `getPrChangedFiles` 호출을 주입된 `gitHubRestClient`에 위임. `extractInstallationToken()` blank 가드 추가 — 토큰 없으면 `log.warn()` + Check Run / 파일 조회 skip (런타임 403 방지). `completeCheckRunAfterAnalysis()` 분석 완료 후 Check Run 완료 + PR 코멘트 등록
+- `application.yaml`: `secureai.github.webhook-secret` / `check-run-app-id` 바인딩 추가
+
+**Frontend (TASK-502)**:
+- `GitHubScanModal.tsx`: owner/repo/ref/prNumber 입력 폼, `POST /api/v1/analysis/commits/scan` 연동. JWT는 auth store에서 조회 (localStorage 미사용)
+
+**AI Engine (TASK-503)**:
+- `scan_files_node.py`: `PRIORITY_EXTENSIONS` dict로 우선순위 스캔 (`.env`/`.pem`/`.key` → 설정 파일 → 소스). `BINARY_EXTENSIONS` + `_is_binary()` 이진 파일 필터링. `asyncio.gather` 병렬 파일 스캔. SSE progress 스캔 가능 파일 수 기준
+
+**Reviewer FAIL → 수정 이력**:
+
+*1차 FAIL (SRP + 중복 RestClient + extractInstallationToken)*:
+| # | 위반 | 수정 |
+|---|------|------|
+| 1 | `GitHubWebhookService`에 `RestClient githubRestClient` 직접 빌드 중복 — HTTP 클라이언트 구성 책임이 두 클래스에 분산 | `GitHubRestClient` 생성자 주입 전환 + `@Deprecated` 직접 호출 메서드 제거 |
+| 2 | `createPrComment` / `getPrChangedFiles`가 `GitHubWebhookService`에서 직접 HTTP 호출 — SRP 위반 | 두 메서드를 `GitHubRestClient`로 이전, `GitHubWebhookService`에서 위임 |
+| 3 | `extractInstallationToken()` 빈 문자열 반환 상태에서 Check Run / 파일 조회 API 호출 → 런타임 403 확실 | `hasToken` 플래그로 blank 여부 확인, blank이면 모든 GitHub API 호출 skip & log |
+
+**단위 테스트**: 19개 통과 (GitHubRestClientTest 7개 + GitHubWebhookServiceTest 12개)
+- `GitHubRestClientTest`: `spy(new GitHubRestClient(mockRestClient))` 패턴으로 생성자 주입 반영
+- `GitHubWebhookServiceTest`: 토큰 blank 시 Check Run skip 검증 2개 추가
+
+**커밋**: `af2ce44` `feat(sprint10-stage2): PR 자동 트리거 + Check Run API + 스캔 개선 (TASK-502, TASK-503)`
+
+---
+
+## Stage 3 완료 기록 (2026-05-25)
+
+### TASK-504 — SBOM CycloneDX 내보내기
+### TASK-1001 — 야간 자동 스캔 스케줄링
+
+**구현 내용**:
+
+**TASK-504 Backend**:
+- `CycloneDxBom.java`: CycloneDX 1.4 BOM 응답 record (Component/Vulnerability/Rating 중첩 record, `bom-ref` @JsonProperty 적용)
+- `CycloneDxExportService.java`: 내보내기 전용 서비스 (SRP). `CveSearchService` 경유 CVE 조회 (DIP). 팀 멤버 검증, CVE 매칭 오류 skip & log
+- `SbomController.java`: `GET /api/v1/projects/{id}/sbom/cyclonedx?sessionId=` 엔드포인트 추가
+
+**TASK-504 AI Engine**:
+- `sbom_parser.py`: `parse_cargo_toml()` 추가 (인라인/테이블 버전, dev-dependencies, path 의존성). `parse_file()` Cargo.toml 라우팅 등록
+
+**TASK-504 Frontend**:
+- `SbomPage.tsx`: CycloneDX JSON 다운로드 버튼 (Blob URL, JWT는 auth store)
+
+**TASK-1001 Backend (신규 도메인)**:
+- `V044__create_project_schedules.sql`: project_schedules 테이블 (Flyway V044)
+- `NightlyScanJob.java`: `@Scheduled(0 0 16 * * *)` = KST 01:00 + `@SchedulerLock(PT2H/PT10M)`
+- `NightlyScanService.java`: 변경 감지 (GitHub SHA 비교 / 30일 경과 여부) + 스캔 위임 + 알림 skip & log
+- `ProjectScheduleService.java` + `ProjectScheduleController.java`: `GET+PUT /api/v1/projects/{id}/schedule` Upsert
+
+**Reviewer FAIL → 수정 이력**:
+
+*1차 FAIL (API 설계 문서 불일치)*:
+| # | 위반 | 수정 |
+|---|------|------|
+| 1 | `GET /sbom/cyclonedx` 엔드포인트 문서 미등재 | `docs/02_API_DESIGN_V5_260523.md` 4.9절 신규 추가 |
+| 2 | 스케줄 엔드포인트 `POST /schedules`(복수) vs 구현 `GET+PUT /schedule`(단수) | 14.1~14.2절을 실제 Upsert 패턴으로 수정 (단수형 경로, 요청/응답 필드 일치) |
+
+**단위 테스트**: 20개 통과 (Backend) + 36개 통과 (Python)
+- `CycloneDxExportServiceTest`: 11/11 PASS
+- `NightlyScanJobTest` + `NightlyScanServiceTest`: 9/9 PASS (`@MockitoSettings(LENIENT)` 적용)
+- `test_sbom_parser.py`: 36/36 PASS (Cargo 파서 7개 + 라우팅 3개 포함)
+
+**커밋**: `cc5ee73` `feat(sprint10-stage3): SBOM CycloneDX 내보내기 + 야간 스캔 스케줄링 (TASK-504, TASK-1001)`
+
+---
+
+## Stage 4 완료 기록 (2026-05-26)
+
+### TASK-1002 — 팀 대시보드 & Gamification
+
+**Backend**:
+- `V045__add_security_score_to_users.sql`: `users.security_score INTEGER DEFAULT 0` (IF NOT EXISTS)
+- `TeamDashboardResponse.java`: `teamId`, `teamName`, `members: List<MemberStat>`, `totalCritical`, `totalHigh`, `avgMttrHours`, `monthlyTokenUsage` record
+- `TeamDashboardService.java`: JdbcTemplate 전용 집계 (도메인 간 Repository 직접 주입 없음, DIP 준수)
+  - `loadOrgNameOrThrow()`, `verifyTeamMember()`, `loadAcceptedMemberIds()` — org_members/organizations JDBC 쿼리
+  - `loadUserStats()` — users 테이블 RowMapper 방식 (mock 친화적)
+  - `buildMemberStats()` — securityScore 내림차순 rank 부여
+  - 패키지-프라이빗 `record UserStat(UUID id, String username, int securityScore)` 내부 DTO
+- `DashboardController.java`: `GET /api/v1/teams/{teamId}/dashboard` 추가 (기존 엔드포인트 보존)
+- `User.java`: `securityScore` 필드 추가 (Flyway V045 동기)
+
+**Frontend**:
+- `team/[orgSlug]/page.tsx`: 팀원별 랭킹 테이블 + 도넛 차트(Recharts) + 빈 catch → console.warn 수정
+
+---
+
+### TASK-1003 — 리포트 위젯 PDF/HTML Export (ROI)
+
+**Backend**:
+- `RoiCalculationService.java`: `savedHours = vulnCount × 4h`, `savedCost = savedHours × hourlyRate`  
+  상수: `DEFAULT_HOURLY_RATE = 50.0`, `HOURS_PER_VULNERABILITY = 4.0`  
+  hourlyRate <= 0 시 기본값 적용
+- `roi-report.html`: openhtmltopdf용 HTML 템플릿 (인라인 CSS, Thymeleaf 변수)
+- `SecurityDocAsyncProcessor.java`: `processRoiReport()` 확장 + `RoiCalculationService` 의존성 주입
+- `ReportController.java`: `GET .../roi` + `GET .../roi/pdf` 엔드포인트 추가
+- `VulnerabilityRepository.java`: `countBySeverityForSession` 쿼리 메서드 추가
+
+**Frontend**:
+- `PdfReportModal.tsx`: ROI 위젯 포함 체크박스 + hourlyRate 입력 + ROI 미리보기 섹션
+
+---
+
+### TASK-1004 — 스캔 모드 선택 (Audit vs Pipeline)
+
+**Backend**:
+- `V046__add_scan_mode_to_analysis_sessions.sql`: `scan_mode TEXT DEFAULT 'PIPELINE'` (IF NOT EXISTS)
+- `StartAnalysisRequest.java`: `scanMode` 필드 + `@Pattern(AUDIT|PIPELINE)` 검증 + `effectiveScanMode()` 헬퍼
+- `AnalysisSession.java`: `@Column(name = "scan_mode") String scanMode` (기본값 "PIPELINE")
+- `AiAgentClient` 인터페이스 + `DefaultAiAgentClient`: `scanMode` 파라미터 전달
+- `AnalysisService.java`: 세션 빌더에 `scanMode` 적용
+
+**AI Engine**:
+- `settings.py`: `audit_model = Field("claude-haiku-4-5-20251001")`, `pipeline_model = Field("claude-sonnet-4-6")`
+- `agent_state.py`: `scan_mode: str | None` 필드 추가
+- `sast_node.py`: `scan_mode == "AUDIT"` → `settings.audit_model`, 기본값 → `settings.pipeline_model`
+- `analyze.py`: `AnalyzeRequest.scan_mode` 필드 + `initial_state` 주입
+- `.env.example`: `AUDIT_MODEL`, `PIPELINE_MODEL` 항목 추가
+
+**Frontend**:
+- `ScanModeSelector.tsx`: 모드 선택 라디오 UI (`ScanMode = 'AUDIT' | 'PIPELINE'`)
+- `useStartAnalysis.ts`: `scanMode` 상태 관리 + API 호출 시 전달
+
+---
+
+**Reviewer FAIL → 수정 이력**:
+
+| # | 위반 | 수정 |
+|---|------|------|
+| 1 | `TeamDashboardService`: `UserRepository`/`OrgMemberRepository`/`OrganizationRepository` 도메인 간 직접 주입 | JdbcTemplate 전용 집계로 전환, JPA Repository 의존성 제거 |
+| 2 | `StartAnalysisRequest.scanMode`: Controller 레이어 입력 검증 부재 | `@Pattern(regexp = "^(AUDIT\|PIPELINE)$")` 추가 |
+| 3 | `TeamDashboardServiceTest`: JPA stub 기반 → JdbcTemplate doReturn/doAnswer 방식으로 재작성 | `@MockitoSettings(LENIENT)` + jdbcTemplate stub helper 메서드 분리 |
+| 4 | `CircuitBreakerTest`: `startAnalysisFallback` 리플렉션 인자 불일치 | `null` 1개 추가 (scanMode) |
+| 5 | 빈 catch 블록 (프론트엔드) | `console.warn` 추가 |
+| 6 | API 문서 ROI 엔드포인트 미등재 | 13.3/13.4절 신규 추가 |
+
+**단위 테스트**: 백엔드 PASS (TeamDashboard 7개 + RoiCalculation 5개 + AnalysisService + CircuitBreaker)  
+AI Engine 신규 3개 PASS (Audit/Pipeline 모드 + preferred_model 우선순위)
+
+**커밋**: `b42a51a` `feat(enterprise): Sprint 10 Stage 4 — 팀 대시보드 + ROI Export + 스캔 모드 (TASK-1002/1003/1004)`
+
+---
+
+## Stage 5 완료 기록 (2026-05-26)
+
+### FEAT-FE-003 — CompliancePage (ISO 27001 / NIST CSF 매핑)
+
+**Backend**:
+- `ComplianceResponse.java`: record DTO (framework + List\<ControlResult\>) — controlId, controlName, owaspCategory, compliant, vulnerabilityCount
+- `ComplianceMappingService.java`: OWASP Top 10 → ISO 27001 / NIST CSF 정적 매핑  
+  - 8개 OWASP 카테고리 (A01/A02/A03/A05/A06/A07/A09/A10) 양쪽 프레임워크 매핑  
+  - `VulnerabilityQueryService` 경유 — analysis 도메인 Repository 직접 주입 제거 (도메인 격리 원칙)  
+  - framework 검증은 Controller 전담, Service 재검증 없음  
+  - `extractOwaspCode()`: "A01", "A01:2021", "A01:2021 Broken Access Control" 모두 "A01" 정규화
+- `ComplianceController.java`: `GET /api/v1/projects/{projectId}/sessions/{sessionId}/compliance?framework=ISO27001`  
+  - `@PreAuthorize("isAuthenticated()")`, framework 입력 검증 Controller 전담
+- `VulnerabilityQueryService.java`: `findOwaspCodesBySessionId()` 위임 메서드 추가
+
+**Frontend**:
+- `CompliancePage.tsx`: ISO 27001 / NIST CSF 탭 전환 + KPI 띠(전체/준수/미준수/준수율) + 컨트롤 테이블 + 준수율 진행 바  
+  - 행 클릭 시 상세 패널 확장 (준수 상태 + 조치 필요 안내)  
+  - `apiClient + useSecureStore(projectId, lockedSessionId)` + mock fallback 패턴 (SbomPage 동일)
+- `projects/[projectId]/compliance/page.tsx`: 독립 라우트 페이지
+
+### FEAT-FE-004 — TeamManagementPage
+**확인**: `apps/frontend/src/app/team/[orgSlug]/members/page.tsx` 이미 완전 구현 — 초대 모달, 권한 변경, 멤버 제거 확인, 재초대, 빈 팀 상태, 대기 중 배지 모두 포함. 추가 작업 없음.
+
+### FEAT-FE-005 — SettingsPage 확장
+- `settings/page.tsx`: `ScanModeDefaultSection` 추가 — `localStorage.setItem('scanModeDefault', mode)` 기본값 저장, 새로고침 후 유지, "저장되었습니다." 알림
+
+---
+
+**Reviewer FAIL → 수정 이력**:
+
+| # | 위반 | 수정 |
+|---|------|------|
+| 1 | `ComplianceMappingService`: `VulnerabilityRepository` 직접 주입 (도메인 격리 위반) | `VulnerabilityQueryService` 경유로 전환, `findOwaspCodesBySessionId()` 위임 메서드 추가 |
+| 2 | framework 검증이 Service 레이어에 위치 (Controller 전담 규칙 위반) | Service 검증 제거, Controller에 이동 |
+| 3 | `ComplianceMappingServiceTest`: `VulnerabilityRepository` mock → `VulnerabilityQueryService` mock으로 재작성 | `findOwaspCodesBySessionId` stub으로 교체, 5개 테스트 PASS |
+
+**단위 테스트**: `ComplianceMappingServiceTest` 5개 전원 통과  
+**커밋**: `32bcb3e` `feat(compliance): Sprint 10 Stage 5 — CompliancePage + ISO27001/NIST CSF 매핑`

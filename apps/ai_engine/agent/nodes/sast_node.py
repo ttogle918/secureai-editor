@@ -212,7 +212,15 @@ async def sast_node(state: AgentState) -> dict:
                 + prev_vuln_context
             )
 
+        # Audit: 빠른 비용 효율. Pipeline: 고품질 정밀 분석
+        # preferred_model(BYOK)이 명시적으로 지정된 경우 그것을 최우선으로 사용한다.
         preferred_model = state.get("preferred_model")
+        if preferred_model is None:
+            scan_mode = state.get("scan_mode", "PIPELINE")
+            if scan_mode == "AUDIT":
+                preferred_model = settings.audit_model
+            else:
+                preferred_model = settings.pipeline_model
         user_api_key = state.get("user_api_key")
         raw_vulns, file_usage = await _analyze_chunks(file_path, content, guidelines, preferred_model, user_api_key)
         vulns = classify_and_enrich(raw_vulns, file_path)

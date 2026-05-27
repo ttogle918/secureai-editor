@@ -48,6 +48,10 @@ public class AnalysisSession extends BaseTimeEntity {
     @Builder.Default
     private Integer vulnCount = 0;
 
+    @Column(name = "scan_mode", nullable = false)
+    @Builder.Default
+    private String scanMode = "PIPELINE";
+
     private OffsetDateTime startedAt;
     private OffsetDateTime completedAt;
 

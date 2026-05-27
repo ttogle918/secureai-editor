@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ROI 보안 투자 대비 효과 리포트</title>
+  <style>
+    /* openhtmltopdf는 외부 CSS 로딩 제한 — 인라인 스타일로 모두 정의 */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif;
+      font-size: 12px;
+      color: #1a1a2e;
+      background: #ffffff;
+      padding: 40px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 3px solid #1e3a8a;
+    }
+    .header-logo {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .header-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #1e3a8a;
+      margin-bottom: 6px;
+    }
+    .header-subtitle {
+      font-size: 14px;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+    .header-meta {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+    /* ROI 요약 박스 */
+    .roi-summary-grid {
+      display: table;
+      width: 100%;
+      margin-bottom: 32px;
+    }
+    .roi-summary-grid .col {
+      display: table-cell;
+      width: 50%;
+      padding: 4px;
+      vertical-align: top;
+    }
+    .roi-box {
+      background: #1e3a8a;
+      color: #ffffff;
+      border-radius: 10px;
+      padding: 24px 20px;
+      text-align: center;
+    }
+    .roi-box.green { background: #065f46; }
+    .roi-box-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.75;
+      margin-bottom: 8px;
+    }
+    .roi-box-value {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .roi-box-unit {
+      font-size: 12px;
+      opacity: 0.85;
+      margin-top: 4px;
+    }
+    /* 취약점 통계 테이블 */
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .vuln-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 32px;
+    }
+    .vuln-table th {
+      background: #1e3a8a;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .vuln-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 12px;
+    }
+    .vuln-table tr:nth-child(even) td { background: #f9fafb; }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-critical { background: #fee2e2; color: #dc2626; }
+    .badge-high     { background: #ffedd5; color: #ea580c; }
+    .badge-medium   { background: #fef9c3; color: #ca8a04; }
+    .badge-low      { background: #dbeafe; color: #2563eb; }
+    .badge-total    { background: #ede9fe; color: #7c3aed; }
+    /* 절감 효과 섹션 */
+    .savings-grid {
+      display: table;
+      width: 100%;
+      margin-bottom: 32px;
+    }
+    .savings-grid .col {
+      display: table-cell;
+      width: 50%;
+      padding: 4px;
+      vertical-align: top;
+    }
+    .savings-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 18px 20px;
+    }
+    .savings-card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+    .savings-card-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: #065f46;
+    }
+    .savings-card-desc {
+      font-size: 10px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+    /* 주석 */
+    .footnote {
+      font-size: 10px;
+      color: #9ca3af;
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── 헤더 ──────────────────────────────────────────────── -->
+  <div class="header">
+    <div class="header-logo">SecureAI Engine</div>
+    <div class="header-title">보안 투자 대비 효과 (ROI) 리포트</div>
+    <div class="header-subtitle" th:text="${projectName}">프로젝트명</div>
+    <div class="header-meta" th:text="'분석 기준일: ' + ${sessionDate}">분석 기준일</div>
+  </div>
+
+  <!-- ── ROI 요약 박스 ──────────────────────────────────────── -->
+  <div class="section-title">ROI 요약</div>
+  <div class="roi-summary-grid">
+    <div class="col">
+      <div class="roi-box">
+        <div class="roi-box-label">절감 예상 시간</div>
+        <div class="roi-box-value" th:text="${#numbers.formatDecimal(savedHours, 1, 1)} + ' h'">0 h</div>
+        <div class="roi-box-unit">취약점 1건당 평균 4시간 기준</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="roi-box green">
+        <div class="roi-box-label">절감 예상 비용</div>
+        <div class="roi-box-value" th:text="'$' + ${#numbers.formatDecimal(savedCost, 1, 0)}">$0</div>
+        <div class="roi-box-unit" th:text="'시간당 $' + ${#numbers.formatDecimal(hourlyRate, 1, 0)} + ' 기준'">시간당 $50 기준</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 취약점 통계 테이블 ─────────────────────────────────── -->
+  <div class="section-title">취약점 심각도별 통계</div>
+  <table class="vuln-table">
+    <thead>
+      <tr>
+        <th>심각도</th>
+        <th>건수</th>
+        <th>절감 시간 (시간)</th>
+        <th>절감 비용 (USD)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-critical">CRITICAL</span></td>
+        <td th:text="${criticalCount}">0</td>
+        <td th:text="${#numbers.formatDecimal(criticalCount * 4.0, 1, 1)}">0.0</td>
+        <td th:text="'$' + ${#numbers.formatDecimal(criticalCount * 4.0 * hourlyRate, 1, 0)}">$0</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-high">HIGH</span></td>
+        <td th:text="${highCount}">0</td>
+        <td th:text="${#numbers.formatDecimal(highCount * 4.0, 1, 1)}">0.0</td>
+        <td th:text="'$' + ${#numbers.formatDecimal(highCount * 4.0 * hourlyRate, 1, 0)}">$0</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-medium">MEDIUM</span></td>
+        <td th:text="${mediumCount}">0</td>
+        <td th:text="${#numbers.formatDecimal(mediumCount * 4.0, 1, 1)}">0.0</td>
+        <td th:text="'$' + ${#numbers.formatDecimal(mediumCount * 4.0 * hourlyRate, 1, 0)}">$0</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-low">LOW</span></td>
+        <td th:text="${lowCount}">0</td>
+        <td th:text="${#numbers.formatDecimal(lowCount * 4.0, 1, 1)}">0.0</td>
+        <td th:text="'$' + ${#numbers.formatDecimal(lowCount * 4.0 * hourlyRate, 1, 0)}">$0</td>
+      </tr>
+      <tr style="font-weight: 700; background: #f0f4ff;">
+        <td><span class="badge badge-total">TOTAL</span></td>
+        <td th:text="${totalVulnCount}">0</td>
+        <td th:text="${#numbers.formatDecimal(savedHours, 1, 1)}">0.0</td>
+        <td th:text="'$' + ${#numbers.formatDecimal(savedCost, 1, 0)}">$0</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── 절감 효과 카드 ─────────────────────────────────────── -->
+  <div class="section-title">절감 효과 상세</div>
+  <div class="savings-grid">
+    <div class="col">
+      <div class="savings-card">
+        <div class="savings-card-title">발견된 총 취약점</div>
+        <div class="savings-card-value" th:text="${totalVulnCount} + ' 건'">0 건</div>
+        <div class="savings-card-desc">CRITICAL + HIGH + MEDIUM + LOW</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="savings-card">
+        <div class="savings-card-title">적용 시간당 단가</div>
+        <div class="savings-card-value" th:text="'$' + ${#numbers.formatDecimal(hourlyRate, 1, 0)} + ' / h'">$50 / h</div>
+        <div class="savings-card-desc">사용자 지정 단가 기준</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 주석 ──────────────────────────────────────────────── -->
+  <div class="footnote">
+    본 리포트는 SecureAI Engine이 자동 생성한 추정 절감 비용입니다.
+    실제 비용은 조직의 개발 환경 및 취약점 복잡도에 따라 다를 수 있습니다.
+  </div>
+
+</body>
+</html>

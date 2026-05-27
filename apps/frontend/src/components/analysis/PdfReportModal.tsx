@@ -1,11 +1,13 @@
 // components/analysis/PdfReportModal.tsx
 // PDF 보안 리포트 생성 · 다운로드 모달 — MissingScreens.jsx 디자인 시안 반영
-// API: POST /api/v1/reports        — 리포트 생성 요청 (비동기)
-//      GET  /api/v1/reports/{id}/status — 상태 조회
-//      GET  /api/v1/reports/download/{token} — 파일 다운로드
+// API: POST /api/v1/reports                                                  — 리포트 생성 요청 (비동기)
+//      GET  /api/v1/reports/{id}/status                                       — 상태 조회
+//      GET  /api/v1/reports/download/{token}                                  — 파일 다운로드
+//      GET  /api/v1/reports/projects/{pId}/sessions/{sId}/roi                 — ROI JSON 조회
+//      GET  /api/v1/reports/projects/{pId}/sessions/{sId}/roi/pdf             — ROI PDF 다운로드
 'use client';
 import { useState } from 'react';
-import { X, FileText, Download, Loader2, CheckCircle2, Lock, Copy, Mail } from 'lucide-react';
+import { X, FileText, Download, Loader2, CheckCircle2, Lock, Copy, Mail, TrendingUp } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import { useSecureStore } from '@/store/useSecureStore';
 import { useToastStore } from '@/hooks/useToast';
@@ -26,6 +28,19 @@ interface ReportStatusData {
   status: 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
   downloadToken?: string;
   fileName?: string;
+}
+
+/** 백엔드 RoiResult record와 매핑 */
+interface RoiData {
+  projectName: string;
+  criticalCount: number;
+  highCount: number;
+  mediumCount: number;
+  lowCount: number;
+  totalVulnCount: number;
+  savedHours: number;
+  savedCost: number;
+  hourlyRate: number;
 }
 
 interface PdfReportModalProps {
@@ -68,12 +83,49 @@ export function PdfReportModal({
   const [format,   setFormat]         = useState<ReportFormat>('pdf');
   const [progress, setProgress]       = useState(0);
 
+  // ROI 위젯 상태
+  const [includeRoi, setIncludeRoi]   = useState(false);
+  const [hourlyRate, setHourlyRate]   = useState<number>(50);
+  const [roiData, setRoiData]         = useState<RoiData | null>(null);
+  const [roiLoading, setRoiLoading]   = useState(false);
+
   if (!isOpen) return null;
 
   const toggleSection = (id: string) => {
     setSections(prev =>
       prev.map(s => s.id === id ? { ...s, checked: !s.checked } : s),
     );
+  };
+
+  /** ROI JSON을 백엔드에서 조회하여 미리보기를 표시한다 */
+  const fetchRoi = async () => {
+    if (!projectId || !sseSessionId) {
+      addToast('프로젝트와 세션이 선택되어야 ROI를 계산할 수 있습니다.', 'error');
+      return;
+    }
+    setRoiLoading(true);
+    setRoiData(null);
+    try {
+      const res = await apiClient.get<{ data: RoiData }>(
+        `/reports/projects/${projectId}/sessions/${sseSessionId}/roi?hourlyRate=${hourlyRate}`,
+      );
+      setRoiData(res.data ?? null);
+    } catch {
+      addToast('ROI 데이터를 가져오지 못했습니다.', 'error');
+    } finally {
+      setRoiLoading(false);
+    }
+  };
+
+  /** ROI PDF를 직접 다운로드한다 */
+  const handleRoiPdfDownload = () => {
+    if (!projectId || !sseSessionId) return;
+    const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1';
+    const url = `${base}/reports/projects/${projectId}/sessions/${sseSessionId}/roi/pdf?hourlyRate=${hourlyRate}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `roi-report-${sseSessionId}.pdf`;
+    a.click();
   };
 
   const handleGenerate = async () => {
@@ -284,6 +336,101 @@ export function PdfReportModal({
                     <option value="md">Markdown</option>
                   </select>
                 </div>
+              </div>
+
+              {/* ROI 위젯 */}
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 10 }}>
+                  <span style={{
+                    width: 16, height: 16, borderRadius: 4,
+                    border: `1.5px solid ${includeRoi ? 'var(--orange-2)' : 'var(--border-3)'}`,
+                    background: includeRoi ? 'var(--orange-2)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    {includeRoi && (
+                      <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                        <path d="M1 3.5L3.5 6L8 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={includeRoi}
+                    onChange={e => { setIncludeRoi(e.target.checked); setRoiData(null); }}
+                    style={{ display: 'none' }}
+                  />
+                  <TrendingUp size={13} color="var(--orange)" />
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>ROI 위젯 포함</span>
+                </label>
+
+                {includeRoi && (
+                  <div style={{ paddingLeft: 26 }}>
+                    {/* hourlyRate 입력 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+                        시간당 단가 ($)
+                      </div>
+                      <input
+                        type="number"
+                        min={0}
+                        step={10}
+                        value={hourlyRate}
+                        onChange={e => {
+                          const v = parseFloat(e.target.value);
+                          setHourlyRate(isNaN(v) || v < 0 ? 0 : v);
+                          setRoiData(null);
+                        }}
+                        className="field"
+                        style={{ width: 90, textAlign: 'right' }}
+                      />
+                      <button
+                        onClick={() => { void fetchRoi(); }}
+                        disabled={roiLoading}
+                        className="btn btn-sm btn-ghost"
+                      >
+                        {roiLoading ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : '계산'}
+                      </button>
+                    </div>
+
+                    {/* ROI 미리보기 */}
+                    {roiData && (
+                      <div style={{
+                        padding: 12, background: 'var(--bg-3)', borderRadius: 8,
+                        border: '1px solid var(--border)', marginBottom: 8,
+                      }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', marginBottom: 8 }}>
+                          ROI 미리보기
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <div style={{ textAlign: 'center', padding: '8px 0', background: 'var(--bg-1)', borderRadius: 6 }}>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--orange)' }}>
+                              {roiData.savedHours.toFixed(1)}h
+                            </div>
+                            <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginTop: 2 }}>절감 시간</div>
+                          </div>
+                          <div style={{ textAlign: 'center', padding: '8px 0', background: 'var(--bg-1)', borderRadius: 6 }}>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: '#10b981' }}>
+                              ${Math.round(roiData.savedCost).toLocaleString()}
+                            </div>
+                            <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginTop: 2 }}>절감 비용</div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 8, textAlign: 'center' }}>
+                          취약점 {roiData.totalVulnCount}건 발견
+                          &nbsp;·&nbsp;CRITICAL {roiData.criticalCount}
+                          &nbsp;·&nbsp;HIGH {roiData.highCount}
+                        </div>
+                        <button
+                          onClick={handleRoiPdfDownload}
+                          className="btn btn-sm btn-ghost"
+                          style={{ width: '100%', marginTop: 8 }}
+                        >
+                          <Download size={11} />ROI PDF 다운로드
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* 다운로드 토큰 */}

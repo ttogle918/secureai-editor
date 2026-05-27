@@ -18,7 +18,8 @@ public interface AiAgentClient {
             String githubRef,
             String githubToken,
             String preferredModel,
-            String userApiKey
+            String userApiKey,
+            String scanMode
     );
 
     void resumeAnalysis(UUID sessionId);

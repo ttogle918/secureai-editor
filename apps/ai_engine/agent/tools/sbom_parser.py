@@ -24,6 +24,7 @@ _FILENAME_TO_ECOSYSTEM: dict[str, str] = {
     "package.json": "npm",
     "requirements.txt": "pypi",
     "go.mod": "go",
+    "cargo.toml": "cargo",
 }
 
 # go.mod require 블록 파싱 패턴
@@ -205,6 +206,100 @@ def parse_go_mod(content: str) -> list[dict]:
     return result
 
 
+def parse_cargo_toml(content: str) -> list[dict]:
+    """Cargo.toml 내용을 파싱하여 컴포넌트 목록을 반환한다.
+
+    [dependencies] 및 [dev-dependencies] 섹션을 처리한다.
+
+    지원 형식:
+    - 인라인 버전:   serde = "1.0"
+    - 상세 버전:     serde = { version = "1.0", features = ["derive"] }
+    - 경로/git 의존성은 버전 없이 이름만 포함한다.
+
+    오류 발생 시 경고 로그 후 빈 목록을 반환한다.
+    """
+    result: list[dict] = []
+    try:
+        # 파싱 대상 섹션: [dependencies], [dev-dependencies]
+        _CARGO_SECTION = re.compile(
+            r"^\s*\[((?:dev-)?dependencies)\]", re.IGNORECASE
+        )
+        # 인라인 버전: name = "1.0" 또는 name = '1.0'
+        _CARGO_INLINE_VER = re.compile(
+            r"""^\s*([A-Za-z0-9_\-]+)\s*=\s*["']([^"']+)["']"""
+        )
+        # 상세 버전: name = { version = "1.0", ... }
+        _CARGO_TABLE_VER = re.compile(
+            r"""^\s*([A-Za-z0-9_\-]+)\s*=\s*\{[^}]*version\s*=\s*["']([^"']+)["'][^}]*\}"""
+        )
+        # 이름만 있는 테이블(경로/git 의존성 등): name = { path = "..." }
+        _CARGO_TABLE_NAME = re.compile(
+            r"""^\s*([A-Za-z0-9_\-]+)\s*=\s*\{"""
+        )
+
+        in_dep_section = False
+
+        for raw_line in content.splitlines():
+            line = raw_line.strip()
+
+            # 빈 줄이나 주석은 건너뜀
+            if not line or line.startswith("#"):
+                continue
+
+            # 섹션 헤더 감지
+            sec_match = _CARGO_SECTION.match(line)
+            if sec_match:
+                in_dep_section = True
+                continue
+
+            # 다른 섹션 시작 시 의존성 섹션 종료
+            if line.startswith("[") and not _CARGO_SECTION.match(line):
+                in_dep_section = False
+                continue
+
+            if not in_dep_section:
+                continue
+
+            # 주석 제거 후 파싱
+            clean = _strip_comment(line).strip()
+            if not clean:
+                continue
+
+            # 상세 버전 테이블 (version 필드 포함)
+            table_ver_match = _CARGO_TABLE_VER.match(clean)
+            if table_ver_match:
+                result.append({
+                    "name": table_ver_match.group(1),
+                    "version": table_ver_match.group(2),
+                    "ecosystem": "cargo",
+                })
+                continue
+
+            # 인라인 버전
+            inline_match = _CARGO_INLINE_VER.match(clean)
+            if inline_match:
+                result.append({
+                    "name": inline_match.group(1),
+                    "version": inline_match.group(2),
+                    "ecosystem": "cargo",
+                })
+                continue
+
+            # 테이블이지만 version 없는 경우 (path/git 의존성)
+            table_name_match = _CARGO_TABLE_NAME.match(clean)
+            if table_name_match:
+                result.append({
+                    "name": table_name_match.group(1),
+                    "version": None,
+                    "ecosystem": "cargo",
+                })
+
+    except Exception as exc:
+        logger.warning("[sbom-parser] Cargo.toml 처리 중 오류: %s", exc)
+
+    return result
+
+
 def parse_file(file_name: str, content: str) -> list[dict]:
     """파일명에 따라 적절한 파서를 선택하여 컴포넌트 목록을 반환한다.
 
@@ -217,6 +312,7 @@ def parse_file(file_name: str, content: str) -> list[dict]:
         "package.json": parse_package_json,
         "requirements.txt": parse_requirements_txt,
         "go.mod": parse_go_mod,
+        "cargo.toml": parse_cargo_toml,
     }
     parser = parser_map.get(name.lower()) or parser_map.get(name)
     if parser is None:

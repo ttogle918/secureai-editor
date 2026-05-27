@@ -46,6 +46,13 @@ public class SlackWebhookAdapter implements SlackNotificationPort {
         postMessage(message);
     }
 
+    @Override
+    public void sendNightlyScanResult(String projectName, String summary) {
+        String message = String.format(
+                "[SecureAI] 야간 자동 스캔 완료 — 프로젝트: %s, 결과: %s", projectName, summary);
+        postMessage(message);
+    }
+
     private void postMessage(String text) {
         // 슬래시·따옴표 이스케이프 처리 (JSON 직렬화 안전)
         String escapedText = text.replace("\"", "\\\"");

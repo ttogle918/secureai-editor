@@ -5,6 +5,7 @@ import io.secureai.backend.domain.analysis.repository.VulnerabilityRepository;
 import io.secureai.backend.domain.report.entity.DocType;
 import io.secureai.backend.domain.report.entity.SecurityDocRequest;
 import io.secureai.backend.domain.report.repository.SecurityDocRequestRepository;
+import io.secureai.backend.domain.report.service.RoiCalculationService.RoiResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -46,6 +48,7 @@ public class SecurityDocAsyncProcessor {
     private final SecurityDocRequestRepository securityDocRequestRepository;
     private final VulnerabilityRepository vulnerabilityRepository;
     private final TemplateEngine templateEngine;
+    private final RoiCalculationService roiCalculationService;
 
     @Async("secDocExecutor")
     public void process(UUID requestId) {
@@ -75,6 +78,59 @@ public class SecurityDocAsyncProcessor {
             req.markFailed(sanitizeErrorMessage(e.getMessage()));
             securityDocRequestRepository.save(req);
         }
+    }
+
+    /**
+     * ROI 리포트 PDF를 비동기로 생성한다.
+     * SRP: ROI 계산은 RoiCalculationService에 위임, 이 메서드는 렌더링/저장만 담당.
+     *
+     * @param sessionId  분석 세션 ID
+     * @param hourlyRate 시간당 단가 (0 이하이면 기본값 사용)
+     * @return 생성된 PDF 파일의 절대 경로 문자열
+     */
+    @Async("secDocExecutor")
+    public CompletableFuture<String> processRoiReport(UUID sessionId, double hourlyRate) {
+        log.info("[SecDocProcessor] ROI 리포트 생성 시작 sessionId={}", sessionId);
+        try {
+            RoiResult roi = roiCalculationService.calculateRoi(sessionId, hourlyRate);
+            String html = renderRoiTemplate(roi);
+            Path dirPath = SEC_DOC_BASE_DIR;
+            Files.createDirectories(dirPath);
+
+            // 보안: 파일명은 UUID 기반 — 사용자 입력 미사용
+            String fileName = "roi-" + sessionId + "-" + UUID.randomUUID() + ".pdf";
+            Path filePath = dirPath.resolve(fileName);
+
+            try (OutputStream os = new FileOutputStream(filePath.toFile())) {
+                PdfRendererBuilder builder = new PdfRendererBuilder();
+                builder.withHtmlContent(html, null);
+                builder.toStream(os);
+                builder.run();
+            }
+
+            log.info("[SecDocProcessor] ROI 리포트 생성 완료 sessionId={} path={}",
+                    sessionId, filePath.getFileName());
+            return CompletableFuture.completedFuture(filePath.toString());
+
+        } catch (Exception e) {
+            log.error("[SecDocProcessor] ROI 리포트 생성 실패 sessionId={}", sessionId, e);
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private String renderRoiTemplate(RoiResult roi) {
+        Context ctx = new Context();
+        ctx.setVariable("projectName",    roi.projectName());
+        ctx.setVariable("sessionDate",    LocalDateTime.now().format(DISPLAY_FORMATTER));
+        ctx.setVariable("criticalCount",  roi.criticalCount());
+        ctx.setVariable("highCount",      roi.highCount());
+        ctx.setVariable("mediumCount",    roi.mediumCount());
+        ctx.setVariable("lowCount",       roi.lowCount());
+        ctx.setVariable("totalVulnCount", roi.totalVulnCount());
+        ctx.setVariable("savedHours",     roi.savedHours());
+        ctx.setVariable("savedCost",      roi.savedCost());
+        ctx.setVariable("hourlyRate",     roi.hourlyRate());
+        return templateEngine.process("roi-report", ctx);
     }
 
     private List<Vulnerability> loadVulnerabilities(SecurityDocRequest req) {

@@ -1,0 +1,9 @@
+version: 3
+agent:
+  authtoken: <your-authtoken>   # https://dashboard.ngrok.com/get-started/your-authtoken
+
+tunnels:
+  secureai-backend:
+    proto: http
+    addr: 8082   # make backend 실행 포트
+    # 터널 시작: ngrok start secureai-backend --config ngrok.yml

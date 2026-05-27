@@ -121,6 +121,11 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private Boolean githubBlockMergeOnCritical = false;
 
+    /** Gamification 보안 점수 (0~100). 분석 완료 시 업데이트된다. */
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer securityScore = 0;
+
     /** TOTP 비밀 키 — AES-256-GCM 암호화하여 저장 */
     @Convert(converter = AesEncryptionConverter.class)
     @Column(name = "totp_secret", columnDefinition = "TEXT")

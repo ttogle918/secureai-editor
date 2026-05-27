@@ -44,6 +44,21 @@ public class EmailService {
     }
 
     /**
+     * 야간 자동 스캔 완료 알림 이메일.
+     *
+     * @param to          수신자 이메일 (프로젝트 소유자)
+     * @param projectName 스캔된 프로젝트 이름
+     * @param summary     스캔 결과 요약
+     */
+    @Async("emailExecutor")
+    public void sendNightlyScanResultEmail(String to, String projectName, String summary) {
+        send(to, "[SecureAI] 야간 자동 스캔 완료 — " + projectName,
+                "프로젝트 [" + projectName + "]의 야간 자동 스캔이 완료되었습니다.\n\n"
+                + "결과 요약: " + summary + "\n\n"
+                + "자세한 내용은 SecureAI 대시보드에서 확인하세요.");
+    }
+
+    /**
      * GDPR 하드 삭제 완료 알림 이메일.
      * 계정과 모든 개인 데이터가 영구 삭제되었음을 사용자에게 알린다.
      * 이메일 자체는 삭제되지 않은 별도 시스템(메일 서버)으로 발송한다.

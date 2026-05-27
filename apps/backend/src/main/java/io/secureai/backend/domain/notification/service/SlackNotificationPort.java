@@ -23,4 +23,12 @@ public interface SlackNotificationPort {
      * @param errorMessage 연결 실패 원인 메시지
      */
     void sendMonitoringDownAlert(String domain, String errorMessage);
+
+    /**
+     * 야간 자동 스캔 완료 결과를 발송한다.
+     *
+     * @param projectName 스캔 대상 프로젝트 이름
+     * @param summary     스캔 결과 요약 (취약점 수 등)
+     */
+    void sendNightlyScanResult(String projectName, String summary);
 }

@@ -66,6 +66,7 @@ dist/
 # Environment / Secrets
 .env
 .env.local
+ngrok.yml
 .env.development.local
 .env.test.local
 .env.production.local

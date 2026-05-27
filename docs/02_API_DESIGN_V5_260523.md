@@ -11,7 +11,7 @@
 | V2 | 2026-04 (Sprint 3) | SAST 파이프라인 API 상세 추가, CVE 조회 API, SBOM 파서 인터페이스 |
 | V3 | 2026-04 (Sprint 5/6) | DAST API 추가 (도메인 소유권 확인, 샌드박스 실행, SSE 스트리밍). GitHub Webhook API |
 | V4 | 2026-05-21 (Sprint 8) | 2FA API, IP Allowlist API, GDPR Export/Delete API, 보안 문서 생성 API (CISO/ISMS-P/행안부), SBOM 경로 변경(`/projects/{id}/sbom/components`) |
-| **V5 (현재)** | 2026-05-22 (Sprint 10) | 위젯 리포트 Export, 팀 대시보드(Gamification·MTTR·ROI), 스캔 모드 선택, 야간 자동 스캔 스케줄링 API 추가 |
+| **V5 (현재)** | 2026-05-22 (Sprint 10) | 위젯 리포트 Export, 팀 대시보드(Gamification·MTTR·ROI), 스캔 모드 선택, 야간 자동 스캔 스케줄링 API 추가, SBOM CycloneDX 내보내기(`GET /projects/{id}/sbom/cyclonedx`), 스케줄 Upsert 패턴으로 변경(`GET+PUT /projects/{id}/schedule` 단수형) |
 
 ---
 
@@ -601,6 +601,47 @@ Authorization: Bearer {accessToken}
 **Response** `204 No Content`
 
 프로젝트 소유자(owner)는 자기 자신을 제거할 수 없다.
+
+### 4.9 SBOM CycloneDX 내보내기 (Sprint 10 신규)
+
+```http
+GET /api/v1/projects/{projectId}/sbom/cyclonedx?sessionId={sessionId}
+Authorization: Bearer {accessToken}
+```
+
+팀 멤버만 접근 가능. 지정한 분석 세션의 SBOM 컴포넌트를 CycloneDX 1.4 BOM JSON 포맷으로 내보낸다.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.4",
+    "serialNumber": "urn:uuid:550e8400-e29b-41d4-a716-446655440000",
+    "version": 1,
+    "components": [
+      {
+        "type": "library",
+        "bom-ref": "pkg:maven/org.springframework.boot:spring-boot-starter@3.2.0",
+        "name": "org.springframework.boot:spring-boot-starter",
+        "version": "3.2.0"
+      }
+    ],
+    "vulnerabilities": [
+      {
+        "id": "CVE-2024-12345",
+        "description": "취약점 설명",
+        "affects": [{"ref": "pkg:maven/org.springframework.boot:spring-boot-starter@3.2.0"}],
+        "ratings": [{"score": 9.8, "severity": "critical", "vector": "CVSS:3.1/AV:N/..."}]
+      }
+    ]
+  }
+}
+```
+
+- `serialNumber`: 매 요청마다 새 UUID 생성 (CycloneDX 명세 준수)
+- CVE 매칭은 베스트에포트 — 일부 실패 시 해당 컴포넌트만 건너뜀
 
 ---
 
@@ -1528,41 +1569,185 @@ Content-Type: application/json
 
 ---
 
-## 14. 야간 자동 스캔 스케줄링 API (신규)
-
-Base path: `/api/v1/projects`
-
-### 14.1 스케줄링 설정 (Nightly Scan)
+## 13.3 세션 ROI JSON 조회 (TASK-1003)
 
 ```http
-POST /api/v1/projects/{projectId}/schedules
+GET /api/v1/reports/projects/{projectId}/sessions/{sessionId}/roi?hourlyRate=50.0
 Authorization: Bearer {accessToken}
-Content-Type: application/json
 ```
 
-**Request**
-```json
-{
-  "cronExpression": "0 2 * * *",
-  "targetBranch": "main",
-  "scanMode": "audit",
-  "onlyModified": true
-}
-```
-`onlyModified`: `true`인 경우, 마지막 스캔 시점 이후 변경된 파일과 연관 종속성만 분석하여 비용을 최소화함.
+| 파라미터 | 위치 | 타입 | 설명 |
+|---------|------|------|------|
+| `projectId` | path | UUID | 프로젝트 ID |
+| `sessionId` | path | UUID | 분석 세션 ID |
+| `hourlyRate` | query | double | 시간당 인건비 단가 (기본값: 50.0, 0 이하면 기본값 적용) |
 
-**Response** `201 Created`
+**Response** `200 OK`
 ```json
 {
   "success": true,
   "data": {
-    "scheduleId": "uuid",
-    "cronExpression": "0 2 * * *",
-    "nextRunAt": "2026-05-23T02:00:00Z",
-    "isActive": true
+    "criticalCount": 3,
+    "highCount": 5,
+    "totalVulnCount": 12,
+    "savedHours": 48.0,
+    "savedCost": 2400.0,
+    "hourlyRate": 50.0
   }
 }
 ```
+
+---
+
+### 13.4 세션 ROI PDF 다운로드 (TASK-1003)
+
+```http
+GET /api/v1/reports/projects/{projectId}/sessions/{sessionId}/roi/pdf?hourlyRate=50.0
+Authorization: Bearer {accessToken}
+```
+
+**Response** `200 OK`  
+`Content-Type: application/pdf`  
+`Content-Disposition: attachment; filename="roi-report-{sessionId}.pdf"`
+
+---
+
+## 13.5 컴플라이언스 프레임워크 매핑 (FEAT-FE-003)
+
+Base path: `/api/v1/projects/{projectId}/sessions/{sessionId}/compliance`
+
+### 13.5.1 컴플라이언스 매핑 결과 조회
+
+```http
+GET /api/v1/projects/{projectId}/sessions/{sessionId}/compliance?framework=ISO27001
+Authorization: Bearer {accessToken}
+```
+
+세션의 취약점을 OWASP Top 10 기준으로 컴플라이언스 프레임워크에 매핑하여 컨트롤별 준수 여부를 반환한다.
+
+**Query Parameters**
+
+| 파라미터 | 필수 | 기본값 | 설명 |
+|---------|------|--------|------|
+| `framework` | 아니오 | `ISO27001` | `ISO27001` 또는 `NIST_CSF` — 그 외 값은 400 반환 |
+
+**지원 OWASP 카테고리**
+
+| OWASP | ISO 27001 컨트롤 | NIST CSF 컨트롤 |
+|-------|----------------|----------------|
+| A01 Broken Access Control | A.9.4.1 | PR.AC-4 |
+| A02 Cryptographic Failures | A.10.1.1 | PR.DS-1 |
+| A03 Injection | A.14.2.5 | DE.CM-4 |
+| A05 Security Misconfiguration | A.14.1.2 | PR.IP-12 |
+| A06 Vulnerable and Outdated Components | A.12.6.1 | ID.RA-1 |
+| A07 Identification and Authentication Failures | A.9.2.1 | PR.AC-1 |
+| A09 Security Logging and Monitoring Failures | A.12.4.1 | DE.AE-3 |
+| A10 Server-Side Request Forgery | A.6.1.2 | PR.AC-4 |
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "framework": "ISO27001",
+    "controls": [
+      {
+        "controlId": "A.9.4.1",
+        "controlName": "Use of Privileged Utility Programs",
+        "owaspCategory": "A01 Broken Access Control",
+        "compliant": false,
+        "vulnerabilityCount": 3
+      },
+      {
+        "controlId": "A.12.4.1",
+        "controlName": "Event logging",
+        "owaspCategory": "A09 Security Logging and Monitoring Failures",
+        "compliant": true,
+        "vulnerabilityCount": 0
+      }
+    ]
+  }
+}
+```
+
+정렬 순서: 미준수 컨트롤 우선 → controlId 오름차순.
+
+**Error Responses**
+
+| 상태 | 코드 | 사유 |
+|------|------|------|
+| 400 | `INVALID_INPUT` | 지원하지 않는 framework |
+| 403 | `PROJECT_ACCESS_DENIED` | 프로젝트 멤버가 아닌 경우 |
+
+---
+
+## 14. 야간 자동 스캔 스케줄링 API (신규)
+
+Base path: `/api/v1/projects`
+
+### 14.1 스케줄 조회
+
+```http
+GET /api/v1/projects/{projectId}/schedule
+Authorization: Bearer {accessToken}
+```
+
+프로젝트의 야간 스캔 스케줄 설정을 조회한다. 스케줄이 없으면 `404 Not Found`.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "projectId": "uuid",
+    "isActive": true,
+    "lastScanAt": "2026-05-25T16:00:00Z",
+    "scanHour": 1
+  }
+}
+```
+
+### 14.2 스케줄 생성/수정 (Upsert)
+
+```http
+PUT /api/v1/projects/{projectId}/schedule
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+```
+
+스케줄이 없으면 생성, 있으면 업데이트한다. 팀 멤버만 접근 가능.
+
+**Request**
+```json
+{
+  "isActive": true,
+  "scanHour": 1
+}
+```
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `isActive` | boolean | 아니오 | 스케줄 활성화 여부 (기본값: true) |
+| `scanHour` | integer | 아니오 | KST 기준 스캔 시각 0~23 (기본값: 1 = KST 01:00) |
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "projectId": "uuid",
+    "isActive": true,
+    "lastScanAt": null,
+    "scanHour": 1
+  }
+}
+```
+
+- 야간 스캔은 매일 KST 01:00(UTC 16:00) 자동 실행 (ShedLock으로 분산 환경 중복 실행 방지)
+- `lastScanAt`: 마지막 스캔 완료 시각 (최초 등록 시 `null`)
+- 변경 감지 로직: GitHub 프로젝트는 최신 세션 ID SHA 비교, 비GitHub 프로젝트는 30일 경과 여부로 재스캔 판단
 
 ---
 

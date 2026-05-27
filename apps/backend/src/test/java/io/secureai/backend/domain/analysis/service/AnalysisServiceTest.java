@@ -70,7 +70,7 @@ class AnalysisServiceTest {
         when(projectService.findOrThrow(projectId)).thenReturn(project);
         when(projectService.isMember(projectId, userId)).thenReturn(false);
 
-        StartAnalysisRequest req = new StartAnalysisRequest(projectId, null, "local", null, null, false);
+        StartAnalysisRequest req = new StartAnalysisRequest(projectId, null, "local", null, null, false, null);
 
         assertThatThrownBy(() -> analysisService.startAnalysis(userId, req))
                 .isInstanceOf(BusinessException.class)
@@ -87,7 +87,7 @@ class AnalysisServiceTest {
         when(projectService.isMember(projectId, userId)).thenReturn(true);
         when(sessionRepository.existsByProjectIdAndStatus(projectId, SessionStatus.RUNNING)).thenReturn(true);
 
-        StartAnalysisRequest req = new StartAnalysisRequest(projectId, null, "local", null, null, false);
+        StartAnalysisRequest req = new StartAnalysisRequest(projectId, null, "local", null, null, false, null);
 
         assertThatThrownBy(() -> analysisService.startAnalysis(userId, req))
                 .isInstanceOf(BusinessException.class)
@@ -116,13 +116,13 @@ class AnalysisServiceTest {
             return s;
         });
 
-        StartAnalysisRequest req = new StartAnalysisRequest(projectId, "/workspace", "local", null, null, true);
+        StartAnalysisRequest req = new StartAnalysisRequest(projectId, "/workspace", "local", null, null, true, null);
         analysisService.startAnalysis(userId, req);
 
         verify(sessionRepository).markInterrupted(eq(runningSession.getId()),
                 eq(SessionStatus.INTERRUPTED), eq(SessionStatus.RUNNING));
         verify(aiAgentClient).startAnalysis(any(), eq(projectId), eq("/workspace"),
-                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"));
     }
 
     @Test
@@ -139,12 +139,12 @@ class AnalysisServiceTest {
             return s;
         });
 
-        StartAnalysisRequest req = new StartAnalysisRequest(projectId, null, "local", null, null, false);
+        StartAnalysisRequest req = new StartAnalysisRequest(projectId, null, "local", null, null, false, null);
         AnalysisSessionResponse response = analysisService.startAnalysis(userId, req);
 
         verify(aiAgentClient).startAnalysis(any(), eq(projectId),
                 eq("/workspace/" + projectId),
-                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"));
         assertThat(response).isNotNull();
     }
 
@@ -167,12 +167,82 @@ class AnalysisServiceTest {
         });
 
         StartAnalysisRequest req = new StartAnalysisRequest(
-                projectId, null, "github", "https://github.com/owner/repo", null, false);
+                projectId, null, "github", "https://github.com/owner/repo", null, false, null);
         analysisService.startAnalysis(userId, req);
 
         verify(gitHubApiService).resolveAndValidate(userId, "https://github.com/owner/repo", null);
         verify(aiAgentClient).startAnalysis(any(), eq(projectId), isNull(),
-                eq("github"), eq("owner"), eq("repo"), eq("main"), eq("ghp_token"), isNull(), isNull());
+                eq("github"), eq("owner"), eq("repo"), eq("main"), eq("ghp_token"), isNull(), isNull(), eq("PIPELINE"));
+    }
+
+    @Test
+    @DisplayName("startAnalysis_scanMode_Pipeline_기본값설정 — scanMode null이면 PIPELINE으로 저장 및 에이전트 호출")
+    void startAnalysis_scanMode_Pipeline_기본값설정() {
+        when(projectService.findOrThrow(projectId)).thenReturn(project);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
+        when(sessionRepository.existsByProjectIdAndStatus(any(), any())).thenReturn(false);
+        when(userService.findOrThrow(userId)).thenReturn(user);
+        when(userService.getAnalysisSettings(userId)).thenReturn(settings);
+        when(sessionRepository.save(any())).thenAnswer(inv -> {
+            AnalysisSession s = inv.getArgument(0);
+            if (ReflectionTestUtils.getField(s, "id") == null) {
+                ReflectionTestUtils.setField(s, "id", sessionId);
+            }
+            return s;
+        });
+
+        // scanMode = null → effectiveScanMode() = "PIPELINE"
+        StartAnalysisRequest req = new StartAnalysisRequest(projectId, null, "local", null, null, false, null);
+        analysisService.startAnalysis(userId, req);
+
+        // 저장된 세션의 scanMode가 PIPELINE인지 검증
+        org.mockito.ArgumentCaptor<AnalysisSession> captor =
+                org.mockito.ArgumentCaptor.forClass(AnalysisSession.class);
+        verify(sessionRepository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+        AnalysisSession savedSession = captor.getAllValues().stream()
+                .filter(s -> s.getScanMode() != null)
+                .findFirst()
+                .orElseThrow();
+        assertThat(savedSession.getScanMode()).isEqualTo("PIPELINE");
+
+        // 에이전트 호출 시 scanMode="PIPELINE" 전달 검증
+        verify(aiAgentClient).startAnalysis(any(), eq(projectId), any(),
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"));
+    }
+
+    @Test
+    @DisplayName("startAnalysis_scanMode_Audit_정상처리 — Audit 모드로 세션 저장 및 에이전트 호출")
+    void startAnalysis_scanMode_Audit_정상처리() {
+        when(projectService.findOrThrow(projectId)).thenReturn(project);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
+        when(sessionRepository.existsByProjectIdAndStatus(any(), any())).thenReturn(false);
+        when(userService.findOrThrow(userId)).thenReturn(user);
+        when(userService.getAnalysisSettings(userId)).thenReturn(settings);
+        when(sessionRepository.save(any())).thenAnswer(inv -> {
+            AnalysisSession s = inv.getArgument(0);
+            if (ReflectionTestUtils.getField(s, "id") == null) {
+                ReflectionTestUtils.setField(s, "id", sessionId);
+            }
+            return s;
+        });
+
+        // scanMode = "AUDIT"
+        StartAnalysisRequest req = new StartAnalysisRequest(projectId, null, "local", null, null, false, "AUDIT");
+        analysisService.startAnalysis(userId, req);
+
+        // 저장된 세션의 scanMode가 AUDIT인지 검증
+        org.mockito.ArgumentCaptor<AnalysisSession> captor =
+                org.mockito.ArgumentCaptor.forClass(AnalysisSession.class);
+        verify(sessionRepository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+        AnalysisSession savedSession = captor.getAllValues().stream()
+                .filter(s -> "AUDIT".equals(s.getScanMode()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(savedSession.getScanMode()).isEqualTo("AUDIT");
+
+        // 에이전트 호출 시 scanMode="AUDIT" 전달 검증
+        verify(aiAgentClient).startAnalysis(any(), eq(projectId), any(),
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("AUDIT"));
     }
 
     // ── resumeSession ────────────────────────────────────────────────────────

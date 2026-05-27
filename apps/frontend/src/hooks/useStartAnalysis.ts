@@ -1,8 +1,9 @@
 'use client';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
 import { useToastStore } from '@/hooks/useToast';
 import { apiClient, ApiError } from '@/lib/api/client';
+import type { ScanMode } from '@/components/analysis/ScanModeSelector';
 
 interface ProjectData { id: string; }
 interface SessionData  { id: string; }
@@ -21,10 +22,12 @@ export function useStartAnalysis() {
   const clearProgressSteps = useSecureStore((s) => s.clearProgressSteps);
   const addToast        = useToastStore((s) => s.addToast);
 
-  const createSession = useCallback(async (pid: string, force = false) => {
+  const [scanMode, setScanMode] = useState<ScanMode>('PIPELINE');
+
+  const createSession = useCallback(async (pid: string, force = false, mode: ScanMode = 'PIPELINE') => {
     const res = await apiClient.post<{ data: SessionData }>(
       '/analysis/sessions',
-      { projectId: pid, workspaceRoot: workspaceId, sourceType: 'local', force },
+      { projectId: pid, workspaceRoot: workspaceId, sourceType: 'local', force, scanMode: mode },
     );
     setSseSessionId(res.data.id);
     setViewMode('editor');
@@ -72,7 +75,7 @@ export function useStartAnalysis() {
 
       // 분석 세션 시작
       try {
-        await createSession(pid);
+        await createSession(pid, false, scanMode);
       } catch (err) {
         if (err instanceof ApiError && err.code === 'SESSION_ALREADY_RUNNING') {
           setIsAnalyzing(false);
@@ -86,7 +89,7 @@ export function useStartAnalysis() {
                 clearVulns();
                 clearProgressSteps();
                 try {
-                  await createSession(pid!, true);
+                  await createSession(pid!, true, scanMode);
                 } catch {
                   setIsAnalyzing(false);
                   addToast('분석 시작에 실패했습니다.', 'error');
@@ -104,10 +107,10 @@ export function useStartAnalysis() {
       addToast(msg, 'error');
     }
   }, [
-    workspaceId, workspaceName, projectId, isAnalyzing,
+    workspaceId, workspaceName, projectId, isAnalyzing, scanMode,
     setProjectId, setSseSessionId, setIsAnalyzing, setViewMode, setRightTab,
     clearVulns, clearProgressSteps, addToast, createSession,
   ]);
 
-  return { startAnalysis, isAnalyzing };
+  return { startAnalysis, isAnalyzing, scanMode, setScanMode };
 }

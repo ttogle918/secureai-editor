@@ -2,11 +2,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe, Github, Copy, ToggleLeft, ToggleRight, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe, Github, Copy, ToggleLeft, ToggleRight, MessageSquare, Zap } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient, BASE_URL } from '@/lib/api/client';
 import { useSecureStore, type DisplayLanguage, type AiTone } from '@/store/useSecureStore';
 import { MOCK_CREDITS } from '@/lib/uiMockData';
+import { ScanModeSelector } from '@/components/analysis/ScanModeSelector';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -473,6 +474,9 @@ export default function SettingsPage() {
           )}
         </Section>
 
+        {/* ── 스캔 모드 기본값 ── */}
+        <ScanModeDefaultSection />
+
         {/* ── Model Preference ── */}
         <Section icon={<Cpu size={16} />} title="선호 AI 모델">
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 20, lineHeight: 1.6 }}>
@@ -516,6 +520,40 @@ export default function SettingsPage() {
 
       </div>
     </div>
+  );
+}
+
+/* ── 스캔 모드 기본값 섹션 ─────────────────────────────────────────────────── */
+
+const SCAN_MODE_STORAGE_KEY = 'scanModeDefault';
+
+function ScanModeDefaultSection() {
+  const [mode, setMode] = useState<import('@/components/analysis/ScanModeSelector').ScanMode>(() => {
+    if (typeof window === 'undefined') return 'PIPELINE';
+    return (localStorage.getItem(SCAN_MODE_STORAGE_KEY) as import('@/components/analysis/ScanModeSelector').ScanMode) ?? 'PIPELINE';
+  });
+  const [saved, setSaved] = useState(false);
+
+  const handleChange = (next: import('@/components/analysis/ScanModeSelector').ScanMode) => {
+    setMode(next);
+    localStorage.setItem(SCAN_MODE_STORAGE_KEY, next);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
+  };
+
+  return (
+    <Section icon={<Zap size={16} />} title="스캔 모드 기본값">
+      <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 20, lineHeight: 1.6 }}>
+        새 분석을 시작할 때 사용할 기본 스캔 모드를 설정하세요.<br />
+        <span style={{ color: 'rgba(255,255,255,0.25)' }}>Audit — Claude Haiku (빠름·저비용) | Pipeline — Claude Sonnet (정밀·고품질)</span>
+      </p>
+      <ScanModeSelector value={mode} onChange={handleChange} />
+      {saved && (
+        <p style={{ fontSize: 12, color: '#22c55e', marginTop: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Check size={13} /> 기본 스캔 모드가 저장되었습니다.
+        </p>
+      )}
+    </Section>
   );
 }
 

@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Package, Download, RefreshCw, Search,
-  ChevronRight, Zap, ExternalLink, Copy, Code,
+  ChevronRight, Zap, ExternalLink, Copy, Code, ArrowLeft,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { apiClient } from '@/lib/api/client';
@@ -260,6 +260,7 @@ function CveDetailCard({ dep, cve }: { dep: Dependency; cve: CveEntry }) {
             <div style={{ color: 'var(--critical)' }}>- &quot;{dep.name}&quot;: &quot;{dep.version}&quot;</div>
             <div style={{ color: 'var(--low)' }}>+ &quot;{dep.name}&quot;: &quot;{cve.fixed}&quot;</div>
           </div>
+          {/* API: POST /api/v1/projects/{projectId}/sbom/patch-pr — { cveId, componentName, targetVersion } → GitHub PR 생성 */}
           <button style={{
             width: '100%', height: 36, fontSize: 13, fontWeight: 700,
             background: 'var(--orange-2)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer',
@@ -430,10 +431,21 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-0)' }}>
       {/* Header */}
       <div style={{
-        height: 48, flexShrink: 0,
+        height: 56, flexShrink: 0,
         background: 'var(--bg-1)', borderBottom: '1px solid var(--hairline)',
-        display: 'flex', alignItems: 'center', padding: '0 24px', gap: 16,
+        display: 'flex', alignItems: 'center', padding: '0 24px', gap: 14,
       }}>
+        <button
+          onClick={() => history.back()}
+          title="뒤로 가기"
+          style={{
+            width: 32, height: 32, borderRadius: 7, border: '1px solid var(--border)',
+            background: 'var(--bg-2)', color: 'var(--text-secondary)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <ArrowLeft size={13} />
+        </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--tag-1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Package size={13} color="#fff" />
@@ -459,6 +471,7 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
         </div>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+          {/* API: GET /api/v1/projects/{projectId}/sbom/cyclonedx?sessionId={sessionId} — CycloneDX 1.4 JSON */}
           <button
             onClick={handleCycloneDxDownload}
             disabled={cdxDownloading || !projectId || !lockedSessionId}
@@ -481,6 +494,7 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
             </span>
           )}
         </div>
+        {/* API: POST /api/v1/projects/{projectId}/sbom/rescan — 새 스캔 세션 트리거 */}
         <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6, background: 'var(--orange-2)', color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
           <RefreshCw size={11} />재스캔
         </button>
@@ -669,6 +683,7 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
                     </span>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
                       {hasCves && (
+                        // API: POST /api/v1/projects/{projectId}/sbom/patch — { componentName, targetVersion }
                         <button
                           onClick={(e) => { e.stopPropagation(); }}
                           style={{ display: 'flex', alignItems: 'center', gap: 4, height: 24, padding: '0 8px', borderRadius: 4, background: 'var(--low-dim)', border: '1px solid rgba(34,197,94,0.3)', color: 'var(--low)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}

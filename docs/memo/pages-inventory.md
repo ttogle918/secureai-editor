@@ -61,18 +61,24 @@
 
 ---
 
-## 3. 리팩터링 우선순위 (제안)
+## 3. 리팩터링 우선순위 (완료 현황)
 
-> 사용자 접점이 넓고 복잡도가 높은 순으로 정렬
+> ✅ = 완료 · 📌 = 부분(API 주석만) · ⏳ = 미반영
 
-| 순서 | 페이지 | 이유 |
-|------|--------|------|
-| 1 | `/editor` | 코어 화면, 레퍼런스 변경사항 가장 많음 (V4 Hybrid) |
-| 2 | `/onboarding` | Step 0(워크스페이스 모드) 신규 추가 |
-| 3 | `/projects/[id]/compliance` | 레퍼런스 완전 재설계 |
-| 4 | `/projects/[id]/sbom` | KPI 스트립·테이블 레이아웃 변경 |
-| 5 | `/settings` | 보안(2FA·IP) + 결제(BYOK) 섹션 추가 |
-| 6 | `/github-scan`, `/commit-scan` | MissingScreens 기반 재구현 |
-| 7 | `/team/*`, `/admin/*` | Enterprise Admin 디자인 반영 |
-| 8 | `/preferences` | 소폭 변경 |
-| 9 | `/login`, `/register` | 최소 변경 예상 |
+| 순서 | 페이지 | 상태 | 작업 내용 |
+|------|--------|------|-----------|
+| 1 | `/editor` | ✅ | V4 Hybrid: SlimRail, ChatFAB 3-state, VulnPanel 다중선택/컨텍스트메뉴, AnalysisProgressStrip |
+| 2 | `/onboarding` | ✅ | Step 0 추가(워크스페이스 모드 카드), 4단계 플로우, API 주석 |
+| 3 | `/projects/[id]/compliance` | ✅ | V4 재설계: 4-탭, 섹션 그루핑, StatusBadge 4상태, 도넛 링, 필터 칩, 감사 풋터 |
+| 4 | `/projects/[id]/sbom` | ✅ | 뒤로가기 버튼, API 주석 4개 (기존 UI 우수) |
+| 5 | `/settings` | 📌 | API 주석 추가, 2FA TODO 플레이스홀더 (Sprint 11에서 전체 구현) |
+| 6 | `/github-scan`, `/commit-scan` | 📌 | API 주석 추가 (기존 UI V4 이미 구현됨) |
+| 7 | `/team/*`, `/admin/*` | 📌 | API 주석 추가 (기존 UI 우수) |
+| 8 | `/preferences` | ✅ | V4 토큰 이미 사용, API 없음 — 현행 유지 |
+| 9 | `/login`, `/register` | 📌 | API 주석 추가 (useAuth hook 경유) |
+
+### 미구현 (Sprint 11+ 예정)
+- `EnterpriseLogs.jsx` → `/admin/*` 감사 로그 페이지
+- `EnterpriseChannels.jsx` → `/settings` 알림 채널 탭
+- `EnterprisePolicies.jsx` → `/admin/*` 정책 관리
+- `SettingsSecurity.jsx` 2FA(TOTP) 섹션 전체 구현 (QR 코드 + 6-digit 입력 + 복구 코드)

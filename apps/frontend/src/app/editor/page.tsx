@@ -16,6 +16,93 @@ import { ToastContainer }            from '@/components/ui/Toast';
 import { MobileBottomNav, type MobileScreen } from '@/components/layout/MobileBottomNav';
 import { ChatFAB } from '@/components/analysis/ChatFAB';
 
+// ── 분석 진행률 스트립 ────────────────────────────────────────────
+function AnalysisProgressStrip() {
+  const isAnalyzing   = useSecureStore((s) => s.isAnalyzing);
+  const progressSteps = useSecureStore((s) => s.progressSteps);
+  const lastTokenUsage = useSecureStore((s) => s.lastTokenUsage);
+
+  // 현재 분석 중인 파일 (마지막 진행 중 스텝의 target)
+  const runningStep = [...progressSteps].reverse().find((s) => s.status === 'running' || s.status === 'completed');
+  const currentTarget = runningStep?.target ?? '';
+
+  // SAST 완료/전체 카운트
+  const completedCount = progressSteps.filter((s) => s.status === 'completed').length;
+  const totalCount     = Math.max(progressSteps.length, 1);
+  const pct = Math.round((completedCount / totalCount) * 100);
+
+  const tokenStr = lastTokenUsage
+    ? `${((lastTokenUsage.inputTokens + lastTokenUsage.outputTokens) / 1000).toFixed(1)}k tokens · $${lastTokenUsage.estimatedCostUsd.toFixed(4)}`
+    : null;
+
+  return (
+    <div
+      style={{
+        height: isAnalyzing ? 28 : 0,
+        flexShrink: 0,
+        overflow: 'hidden',
+        transition: 'height 0.25s ease',
+        background: 'var(--bg-1)',
+        borderBottom: isAnalyzing ? '1px solid var(--hairline)' : 'none',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: isAnalyzing ? '0 16px' : '0',
+      }}
+    >
+      {isAnalyzing && (
+        <>
+          {/* 펄스 도트 + 텍스트 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', flexShrink: 0 }}>
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: 'var(--orange)',
+                display: 'inline-block',
+                animation: 'pulse-dot 1.4s infinite',
+              }}
+            />
+            분석 중 · SAST {completedCount}/{totalCount}
+          </div>
+
+          {/* 진행 바 */}
+          <div style={{ flex: '0 1 320px', minWidth: 80 }}>
+            <div style={{ height: 3, borderRadius: 2, background: 'var(--bg-3)', overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  borderRadius: 2,
+                  background: 'var(--orange-2)',
+                  width: `${pct}%`,
+                  transition: 'width 0.4s ease',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* 현재 파일 */}
+          {currentTarget && (
+            <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
+              현재: {currentTarget}
+            </span>
+          )}
+
+          <div style={{ flex: 1 }} />
+
+          {/* 토큰 사용량 */}
+          {tokenStr && (
+            <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+              {tokenStr}
+            </span>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function EditorPage() {
   const router        = useRouter();
   const isInitialized = useAuthStore((s) => s.isInitialized);
@@ -36,6 +123,7 @@ export default function EditorPage() {
   const setViewMode     = useSecureStore((s) => s.setViewMode);
   const sidebarOpen     = useSecureStore((s) => s.sidebarOpen);
   const vulns           = useSecureStore((s) => s.vulns);
+  const chatDockMode    = useSecureStore((s) => s.chatDockMode);
 
   const mobileScreen: MobileScreen = viewMode === 'dashboard' ? 'home' : 'vulns';
   const handleMobileNav = useCallback((screen: MobileScreen) => {
@@ -95,9 +183,14 @@ export default function EditorPage() {
         <AppHeader onExportJSON={exportJSON} />
       </div>
 
+      {/* 분석 진행률 스트립 — 분석 중일 때만 height:28, 아닐 때 height:0 */}
+      <AnalysisProgressStrip />
+
       <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+        {/* AppSidebar는 항상 렌더링 — sidebarOpen=false면 슬림 레일(52px) 표시 */}
         <AppSidebar />
 
+        {/* ResizeHandle은 풀 사이드바일 때만 */}
         {sidebarOpen && (
           <ResizeHandle onResize={onSidebarResize} direction="horizontal" />
         )}
@@ -113,7 +206,7 @@ export default function EditorPage() {
                 transition={{ duration: 0.12 }}
                 style={{ flex: 1, display: 'flex', minWidth: 0, minHeight: 0 }}
               >
-                <EditorLayout />
+                <EditorLayout chatDocked={chatDockMode} />
               </motion.div>
             ) : (
               <motion.div

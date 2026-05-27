@@ -5,6 +5,7 @@ import { useSecureStore } from '@/store/useSecureStore';
 import { EditorTabs } from '@/components/editor/EditorTabs';
 import DastTerminal from '@/components/analysis/DastTerminal';
 import { RightPanel } from '@/components/analysis/RightPanel';
+import { DockedChatPanel } from '@/components/analysis/ChatFAB';
 import ResizeHandle from '@/components/ui/ResizeHandle';
 
 const BACKEND = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
@@ -14,7 +15,11 @@ const MonacoEditor = dynamic(
   { ssr: false },
 );
 
-export function EditorLayout() {
+interface EditorLayoutProps {
+  chatDocked?: boolean;
+}
+
+export function EditorLayout({ chatDocked = false }: EditorLayoutProps) {
   const selectedPath       = useSecureStore((s) => s.selectedPath);
   const setSelectedPath    = useSecureStore((s) => s.setSelectedPath);
   const openTabs           = useSecureStore((s) => s.openTabs);
@@ -43,6 +48,7 @@ export function EditorLayout() {
       .catch(() => {});
   }, [effectiveWsId, selectedPath]);
 
+  const setChatDockMode = useSecureStore((s) => s.setChatDockMode);
   const onRightResize    = useCallback((d: number) => setRightPanelWidth((prev) => prev - d), [setRightPanelWidth]);
   const onTerminalResize = useCallback((d: number) => setTerminalHeight((prev) => prev - d), [setTerminalHeight]);
 
@@ -85,7 +91,7 @@ export function EditorLayout() {
 
       <ResizeHandle onResize={onRightResize} direction="horizontal" />
 
-      {/* ── 오른쪽 패널 ── */}
+      {/* ── 오른쪽 패널: 도크 채팅 또는 기본 패널 ── */}
       <div className="editor-right-panel" style={{
         width: rightPanelWidth,
         flexShrink: 0,
@@ -95,7 +101,9 @@ export function EditorLayout() {
         flexDirection: 'column',
         overflow: 'hidden',
       }}>
-        <RightPanel />
+        {chatDocked
+          ? <DockedChatPanel onUndock={() => setChatDockMode(false)} />
+          : <RightPanel />}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import {
   Shield, LayoutDashboard, Code2,
   FolderOpen, FolderCode, Loader2, ChevronDown, ChevronRight, Clock, AlertTriangle, X,
   CheckCircle, Download, Github, Key, Rocket,
+  ShieldAlert, Package, History, Users, Settings, ChevronLeft,
 } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -16,6 +17,7 @@ import type { Severity, VulnCategory } from '@/lib/mockData';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { useProjects, type ProjectSummary } from '@/hooks/useProjects';
 import { deriveApiGroup } from '@/lib/vulnUtils';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const VALID_SEV: Severity[] = ['critical', 'high', 'medium', 'low'];
 const VALID_CAT: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
@@ -327,14 +329,150 @@ function EmptyWorkspace({ onOpen, status, progress }: {
   );
 }
 
+// ── 슬림 레일 (52px) — sidebarOpen=false 시 표시 ──────────────────
+function SlimRail({
+  vulnCount, openTabCount, onExpand,
+}: {
+  vulnCount: number;
+  openTabCount: number;
+  onExpand: () => void;
+}) {
+  const { user: authUser } = useAuthStore();
+  const initials = authUser
+    ? (authUser.displayName ?? authUser.username ?? authUser.email ?? '?')
+        .split(' ')
+        .map((w) => w[0]?.toUpperCase() ?? '')
+        .slice(0, 2)
+        .join('')
+    : '??';
+
+  const navItems = [
+    { icon: <FolderOpen size={16} />, label: '파일',     active: true, badge: openTabCount },
+    { icon: <ShieldAlert size={16} />, label: '취약점',  active: false, badge: vulnCount > 0 ? vulnCount : 0 },
+    { icon: <Package size={16} />,    label: 'SBOM',    active: false, badge: 0 },
+    { icon: <History size={16} />,    label: '이력',    active: false, badge: 0 },
+    { icon: <Users size={16} />,      label: '팀',      active: false, badge: 0 },
+    { icon: <Settings size={16} />,   label: '설정',    active: false, badge: 0 },
+  ];
+
+  return (
+    <div
+      style={{
+        width: 52,
+        flexShrink: 0,
+        background: '#0f0f0f',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '10px 0',
+        gap: 4,
+        overflow: 'hidden',
+      }}
+      aria-label="워크스페이스 슬림 레일"
+    >
+      {navItems.map((item, i) => (
+        <button
+          key={i}
+          title={item.label}
+          onClick={item.active ? undefined : onExpand}
+          style={{
+            position: 'relative',
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: item.active ? 'var(--orange-dim)' : 'transparent',
+            color: item.active ? 'var(--orange)' : 'rgba(255,255,255,0.35)',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background 0.12s, color 0.12s',
+          }}
+        >
+          {item.icon}
+          {item.badge > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: 3,
+                right: 3,
+                minWidth: 13,
+                height: 13,
+                borderRadius: 7,
+                background: 'var(--critical)',
+                color: '#fff',
+                fontSize: 8,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 3px',
+              }}
+            >
+              {item.badge > 99 ? '99+' : item.badge}
+            </span>
+          )}
+        </button>
+      ))}
+
+      <div style={{ flex: 1 }} />
+
+      {/* 확장 버튼 */}
+      <button
+        onClick={onExpand}
+        title="사이드바 펼치기"
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 8,
+          background: 'transparent',
+          border: 'none',
+          color: 'rgba(255,255,255,0.3)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'color 0.12s',
+        }}
+      >
+        <ChevronRight size={14} />
+      </button>
+
+      {/* 아바타 */}
+      <div
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: 8,
+          background: 'linear-gradient(135deg, rgba(129,140,248,0.8), rgba(99,102,241,0.9))',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 10,
+          fontWeight: 700,
+          color: '#fff',
+          userSelect: 'none',
+        }}
+        title={authUser?.displayName ?? authUser?.username ?? ''}
+      >
+        {initials || '?'}
+      </div>
+    </div>
+  );
+}
+
 // ── 메인 사이드바 ─────────────────────────────────────────────────
 export function AppSidebar() {
   const sidebarOpen          = useSecureStore((s) => s.sidebarOpen);
+  const setSidebarOpen       = useSecureStore((s) => s.setSidebarOpen);
   const sidebarWidth         = useSecureStore((s) => s.sidebarWidth);
   const viewMode             = useSecureStore((s) => s.viewMode);
   const setViewMode          = useSecureStore((s) => s.setViewMode);
   const selectedPath         = useSecureStore((s) => s.selectedPath);
   const setSelectedPath      = useSecureStore((s) => s.setSelectedPath);
+  const openTabs             = useSecureStore((s) => s.openTabs);
   const openTab              = useSecureStore((s) => s.openTab);
   const workspaceId          = useSecureStore((s) => s.workspaceId);
   const workspaceName        = useSecureStore((s) => s.workspaceName);
@@ -454,10 +592,21 @@ export function AppSidebar() {
     cursor: 'pointer', textAlign: 'left', transition: 'background 0.1s',
   };
 
+  // 슬림 레일: sidebarOpen=false 시 항상 표시
+  if (!sidebarOpen) {
+    return (
+      <SlimRail
+        vulnCount={vulns.length}
+        openTabCount={openTabs.length}
+        onExpand={() => setSidebarOpen(true)}
+      />
+    );
+  }
+
   return (
     <motion.aside
       className="editor-sidebar"
-      animate={{ width: sidebarOpen ? sidebarWidth : 0, opacity: sidebarOpen ? 1 : 0 }}
+      animate={{ width: sidebarWidth, opacity: 1 }}
       transition={{ type: 'tween', duration: 0.15 }}
       style={{
         background: '#0f0f0f',

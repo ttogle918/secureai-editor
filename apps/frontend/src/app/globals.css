@@ -321,9 +321,8 @@ textarea.field { height: auto; padding: 8px 10px; font: 12px/1.5 var(--font-mono
   .onboarding-container { padding: 20px 16px !important; }
 }
 
-/* ── ChatFAB — 데스크톱에서 숨김 ────────────────────────── */
+/* ── ChatFAB — 데스크톱에서도 표시 ──────────────────────── */
 .chat-fab-container { display: flex; }
-@media (min-width: 768px) { .chat-fab-container { display: none; } }
 
 /* ── 17. Tablet responsive (768-1279px) ─────────────────── */
 @media (min-width: 768px) and (max-width: 1279px) {

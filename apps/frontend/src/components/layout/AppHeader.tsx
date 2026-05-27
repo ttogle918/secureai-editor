@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PagoriLockup } from '@/components/brand/PagoriBrand';
+import { PagoriLockup, ModeIndicator } from '@/components/brand/PagoriBrand';
 import { CommitSecretScanModal } from '@/components/analysis/CommitSecretScanModal';
 import { AnalysisHistoryModal } from '@/components/analysis/AnalysisHistoryModal';
 import { useSecureStore, type SeverityFilter } from '@/store/useSecureStore';
@@ -43,6 +43,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const searchInputRef       = useRef<HTMLInputElement>(null);
   const sidebarOpen          = useSecureStore((s) => s.sidebarOpen);
   const setSidebarOpen       = useSecureStore((s) => s.setSidebarOpen);
+  const workspaceMode        = useSecureStore((s) => s.workspaceMode);
   const viewMode             = useSecureStore((s) => s.viewMode);
   const setViewMode          = useSecureStore((s) => s.setViewMode);
   const selectedPath         = useSecureStore((s) => s.selectedPath);
@@ -255,6 +256,8 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         </button>
 
         <PagoriLockup size={22} />
+
+        <ModeIndicator mode={workspaceMode} compact />
 
         <div style={{ width: 1, height: 18, background: 'var(--hairline)' }} />
 
@@ -479,20 +482,24 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         </button>
 
         <button
-          onClick={startAnalysis}
-          disabled={isAnalyzing}
+          onClick={workspaceMode === 'SECURITY_MANAGER' ? undefined : startAnalysis}
+          disabled={isAnalyzing || workspaceMode === 'SECURITY_MANAGER'}
+          title={workspaceMode === 'SECURITY_MANAGER' ? '보안 관리자는 읽기 전용 — 개발자에게 분석 요청' : undefined}
           style={{
             fontSize: 11, fontWeight: 800, padding: '0 14px',
             height: 28, borderRadius: 6,
-            background: isAnalyzing ? 'var(--orange-dim)' : 'var(--orange-2)',
-            color: isAnalyzing ? 'var(--orange)' : '#fff', border: 'none',
-            cursor: isAnalyzing ? 'default' : 'pointer',
+            background: (isAnalyzing || workspaceMode === 'SECURITY_MANAGER') ? 'var(--orange-dim)' : 'var(--orange-2)',
+            color: (isAnalyzing || workspaceMode === 'SECURITY_MANAGER') ? 'var(--orange)' : '#fff', border: 'none',
+            cursor: (isAnalyzing || workspaceMode === 'SECURITY_MANAGER') ? 'not-allowed' : 'pointer',
             display: 'flex', alignItems: 'center', gap: 6,
-            boxShadow: isAnalyzing ? 'none' : 'var(--orange-shadow)',
+            boxShadow: (isAnalyzing || workspaceMode === 'SECURITY_MANAGER') ? 'none' : 'var(--orange-shadow)',
+            opacity: workspaceMode === 'SECURITY_MANAGER' ? 0.55 : 1,
           }}
         >
-          <Play size={12} fill="currentColor" />
-          {isAnalyzing ? '분석 중...' : '분석 시작'}
+          {workspaceMode === 'SECURITY_MANAGER'
+            ? <Key size={12} />
+            : <Play size={12} fill="currentColor" />}
+          {isAnalyzing ? '분석 중...' : workspaceMode === 'SECURITY_MANAGER' ? '분석 요청' : '분석 시작'}
         </button>
 
         {showHistory && <AnalysisHistoryModal onClose={() => setShowHistory(false)} />}

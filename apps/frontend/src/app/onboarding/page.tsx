@@ -1,6 +1,12 @@
 'use client';
 // app/onboarding/page.tsx
-// 3-step onboarding flow: 프로젝트 생성 → 분석 소스 → 첫 분석 시작
+// 4-step onboarding flow:
+//   Step 0: 워크스페이스 모드 선택 (개발자 vs 보안 관리자)  ← V4 신규
+//   Step 1: 프로젝트 생성
+//   Step 2: 분석 소스
+//   Step 3: 첫 분석 시작
+// 레퍼런스: frontend-refactoring/components/Onboarding.jsx
+//           frontend-refactoring/components/WorkspaceMode.jsx
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -9,9 +15,11 @@ import {
   ArrowRight, ArrowLeft, FolderOpen, Github, Upload,
   Users, Mail, Lock, ChevronDown, ChevronRight,
   Play, Code, Plus, X, Sparkles, AlertTriangle, Filter,
+  Code2, Shield, Terminal, PieChart, FileText, Download, Check,
 } from 'lucide-react';
 import { PagoriLockup } from '@/components/brand/PagoriBrand';
 import { apiClient } from '@/lib/api/client';
+import { useSecureStore, type WorkspaceMode } from '@/store/useSecureStore';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -68,48 +76,269 @@ const DEFAULT_FILTERS = [
   '!dist/**',
 ];
 
-// ─── StepIndicator ──────────────────────────────────────────────────────────
+// ─── WorkspaceMode 정의 ─────────────────────────────────────────────────────
 
-const STEPS = ['프로젝트 생성', '분석 소스', '첫 분석 시작'];
+const WORKSPACE_MODES = {
+  DEVELOPER: {
+    id: 'DEVELOPER' as WorkspaceMode,
+    label: '개발자 모드',
+    sub: 'DEVELOPER',
+    accent: 'var(--orange)',
+    accent2: 'var(--orange-2)',
+    accentDim: 'var(--orange-dim)',
+    accentBorder: 'rgba(249,115,22,0.45)',
+    desc: '코드를 직접 수정하고 패치를 적용하는 IDE 중심 워크플로우',
+    bullets: [
+      { icon: <Code2 size={11} />,    text: 'Monaco 에디터 · 실시간 인라인 패치 적용' },
+      { icon: <Sparkles size={11} />, text: 'AI 채팅 · @ 멘션으로 취약점 컨텍스트 주입' },
+      { icon: <Terminal size={11} />, text: 'DAST 시뮬레이터 · 익스플로잇 검증' },
+      { icon: <Cpu size={11} />,      text: 'API 호출 흐름 추적 (Controller → Service → Repo)' },
+    ],
+    cta: '에디터로 시작',
+    permission: '읽기/쓰기',
+  },
+  SECURITY_MANAGER: {
+    id: 'SECURITY_MANAGER' as WorkspaceMode,
+    label: '보안 관리자 모드',
+    sub: 'SECURITY MANAGER',
+    accent: 'var(--tag-1)',
+    accent2: '#6c75dd',
+    accentDim: 'rgba(129,140,248,0.14)',
+    accentBorder: 'rgba(129,140,248,0.50)',
+    desc: '대시보드와 리포트 중심 — 코드는 읽기 전용으로만 열람',
+    bullets: [
+      { icon: <PieChart size={11} />,  text: 'SLA · 보안 점수 · 추세 차트 위젯' },
+      { icon: <FileText size={11} />,  text: 'ISO 27001 · NIST CSF 컴플라이언스 매트릭스' },
+      { icon: <Lock size={11} />,      text: '읽기 전용 코드 뷰어 (편집 불가)' },
+      { icon: <Download size={11} />,  text: '경영진/감사 리포트 PDF 자동 생성' },
+    ],
+    cta: '대시보드로 시작',
+    permission: '읽기 전용',
+  },
+} as const;
+
+// ─── StepIndicator ──────────────────────────────────────────────────────────
+// Step 0: 워크스페이스 모드, Step 1: 프로젝트 생성, Step 2: 분석 소스, Step 3: 첫 분석 시작
+
+const STEPS = ['워크스페이스 모드', '프로젝트 생성', '분석 소스', '첫 분석 시작'];
 
 function StepIndicator({ current }: { current: number }) {
+  // current는 0-indexed (0=모드선택, 1=프로젝트, 2=소스, 3=분석시작)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 40 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 40 }}>
       {STEPS.map((label, i) => {
-        const n = i + 1;
-        const isActive = n === current;
-        const isDone   = n < current;
+        const isActive = i === current;
+        const isDone   = i < current;
         const color = isDone ? 'var(--low)' : isActive ? 'var(--orange)' : 'var(--text-tertiary)';
 
         return (
-          <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: i < STEPS.length - 1 ? 'none' : undefined }}>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', flex: i < STEPS.length - 1 ? 1 : undefined }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
-                width: 26, height: 26, borderRadius: '50%',
+                width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
                 background: isActive ? 'var(--orange-2)' : isDone ? 'var(--low)' : 'var(--bg-3)',
                 color: isActive || isDone ? '#fff' : 'var(--text-tertiary)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)',
                 border: isActive ? 'none' : `1px solid ${isDone ? 'var(--low)' : 'var(--border)'}`,
                 boxShadow: isActive ? '0 0 0 4px var(--orange-dim)' : 'none',
-                flexShrink: 0,
               }}>
-                {isDone ? <CheckCircle2 size={11} /> : n}
+                {isDone ? <CheckCircle2 size={11} /> : i + 1}
               </div>
-              <div>
-                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>STEP {n}</div>
+              <div style={{ flexShrink: 0 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>STEP {i + 1}</div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: isActive ? 'var(--text-primary)' : color }}>{label}</div>
               </div>
             </div>
             {i < STEPS.length - 1 && (
               <div style={{
-                width: 48, height: 1, marginLeft: 10,
+                flex: 1, height: 1, margin: '0 12px',
                 background: isDone ? 'var(--low)' : 'var(--border)',
+                minWidth: 24,
               }} />
             )}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Step 0: 워크스페이스 모드 선택 ─────────────────────────────────────────
+// 레퍼런스: WorkspaceMode.jsx → WorkspaceModeCards + OnboardStep0
+
+function Step0({
+  selected,
+  onSelect,
+  onNext,
+  onSkip,
+}: {
+  selected: WorkspaceMode;
+  onSelect: (m: WorkspaceMode) => void;
+  onNext: () => void;
+  onSkip: () => void;
+}) {
+  const [hovered, setHovered] = useState<WorkspaceMode | null>(null);
+
+  return (
+    <div>
+      <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 10 }}>
+        어떻게 사용하시나요?
+      </h1>
+      <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 32 }}>
+        역할에 맞는 워크스페이스를 선택하세요.{' '}
+        <strong>나중에 설정 → 워크스페이스</strong>에서 언제든 변경할 수 있습니다.<br />
+        이 선택은 랜딩 화면, 사이드바 메뉴, 그리고 코드 편집 권한에 영향을 줍니다.
+      </p>
+
+      {/* Mode cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+        {Object.values(WORKSPACE_MODES).map((m) => {
+          const isSelected = selected === m.id;
+          const isHover    = hovered === m.id;
+
+          return (
+            <button
+              key={m.id}
+              onClick={() => onSelect(m.id)}
+              onMouseEnter={() => setHovered(m.id)}
+              onMouseLeave={() => setHovered(null)}
+              style={{
+                position: 'relative',
+                textAlign: 'left',
+                padding: 22,
+                borderRadius: 12,
+                background: isSelected ? m.accentDim : 'var(--bg-2)',
+                border: `1px solid ${isSelected ? m.accentBorder : isHover ? 'var(--border-3, var(--border))' : 'var(--border)'}`,
+                outline: isSelected ? `2px solid ${m.accent2}` : 'none',
+                outlineOffset: -1,
+                cursor: 'pointer',
+                transition: 'transform .15s ease, background .15s, border-color .15s',
+                transform: isHover && !isSelected ? 'translateY(-2px)' : 'none',
+                boxShadow: isHover && !isSelected ? '0 8px 24px rgba(0,0,0,0.4)' : 'none',
+              }}
+            >
+              {/* 선택된 경우 체크 뱃지 */}
+              {isSelected && (
+                <div style={{
+                  position: 'absolute', top: 14, right: 14,
+                  width: 22, height: 22, borderRadius: 11,
+                  background: m.accent2, color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: `0 4px 12px ${m.accent}66`,
+                }}>
+                  <Check size={12} strokeWidth={3} />
+                </div>
+              )}
+
+              {/* 헤더: 아이콘 + 타이틀 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+                  background: isSelected ? m.accent2 : 'var(--bg-3)',
+                  color: isSelected ? '#fff' : m.accent,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'background .15s, color .15s',
+                }}>
+                  {m.id === 'DEVELOPER' ? <Code2 size={20} /> : <Shield size={20} />}
+                </div>
+                <div>
+                  <div style={{
+                    fontSize: 9, fontWeight: 700, letterSpacing: '0.10em',
+                    color: m.accent, fontFamily: 'var(--font-mono)', marginBottom: 4,
+                  }}>
+                    {m.sub}
+                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--text-primary)' }}>
+                    {m.label}
+                  </div>
+                </div>
+              </div>
+
+              {/* 설명 */}
+              <div style={{
+                fontSize: 12, color: 'var(--text-secondary)',
+                lineHeight: 1.6, marginBottom: 14,
+              }}>
+                {m.desc}
+              </div>
+
+              {/* 기능 목록 */}
+              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14, padding: 0 }}>
+                {m.bullets.map((b, i) => (
+                  <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{
+                      width: 22, height: 22, borderRadius: 5, flexShrink: 0,
+                      background: isSelected ? 'var(--bg-1)' : 'var(--bg-3)',
+                      color: m.accent,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {b.icon}
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      {b.text}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* 권한 푸터 */}
+              <div style={{
+                paddingTop: 12, borderTop: '1px solid var(--hairline)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                fontSize: 10, fontFamily: 'var(--font-mono)',
+              }}>
+                <span style={{ color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
+                  권한 ·{' '}
+                  <span style={{ color: m.accent, fontWeight: 700 }}>{m.permission}</span>
+                </span>
+                <span style={{ color: isSelected ? m.accent : 'var(--text-tertiary)', fontWeight: 600 }}>
+                  {m.cta} →
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* RBAC 안내 */}
+      <div style={{
+        marginTop: 20, padding: '12px 16px', borderRadius: 8,
+        background: 'var(--info-dim, rgba(86,156,214,0.08))', border: '1px solid rgba(86,156,214,0.30)',
+        display: 'flex', gap: 12,
+      }}>
+        <AlertTriangle size={14} color="var(--info, #569cd6)" style={{ flexShrink: 0, marginTop: 2 }} />
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+          기업 계정의 경우 관리자가{' '}
+          <strong>역할 기반 접근 제어(RBAC)</strong>로 모드를 미리 지정할 수 있습니다.
+          이 경우 모드 선택이 잠겨있을 수 있어요.
+        </div>
+      </div>
+
+      {/* 액션 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 28 }}>
+        <button
+          onClick={onSkip}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 600,
+            padding: '8px 12px', borderRadius: 6,
+          }}
+        >
+          나중에 결정
+        </button>
+        <button
+          onClick={onNext}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '8px 20px', borderRadius: 8, cursor: 'pointer',
+            background: 'var(--orange-2)', color: '#fff',
+            border: 'none', fontSize: 13, fontWeight: 700,
+          }}
+        >
+          다음 — 프로젝트 생성 <ArrowRight size={13} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -253,6 +482,8 @@ function Step1({
           </div>
 
           {/* Team invite — shown when visibility is 'team' */}
+          {/* API: POST /api/v1/organizations/{orgId}/invitations — { email?, username?, role }
+               응답: 201 Created → 이메일 발송 or 기존 가입자 즉시 추가 */}
           {state.visibility === 'team' && (
             <div style={{
               marginTop: 12, padding: 14,
@@ -450,6 +681,9 @@ function Step2({
       </div>
 
       {/* GitHub picker — shown when source is github */}
+      {/* API: GET /api/v1/github/repos — GitHub OAuth 연동된 레포 목록
+               GET /api/v1/github/repos/{owner}/{repo}/branches — 브랜치 목록
+               (OAuth 토큰은 useAuthStore의 accessToken 기반으로 백엔드가 처리) */}
       {state.source === 'github' && (
         <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
@@ -702,6 +936,10 @@ function Step3({
             <Code size={12} />
             에디터로 바로 가기 (분석 스킵)
           </button>
+          {/* API: POST /api/v1/projects — { name, description?, projectType }
+                   → 201 Created { id, name, ... }
+               이후 분석 시작: POST /api/v1/analysis/sessions — { projectId, sourceType, ... }
+                   → 202 Accepted { sessionId } → SSE /api/v1/sse/{sessionId} 구독 */}
           <button
             onClick={onStart}
             disabled={submitting}
@@ -737,11 +975,16 @@ function Step3({
 }
 
 // ─── Page shell ──────────────────────────────────────────────────────────────
+// step: 0=워크스페이스 모드, 1=프로젝트 생성, 2=분석 소스, 3=첫 분석 시작
 
 export default function OnboardingPage() {
-  const router = useRouter();
-  const [step, setStep] = useState(1);
+  const router          = useRouter();
+  const setWorkspaceMode = useSecureStore((s) => s.setWorkspaceMode);
+
+  // Step 0부터 시작 (워크스페이스 모드 선택)
+  const [step, setStep]         = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [wMode, setWMode]       = useState<WorkspaceMode>('DEVELOPER');
 
   const [step1, setStep1] = useState<Step1State>({
     name: '',
@@ -760,20 +1003,25 @@ export default function OnboardingPage() {
     filters: DEFAULT_FILTERS,
   });
 
+  const handleModeNext = () => {
+    // Step 0 완료 시 Zustand에 저장
+    setWorkspaceMode(wMode);
+    setStep(1);
+  };
+
   const handleCreateProject = async (startAnalysis: boolean) => {
     setSubmitting(true);
     try {
+      // POST /api/v1/projects — 프로젝트 생성
+      // Body: { name, description?, projectType }
+      // Response: { id, name, ... }
       await apiClient.post('/projects', {
         name: step1.name.trim(),
         description: step1.description.trim() || undefined,
         projectType: step1.projectType,
       });
       // Analysis source state is retained locally; actual trigger happens in the editor
-      if (startAnalysis) {
-        router.push('/editor');
-      } else {
-        router.push('/editor');
-      }
+      router.push('/editor');
     } catch {
       // Keep user on step 3 — error will be visible via submitting reset
     } finally {
@@ -809,6 +1057,14 @@ export default function OnboardingPage() {
         <div style={{ maxWidth: 920, margin: '0 auto', padding: '48px 32px' }}>
           <StepIndicator current={step} />
 
+          {step === 0 && (
+            <Step0
+              selected={wMode}
+              onSelect={setWMode}
+              onNext={handleModeNext}
+              onSkip={() => { setWorkspaceMode(wMode); router.push('/editor'); }}
+            />
+          )}
           {step === 1 && (
             <Step1
               state={step1}

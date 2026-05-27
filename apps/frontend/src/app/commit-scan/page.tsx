@@ -165,9 +165,11 @@ export default function CommitScanPage() {
 
         <div style={{ flex: 1 }} />
 
+        {/* API: GET /api/v1/projects/{projectId}/commit-scan/export?format=json */}
         <button className="btn btn-sm">
           <Download size={11} />결과 내보내기
         </button>
+        {/* API: POST /api/v1/projects/{projectId}/commit-scan — { range, fromDate, toDate } */}
         <button className="btn btn-sm btn-primary">
           <RefreshCw size={11} />재스캔
         </button>
@@ -371,6 +373,7 @@ export default function CommitScanPage() {
 
                   {/* 액션 버튼 */}
                   <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                    {/* API: POST /api/v1/projects/{projectId}/commit-scan/allowlist — { secretId } */}
                     <button
                       title="허용 목록 추가"
                       className="btn btn-sm btn-ghost"
@@ -379,6 +382,7 @@ export default function CommitScanPage() {
                     >
                       <Check size={10} />
                     </button>
+                    {/* API: GET /api/v1/projects/{projectId}/commit-scan/cleanup-guide?secretId= */}
                     <button
                       title="Git 정리 가이드"
                       className="btn btn-sm"

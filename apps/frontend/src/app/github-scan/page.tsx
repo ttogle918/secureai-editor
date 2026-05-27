@@ -229,6 +229,7 @@ export default function GithubScanPage() {
           </div>
 
           {/* 레포 + 브랜치 선택 */}
+          {/* API: GET /api/v1/github/repos — GitHub OAuth 연동 레포 목록 */}
           <section>
             <SectionHeader title="레포 선택" hint="OAuth로 연동된 12개 중에서 선택" />
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
@@ -280,6 +281,7 @@ export default function GithubScanPage() {
               </div>
 
               {/* 브랜치 피커 */}
+              {/* API: GET /api/v1/github/repos/{owner}/{repo}/branches */}
               <div className="card" style={{ padding: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>브랜치</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -581,6 +583,7 @@ export default function GithubScanPage() {
               >
                 <Code size={12} />에디터로 (스킵)
               </button>
+              {/* API: POST /api/v1/projects (레포 등록) → POST /api/v1/analysis/sessions (분석 시작) */}
               <button className="btn btn-primary btn-lg">
                 <Play size={12} />스캔 시작
               </button>

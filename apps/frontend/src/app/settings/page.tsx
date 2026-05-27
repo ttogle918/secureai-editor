@@ -224,6 +224,7 @@ export default function SettingsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderRadius: 8, background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.2)', marginBottom: 16 }}>
               <Check size={14} color="#22c55e" />
               <span style={{ fontSize: 13, color: '#22c55e' }}>API 키가 연결되어 있습니다.</span>
+              {/* API: DELETE /api/v1/users/me/api-key */}
               <button
                 onClick={handleRemoveKey}
                 disabled={keyStatus === 'removing'}
@@ -234,6 +235,7 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* API: PUT /api/v1/users/me/api-key — { apiKey } → AES-256-GCM 암호화 저장 */}
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1, position: 'relative' }}>
               <input
@@ -272,6 +274,11 @@ export default function SettingsPage() {
           </div>
           {keyError && <p style={{ fontSize: 12, color: '#e24b4b', marginTop: 8 }}>{keyError}</p>}
         </Section>
+
+        {/* ── 2FA (TOTP) — TODO: Sprint 11+ — QR 코드 + 복구 코드 8개 + TOTP 검증 6-digit input ──
+            API: POST /api/v1/users/me/mfa/enable (QR URI 발급)
+            API: POST /api/v1/users/me/mfa/verify — { code: string } (TOTP 검증 + 활성화)
+            API: DELETE /api/v1/users/me/mfa (2FA 비활성화) */}
 
         {/* ── Language ── */}
         <Section icon={<Globe size={16} />} title="표시 언어">
@@ -327,6 +334,7 @@ export default function SettingsPage() {
                 활성화하면 Critical 수준 취약점이 발견된 PR의 머지가 차단됩니다.
               </div>
             </div>
+            {/* API: PUT /api/v1/users/me/github-settings — { blockMergeOnCritical: boolean } */}
             <button
               onClick={handleToggleBlockMerge}
               disabled={githubSettingStatus === 'saving'}
@@ -412,6 +420,7 @@ export default function SettingsPage() {
                 color: '#e8e8ee', fontSize: 13, outline: 'none',
               }}
             />
+            {/* API: GET /api/v1/webhooks/github/history?repoOwner=&repoName= */}
             <button
               onClick={handleFetchPrHistory}
               disabled={prHistoryLoading || !prHistoryRepoOwner.trim() || !prHistoryRepoName.trim()}
@@ -484,6 +493,7 @@ export default function SettingsPage() {
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* API: PUT /api/v1/users/me/settings — { preferredModel } */}
             {MODELS.map((m) => {
               const active = selectedModel === m.id;
               return (

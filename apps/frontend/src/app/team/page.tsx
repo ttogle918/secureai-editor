@@ -97,7 +97,9 @@ export default function TeamPage() {
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 24px' }}>
         <Section icon={<Users size={16} />} title="내 팀 (Organizations)">
           {/* 새 팀 만들기 버튼 */}
+          {/* API: GET /api/v1/organizations — 내 소속 조직 목록 */}
           <div style={{ marginBottom: 24 }}>
+            {/* API: POST /api/v1/organizations — { name, slug } → 조직 생성 */}
             <button
               onClick={() => setModalOpen(true)}
               style={{

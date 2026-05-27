@@ -384,6 +384,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* ── Filters ── */}
+      {/* API: GET /api/v1/admin/users?page=&size=&search=&planId=&isActive= */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: 360 }}>
           <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.25)', pointerEvents: 'none' }} />
@@ -488,6 +489,7 @@ export default function AdminUsersPage() {
                   <td style={{ padding: '12px 14px', fontSize: 12, color: 'rgba(255,255,255,0.35)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     {formatDate(u.lastLoginAt)}
                   </td>
+                  {/* API: PATCH /api/v1/admin/users/{id}/plan | PATCH .../status | POST .../credits */}
                   <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'right' }}>
                     <RowActions
                       user={u}

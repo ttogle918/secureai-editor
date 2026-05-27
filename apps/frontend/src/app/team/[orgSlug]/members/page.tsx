@@ -224,8 +224,11 @@ export default function MembersPage() {
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 24px' }}>
         {/* 초대 버튼 — Admin/Owner만 */}
+        {/* API: GET /api/v1/organizations/{orgSlug} — 조직 메타 */}
+        {/* API: GET /api/v1/organizations/{orgSlug}/members — 멤버 목록 */}
         {isAdminOrAbove && (
           <div style={{ marginBottom: 24 }}>
+            {/* API: POST /api/v1/organizations/{orgSlug}/members/invite — { email, role } */}
             <button
               onClick={() => setInviteOpen(true)}
               style={{

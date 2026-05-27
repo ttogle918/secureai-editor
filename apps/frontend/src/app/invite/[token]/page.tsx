@@ -212,6 +212,8 @@ function ValidState({
         >
           거절
         </button>
+        {/* API: GET /api/v1/invitations/{token} — 초대 정보 조회 */}
+        {/* API: POST /api/v1/invitations/{token}/accept — 초대 수락 */}
         <button
           onClick={onAccept}
           disabled={isAccepting}

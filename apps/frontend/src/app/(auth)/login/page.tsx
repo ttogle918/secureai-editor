@@ -113,6 +113,7 @@ function LoginForm() {
           />
         </div>
 
+        {/* API: POST /api/v1/auth/login — { email, password } → { accessToken, refreshToken } */}
         <button
           type="submit"
           disabled={isLoading}

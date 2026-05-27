@@ -233,6 +233,10 @@ function PageShell({ orgSlug, orgName, children }: { orgSlug: string; orgName: s
         </Link>
         <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)' }} />
         <span style={{ fontSize: 14, fontWeight: 700, color: '#e8e8ee', flex: 1 }}>{orgName}</span>
+        {/* API: GET /api/v1/organizations/{slug} — 조직 상세 */}
+        {/* API: GET /api/v1/organizations/{slug}/members — 멤버 목록 */}
+        {/* API: GET /api/v1/organizations/{slug}/usage — 사용량 요약 */}
+        {/* API: GET /api/v1/teams/{orgId}/dashboard — 보안 대시보드 */}
         <div style={{ display: 'flex', gap: 8 }}>
           <Link
             href={`/team/${orgSlug}/members`}

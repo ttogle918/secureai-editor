@@ -132,6 +132,7 @@ export default function RegisterPage() {
           />
         </div>
 
+        {/* API: POST /api/v1/auth/register — { email, username, password, displayName? } → 이메일 인증 발송 */}
         <button
           type="submit"
           disabled={isLoading}

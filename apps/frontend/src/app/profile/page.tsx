@@ -33,6 +33,7 @@ export default function ProfilePage() {
       setLoading(false);
       return;
     }
+    // API: GET /api/v1/users/me — 현재 로그인 사용자 프로필
     apiClient.get<{ data: UserMe }>('/users/me')
       .then(res => setMe(res.data))
       .catch(() => {

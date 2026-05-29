@@ -1,6 +1,6 @@
 # 페이지 인벤토리 & UI 리팩터링 매핑
 
-> 작성일: 2026-05-27  
+> 작성일: 2026-05-27 (V1) · 업데이트: 2026-05-28 (V2 — 백로그 V5.2 신규 페이지 8종 동기화)  
 > 기준: `apps/frontend/src/app/` (현재 구현) ↔ `frontend-refactoring/components/` (새 레퍼런스)
 
 ---
@@ -29,6 +29,28 @@
 | 18 | `/invite/[token]` | `app/invite/[token]/page.tsx` | 팀 초대 링크 수락/거절 처리 | `EnterpriseAdmin.jsx` → `TeamInviteModal` |
 | 19 | `/admin/users` | `app/admin/users/page.tsx` | **슈퍼 어드민** — 전체 사용자 목록 · 검색 · 페이지네이션 · 플랜/크레딧 확인 | `EnterpriseAdmin.jsx` → `MasterAdminDashboard` |
 | 20 | `/admin/plans` | `app/admin/plans/page.tsx` | **슈퍼 어드민** — 플랜 목록 · 기능 플래그(DAST 허용 등) 일람 | `EnterpriseAdmin.jsx` → `MasterAdminDashboard` |
+
+---
+
+## 1-B. Sprint 11+ 신규 페이지 (백로그 V5.2 추가 — 미구현)
+
+| # | 경로 | 출처 TASK | 역할 | 배정 Sprint |
+|---|------|---------|------|-----------|
+| 21 | `/legal/terms` | TASK-1104 | 이용약관 (한/영) | Sprint 11 |
+| 22 | `/legal/privacy` | TASK-1104 | 개인정보처리방침 (GDPR Art.13 / PIPA 30조) | Sprint 11 |
+| 23 | `/legal/cookie` | TASK-1104 | 쿠키 정책 + CookieConsentBanner | Sprint 11 |
+| 24 | `/notifications` | TASK-1206 | 알림 센터 풀 페이지 — 카테고리 사이드바 + 시간 그룹 + 9개 시드 | Sprint 12 |
+| 25 | `/admin/onboarding` | TASK-1207 | 관리자 온보딩 체크리스트 (15-item × 5 카테고리 + Progress Ring) | Sprint 12 |
+| 26 | `/admin/audit-logs` | TASK-1208 (신규) | 감사 로그 페이지 — Master 트리거 / 토큰 이력 / 내보내기 (EnterpriseLogs.jsx) | Sprint 12 |
+| 27 | `/admin/policies` | TASK-1209 (신규) | 기업 보안 정책 관리 (EnterprisePolicies.jsx) | Sprint 12 (또는 Sprint 15) |
+| 28 | `/settings/channels` | TASK-1503 | Slack/Teams/Discord 라우팅 UI (EnterpriseChannels.jsx) | Sprint 15 |
+| 29 | `/settings/security` 확장 | TASK-1208b (신규) | 2FA QR + 6-digit 입력 + 복구 코드 UI (SettingsSecurity.jsx — 백엔드는 Sprint 8 완료) | Sprint 12 |
+| 30 | `/integrations` | TASK-1504 | 마켓플레이스 / 통합 카탈로그 (GitHub/Jira/Linear/PagerDuty/Slack 카드 그리드) | Sprint 15 |
+| 31 | `/billing` | TASK-1701 | Stripe/Toss 결제 + 인보이스 다운로드 | Sprint 17 |
+| 32 | `/enterprise` (랜딩) | TASK-1705 (신규) | 기업용 스케일/요금 안내 (EnterpriseScale.jsx) | Sprint 17 |
+| 33 | `/enterprise/launch` | TASK-1706 (신규) | 기업용 런치 소개 화면 (EnterpriseLaunch.jsx) | Sprint 17 |
+| 34 | `/admin/master/qbr` | TASK-1704 | 분기 보고 (QBR) PDF Export | Sprint 17 |
+| 35 | `apps/status/` (별도) | TASK-1807 | 공개 status 페이지 — 별도 정적 사이트 (`status.secureai.dev`) | Sprint 18 |
 
 ---
 
@@ -77,8 +99,11 @@
 | 8 | `/preferences` | ✅ | V4 토큰 이미 사용, API 없음 — 현행 유지 |
 | 9 | `/login`, `/register` | 📌 | API 주석 추가 (useAuth hook 경유) |
 
-### 미구현 (Sprint 11+ 예정)
-- `EnterpriseLogs.jsx` → `/admin/*` 감사 로그 페이지
-- `EnterpriseChannels.jsx` → `/settings` 알림 채널 탭
-- `EnterprisePolicies.jsx` → `/admin/*` 정책 관리
-- `SettingsSecurity.jsx` 2FA(TOTP) 섹션 전체 구현 (QR 코드 + 6-digit 입력 + 복구 코드)
+### 미구현 — 백로그 V5.2 배정 완료 (2026-05-28)
+- `EnterpriseLogs.jsx` → **TASK-1208** `/admin/audit-logs` (Sprint 12)
+- `EnterpriseChannels.jsx` → **TASK-1503** `/settings/channels` (Sprint 15)
+- `EnterprisePolicies.jsx` → **TASK-1209** `/admin/policies` (Sprint 12)
+- `SettingsSecurity.jsx` 2FA UI → **TASK-1208b** `/settings/security` 확장 (Sprint 12 — 백엔드는 Sprint 8 완료)
+- `EnterpriseScale.jsx` → **TASK-1705** `/enterprise` 랜딩 (Sprint 17)
+- `EnterpriseLaunch.jsx` → **TASK-1706** `/enterprise/launch` (Sprint 17)
+- `PreferencesSetup.jsx` AI 음성(TTS) → **FEAT-AI-007** Future Backlog (미배정)

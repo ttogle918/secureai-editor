@@ -20,6 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -58,7 +60,15 @@ public class ReportService {
                 .build();
         Report saved = reportRepository.save(report);
 
-        asyncProcessor.process(saved.getId());
+        // 커밋 완료 후 async 트리거 — 커밋 전 실행 시 findById가 "찾을 수 없음" 실패
+        UUID reportId = saved.getId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                asyncProcessor.process(reportId);
+            }
+        });
+
         return ReportResponse.from(saved);
     }
 

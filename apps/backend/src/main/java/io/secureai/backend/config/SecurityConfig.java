@@ -76,7 +76,7 @@ public class SecurityConfig {
                     "/v3/api-docs/**",
                     "/error"
                 ).permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/reports/*/download").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/reports/download/*").permitAll()
                 // 보안 문서 토큰 다운로드 — 다운로드 토큰 자체가 인증 수단
                 .requestMatchers(HttpMethod.GET, "/api/v1/reports/security/download").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/invitations/**").permitAll()

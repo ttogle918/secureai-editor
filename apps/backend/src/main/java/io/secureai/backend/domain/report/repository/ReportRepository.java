@@ -3,6 +3,7 @@ package io.secureai.backend.domain.report.repository;
 import io.secureai.backend.domain.report.entity.Report;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,10 @@ import java.util.UUID;
 
 @Repository
 public interface ReportRepository extends JpaRepository<Report, UUID> {
+
+    /** project·session·user 연관 엔티티를 한 번에 fetch — async 스레드에서 LazyInit 방지 */
+    @EntityGraph(attributePaths = {"project", "session", "user"})
+    Optional<Report> findWithAssociationsById(UUID id);
 
     Optional<Report> findByIdAndUserId(UUID id, UUID userId);
 

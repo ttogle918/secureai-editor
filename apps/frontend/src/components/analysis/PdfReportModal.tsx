@@ -25,7 +25,7 @@ type ModalState = 'configure' | 'generating' | 'ready';
 
 interface ReportStatusData {
   id: string;
-  status: 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
+  status: 'PENDING' | 'GENERATING' | 'COMPLETED' | 'FAILED';
   downloadToken?: string;
   fileName?: string;
 }
@@ -166,7 +166,7 @@ export function PdfReportModal({
         const statusRes = await apiClient.get<{ data: ReportStatusData }>(`/reports/${reportId}/status`);
         const status = statusRes.data?.status;
 
-        if (status === 'DONE') {
+        if (status === 'COMPLETED') {
           const token = statusRes.data?.downloadToken;
           const name  = statusRes.data?.fileName ?? 'report.pdf';
           if (token) {

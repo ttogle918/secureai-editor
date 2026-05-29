@@ -43,7 +43,8 @@ public class ReportAsyncProcessor {
      */
     @Async("reportExecutor")
     public void process(UUID reportId) {
-        Report report = reportRepository.findById(reportId)
+        // findWithAssociationsById: project·session·user를 JOIN FETCH — 트랜잭션 종료 후에도 속성 접근 가능
+        Report report = reportRepository.findWithAssociationsById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
 
         report.markGenerating();

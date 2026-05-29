@@ -27,6 +27,7 @@ public class UserMeResponse {
     private UsageInfo usage;
     private CreditInfo credits;
     private OffsetDateTime createdAt;
+    private String workspaceMode;
 
     public static UserMeResponse from(User user) {
         Plan plan = user.getPlan();
@@ -52,6 +53,7 @@ public class UserMeResponse {
                         user.getAnthropicApiKey() != null,
                         user.getPreferredModel()))
                 .createdAt(user.getCreatedAt())
+                .workspaceMode(user.getWorkspaceMode())
                 .build();
     }
 

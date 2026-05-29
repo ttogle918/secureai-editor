@@ -26,6 +26,7 @@ function CallbackHandler() {
         return apiClient.get<{ data: {
           id: string; email: string; username: string;
           plan: { name: string }; githubLogin: string | null;
+          workspaceMode?: 'DEVELOPER' | 'SECURITY_MANAGER' | 'BOTH';
         } }>('/users/me');
       })
       .then((res) => {
@@ -39,6 +40,7 @@ function CallbackHandler() {
           isAdmin: false,
           avatarUrl: null,
           displayName: null,
+          workspaceMode: u.workspaceMode ?? 'DEVELOPER',
         });
         router.push('/editor');
       })

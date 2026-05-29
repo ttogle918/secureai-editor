@@ -50,6 +50,14 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/me/workspace-mode")
+    public ResponseEntity<ApiResponse<UserMeResponse>> updateWorkspaceMode(
+            @AuthenticationPrincipal UUID userId,
+            @Valid @RequestBody UpdateWorkspaceModeRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userService.updateWorkspaceMode(userId, request.workspaceMode())));
+    }
+
     // ── 크레딧 & 설정 ──────────────────────────────────────────────────────
 
     @GetMapping("/me/credits")

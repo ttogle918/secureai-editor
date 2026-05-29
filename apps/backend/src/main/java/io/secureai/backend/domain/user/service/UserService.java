@@ -43,6 +43,15 @@ public class UserService {
         return UserMeResponse.from(user);
     }
 
+    /** 온보딩 Step 0 — 워크스페이스 모드(DEVELOPER/SECURITY_MANAGER/BOTH) 저장. 값 검증은 Controller @Pattern 에서 수행. */
+    @Transactional
+    public UserMeResponse updateWorkspaceMode(UUID userId, String workspaceMode) {
+        User user = loadUser(userId);
+        user.setWorkspaceMode(workspaceMode);
+        userRepository.save(user);
+        return UserMeResponse.from(user);
+    }
+
     @Transactional
     public void changePassword(UUID userId, String currentPassword, String newPassword) {
         User user = loadUser(userId);

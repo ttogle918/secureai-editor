@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuthStore, type WorkspaceMode } from '@/store/useAuthStore';
 import { apiClient, setAccessToken, onUnauthorized, getAccessToken } from '@/lib/api/client';
 
 // ── API response shapes ──────────────────────────────────────────────────────
@@ -30,6 +30,7 @@ interface UserMeData {
   plan: { id: number; name: string; displayName: string; allowDast: boolean; allowMonitoring: boolean };
   usage: { sastUsageThisMonth: number; sastMonthlyLimit: number; sastResetAt: string };
   credits: { balance: number; hasByok: boolean; preferredModel: string };
+  workspaceMode?: WorkspaceMode;
   createdAt: string;
 }
 
@@ -100,6 +101,7 @@ export function useAuth() {
         isAdmin: u.isAdmin ?? false,
         avatarUrl: u.avatarUrl ?? null,
         displayName: u.displayName ?? null,
+        workspaceMode: u.workspaceMode ?? 'DEVELOPER',
       });
     } catch {
       storeLogout();
@@ -117,7 +119,7 @@ export function useAuth() {
       const { accessToken: token, user: u } = res.data;
       setAccessToken(token);
       storeSetToken(token);
-      setUser({ id: u.id, email: u.email, username: u.username, plan: u.planName as 'free' | 'pro' | 'team', githubConnected: false, isAdmin: false, avatarUrl: null, displayName: null });
+      setUser({ id: u.id, email: u.email, username: u.username, plan: u.planName as 'free' | 'pro' | 'team', githubConnected: false, isAdmin: false, avatarUrl: null, displayName: null, workspaceMode: 'DEVELOPER' });
       router.push('/editor');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '로그인에 실패했습니다.';

@@ -1,5 +1,7 @@
 package io.secureai.backend.domain.user.service;
 
+import io.secureai.backend.domain.plan.Plan;
+import io.secureai.backend.domain.user.dto.UserMeResponse;
 import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.repository.RefreshTokenRepository;
 import io.secureai.backend.domain.user.repository.UserRepository;
@@ -88,5 +90,29 @@ class UserServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
+    // ── updateWorkspaceMode (TASK-1101) ───────────────────────────────────────
+
+    @Test
+    @DisplayName("updateWorkspaceMode — 모드를 저장하고 갱신된 응답을 반환한다")
+    void updateWorkspaceMode_savesAndReturns() {
+        Plan plan = mock(Plan.class);
+        when(plan.getMonthlySastLimit()).thenReturn(50);
+        when(plan.getId()).thenReturn((short) 1);
+        when(plan.getAllowDast()).thenReturn(false);
+        when(plan.getAllowMonitoring()).thenReturn(false);
+
+        User realUser = User.builder()
+                .email("a@b.com").username("dev").plan(plan)
+                .workspaceMode("DEVELOPER")
+                .build();
+        when(userRepository.findByIdWithPlan(userId)).thenReturn(Optional.of(realUser));
+
+        UserMeResponse res = userService.updateWorkspaceMode(userId, "SECURITY_MANAGER");
+
+        assertThat(realUser.getWorkspaceMode()).isEqualTo("SECURITY_MANAGER");
+        assertThat(res.getWorkspaceMode()).isEqualTo("SECURITY_MANAGER");
+        verify(userRepository).save(realUser);
     }
 }

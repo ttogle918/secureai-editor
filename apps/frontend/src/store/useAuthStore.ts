@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 
 export type UserPlan = 'free' | 'pro' | 'team';
 
+export type WorkspaceMode = 'DEVELOPER' | 'SECURITY_MANAGER' | 'BOTH';
+
 export type AuthUser = {
   id: string;
   email: string;
@@ -12,6 +14,7 @@ export type AuthUser = {
   isAdmin: boolean;
   avatarUrl: string | null;
   displayName: string | null;
+  workspaceMode: WorkspaceMode;
 };
 
 interface AuthStore {

@@ -126,6 +126,14 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private Integer securityScore = 0;
 
+    /**
+     * 워크스페이스 모드 — 온보딩 Step 0 에서 선택.
+     * 허용 값: DEVELOPER, SECURITY_MANAGER, BOTH (DB CHECK 제약으로 보장).
+     */
+    @Column(length = 30, nullable = false)
+    @Builder.Default
+    private String workspaceMode = "DEVELOPER";
+
     /** TOTP 비밀 키 — AES-256-GCM 암호화하여 저장 */
     @Convert(converter = AesEncryptionConverter.class)
     @Column(name = "totp_secret", columnDefinition = "TEXT")

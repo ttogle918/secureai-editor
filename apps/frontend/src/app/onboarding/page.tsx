@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { PagoriLockup } from '@/components/brand/PagoriBrand';
 import { apiClient } from '@/lib/api/client';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useSecureStore, type WorkspaceMode } from '@/store/useSecureStore';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -984,6 +985,7 @@ export default function OnboardingPage() {
   // Step 0부터 시작 (워크스페이스 모드 선택)
   const [step, setStep]         = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [modeError, setModeError] = useState<string | null>(null);
   const [wMode, setWMode]       = useState<WorkspaceMode>('DEVELOPER');
 
   const [step1, setStep1] = useState<Step1State>({
@@ -1003,10 +1005,22 @@ export default function OnboardingPage() {
     filters: DEFAULT_FILTERS,
   });
 
-  const handleModeNext = () => {
-    // Step 0 완료 시 Zustand에 저장
-    setWorkspaceMode(wMode);
-    setStep(1);
+  const handleModeNext = async () => {
+    // Step 0 완료 시 백엔드에 워크스페이스 모드 영속화 (DB users.workspace_mode)
+    setSubmitting(true);
+    setModeError(null);
+    try {
+      await apiClient.patch('/users/me/workspace-mode', { workspaceMode: wMode });
+      setWorkspaceMode(wMode); // 로컬 UI 상태 유지
+      // 로그인 후 페르소나 랜딩 분기(TASK-1102)를 위해 auth 스토어 user도 갱신
+      const cur = useAuthStore.getState().user;
+      if (cur) useAuthStore.getState().setUser({ ...cur, workspaceMode: wMode });
+      setStep(1);
+    } catch (e: unknown) {
+      setModeError(e instanceof Error ? e.message : '워크스페이스 모드 저장에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCreateProject = async (startAnalysis: boolean) => {
@@ -1058,12 +1072,19 @@ export default function OnboardingPage() {
           <StepIndicator current={step} />
 
           {step === 0 && (
-            <Step0
-              selected={wMode}
-              onSelect={setWMode}
-              onNext={handleModeNext}
-              onSkip={() => { setWorkspaceMode(wMode); router.push('/editor'); }}
-            />
+            <>
+              {modeError && (
+                <div style={{ maxWidth: 920, margin: '0 auto 16px', padding: '12px 16px', borderRadius: 8, background: 'var(--critical-dim, #3a1f1f)', color: 'var(--critical, #f87171)', fontSize: 14 }}>
+                  {modeError}
+                </div>
+              )}
+              <Step0
+                selected={wMode}
+                onSelect={setWMode}
+                onNext={handleModeNext}
+                onSkip={() => { setWorkspaceMode(wMode); router.push('/editor'); }}
+              />
+            </>
           )}
           {step === 1 && (
             <Step1

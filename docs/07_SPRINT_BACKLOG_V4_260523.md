@@ -1759,6 +1759,23 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 |----|------|---------|------|
 | FEAT-INFRA-001 | GuidelineSyncJob 스케줄러 | 🟡 Medium | `docs/security/*.md` 파일이 변경될 때마다 `security_guidelines` 테이블을 자동 동기화. 현재는 `generate_guidelines_sql.py`를 수동 실행해야 하므로 가이드라인 최신화가 지연됨. `@Scheduled` Job 또는 Git Webhook 트리거로 구현. `source_path` 컬럼의 마지막 동기화 시각과 파일 수정 시각 비교 후 `UPSERT` 실행 |
 | FEAT-OPS-003 | 온콜 로테이션 (On-Call Rotation) | 🟠 High | PagerDuty 스타일 — 시간대별 알림 담당자 지정. `oncall_schedules` 테이블 (org_id, user_id, start_at, end_at, escalation_level). Critical 인시던트 발생 시 1차 담당자 미응답 15분 후 2차 담당자에게 자동 에스컬레이션. Slack/SMS 발송 |
+| **FEAT-OPS-004** | **시크릿 관리 + 암호화 키 로테이션** (V5.5 갭) | 🔴 Critical | 현재 `.env`/환경변수 직접 사용 + AES 키 단일 버전. AWS Secrets Manager/Vault 전환 + **key versioning**(`v1:{ciphertext}`)으로 운영 키 로테이션 가능하게. 키 교체 시 기존 데이터 복호화 보장. 베타 → SaaS 승격 전 필수 |
+| **FEAT-OPS-005** | **피처 플래그 / 킬 스위치** (V5.5 갭) | 🟠 High | 위험 기능(자동 패치 PR `1401`·자동 롤백 `1403`·야간 스캔 `1001`)을 런타임에 끄고 켤 수단 부재. 조직/사용자 단위 플래그 테이블 + 관리자 토글. 베타에서 사고 시 즉시 비활성화 — 자동화 기능 출시의 전제 조건 |
+| **FEAT-INFRA-002** | **DB 마이그레이션 CI 검증 + Flyway baseline** (V5.5 갭) | 🟠 High | CI에서 fresh DB로 V001~최신 전체 마이그레이션 실행 검증(현재 미검증 — V047 CHECK 충돌류 사고 재발 가능). 47개 단일 체인 → `V050 baseline` squash로 신규 환경 초기화 가속 |
+| **FEAT-OPS-006** | **Rate Limit 플랜별 적용 검증 + SLO/알림 정책** (V5.5 갭) | 🟠 High | `RateLimitInterceptor`·플랜별 한도(10/60/120 rpm) 정의는 있으나 실제 적용 자동 검증 부재. + Prometheus/Grafana는 있으나 SLO·알림 임계(에러율·p95·큐 적체) 정책 미정의 → `docs/runbooks/slo.md` |
+
+### 성능 & 부하 (신규 — V5.5 갭)
+
+| ID | 항목 | 우선순위 | 설명 |
+|----|------|---------|------|
+| **FEAT-PERF-001** | **AI Engine·Anthropic API 부하/동시성 테스트** | 🔴 Critical | 현 k6는 Backend만 검증. 실제 병목은 **Claude API 동시 호출 한도·토큰 처리량**. AI Engine 동시 세션 N개 시 큐 적체·타임아웃·Anthropic 429 백오프 거동 측정. 비용 통제(`1204`)와 직결 |
+| **FEAT-PERF-002** | **데이터 보존/파티션 용량 모델** | 🟡 Medium | `analysis_sessions`·`audit_logs`·`monitoring_results` 월별 파티션은 있으나 베타 트래픽 기준 디스크 증가율·보존 기간(GDPR 90일 외)·아카이브 정책 수치 미정의 |
+
+### 컴플라이언스·법무 (신규 — V5.5 갭)
+
+| ID | 항목 | 우선순위 | 설명 |
+|----|------|---------|------|
+| **FEAT-COMP-004** | **데이터 처리 위탁(DPA)·데이터 잔류(residency)** | 🟠 High | 법적 페이지(`1104`)는 동의 수집만 커버. EU 고객 대상 GDPR Art.28 DPA 템플릿, 하위 처리자(Anthropic·AWS) 목록 공개, 데이터 저장 리전 명시 필요. Enterprise 영업(`1705`)의 보안 실사 대응 항목 |
 
 ### 사용자 경험 (UX) 보강
 

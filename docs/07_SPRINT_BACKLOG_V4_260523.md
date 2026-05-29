@@ -13,7 +13,8 @@
 | V5.1 | 2026-05-28 | Sprint 11~18 평가 + 누락 항목 13개 보강 (법적페이지/수동검증청산/해시체이닝/세션관리/토큰추적/백업/모델벤치/패치롤백/로그집계/결제/Hardening Sprint 신설) |
 | V5.2 | 2026-05-28 | pages-inventory & UX 스펙 대조 후 11개 태스크 보강 (알림센터/관리자온보딩/EnterpriseChannels/마켓플레이스/모바일3state/QBR/status) + Future 5개 (TTS/ChatHistory/온콜/단축키/모바일채팅) |
 | V5.3 | 2026-05-28 | **양방향 동기화 완료** — pages-inventory ↔ 백로그 갭 5건 보강: TASK-1208(EnterpriseLogs 감사 로그 페이지) / TASK-1208b(SettingsSecurity 2FA FE 전체) / TASK-1209(EnterprisePolicies) / TASK-1705(EnterpriseScale 랜딩) / TASK-1706(EnterpriseLaunch 30/60/90 플레이북). pages-inventory에 신규 페이지 15종(`/legal/*`, `/notifications`, `/admin/onboarding`, `/admin/audit-logs`, `/admin/policies`, `/settings/channels`, `/settings/security`, `/integrations`, `/billing`, `/enterprise`, `/enterprise/launch`, `/admin/master/qbr`, `apps/status/`) 추가 |
-| **V5.4 (현재)** | 2026-05-29 | TASK-1106 신설 — API 중심 분석 계획 & 진행률 패널 (api_discovery_node · api_plan SSE 이벤트 · fileFilter 선택 분석 · 프론트 Progress Panel 개편). Sprint 11 Stage 3으로 편입 |
+| V5.4 | 2026-05-29 | TASK-1106 신설 — API 중심 분석 계획 & 진행률 패널 (api_discovery_node · api_plan SSE 이벤트 · fileFilter 선택 분석 · 프론트 Progress Panel 개편). Sprint 11 Stage 3으로 편입 |
+| **V5.5 (현재)** | 2026-05-30 | Sprint 11 Stage 0(브랜치 통합) 완료 기록. **Sprint 12 분할** — 보안·운영 필수(12)와 Enterprise Admin UI(12B)로. 관측성(Loki·Sentry) Sprint 16/18 → 12 편입. **TASK-1210 트랜잭션 이메일 인프라** 신설. Flyway: 리포트 V047 확정에 따라 workspace_mode V048/legal_consent V049 |
 
 ---
 
@@ -33,14 +34,15 @@ Sprint 8  (Week 17-18): 안정화 & 보안 강화 & 런칭 준비               
 Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링 (Phase 3)        ✅ 완료
 Sprint 10 (Week 21-22): Enterprise B2B + GitHub Integration                ✅ 완료 (Stage 1~5, feat/sprint10)
 refactor/frontend-ui:   Pagori 리디자인 Stage 1~6 (온보딩·설정·SBOM·ChatFAB) ⚠️ 미머지 → Sprint 11 통합
-Sprint 11 (Week 23-24): QA + 브랜치 통합 + Persona-based UX                 🔜 다음
-Sprint 12 (Week 25-26): GitHub App Auth 완성 + Hardening                     예정
+Sprint 11 (Week 23-24): QA + 브랜치 통합 + Persona-based UX                 🔄 진행 (Stage 0 ✅ 완료)
+Sprint 12 (Week 25-26): 보안 코어 & 관측성 (GitHub App·해시체인·세션·토큰비용·백업·Loki·Sentry·이메일) 예정
+Sprint 12B(분할/후순위): Enterprise Admin UI (알림센터·온보딩·감사로그UI·2FA FE·정책)          예정
 Sprint 13 (Week 27-28): AI Agent Advanced I (API 호출 경로 스캔 & 오탐 학습) 예정
 Sprint 14 (Week 29-30): AI Agent Advanced II (패치 자동화 및 격리 검증)       예정
 Sprint 15 (Week 31-32): Ecosystem & MCP Server Expansion                      예정
-Sprint 16 (Week 33-34): Live Scan Visual Simulator & Observability            예정
+Sprint 16 (Week 33-34): Live Scan Visual Simulator (Loki는 Sprint 12로 이동)   예정
 Sprint 17 (Week 35-36): 수익화 인프라 (Payment + Billing)                       예정 (신규 — V5 추가)
-Sprint 18 (Week 37-38): Hardening Sprint (품질 자동화 + 운영 안정성)            예정 (신규 — V5 추가)
+Sprint 18 (Week 37-38): Hardening Sprint (E2E·a11y·시크릿·Swagger·StatusPage; Sentry는 Sprint 12로 이동) 예정
 EPIC-MISC:              독립 기능 (스프린트 비종속)
 ```
 
@@ -994,10 +996,12 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ---
 
-## Sprint 12 — GitHub App Auth 완성 + Hardening
+## Sprint 12 — 보안 코어 & 운영 관측성 (Security Core & Observability)
 > Week 25-26  
-> **목표**: ① GitHub App 인증 스텁 해소 (Sprint 10 기술 부채) ② 감사 로그 불변성 ③ CI/CD 품질 게이트  
-> **참고**: ADR-016(AI Engine → Backend API 전환)은 Sprint 9에서 완료됨 — 이 Sprint에서 제외.
+> **목표**: ① GitHub App 인증 스텁 해소 ② 감사 로그 불변성 + 세션 관리 ③ AI 토큰 비용 통제 ④ 백업/복구 ⑤ 운영 관측성(로그 집계·에러 추적) + 트랜잭션 이메일 인프라 ⑥ CI/CD 품질 게이트
+> **재구성 (V5.5, 2026-05-30)**: 기존 Sprint 12가 11개 태스크로 과적 → **보안·운영 필수**(본 Sprint)와 **Enterprise Admin UI**(Sprint 12B)로 분할. 베타 운영에 직결되는 관측성(Loki·Sentry)·이메일 인프라를 Sprint 16/18에서 본 Sprint로 앞당김.
+> **실행 우선순위**: **TASK-1204(토큰 비용 통제)·TASK-1201(인증)을 최우선**. 실사용자 유입 시 토큰 비용 폭주와 웹훅 미동작이 가장 큰 리스크.
+> **참고**: ADR-016(AI Engine → Backend API 전환)은 Sprint 9에서 완료됨 — 제외.
 
 ---
 
@@ -1074,6 +1078,29 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 - **테스트 체크리스트**
   - [ ] 🔬 백업 파일 다운로드 → 별도 DB 인스턴스 복원 → 데이터 동일성 확인
   - [ ] 🛡️ S3 버킷 외부 접근 차단(Block Public Access) 확인
+
+### TASK-1210 🔴 트랜잭션 이메일 발송 인프라 (신규 — V5.5)
+- **중요도**: 🔴 Critical | **순서**: 본 Sprint 핵심
+- **배경**: 리포트·야간스캔·GDPR·토큰경고·팀초대 등 제품이 의존하는 메일이 급증했으나 발송 인프라(전용 프로바이더·도메인 인증)가 없음. SMTP 직접 발송은 베타에서 스팸 처리·미도달 위험.
+- **하위 할일**
+  - [ ] 트랜잭션 메일 프로바이더 연동 (AWS SES 또는 SendGrid) — `EmailService` 발송 채널 추상화(Strategy)로 SMTP↔프로바이더 전환
+  - [ ] 발신 도메인 SPF·DKIM·DMARC 레코드 설정 + `docs/runbooks/email-deliverability.md` 문서화
+  - [ ] 바운스·스팸 신고 웹훅 수신 → 비활성 주소 suppression 처리
+  - [ ] 공통 메일 템플릿 레이아웃 + 발송 실패 재시도(지수 백오프) + 발송 로그
+- **테스트 체크리스트**
+  - [ ] 🔬 프로바이더 테스트 발송 → 도착 + DKIM 서명 통과 (mail-tester 점수 ≥ 9)
+  - [ ] 🛡️ 메일 본문·로그에 토큰/비밀번호 등 민감정보 미포함 확인
+  - [ ] 🔬 바운스 이벤트 → 해당 주소 suppression 등록 확인
+
+### TASK-1603(편입) 로그 집계 (Loki) · TASK-1804(편입) Sentry 에러 추적
+> **V5.5 이동**: 멀티 인스턴스 베타 운영에 로그 집계·에러 추적이 필수라 각각 Sprint 16/18 → **본 Sprint로 편입**. 상세 명세는 원 위치(Sprint 16 TASK-1603, Sprint 18 TASK-1804) 참조. Loki는 Trace ID 상관관계 추적, Sentry는 베타 1일차부터 예외 수집 — 운영 가시성의 기반.
+
+---
+
+## Sprint 12B — Enterprise Admin UI (분할, 우선순위 낮음)
+> **V5.5 신설**: 기존 Sprint 12에서 분리한 관리자 UI 묶음. 보안 백엔드(1202a 해시체인·1208 감사로그 등) 완료 후 진행하며 **베타 필수는 아님** — Sprint 13~14 여유 시간 또는 별도 트랙으로 처리(주차 미고정).
+> 포함: TASK-1206(알림센터) · TASK-1207(관리자 온보딩) · TASK-1208(감사 로그 페이지) · TASK-1208b(2FA 프론트엔드) · TASK-1209(보안 정책 관리)
+> **예외**: TASK-1208b(2FA FE)는 사용자가 2FA를 켤 수 있는 유일한 경로 — 베타에서 2FA 활성화가 필요하면 Sprint 12 본진으로 끌어올릴 것.
 
 ### TASK-1206 🟠 알림 센터 풀 페이지 (`/notifications`)
 - **중요도**: 🟠 High | **순서**: 6번째 | **출처**: pages-inventory `EnterpriseChannels.jsx` 일부
@@ -1304,6 +1331,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] 🛡️ 비로그인 상태에서 알림 클릭 → 로그인 화면 후 딥링크 유지
 
 ### TASK-1603 🟠 로그 집계 시스템 (Loki + Grafana)
+> ⏫ **V5.5: Sprint 12로 편입** — 멀티 인스턴스 베타 운영에 로그 집계가 필수. 본 항목은 명세 보관용이며 실제 실행은 Sprint 12.
 - **중요도**: 🟠 High | **순서**: 4번째
 - **배경**: 현재 Prometheus(메트릭) + Jaeger(트레이싱)만 있고 로그 집계 없음. 멀티 인스턴스 배포 시 분산 로그 추적 불가.
 - **하위 할일**
@@ -1431,6 +1459,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] 🛡️ 검출된 시크릿 원본 값은 절대 로그 출력 안 됨
 
 ### TASK-1804 🟡 Sentry 에러 추적 통합 (Java + Python + Frontend)
+> ⏫ **V5.5: Sprint 12로 편입** — 베타 1일차부터 예외 수집 필요. 본 항목은 명세 보관용이며 실제 실행은 Sprint 12.
 - **중요도**: 🟡 Medium | **순서**: 4번째
 - **하위 할일**
   - [ ] Sentry 프로젝트 3개 생성 — secureai-backend / secureai-ai-engine / secureai-frontend

@@ -57,11 +57,17 @@
 
 ## 실행 계획
 
-### Stage 0 — 브랜치 통합 및 충돌 해소 (Critical, 전체 선행)
+### Stage 0 — 브랜치 통합 및 충돌 해소 (Critical, 전체 선행) ✅ 완료 (2026-05-30)
 
 | TASK | 제목 | 서비스 | 파일 | 선행 | 비고 |
 |------|------|--------|------|------|------|
-| TASK-1100 | 브랜치 통합 및 충돌 해소 | frontend | `feat/frontend-ui` → main, `refactor/frontend-ui` → main 충돌 해소 + `make dev` 전체 기동 확인 | Stage 0 #1~#2 | feat/sprint10은 이미 main 포함 — 제외 |
+| TASK-1100 ✅ | 브랜치 통합 및 충돌 해소 | frontend | `feat/modify-bug`(리포트+V4 프론트) → main FF 머지, `refactor/frontend-ui` → main 통합 | Stage 0 #1~#2 | feat/sprint10은 이미 main 포함 — 제외 |
+
+**완료 내역 (2026-05-30)**:
+- `feat/modify-bug` → main **fast-forward** 머지 (18커밋, 충돌 0). 리포트 회귀(트랜잭션 동기화) 선수정 후 머지.
+- `refactor/frontend-ui` → main 통합: 충돌 16건을 Stage 0 전략(feat 우선)대로 전부 main 버전 채택 → **해소 결과 트리가 main과 동일**. refactor의 모든 내용(Pagori 리디자인·preferences·uiMockData·MobileBottomNav·CI/테스트 수정)이 feat 라인에 이미 흡수돼 있어 **순변경 0**. 통합 이력 기록용 머지 커밋(`f55c716`)만 추가.
+- 병합 완료 브랜치 `feat/frontend-ui`·`refactor/frontend-ui` 삭제.
+- **잔여**: `make dev` 전체 기동 확인은 사용자 수동 검증 항목으로 남음.
 
 **순차 강제 이유**: TASK-1100 완료 전까지 main 코드베이스 불확정 → 이후 모든 개발 파일 경로 미정.
 
@@ -202,7 +208,7 @@
 ## Sprint 11 완료 기준
 
 ### 기능 완료
-- [ ] **브랜치 통합**: feat/frontend-ui + refactor/frontend-ui → main 충돌 해소 머지 완료
+- [x] **브랜치 통합**: feat/frontend-ui + refactor/frontend-ui → main 충돌 해소 머지 완료 (2026-05-30, `f55c716`)
 - [ ] **V048 마이그레이션**: `users.workspace_mode` 컬럼 추가
 - [ ] **V049 마이그레이션**: `users.terms_accepted_at`, `privacy_accepted_at` 컬럼 추가
 - [ ] **workspace-mode API**: `PATCH /api/v1/users/me/workspace-mode` 구현 + `@Pattern` 검증

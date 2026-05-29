@@ -13,7 +13,7 @@ import { useSecureStore } from '@/store/useSecureStore';
 import { useToastStore } from '@/hooks/useToast';
 
 type ReportLanguage = 'ko' | 'en';
-type ReportFormat   = 'pdf' | 'json';
+type ReportFormat   = 'pdf' | 'json' | 'html' | 'md';
 
 interface ReportSection {
   id: string;
@@ -79,7 +79,7 @@ export function PdfReportModal({
   const [state, setState]             = useState<ModalState>('configure');
   const [downloadToken, setToken]     = useState<string | null>(null);
   const [reportId, setReportId]       = useState<string | null>(null);
-  const [fileName, setFileName]       = useState<string>(`report.${format}`);
+  const [fileName, setFileName]       = useState<string>('report.pdf');
   const [emailSending, setEmailSending] = useState(false);
   const [language, setLanguage]       = useState<ReportLanguage>('ko');
   const [format,   setFormat]         = useState<ReportFormat>('pdf');
@@ -349,6 +349,8 @@ export function PdfReportModal({
                   >
                     <option value="pdf">PDF</option>
                     <option value="json">JSON (CycloneDX)</option>
+                    <option value="html">HTML</option>
+                    <option value="md">Markdown</option>
                   </select>
                 </div>
               </div>

@@ -146,8 +146,11 @@ public class ReportService {
     }
 
     private void validateFormat(String format) {
-        if (!"PDF".equalsIgnoreCase(format) && !"JSON".equalsIgnoreCase(format)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "지원하지 않는 형식입니다. PDF 또는 JSON을 입력하세요.");
+        if (format == null) throw new BusinessException(ErrorCode.INVALID_INPUT, "형식을 입력하세요.");
+        switch (format.toUpperCase()) {
+            case "PDF", "JSON", "HTML", "MD" -> { /* valid */ }
+            default -> throw new BusinessException(
+                    ErrorCode.INVALID_INPUT, "지원하지 않는 형식입니다. PDF, JSON, HTML, MD 중 하나를 입력하세요.");
         }
     }
 
@@ -179,9 +182,12 @@ public class ReportService {
                 throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "파일을 읽을 수 없습니다.");
             }
             byte[] content = Files.readAllBytes(filePath);
-            String contentType = "PDF".equals(report.getFormat())
-                    ? "application/pdf"
-                    : "application/json";
+            String contentType = switch (report.getFormat()) {
+                case "PDF"  -> "application/pdf";
+                case "HTML" -> "text/html; charset=UTF-8";
+                case "MD"   -> "text/markdown; charset=UTF-8";
+                default     -> "application/json";
+            };
             String fileName = "report-" + report.getId() + "." + report.getFormat().toLowerCase();
             return new DownloadResult(new ByteArrayResource(content), contentType, fileName);
         } catch (IOException e) {

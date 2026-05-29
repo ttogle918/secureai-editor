@@ -37,6 +37,8 @@ public class ReportAsyncProcessor {
     private final VulnerabilityRepository vulnerabilityRepository;
     private final PdfReportGenerator pdfReportGenerator;
     private final JsonReportGenerator jsonReportGenerator;
+    private final HtmlReportGenerator htmlReportGenerator;
+    private final MarkdownReportGenerator markdownReportGenerator;
 
     /**
      * 비동기 리포트 생성 — PENDING → GENERATING → COMPLETED/FAILED.
@@ -85,14 +87,27 @@ public class ReportAsyncProcessor {
         String fileName = report.getId().toString() + "." + report.getFormat().toLowerCase();
         Path filePath = dirPath.resolve(fileName);
 
-        if ("PDF".equals(report.getFormat())) {
-            byte[] pdfBytes = pdfReportGenerator.generate(
-                    vulns, report.getProject(), report.getSession());
-            Files.write(filePath, pdfBytes);
-        } else {
-            String json = jsonReportGenerator.generate(
-                    vulns, report.getProject(), report.getSession());
-            Files.write(filePath, json.getBytes(StandardCharsets.UTF_8));
+        switch (report.getFormat()) {
+            case "PDF" -> {
+                byte[] pdfBytes = pdfReportGenerator.generate(
+                        vulns, report.getProject(), report.getSession());
+                Files.write(filePath, pdfBytes);
+            }
+            case "HTML" -> {
+                String html = htmlReportGenerator.generate(
+                        vulns, report.getProject(), report.getSession());
+                Files.write(filePath, html.getBytes(StandardCharsets.UTF_8));
+            }
+            case "MD" -> {
+                String md = markdownReportGenerator.generate(
+                        vulns, report.getProject(), report.getSession());
+                Files.write(filePath, md.getBytes(StandardCharsets.UTF_8));
+            }
+            default -> {
+                String json = jsonReportGenerator.generate(
+                        vulns, report.getProject(), report.getSession());
+                Files.write(filePath, json.getBytes(StandardCharsets.UTF_8));
+            }
         }
 
         return filePath.toString();

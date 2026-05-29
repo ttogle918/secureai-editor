@@ -63,6 +63,9 @@ public class AuthService {
                 .displayName(request.getDisplayName())
                 .emailVerifyToken(verifyToken)
                 .emailVerifyExpiresAt(OffsetDateTime.now().plusHours(24))
+                .termsAcceptedAt(OffsetDateTime.now())
+                .privacyAcceptedAt(OffsetDateTime.now())
+                .marketingOptIn(request.isMarketingAgreed())
                 .plan(planRepository.findByName("free")
                         .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR)))
                 .build();

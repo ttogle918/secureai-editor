@@ -1,5 +1,6 @@
 package io.secureai.backend.domain.auth.dto;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -26,4 +27,15 @@ public class RegisterRequest {
 
     @Size(max = 100)
     private String displayName;
+
+    /** 이용약관 동의 (필수) */
+    @AssertTrue(message = "이용약관 동의가 필요합니다.")
+    private boolean termsAgreed;
+
+    /** 개인정보처리방침 동의 (필수) */
+    @AssertTrue(message = "개인정보처리방침 동의가 필요합니다.")
+    private boolean privacyAgreed;
+
+    /** 광고성 정보 수신 동의 (선택) */
+    private boolean marketingAgreed;
 }

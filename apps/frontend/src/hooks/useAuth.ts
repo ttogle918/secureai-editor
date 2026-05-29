@@ -134,11 +134,17 @@ export function useAuth() {
     username: string,
     password: string,
     displayName?: string,
+    consent?: { termsAgreed: boolean; privacyAgreed: boolean; marketingAgreed: boolean },
   ) => {
     setLoading(true);
     setError(null);
     try {
-      await apiClient.post<{ data: RegisterData }>('/auth/register', { email, username, password, displayName });
+      await apiClient.post<{ data: RegisterData }>('/auth/register', {
+        email, username, password, displayName,
+        termsAgreed: consent?.termsAgreed ?? false,
+        privacyAgreed: consent?.privacyAgreed ?? false,
+        marketingAgreed: consent?.marketingAgreed ?? false,
+      });
       router.push('/login?registered=1');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '회원가입에 실패했습니다.';

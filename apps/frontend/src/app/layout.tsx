@@ -3,6 +3,7 @@
 import type { Metadata } from 'next';
 import { JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 import AuthProvider from '@/components/AuthProvider';
+import { CookieConsentBanner } from '@/components/legal/CookieConsentBanner';
 import './globals.css';
 
 // ── Fonts (UI/UX REVISIONS.md §8 대응) ──────────────────
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body style={{ margin: 0 }}>
         <AuthProvider>{children}</AuthProvider>
+        <CookieConsentBanner />
       </body>
     </html>
   );

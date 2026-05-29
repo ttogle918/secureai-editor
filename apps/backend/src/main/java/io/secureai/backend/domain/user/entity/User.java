@@ -134,6 +134,19 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private String workspaceMode = "DEVELOPER";
 
+    /** 이용약관 동의 시각 — 회원가입 시 기록 (분쟁 시 증빙, GDPR/PIPA) */
+    @Column(name = "terms_accepted_at")
+    private OffsetDateTime termsAcceptedAt;
+
+    /** 개인정보처리방침 동의 시각 — 회원가입 시 기록 */
+    @Column(name = "privacy_accepted_at")
+    private OffsetDateTime privacyAcceptedAt;
+
+    /** 광고성 정보 수신 동의 (선택) */
+    @Column(name = "marketing_opt_in", nullable = false)
+    @Builder.Default
+    private Boolean marketingOptIn = false;
+
     /** TOTP 비밀 키 — AES-256-GCM 암호화하여 저장 */
     @Convert(converter = AesEncryptionConverter.class)
     @Column(name = "totp_secret", columnDefinition = "TEXT")

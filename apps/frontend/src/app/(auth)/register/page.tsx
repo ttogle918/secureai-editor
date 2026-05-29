@@ -11,6 +11,9 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [agreeMarketing, setAgreeMarketing] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,8 +26,16 @@ export default function RegisterPage() {
       setLocalError('비밀번호는 8자 이상이어야 합니다.');
       return;
     }
+    if (!agreeTerms || !agreePrivacy) {
+      setLocalError('이용약관과 개인정보처리방침에 동의해주세요.');
+      return;
+    }
     setLocalError(null);
-    await register(email, username, password, displayName || undefined);
+    await register(email, username, password, displayName || undefined, {
+      termsAgreed: agreeTerms,
+      privacyAgreed: agreePrivacy,
+      marketingAgreed: agreeMarketing,
+    });
   };
 
   const displayError = localError ?? error;
@@ -132,7 +143,23 @@ export default function RegisterPage() {
           />
         </div>
 
-        {/* API: POST /api/v1/auth/register — { email, username, password, displayName? } → 이메일 인증 발송 */}
+        {/* 법적 동의 (GDPR/PIPA) — 필수 2 + 선택 1 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+          <label style={consentLabelStyle}>
+            <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} style={{ marginTop: 2 }} />
+            <span><Link href="/legal/terms" target="_blank" style={consentLinkStyle}>이용약관</Link>에 동의합니다. <span style={{ color: '#ea580c' }}>(필수)</span></span>
+          </label>
+          <label style={consentLabelStyle}>
+            <input type="checkbox" checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} style={{ marginTop: 2 }} />
+            <span><Link href="/legal/privacy" target="_blank" style={consentLinkStyle}>개인정보처리방침</Link>에 동의합니다. <span style={{ color: '#ea580c' }}>(필수)</span></span>
+          </label>
+          <label style={consentLabelStyle}>
+            <input type="checkbox" checked={agreeMarketing} onChange={(e) => setAgreeMarketing(e.target.checked)} style={{ marginTop: 2 }} />
+            <span>광고성 정보 수신에 동의합니다. <span style={{ color: 'rgba(255,255,255,0.35)' }}>(선택)</span></span>
+          </label>
+        </div>
+
+        {/* API: POST /api/v1/auth/register — { email, username, password, displayName?, termsAgreed, privacyAgreed, marketingAgreed } → 이메일 인증 발송 */}
         <button
           type="submit"
           disabled={isLoading}
@@ -180,4 +207,19 @@ const inputStyle: React.CSSProperties = {
   fontSize: 14,
   outline: 'none',
   boxSizing: 'border-box',
+};
+
+const consentLabelStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: 8,
+  fontSize: 12,
+  color: 'rgba(255,255,255,0.55)',
+  cursor: 'pointer',
+  lineHeight: 1.5,
+};
+
+const consentLinkStyle: React.CSSProperties = {
+  color: '#ea580c',
+  textDecoration: 'underline',
 };

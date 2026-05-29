@@ -48,12 +48,65 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 ---
 
+## 현재 위치 (Status) — 2026-05-30
+- **브랜치**: `main` (Sprint 0~10 완료 + 리포트 기능 머지 + 브랜치 통합 완료, origin 동기화)
+- **진행 중**: Sprint 11 착수 전 — 버그 수정 + Sprint 6~10 수동 검증 청산
+- **다음 액션**: `/sprint 11` → **Stage 0(브랜치 통합) ✅ 완료**이므로 **Stage 1부터** (TASK-1101 + 1103/1104/1105/1106 병렬)
+
+---
+
+## 태스크 인덱스 (활성 스프린트)
+> 사이즈: **S**(작음·단일 파일/컴포넌트) · **M**(중간·1~2 레이어) · **L**(큼·다중 서비스/다수 파일). 기간은 표기하지 않고 상대 규모만 표시.
+> 스프린트 용량 점검: 한 스프린트의 L 합계가 과다하면(대략 L 2개 초과) 분할 검토.
+
+| 스프린트 | 태스크 | 제목 | 상태 | 사이즈 |
+|---------|--------|------|------|--------|
+| 11 | 1100 | 브랜치 통합 | ✅ | L |
+| 11 | 1101 | Persona 온보딩 BE+FE | ⬜ | M |
+| 11 | 1102 | 페르소나 랜딩·사이드바 | ⬜ | M |
+| 11 | 1103 | 디자인 시스템 통일 | ⬜ | S |
+| 11 | 1104 | 법적 페이지 3종+동의 | ⬜ | L |
+| 11 | 1105 | Sprint 10 수동검증 청산 | ⬜ | M |
+| 11 | 1106 | API 중심 분석 패널 | ⬜ | L |
+| 12 | 1201 | GitHub App 인증 완성 | ⬜ | L |
+| 12 | 1202a | 감사 로그 해시체인 | ⬜ | M |
+| 12 | 1202b | 세션 관리·강제 로그아웃 | ⬜ | M |
+| 12 | 1203 | CI/CD 품질 게이트 | ⬜ | M |
+| 12 | 1204 | AI 토큰 비용 통제 | ⬜ | L |
+| 12 | 1205 | 자동 백업+S3 | ⬜ | M |
+| 12 | 1210 | 트랜잭션 이메일 인프라 | ⬜ | M |
+| 12 | 1603·1804(편입) | 관측성 (Loki·Sentry) | ⬜ | M |
+| 12B | 1206 | 알림 센터 페이지 | ⬜ | L |
+| 12B | 1207 | 관리자 온보딩 체크리스트 | ⬜ | M |
+| 12B | 1208 | 감사 로그 페이지 | ⬜ | M |
+| 12B | 1208b | 2FA 프론트엔드 | ⬜ | M |
+| 12B | 1209 | 보안 정책 관리 | ⬜ | M |
+| 13~18 | — | AI Advanced·Ecosystem·시각화·결제·Hardening | 📋 계획 | 각 섹션 참조 |
+
+---
+
+## 수동 검증 부채 대장 (Verification Debt Ledger)
+> ✅ 수동 검증이 스프린트마다 미완료로 누적되는 만성 문제 대응.
+> **규칙: 스프린트 완료 게이트 = 해당 스프린트 ✅ 잔여 0건 (또는 이월 사유 명시 승인)**. 미구현 기능의 ✅는 부채가 아니라 백로그(기능 구현 시 함께 검증).
+
+| 출처 | 미검증 항목(요약) | 상태 | 처리 |
+|------|------------------|------|------|
+| Sprint 7 | PDF 내용·CycloneDX 검증, 차트 5종 시각화, Android 실기기 로그인·루팅·TLS·네비·FCM/SSE | 🟢 구현완료·검증대기 | TASK-1105 일부 + Android 실기기 |
+| Sprint 8 | perf p95<500ms·캐시히트·N+1, ZAP Critical 0·SQLi·XSS, Nginx HTTPS 리다이렉트, 2FA QR | 🟢 구현완료·검증대기 | TASK-1105 (2FA login 검증은 1208b 의존) |
+| Sprint 9 | Slack 알림 포스팅, VSCode `.vsix` 설치, Android 채팅/PDF공유/알림채널 | 🟢 구현완료·검증대기 | TASK-1105 + 클라이언트 실환경 |
+| Sprint 10 | 12건(야간스캔·팀대시보드·ROI·스캔모드·FE 3종 + 이월 4건) | 🟡 진행 | TASK-1105 전담 |
+| Sprint 5/6 | GitHub Webhook→PR 자동분석·Check Run, 커밋 시크릿 스캔 | 🔴 차단 | GitHub App 인증 스텁 — **Sprint 12 TASK-1201 선행** |
+| Sprint 9 | PostgreSQL/Docker MCP 조회·권한 (904/905) | ⚪ 미구현 | 기능 자체가 Sprint 15 후보 (부채 아님) |
+
+---
+
 ## 테스트 표기 범례
 
 - 🧪 **단위 테스트** — 각 개발자가 작성하는 자동화 테스트
 - 🔬 **통합 테스트** — 여러 컴포넌트 조합 동작 검증
 - ✅ **수동 검증** — 사람이 실제로 확인해야 하는 항목
 - 🛡️ **보안 검증** — 보안 관점 확인 항목
+- 📏 **사이즈** — S / M / L 상대 규모 (기간 아님). 태스크 인덱스 표 + 각 태스크 헤더에 표기
 
 ---
 
@@ -126,724 +179,33 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 ---
 
-## Sprint 6 — 완료
+## Sprint 6~10 — 완료 (요약)
 
-**기간**: 2026-05-15 ~ 2026-05-16  
-**브랜치**: `feat/sprint6` | **PR**: [#70](https://github.com/ttogle918/secureai-editor/pull/70)  
-**DVWA 시연**: 2026-05-19 — `localhost:8888` DVWA (MariaDB) + SQLi 엔드투엔드 완료, 재시도 루프·터미널 스트리밍·배지 전항목 확인
+> 상세 완료 기록·구현 방식·테스트 체크리스트(✅/🔬/🛡️ 상태 포함)는 `docs/sprints/sprint-6.md` ~ `sprint-10.md` 참조.
+> 각 스프린트의 미완료 ✅ 수동 검증 항목은 위 **수동 검증 부채 대장** 으로 일원화 관리.
 
-### TASK-601 🔴 Docker 샌드박스 DAST 컨테이너 ✅ 완료
+### Sprint 6 — DAST 엔진 & Docker 샌드박스 ✅ (PR #70, DVWA SQLi 시연 완료)
+- TASK-601 Docker 샌드박스 DAST(5종 익스플로잇, Strategy `_EXECUTOR_MAP`) · 602 도메인 소유권+Rate Limit(분산 락) · 603 DAST LangGraph 에이전트 · 604 터미널 UI(ANSI→React, XSS 안전)
+- 추가 구현: FEAT-SEC-006 pgvector 임베딩(bge-small), AuditLog 활성화(V030~V031)
 
-**완료 내용**:
-- `executors/` 5개 익스플로잇 (SQLi, XSS, IDOR, SSRF, Auth Bypass)
-- `dast_runner.py` Strategy 패턴 `_EXECUTOR_MAP` dict
-- `DockerSandboxManager.java`: docker-java 3.3.x, `DockerClientImpl.getInstance`
-- `ContainerConfig.java`: record — networkMode="dast-isolated-net" 컴팩트 생성자 강제 검증
-- `DockerClientConfig.java`: `@Bean DockerClient` — DIP 준수
-- `ExploitResult.java`: `@Convert(AesEncryptionConverter)` on targetUrl/payload/responseSnippet
-- `ScanStatus.java`: PENDING/RUNNING/SUCCESS/FAILED/TIMEOUT enum
-- `V026__create_dast_results.sql`: UUID PK, AES 암호화 컬럼
+### feat/sprint5-github 이월 → Sprint 10 흡수
+- TASK-503/504 완료(레포 SAST 최적화 · SBOM+CVE 매칭). 501/502(Webhook·PR 자동분석)는 Sprint 10에서 구현했으나 GitHub App 인증(`extractInstallationToken`/`resolveProjectId`) 스텁 → **Sprint 12 TASK-1201에서 해소**. 505(Security Advisory)는 EPIC-MISC.
 
-### TASK-602 🔴 도메인 소유권 확인 & DAST Rate Limit ✅ 완료
+### Sprint 7 — 리포트 & 대시보드 & Android MVP ✅
+- TASK-701 PDF/JSON 리포트(OpenPDF, 다운로드 토큰+Path Traversal 방어) · 702 대시보드 집계 API+Redis 캐시 · 703 Android 인증(EncryptedSharedPrefs·인증서 피닝·RootDetector) · 704 Android 대시보드+Room 캐시 · 705 FCM+SSE 이중 알림
+- 대시보드 차트 5종은 이후 V4 리디자인에서 완성
 
-**완료 내용**:
-- `DomainVerificationService.java`: DNS TXT 조회 (JDK JNDI), Redis Rate Limit, 분산 락
-- `DistributedLockService.java`: Redis SETNX TTL 300초
-- `ScanTarget.java`: markVerified() / recordConsent() 도메인 메서드
-- `V027__create_scan_targets.sql`: consent_ip INET, unique(project_id, domain)
+### Sprint 8 — 안정화 & 보안 강화 ✅
+- 801 ShedLock(6 Job) · 802 Circuit Breaker(AI/NVD/DNS, Resilience4j) · 803 성능/캐시(@EntityGraph·@BatchSize) · 804 보안 헤더+ZAP · 805 Nginx+SSL · 806 2FA(TOTP+복구코드) · 807 IP Allowlist(CIDR) · 808 OpenTelemetry · 809 GDPR Export/Delete
+- 보안 문서 자동 생성 Level 1(CISO·행안부·ISMS-P), SBOM 화면 포함
 
-**단위 테스트**: DistributedLockServiceTest 5개, DomainVerificationServiceTest 11개
+### Sprint 9 — VSCode Extension & 모니터링 (Phase 3) ✅
+- 901 지속 모니터링(Slack·SSL 만료) · 902 VSCode Extension(.vsix) · 903 Android 고도화(채팅 스트리밍·PDF 공유·알림 채널 3종) · 906 Prometheus+Grafana · 907 GDPR 하드 삭제 스케줄러
+- ⚠️ **904 PostgreSQL MCP / 905 Docker MCP는 미구현** → Sprint 15(Ecosystem & MCP 확장) 후보로 이관
 
-### TASK-603 🔴 DAST 에이전트 (Python LangGraph) ✅ 완료
-
-**완료 내용**:
-- `dast_node.py`, `after_dast.py`, `notify_node.py`, `docker_tool.py`, `dast_graph_builder.py`
-- `api/routes/dast.py`: POST /agent/dast/start + GET /agent/dast/logs/{session_id}
-- `dast_payload.jinja2` DAST 페이로드 생성 프롬프트
-- `DastController.java`, `DastExecutionService.java`, `ExploitResultPersister.java`, `DastResultHandler.java`
-
-**단위 테스트**: Backend 42개 + Python 21개
-
-### TASK-604 🟠 DAST 터미널 UI & 결과 표시 ✅ 완료
-
-**완료 내용**:
-- `useDastStream.ts` (신규): EventSource SSE 구독, UUID 패턴 검증 (경로 조작 방어)
-- `DastTerminal.tsx`: ANSI 이스케이프 → React span 변환 (XSS 안전), 자동 스크롤
-- `VulnDetailPanel.tsx`: EXPLOITED 빨간 배지 / DAST ✗ 회색 배지
-- 프론트엔드 17개 테스트 전부 통과
-
-### FEAT-SEC-006 pgvector 임베딩 ✅ 완료 (Sprint 6 추가 구현)
-
-**완료 내용**:
-- `V028__add_pgvector_embedding_to_guidelines.sql`: CREATE EXTENSION vector, embedding vector(384), IVFFlat 인덱스
-- `embedding_service.py`: fastembed BAAI/bge-small-en-v1.5 Lazy Singleton
-- `guidelines_client.py`: `search_guidelines_by_vuln_type()` 추가
-- `sync_guidelines.py`: MD→DB 동기화 + 배치 임베딩
-
-> **주의**: PostgreSQL에 pgvector 익스텐션 필요. postgres 이미지를 `pgvector/pgvector:pg15` 또는 `pgvector/pgvector:pg16`으로 변경 필요.
-
-### AuditLog 활성화 (V030~V031) ✅ 완료
-
-Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
-
----
-
-## feat/sprint5-github 브랜치 — Sprint 5 이월 구현
-
-> ~~Sprint 7과 독립적으로 진행. `feat/sprint5-github` 브랜치에서 개발 후 main에 PR.~~  
-> **처리 방향 결정 (2026-05-23)**: 아래 태스크는 **Sprint 10 GitHub Integration Sprint**로 공식 배정.  
-> Sprint 10 시작 시 `feat/sprint5-github` 브랜치를 `feat/sprint10-github`로 리베이스 후 진행.  
-> 단, TASK-505(GitHub Security Advisory)는 SBOM/Advisory 통합 관점에서 **EPIC-MISC**로 이관  
-> (Sprint 10에서 시간 내 처리 못할 경우 MCP-005와 통합 검토).
-
-### TASK-501 🔴 GitHub Webhook 이벤트 수신
-
-- **중요도**: 🔴 Critical | **현재 상태**: 미구현 | **Sprint 10 배정**
-
-**하위 할일**
-- [ ] `list_commits.ts`, `get_commit_diff.ts` MCP Tool
-- [ ] `mcp_github_tools.py` 커밋 Tool 래퍼
-- [ ] 시크릿 탐지 프롬프트 + 전용 노드
-- [ ] `CommitHistoryScanner.java` @Async 페이지네이션
-- [ ] 병렬 처리 최적화
-
-**테스트 체크리스트**
-- [ ] 🧪 시크릿 패턴 정규식 정확성 (AWS Key, GitHub Token, JWT 등)
-- [ ] 🔬 일부러 시크릿 커밋 후 삭제한 테스트 레포 → 삭제된 시크릿 탐지
-- [ ] 🔬 100개 이상 커밋 레포 → 페이지네이션 처리 완료
-- [ ] 🔬 GitHub API rate limit 도달 시 backoff 동작
-- [ ] ✅ 실제 공개 레포의 최근 30개 커밋 스캔 → 결과 리포트 검토
-
----
-
-### TASK-502 🟠 PR 분석 자동 트리거
-
-- **중요도**: 🔴 Critical | **현재 상태**: 미구현 | **Sprint 10 배정** (TASK-501 선행 필요)
-
-**하위 할일**
-- [ ] `GitHubWebhookController.java` HMAC 검증
-- [ ] `GitHubWebhookService.java` PR 처리
-- [ ] 변경 파일(diff)만 선택 스캔
-- [ ] `create_pr_comment.ts` MCP Tool
-- [ ] `PrReviewHistory.java` + Flyway V015
-- [ ] GitHub Check Run API 연동
-
-**테스트 체크리스트**
-- [ ] 🧪 HMAC-SHA256 검증 — 올바른 서명 통과, 잘못된 서명 거부
-- [ ] 🔬 GitHub PR 생성 → Webhook 수신 → 자동 분석 시작
-- [ ] 🔬 PR 변경 파일만 스캔 (전체 파일 X)
-- [ ] 🔬 분석 완료 → GitHub PR에 보안 리뷰 코멘트 자동 등록
-- [ ] 🔬 blockMergeOnCritical=true + Critical 발견 → Check Run failed
-- [ ] 🛡️ 잘못된 HMAC 서명으로 Webhook 요청 → 400 반환
-- [ ] ✅ 실제 GitHub 레포에 Webhook 등록 → PR 생성 → 코멘트 자동 등록 확인
-
----
-
-### TASK-503 🟠 커밋 히스토리 시크릿 스캔
-
-- **중요도**: 🟠 High | **현재 상태**: 부분 완료 (Sprint 5 기반) | **Sprint 10 배정** (잔여 개선분)
-
-**하위 할일**
-- [ ] 파일 타입별 우선순위 정렬
-- [ ] 파일 크기·바이너리 필터 강화
-- [ ] asyncio.gather 병렬 처리
-- [ ] 진행률 SSE 정확도 개선
-
-**테스트 체크리스트**
-- [ ] 🔬 100개 파일 레포 스캔 시간 < 15분
-- [ ] 🔬 우선순위 — 코드 파일 먼저, 설정 파일 나중에
-- [ ] ✅ 대형 레포 (500+ 파일) 스캔 → 메모리 사용량 모니터링
-
----
-
-### TASK-504 🟡 SBOM GitHub Release 연동
-
-- **중요도**: 🟠 High | **현재 상태**: 기본 SBOM 완료, Release 연동 미구현 | **Sprint 10 배정**
-
-**하위 할일**
-- [ ] 의존성 파일 자동 감지
-- [ ] SBOM 파서 4종 완성
-- [ ] CVE 매칭 + Flyway V015
-- [ ] CycloneDX JSON 내보내기
-
-**테스트 체크리스트**
-- [ ] 🔬 Spring Boot 레포 → pom.xml 파싱 → Spring Core CVE 매칭
-- [ ] 🔬 CycloneDX JSON 형식 유효성 (schema validator 통과)
-- [ ] 🔬 동일 패키지+버전 재분석 시 CVE 매칭 캐시 HIT
-- [ ] ✅ 생성된 SBOM JSON → 외부 SBOM 뷰어로 열어 확인
-
----
-
-### TASK-505 🟡 GitHub Security Advisory 조회
-
-- **중요도**: 🟡 Medium | **현재 상태**: 미구현 | **EPIC-MISC 이관** (MCP-005 GitHub MCP 확장과 통합 검토)
-
-**하위 할일**
-- [ ] GitHub 설정 섹션
-- [ ] `PrReviewHistory.tsx` 테이블
-- [ ] 저장소 목록 드롭다운
-
-**테스트 체크리스트**
-- [ ] ✅ GitHub 저장소 목록 → 선택 → Webhook 자동 등록
-- [ ] ✅ PR 리뷰 이력 테이블 정렬·필터 동작
-- [ ] ✅ blockMergeOnCritical 토글 → 저장 후 재조회 시 유지
-
----
-
-## Sprint 7 — 리포트 & 대시보드 & Android MVP
-> Week 15-16 | 목표: PDF 리포트 + 대시보드 + Android 앱 MVP
-
-### EPIC-8: 리포트 & 대시보드
-
----
-
-#### TASK-701 🔴 PDF 리포트 생성 (iText7)
-- **중요도**: 🔴 Critical | **순서**: 1번째
-
-**하위 할일**
-- [x] OpenPDF 의존성 + `ReportAsyncProcessor.java` @Async (LGPL — iText7 대신)
-- [x] `Report.java` + Flyway V035 (V010 충돌 → V035로 변경)
-- [x] `PdfReportGenerator.java` / `JsonReportGenerator.java`
-- [x] `ReportService.java` + `ReportController.java`
-- [x] 다운로드 토큰 + Path Traversal 방어
-- [ ] 프론트엔드 UI (Stage 3)
-
-**테스트 체크리스트**
-- [x] 🧪 Template Method — PdfReportGenerator 섹션 순서 정확성
-- [ ] 🔬 리포트 생성 → 30초 이내 완료
-- [ ] 🔬 다운로드 토큰 만료 (24시간) → 접근 거부
-- [ ] 🔬 90일 후 리포트 파일 자동 삭제
-- [x] 🛡️ 다른 사용자 리포트 downloadToken 직접 접근 시 거부
-- [ ] 🛡️ 공개 공유 링크 활성화 시만 인증 없이 접근 가능
-- [ ] ✅ 생성된 PDF 파일 열어 취약점 목록, 패치 코드, 차트 확인
-- [ ] ✅ JSON 리포트 → CycloneDX 호환 스키마 검증
-
----
-
-#### TASK-702 🟠 대시보드 차트 완성
-- **중요도**: 🟠 High | **순서**: 2번째
-
-**하위 할일**
-- [ ] SecurityScoreRing, SeverityBarChart, TrendLineChart, FileHeatmap, OwaspCoverageMatrix (Stage 3 FE)
-- [x] `VulnerabilityQueryService` 집계 쿼리 (4개 위임 메서드 추가)
-- [x] `GET /api/v1/projects/{id}/dashboard` 단일 엔드포인트 + Redis 캐시 5분
-- [ ] `dashboard/page.tsx` 완성 (Stage 3 FE)
-
-**테스트 체크리스트**
-- [ ] 🔬 trend API — 7일간 일별 집계 정확성
-- [ ] 🔬 대시보드 로딩 시간 < 2초 (Redis 캐시)
-- [ ] ✅ SecurityScoreRing — 0, 50, 100 점수 각 시각화
-- [ ] ✅ OWASP 매트릭스 A01~A10 → 색상 코딩 정확
-- [ ] ✅ FileHeatmap → 취약점 많은 파일이 빨간색
-
----
-
-### EPIC-9: Android MVP
-
----
-
-#### TASK-703 🔴 Android 프로젝트 초기화 & 인증
-- **중요도**: 🔴 Critical | **순서**: 3번째 병렬
-
-**하위 할일**
-- [x] Android 프로젝트 (Compose, Hilt, Room, Firebase)
-- [x] `NetworkModule.kt` 인증서 피닝 + debug 예외
-- [x] `TokenStorage.kt` EncryptedSharedPreferences + Android Keystore AES256_GCM
-- [x] `LoginScreen.kt`, `RegisterScreen.kt`
-- [x] `AuthViewModel.kt` + `AuthRepository.kt` (DIP 인터페이스)
-- [x] `NavGraph.kt` + `RootDetector.kt`
-
-**테스트 체크리스트**
-- [x] 🧪 `TokenStorage` 암호화 저장·복원 정확성
-- [x] 🧪 `AuthRepository` 로그인 성공/실패 분기
-- [ ] 🔬 인증서 피닝 — 잘못된 인증서 서버 응답 시 연결 실패
-- [ ] ✅ 실제 디바이스에서 로그인 성공 → 대시보드 진입
-- [ ] 🛡️ APK 루팅 기기에서 실행 시 경고 (RootDetector)
-- [x] 🛡️ 토큰이 평문으로 SharedPreferences에 저장되지 않음
-- [ ] 🛡️ 네트워크 스니핑 도구로 API 통신 확인 시 TLS 암호화
-
----
-
-#### TASK-704 🟠 Android 대시보드 & 취약점 목록
-- **중요도**: 🟠 High | **순서**: 4번째
-
-**하위 할일**
-- [x] DashboardScreen, VulnListScreen, VulnDetailScreen
-- [x] `SecurityScoreGauge.kt` Canvas
-- [x] Room DB 엔티티 + DAO (VulnerabilityEntity, DashboardCacheEntity)
-- [x] Repository (Remote + Room fallback) + ApiResponse 래퍼
-
-**테스트 체크리스트**
-- [x] 🧪 Room DAO — upsert/중복방지/stale 삭제 (VulnerabilityDaoContractTest 4개)
-- [ ] 🔬 네트워크 끊김 → Room 캐시에서 마지막 데이터 표시
-- [ ] ✅ 대시보드 → 취약점 목록 → 상세 네비게이션 흐름
-- [ ] ✅ SecurityScoreGauge 애니메이션 부드러움
-
----
-
-#### TASK-705 🟠 FCM Push & OkHttp SSE
-- **중요도**: 🟠 High | **순서**: 5번째
-
-**하위 할일**
-- [x] Firebase 프로젝트 + google-services.json
-- [x] `FcmPushService.java` Backend
-- [x] `SecureAiFcmService.kt`
-- [x] `SseClient.kt` Flow
-- [x] `AnalysisViewModel.kt` 이중 처리
-
-**테스트 체크리스트**
-- [ ] 🔬 세션 완료 → Backend `SessionCompletedEvent` → FCM Push 발송
-- [ ] 🔬 Android 앱 foreground — SSE 구독 동작
-- [ ] 🔬 Android 앱 background — FCM Push 수신 → 알림 표시
-- [ ] ✅ 앱 종료 상태에서 분석 완료 → Push 알림 수신
-- [ ] ✅ 알림 클릭 → 앱 실행 → 해당 세션 화면 딥링크
-- [ ] ✅ 앱 foreground → background 전환 시 SSE 해제, FCM만 동작
-
----
-
-### Sprint 7 완료 기준
-- [ ] **PDF 리포트**: 30초 내 생성, 다운로드 토큰 동작
-- [ ] **대시보드**: 5개 차트 모두 완성, 2초 내 로딩
-- [ ] **Android MVP**: 로그인 + 대시보드 + 취약점 목록 + 알림 동작
-- [ ] **FCM + SSE 이중 전략**: foreground/background 모두 알림 정상
-
----
-
-## Sprint 8 — 안정화 & 보안 강화
-> Week 17-18
-
-### EPIC-10: 안정화 & 보안 강화
-
----
-
-#### TASK-801 🔴 스케줄러 전체 완성 & ShedLock ✅ 완료 (2026-05-21)
-- **중요도**: 🔴 Critical | **Flyway**: V037
-
-**하위 할일**
-- [x] `build.gradle.kts` 의존성: `net.javacrumbs.shedlock:shedlock-spring:6.x`, `shedlock-provider-redis-spring:6.x`
-- [x] `V037__create_shedlock_table.sql` (Redis Provider 사용 시 DB 백업용)
-- [x] ShedLock + Redis Provider (Redis DB 0, 키 접두사 `shedlock:`)
-- [x] 6개 Job 확정: `ExpiredDataCleanupJob`, `PartitionMaintenanceJob`, `SastUsageResetJob`, `NvdSyncJob`, `SessionInterruptionScheduler`, `RefreshTokenCleanupJob`
-- [x] 각 Job `@SchedulerLock(name, lockAtMostFor, lockAtLeastFor)` 적용
-- [x] `ExpiredDataCleanupJob` 완성 (exploit_results 30일, reports 90일)
-- [x] `PartitionMaintenanceJob` — 다음 달 파티션 미리 생성 (TODO: 파티션 구조 확정 후 SQL 추가)
-- [x] `SastUsageResetJob` — 매월 1일 sast_usage_this_month 리셋
-
-**테스트 체크리스트**
-- [x] 🧪 각 Job 실행 로직 단위 테스트
-- [ ] 🔬 다중 인스턴스 환경 시뮬레이션 → ShedLock으로 1회만 실행
-- [ ] 🔬 ExpiredDataCleanupJob — 30일 초과 exploit_results, 90일 리포트 삭제
-- [ ] 🔬 매월 1일 → 모든 사용자 sast_usage_this_month 0으로 리셋
-- [ ] 🔬 PartitionMaintenanceJob → 다음 달 파티션 미리 생성
-- [ ] ✅ 실제 스케줄 cron 동작 확인
-
----
-
-#### TASK-802 🔴 Resilience4j Circuit Breaker 전체 적용 ✅ 완료 (2026-05-21)
-- **중요도**: 🔴 Critical
-
-**하위 할일**
-- [x] `build.gradle.kts` 의존성: `resilience4j-spring-boot3:2.2.0`
-- [x] `application.yaml` — aiAgent/nvdApi/dnsLookup CB + TimeLimiter 설정
-- [x] AI Agent / NVD / DNS `@CircuitBreaker(fallbackMethod=)` + fallback 메서드 (DefaultAiAgentClient, NvdApiClient, DomainVerificationService)
-- [x] `AiAgentClient.isCircuitOpen()` Resilience4j `CircuitBreakerRegistry` 연결
-- [x] `CircuitBreakerTest.java` — 8개 단위 테스트
-
-**테스트 체크리스트**
-- [x] 🧪 각 Circuit Breaker fallback 메서드 (8개 통과)
-- [ ] 🔬 AI Agent 강제 종료 → 연속 실패 10회 → Circuit OPEN
-- [ ] 🔬 Circuit OPEN 상태 → 사용자 요청 → fallback 응답
-- [ ] 🔬 30초 후 HALF_OPEN → 1회 시도 → 성공 시 CLOSED 복구
-- [ ] ✅ GitHub API 403 응답 시 → 캐시 응답 반환
-
----
-
-#### TASK-803 🟠 성능 테스트 & 캐시 최적화 ✅ 완료 (2026-05-22)
-- **중요도**: 🟠 High
-
-**하위 할일**
-- [x] k6 주요 API 부하 테스트 스크립트 (`tests/perf/load-test.js`, `make perf-test`)
-- [x] Redis 캐시 — cveList 6h TTL (`RedisCacheConfig`)
-- [x] N+1 쿼리 제거 — `@EntityGraph` (Project/Vulnerability/AnalysisSession), `@BatchSize(30)` (Project.teamMembers)
-- [ ] GitHub 스캔 병렬화 (추후)
-
-**테스트 체크리스트**
-- [x] 🧪 @EntityGraph/@BatchSize 어노테이션 적용 검증 (5개 단위 테스트)
-- [ ] 🔬 주요 API p95 응답 시간 < 500ms (`make perf-test` 실행 필요)
-- [ ] 🔬 동시 100명 로그인 → 성공률 > 99%
-- [ ] 🔬 Redis 캐시 히트율 > 80%
-- [ ] 🔬 JPA SQL 로그에서 N+1 패턴 없음
-- [ ] ✅ 프로젝트 목록 API — 10개 프로젝트 조회 시 쿼리 3개 이하
-
----
-
-#### TASK-804 🟠 보안 강화 & 자체 OWASP ZAP 스캔 ✅ 완료 (2026-05-22)
-- **중요도**: 🟠 High
-
-**하위 할일**
-- [x] Spring Security `headers()` 설정 — CSP/HSTS/X-Frame-Options(DENY)/X-Content-Type/Referrer-Policy
-- [x] DTO `@Valid` 전수 확인 — 전체 Controller 점검 완료 (DastController 1건 누락 수정)
-- [ ] OWASP ZAP 자체 스캔 (`ghcr.io/zaproxy/zaproxy:stable` Docker 이미지 로컬 실행) — 수동 검증
-- [x] Android cleartext HTTP 차단 — `network_security_config.xml` 이미 적용됨 확인
-- [x] SecurityConfig POST /sbom/components에 HttpMethod.POST 명시 (GET 인증 우회 방지)
-
-**테스트 체크리스트**
-- [ ] 🛡️ OWASP ZAP Full Scan → Critical/High 0건
-- [x] 🛡️ CSP, HSTS, X-Frame-Options, X-Content-Type 헤더 확인 (7개 단위 테스트)
-- [x] 🛡️ 모든 POST/PATCH API DTO에 `@Valid` 적용
-- [ ] 🛡️ SQL Injection 시도 — 모든 입력 필드 안전
-- [ ] 🛡️ XSS 시도 — 모든 사용자 입력 출력 시 이스케이프
-- [x] 🛡️ Android 앱 cleartext HTTP 요청 차단 (network_security_config.xml 확인)
-
----
-
-#### TASK-805 🟡 Nginx API Gateway 완성 & SSL ✅ 완료 (2026-05-22)
-- **중요도**: 🟡 Medium
-
-**하위 할일**
-- [x] `nginx.conf` 라우팅 (`/api/*` → backend, `/ai/*` → ai_engine, 정적 → frontend)
-- [x] `limit_req_zone` 분당 100회 제한
-- [x] **개발/스테이징**: 자체 서명 인증서 (`openssl`, `make ssl-cert`) | **프로덕션**: Let's Encrypt + Certbot
-- [x] 보안 헤더 통합 (HSTS, X-Frame-Options, X-Content-Type, Referrer-Policy)
-- [x] `docker-compose.yml` Nginx 서비스 추가 (app-net 최소 권한, ports 80/443)
-
-**테스트 체크리스트**
-- [ ] ✅ `/api/*` → backend 라우팅
-- [ ] ✅ HTTP → HTTPS 강제 리다이렉트
-- [ ] ✅ SSL 인증서 A 등급 (SSL Labs) — **프로덕션 배포 시에만 검증** (개발은 자체 서명 허용)
-- [ ] 🔬 분당 100회 초과 요청 시 Nginx 수준 차단
-
----
-
-#### TASK-806 🔴 2단계 인증 (2FA / TOTP) ✅ 완료 (2026-05-22)
-- **중요도**: 🔴 Critical | **출처**: FEAT-SEC-001 | **Flyway**: V038 (V029 이미 사용됨)
-
-**하위 할일**
-- [x] `build.gradle.kts` 의존성: `dev.samstevens.totp:totp-spring-boot-starter` (Google Authenticator 호환)
-- [x] `V038__add_totp_fields.sql`: `users` 테이블 `totp_secret` (AES 암호화 TEXT), `totp_enabled` BOOLEAN 컬럼 + `totp_recovery_codes` 테이블
-- [x] 복구 코드 8개 생성 (1회용, BCrypt 해시 저장, `@Lock(PESSIMISTIC_WRITE)` = `SELECT FOR UPDATE` 트랜잭션, SecureRandom 64-bit 엔트로피)
-- [x] `POST /api/v1/auth/2fa/setup`, `POST /api/v1/auth/2fa/verify`, `DELETE /api/v1/auth/2fa` API
-- [ ] Team 이상 플랜 강제 활성화 옵션 (Enterprise 관리자 설정)
-- [ ] 관리자 2FA 강제 리셋 API → **FEAT-SEC-007** (미래 기능 후보로 이관)
-
-**테스트 체크리스트**
-- [x] 🧪 TOTP 코드 생성·검증 정확성
-- [x] 🧪 복구 코드 1회 사용 후 used_at 기록, 재사용 거부
-- [ ] 🔬 2FA 활성화 → 로그인 시 TOTP 코드 요구
-- [x] 🛡️ `totp_secret` DB에 AES-256-GCM 암호화 저장 확인 (AesEncryptionConverter)
-- [ ] ✅ Google Authenticator 앱으로 QR 코드 스캔 → 인증 성공
-
----
-
-#### TASK-807 🟠 IP 허용 목록 (IP Allowlist) ✅ 완료 (2026-05-22)
-- **중요도**: 🟠 High | **출처**: FEAT-SEC-002 | **Flyway**: V039
-
-**하위 할일**
-- [x] `V039__create_team_settings.sql` — `team_settings` 테이블 신규 생성 + `allowed_ip_ranges TEXT[]` 컬럼
-- [x] Spring Security `OncePerRequestFilter`로 IP 검증 — `addFilterBefore(ipAllowlistFilter, JwtAuthenticationFilter.class)` (JWT 검증 전 IP 차단)
-- [x] `application.yaml`에 `server.forward-headers-strategy: NATIVE` 추가 — Spoofing 방어 (Docker 내부 신뢰 프록시 IP만 X-Forwarded-For 허용)
-- [x] CIDR 범위 지원 (`192.168.1.0/24`) — 순수 Java 비트 연산 구현
-- [x] `PUT /api/v1/admin/teams/{teamId}/ip-allowlist` API
-
-**테스트 체크리스트**
-- [ ] 🔬 허용 IP 외부에서 요청 → 403
-- [ ] 🔬 CIDR 범위 내 IP → 정상 통과
-- [x] 🛡️ IP Spoofing 헤더 (`X-Forwarded-For`) 조작 시 원본 IP 기준으로 검증 (request.getRemoteAddr() + NATIVE strategy)
-
----
-
-#### TASK-808 🔴 OpenTelemetry 통합 ✅ 완료 (2026-05-21)
-- **중요도**: 🔴 Critical | **출처**: FEAT-OPS-001
-
-**하위 할일**
-- [x] `build.gradle.kts` 의존성: `micrometer-tracing-bridge-otel` + `opentelemetry-exporter-otlp` (Spring Boot 4 호환)
-- [x] Python AI Agent `requirements.txt`: `opentelemetry-instrumentation-fastapi`, `opentelemetry-exporter-otlp-proto-grpc`
-- [x] **Jaeger 선택 확정** — `docker-compose.yml`에 `jaegertracing/all-in-one:1.56` 서비스 추가 (OTLP gRPC 4317 / HTTP 4318)
-- [x] LangGraph 노드별 수동 span 생성 (`with tracer.start_as_current_span`) — asyncio Task 경계에서 ContextVar 전파 단절 회피
-- [x] `settings.py` 환경변수: `OTEL_ENABLED`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`
-- [x] `sast_node.py`, `scan_files_node.py`, `patch_node.py` 노드별 수동 span 추가
-- [x] `application.yaml` OTel tracing 설정 + secrets 하드코딩 기본값 제거
-
-**테스트 체크리스트**
-- [ ] 🔬 분석 요청 → Spring Boot → AI Agent 전체 Trace 연결 확인 (Stage 4 성능 테스트 시 함께 검증 예정)
-- [x] ✅ Jaeger UI(localhost:16686)에서 분석 파이프라인 Span 시각화 확인 (secureai-backend ✅, secureai-ai-engine — 추후 확인)
-
----
-
-#### TASK-809 🟠 GDPR 데이터 삭제 요청 API ✅ 완료 (2026-05-21)
-- **중요도**: 🟠 High | **출처**: FEAT-COMP-001
-
-**하위 할일**
-- [x] `POST /api/v1/users/me/gdpr/export` — 내 전체 데이터 JSON 다운로드
-- [x] `POST /api/v1/users/me/gdpr/delete` — 즉시 하드 삭제 요청 (비밀번호 재확인, OAuth 계정은 null 허용)
-- [x] 삭제 연쇄: GdprAccountDeletedEvent → GdprReportCleanupHandler(report 도메인) → refresh_tokens revoke → users 삭제 (CASCADE)
-
-**테스트 체크리스트**
-- [ ] 🔬 export API → 사용자 데이터 JSON 완전성 검증
-- [ ] 🔬 delete API → 데이터 완전 삭제 확인
-- [x] 🛡️ 타 사용자 GDPR 요청 거부 — @AuthenticationPrincipal으로만 userId 획득 (7개 단위 테스트 통과)
-
----
-
-### Sprint 8 완료 기준
-- [x] **스케줄러 안정**: ShedLock으로 중복 실행 방지 (6개 Job)
-- [x] **Circuit Breaker**: 모든 외부 호출(AI Agent / NVD / DNS) 장애 격리
-- [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80%
-- [ ] **보안 기본선**: OWASP ZAP Critical 0건
-- [x] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
-- [x] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
-- [x] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결
-- [x] **GDPR**: Export/Delete API 동작
-- [x] **보안 문서 자동 생성 Level 1**: CISO·행안부·ISMS-P 3종 PDF 생성
-- [x] **SBOM Page**: 백엔드 GET 엔드포인트 + 프론트엔드 화면 (mock 제거)
-- [x] **Nginx + SSL**: API Gateway 라우팅 + 보안 헤더 통합
-
----
-
-## Sprint 9 — VSCode Extension & 모니터링 (Phase 3)
-> Week 19-20
-
-### EPIC-11: Phase 3
-
----
-
-#### TASK-901 🟡 지속 모니터링 서비스 ✅ 완료 (2026-05-23)
-- **중요도**: 🟡 Medium
-
-**하위 할일**
-- [x] `MonitoringJob` + `MonitoringService`
-- [x] `MonitoringResult` + 파티션 테이블
-- [x] Slack Webhook
-- [x] SSL 만료 알림
-
-**테스트 체크리스트**
-- [x] 🔬 매시 정각 → 활성화된 모니터링 대상 Passive 스캔 (단위 테스트 — 비즈니스 로직 커버)
-- [x] 🔬 SSL 만료 30일 전 → Slack 알림 (단위 테스트 통과)
-- [x] 🔬 새 CVE 발표 → NvdSyncCompletedEvent 수신 구조 검증 (재매칭 로직은 SBOM 도메인 연계 후 구현)
-- [ ] ✅ Slack 채널에 알림 포스팅 확인 (수동 검증 필요 — SECUREAI_SLACK_WEBHOOK_URL 설정 후)
-
----
-
-#### TASK-902 🟢 VSCode Extension 기초 ✅ 완료 (2026-05-23)
-- **중요도**: 🟢 Low
-
-**하위 할일**
-- [x] `vsce` 프로젝트 초기화 (`apps/vscode_ext/` 신규)
-- [x] Backend API 재사용 (`apiClient.ts` 폴링 30s 타임아웃)
-- [x] Diagnostic API 취약점 표시 (`diagnosticProvider.ts` SEVERITY_MAP)
-- [x] Marketplace 배포 준비 → MVP 범위: 로컬 `.vsix` 빌드까지 (Marketplace는 EPIC-MISC)
-
-**테스트 체크리스트**
-- [x] 🔬 VSCode에서 분석 실행 → Problems 탭에 취약점 표시 (TypeScript 컴파일 + 구현 코드 검증 완료)
-- [ ] ✅ Extension 설치 → API 키 입력 → 분석 성공 (수동 검증 필요 — `npm run package` + `code --install-extension`)
-- [ ] ✅ Diagnostic 표시 — 라인에 빨간 밑줄 (수동 검증 필요)
-
----
-
-#### TASK-903 🟢 Android 고도화 ✅ 완료 (2026-05-23)
-- **중요도**: 🟢 Low
-
-**하위 할일**
-- [x] `ChatScreen.kt` 스트리밍 (SseClient 재사용 Compose UI)
-- [x] PDF 공유 (FileProvider + Path Traversal 방어)
-- [x] 알림 채널 세분화 (3채널: analysis_completion / vulnerability_critical / monitoring_alert)
-
-**테스트 체크리스트**
-- [ ] ✅ Android AI 채팅 → 스트리밍 응답 표시 (수동 검증 — 에뮬레이터 또는 기기)
-- [ ] ✅ PDF 리포트 → 다른 앱으로 공유 (Gmail, Drive 등) (수동 검증)
-- [ ] ✅ 알림 채널별 사운드/진동 다르게 설정 (수동 검증)
-
----
-
-#### TASK-904 🔴 PostgreSQL MCP 서버 도입
-- **중요도**: 🔴 Critical | **출처**: MCP-001
-
-> AI Agent가 분석 세션 결과, 취약점 데이터를 직접 DB 조회해 컨텍스트로 활용.  
-> Read-Only 계정으로 연결 (INSERT/UPDATE/DELETE 권한 제거).
-
-**하위 할일**
-- [ ] `claude_code_config.json`에 `mcp-server-postgres` 추가
-- [ ] Read-Only 전용 PostgreSQL 계정 생성
-- [ ] AI Agent 분석 노드에서 이전 동일 유형 취약점 참조 로직 추가
-- [ ] Patch Agent 이전 패치 이력 조회 연동
-
-**테스트 체크리스트**
-- [ ] 🔬 MCP PostgreSQL로 SAST 결과 조회 → 이전 취약점 참조 확인
-- [ ] 🛡️ Read-Only 계정에서 INSERT/UPDATE/DELETE 거부 확인
-
----
-
-#### TASK-905 🔴 Docker MCP 서버 전환
-- **중요도**: 🔴 Critical | **출처**: MCP-002
-
-> Sprint 6에서 Java Docker SDK로 우회 구현 완료.  
-> MCP 전환 시 AI Agent 주도 Docker 생명주기 제어 가능.
-
-**하위 할일**
-- [ ] `mcp-server-docker` 설정 추가
-- [ ] `docker_tool.py` MCP 방식으로 전환 (SDK 우회 제거)
-- [ ] 컨테이너 실시간 로그 스트리밍 → SSE 중계 개선
-
-**테스트 체크리스트**
-- [ ] 🔬 MCP Docker로 DAST 컨테이너 생성·실행·삭제 사이클 확인
-- [ ] 🔬 컨테이너 실시간 로그 MCP 스트리밍 → SSE 전달 확인
-
----
-
-#### TASK-906 🟠 Prometheus + Grafana 대시보드 ✅ 완료 (2026-05-22)
-- **중요도**: 🟠 High | **출처**: FEAT-OPS-002
-
-**하위 할일**
-- [x] `prometheus.yml` 설정
-- [x] Grafana 대시보드 JSON (분석 처리량, 에러율, DAST 실행시간, AI 토큰 사용량)
-- [x] 커스텀 메트릭: 분석 완료 수, 평균 분석 시간, DAST 성공률
-
-**테스트 체크리스트**
-- [x] ✅ Prometheus 타겟 모두 UP (secureai-backend UP, secureai-ai-engine UP — 2026-05-22 확인)
-- [x] ✅ Grafana 대시보드 — 분석 처리량, 에러율, DAST 실행시간 표시 (4개 패널 프로비저닝 확인)
-- [x] ✅ 커스텀 메트릭 — `secureai_analysis_sessions_total` 외 4종 `/actuator/prometheus` 노출 확인
-
----
-
-#### TASK-907 🟠 GDPR 하드 삭제 스케줄러 (R-03-C) ✅ 완료 (2026-05-22)
-- **중요도**: 🟠 High | **출처**: 리팩토링 로드맵 R-03-C | **규모**: L (2일)
-
-> 사용자 소프트 삭제(`deleted_at` 기록) 후 30일이 지난 계정과 연관 데이터를  
-> 자동으로 완전 삭제하는 배치 스케줄러. TASK-801(ShedLock)과 연계.
-
-**하위 할일**
-- [x] `GdprHardDeleteJob.java` — `@Scheduled` + `@SchedulerLock` (ShedLock)
-- [x] 삭제 대상: `users`, `vulnerabilities`, `analysis_sessions`, `exploit_results`, `reports` 연쇄 삭제
-- [x] 삭제 전 감사 로그(`audit_logs`) 기록 후 제거
-- [x] 삭제 완료 알림 이메일 발송 (EmailService 연동)
-- [x] `GET /admin/gdpr/pending-deletions` — 관리자 대기 목록 조회 API
-
-**테스트 체크리스트**
-- [x] 🧪 `GdprHardDeleteJob` — `deleted_at` 30일 초과 계정만 선택 정확성 (8개 단위 테스트 통과)
-- [x] 🔬 감사 로그 — 삭제 직전 로그 기록 후 사용자 데이터 제거 확인 (순서 단위 테스트 통과)
-- [ ] 🔬 소프트 삭제 후 30일 경과 시뮬레이션 → 연관 데이터 전체 삭제 확인 (통합 환경 필요)
-- [ ] 🔬 다중 인스턴스 환경 → ShedLock으로 1회만 실행 (다중 인스턴스 환경 필요)
-- [x] 🛡️ 소프트 삭제 후 29일 계정 → 삭제 대상에서 제외 (단위 테스트 통과)
-- [ ] ✅ 삭제 완료 알림 이메일 수신 확인 (수동 검증 필요)
-
----
-
-### Sprint 9 완료 기준
-- [ ] **지속 모니터링**: 24/7 자동 스캔 동작
-- [ ] **VSCode Extension**: Marketplace 등록 가능 수준
-- [ ] **Android 완성도**: 채팅·리포트·알림 고도화
-- [ ] **PostgreSQL MCP**: AI Agent DB 직접 조회 연동
-- [ ] **Prometheus + Grafana**: 운영 대시보드 가동
-- [ ] **GDPR 스케줄러**: 30일 경과 계정 자동 하드 삭제 동작
-
----
-
-## Sprint 10 — Enterprise B2B + GitHub Integration ✅ 완료 (2026-05-26)
-> Week 21-22  
-> **2026-05-23 추가**: Sprint 5 이월 GitHub Layer 2 태스크(TASK-501~504)를 Sprint 10에 공식 편입.  
-> GitHub Integration(TASK-501/502) → Enterprise(TASK-1001~1004) → FE 미구현 화면(FEAT-FE-003/004/005) 순서로 진행.  
-> 브랜치: `feat/sprint10` → main PR 예정.  
-> ⚠️ **잔존 기술 부채**: `GitHubWebhookService.resolveProjectId()` / `extractInstallationToken()` 스텁 — Sprint 12에서 해소.
-
-### EPIC-12: Enterprise 고도화
-
----
-
-#### TASK-1001 🔴 야간 자동 스캔 스케줄링 (Nightly Scan) ✅ 완료 (2026-05-25)
-- **중요도**: 🔴 Critical | **의존성**: TASK-801 (ShedLock)
-
-**하위 할일**
-- [x] `project_schedules` 엔티티 및 Repository 구현 (V044 마이그레이션)
-- [x] `NightlyScanJob` (ShedLock 연동) 구현: 매시 정각에 대상 프로젝트 조회
-- [x] `updated_at` 비교로 변경 없는 프로젝트 스킵 로직 구현
-- [x] 자동 스캔 완료 후 요약 이메일 발송 (`EmailService.sendNightlyScanResultEmail`)
-
-**테스트 체크리스트**
-- [x] 🔬 변경사항이 없는 레포지토리는 스캔 건너뛰기 (단위 테스트 통과)
-- [ ] 🔬 분산 환경에서 ShedLock으로 1회만 실행 (다중 인스턴스 환경 필요 — 수동 검증)
-- [ ] ✅ 스케줄 설정 후 지정 시각에 스캔 시작 확인 (수동 검증)
-
----
-
-#### TASK-1002 🟠 팀 대시보드 & Gamification ✅ 완료 (2026-05-26)
-- **중요도**: 🟠 High
-
-**하위 할일**
-- [x] `TeamDashboardService` 구현 (JdbcTemplate 기반, JPA cross-domain 금지 원칙 준수)
-- [x] MTTR 계산 로직 구현
-- [x] `users.security_score` 컬럼 추가 (V045 마이그레이션)
-- [x] 프론트엔드: 팀원 랭킹 테이블 + 도넛 차트 (`team/[orgSlug]/page.tsx`)
-- [ ] ⚠️ `totalCreditsUsed`: `credit_transactions` 연동 전까지 0으로 반환 (Sprint 12 해소)
-
-**테스트 체크리스트**
-- [x] 🧪 TeamDashboardService 7개 단위 테스트 통과
-- [ ] ✅ 팀 대시보드 — 팀원 랭킹, MTTR, 보안 점수 표시 확인 (수동 검증)
-
----
-
-#### TASK-1003 🟠 리포트 위젯 PDF/HTML Export ✅ 완료 (2026-05-26)
-- **중요도**: 🟠 High | **의존성**: TASK-701
-
-**하위 할일**
-- [x] `RoiCalculationService` 구현 (savedHours = vulnCount × 4h, savedCost = hours × hourlyRate)
-- [x] `roi-report.html` Thymeleaf 템플릿 구현
-- [x] `GET .../roi` + `GET .../roi/pdf` API 추가
-- [x] 프론트엔드: `PdfReportModal` ROI 위젯 체크박스 + hourlyRate 입력 추가
-
-**테스트 체크리스트**
-- [x] 🧪 RoiCalculationService 5개 단위 테스트 통과
-- [ ] ✅ PDF 다운로드 — ROI 섹션 포함 확인 (수동 검증)
-- [ ] ✅ hourlyRate 0 입력 시 기본값($50) 적용 확인 (수동 검증)
-
----
-
-#### TASK-1004 🟡 스캔 모드 선택 (Audit vs Pipeline) ✅ 완료 (2026-05-26)
-- **중요도**: 🟡 Medium
-
-**하위 할일**
-- [x] `V046__add_scan_mode_to_analysis_sessions.sql` 마이그레이션
-- [x] `StartAnalysisRequest.scanMode` 필드 + `@Pattern(AUDIT|PIPELINE)` 검증
-- [x] AI Engine `sast_node.py` 모드 분기 (AUDIT: haiku, PIPELINE: sonnet)
-- [x] `ScanModeSelector.tsx` 컴포넌트 + `useStartAnalysis` 연동
-- [x] Settings 페이지 스캔 모드 기본값 저장 (localStorage)
-
-**테스트 체크리스트**
-- [x] 🧪 `@Pattern` 검증 — 유효하지 않은 scanMode 400 반환 (단위 테스트)
-- [ ] ✅ AUDIT 모드로 분석 시작 → haiku 모델 사용 확인 (수동 검증)
-- [ ] ✅ 설정 페이지 기본값 저장 → 새로고침 후 유지 (수동 검증)
-
----
-
-#### FEAT-FE-003 컴플라이언스 매핑 페이지 ✅ 완료 (2026-05-26)
-
-- [x] `ComplianceMappingService.java`: OWASP Top 10 → ISO 27001 / NIST CSF 매핑
-- [x] `GET /api/v1/projects/{id}/sessions/{id}/compliance?framework=ISO27001|NIST_CSF`
-- [x] `CompliancePage.tsx`: 컨트롤별 준수/미준수 표 + KPI 띠 + 준수율 바
-
-**테스트 체크리스트**
-- [x] 🧪 ComplianceMappingService 5개 단위 테스트 통과
-- [ ] ✅ ISO27001 / NIST_CSF 탭 전환 + 미준수 컨트롤 상단 표시 확인 (수동 검증)
-- [ ] ✅ 지원하지 않는 framework → 400 반환 확인 (수동 검증)
-
----
-
-#### FEAT-FE-004 TeamManagementPage ✅ 완료 (기존 구현 확인 + 개선)
-
-- [x] 초대 모달, 권한 변경, 멤버 제거, 재초대, 대기 배지 모두 구현
-- [x] `acceptedAt` 기반 상태 판별, Toast 피드백 추가
-
-**테스트 체크리스트**
-- [ ] ✅ 멤버 초대 이메일 발송 + 수락 링크 동작 확인 (수동 검증)
-- [ ] ✅ 권한 변경 → 즉시 반영 확인 (수동 검증)
-
----
-
-#### FEAT-FE-005 SettingsPage 스캔 모드 기본값 ✅ 완료 (2026-05-26)
-
-- [x] `ScanModeDefaultSection` 추가 — localStorage 기본값 저장
-
-**테스트 체크리스트**
-- [ ] ✅ 기본값 설정 후 새로고침 → 유지 확인 (수동 검증)
+### Sprint 10 — Enterprise B2B + GitHub Integration ✅ (feat/sprint10)
+- 1001 야간 자동 스캔 · 1002 팀 대시보드+Gamification(MTTR) · 1003 리포트 ROI Export · 1004 스캔 모드(AUDIT/PIPELINE 모델 분기) · FE: 컴플라이언스 매핑·팀 관리·설정 스캔모드 기본값
+- ⚠️ 잔존 기술 부채: `totalCreditsUsed`(credit_transactions 미연동)·GitHub App 토큰 스텁 → **Sprint 12 TASK-1201/1204**. 수동 검증 12건 → **Sprint 11 TASK-1105** 청산.
 
 ---
 
@@ -859,7 +221,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ---
 
 ### TASK-1100 🔴 브랜치 통합 및 충돌 해소 (선행 필수)
-- **중요도**: 🔴 Critical | **순서**: 0번째 (나머지 모두 선행)
+- **중요도**: 🔴 Critical | **순서**: 0번째 (나머지 모두 선행) | **사이즈**: L
 - **하위 할일**
   - [ ] `feat/sprint10` → `main` PR 생성 및 머지
   - [ ] `refactor/frontend-ui`를 `main`으로 머지 (충돌 해소)
@@ -873,7 +235,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ---
 
 ### TASK-1101 🔴 Persona 기반 온보딩 — 역할 선택 + 백엔드 연동
-- **중요도**: 🔴 Critical | **순서**: 1번째 | **의존성**: TASK-1100
+- **중요도**: 🔴 Critical | **순서**: 1번째 | **의존성**: TASK-1100 | **사이즈**: M
 - **맥락**: `refactor/frontend-ui`의 `onboarding/page.tsx` (842줄)이 이미 구현됨.  
   역할 선택 UI 자체는 존재하나 백엔드 API 연동이 없음.
 - **하위 할일**
@@ -890,7 +252,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ---
 
 ### TASK-1102 🔴 로그인 후 페르소나별 랜딩 및 사이드바 분기
-- **중요도**: 🔴 Critical | **순서**: 2번째 | **의존성**: TASK-1101
+- **중요도**: 🔴 Critical | **순서**: 2번째 | **의존성**: TASK-1101 | **사이즈**: M
 - **하위 할일**
   - [ ] `AuthProvider.tsx`: 로그인 성공 시 `workspaceMode`에 따라 `/editor` 또는 `/dashboard` 리다이렉트
   - [ ] `AppSidebar.tsx`: `DEVELOPER` — 에디터·SAST·SBOM 메뉴 강조, CISO 대시보드 하단 배치  
@@ -903,7 +265,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ---
 
 ### TASK-1103 🟠 디자인 시스템 통일 (refactor/frontend-ui 통합 후)
-- **중요도**: 🟠 High | **순서**: 3번째 | **의존성**: TASK-1100
+- **중요도**: 🟠 High | **순서**: 3번째 | **의존성**: TASK-1100 | **사이즈**: S
 - **맥락**: `refactor/frontend-ui`의 `globals.css`에 추가된 토큰이 이미 있음. 통합 후 잔존 불일치 제거.
 - **하위 할일**
   - [ ] 머지 후 페이지별 스타일 불일치 항목 목록 작성
@@ -915,7 +277,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ---
 
 ### TASK-1104 🔴 법적 페이지 3종 (ToS · Privacy · Cookie) — 배포 전 필수
-- **중요도**: 🔴 Critical | **순서**: 4번째 | **의존성**: TASK-1100
+- **중요도**: 🔴 Critical | **순서**: 4번째 | **의존성**: TASK-1100 | **사이즈**: L
 - **배경**: 프론트엔드 `apps/frontend/src/app` 하위에 `terms/`, `privacy/`, `legal/` 디렉토리 0개. GDPR(EU), PIPA(한국), CCPA(캘리포니아) 준수 명시 없이는 글로벌 배포 불가. 회원가입 폼에 동의 체크박스도 없음.
 - **하위 할일**
   - [ ] `apps/frontend/src/app/legal/terms/page.tsx` — 이용약관 (한/영, 데이터 처리 범위 명시)
@@ -931,7 +293,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ---
 
 ### TASK-1105 🟠 Sprint 10 수동 검증 일괄 처리 (이월 청산)
-- **중요도**: 🟠 High | **순서**: 5번째 (Stage 1과 병행 가능)
+- **중요도**: 🟠 High | **순서**: 5번째 (Stage 1과 병행 가능) | **사이즈**: M
 - **배경**: Sprint 10 완료 기준 체크리스트 12개 전부 `[ ]` 상태. 코드는 구현됐으나 실제 동작 미확인 — 베타 배포 전 일괄 검증 필수.
 - **하위 할일**
   - [ ] 야간 자동 스캔 (`project_schedules` 매일 01:00 KST 트리거 확인)
@@ -947,7 +309,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 
 ### TASK-1106 🟠 API 중심 분석 계획 & 진행률 패널
 
-- **중요도**: 🟠 High | **순서**: Stage 3 (TASK-1100 완료 후 독립 진행) | **의존성**: TASK-1100
+- **중요도**: 🟠 High | **순서**: Stage 3 (TASK-1100 완료 후 독립 진행) | **의존성**: TASK-1100 | **사이즈**: L
 - **배경**: 현재 AI 분석은 파일 단위 우선순위 정렬로 진행되며 사용자에게 "무엇을 분석하는지"가 보이지 않음.  
   사용자가 분석 전에 API 구조를 확인하고 원하는 API만 선택해서 분석할 수 있도록 개선.  
   Sprint 13 "AI Agent Advanced I (API 호출 경로 스캔)" 의 MVP 선행 구현.
@@ -1006,7 +368,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ---
 
 ### TASK-1201 🔴 GitHub App 인증 플로우 완성 (Sprint 10 기술 부채 해소)
-- **중요도**: 🔴 Critical | **순서**: 1번째
+- **중요도**: 🔴 Critical | **순서**: 1번째 | **사이즈**: L
 - **배경**: `GitHubWebhookService`의 `extractInstallationToken()` / `resolveProjectId()`가 스텁으로 남아  
   PR 자동 분석·Check Run API가 실제로 동작하지 않음.
 - **하위 할일**
@@ -1021,7 +383,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] 🛡️ invalid JWT 서명 → 401 반환 확인
 
 ### TASK-1202a 🔴 감사 로그 불변성 (해시 체이닝)
-- **중요도**: 🔴 Critical | **순서**: 2번째 | **출처**: FEAT-COMP-003
+- **중요도**: 🔴 Critical | **순서**: 2번째 | **출처**: FEAT-COMP-003 | **사이즈**: M
 - **하위 할일**
   - [ ] `audit_logs` 테이블에 `prev_hash`, `current_hash` 컬럼 추가 (Flyway V050)
   - [ ] 신규 감사 로그 저장 시 이전 로그 해시 → 현재 로그 해시 체인 구성 (`SHA-256(prev_hash + payload)`)
@@ -1032,7 +394,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] 🔬 운영 환경에서 10만건 체인 검증 1초 이내
 
 ### TASK-1202b 🔴 세션 이력 관리 및 강제 로그아웃
-- **중요도**: 🔴 Critical | **순서**: 2번째 (1202a와 병렬) | **출처**: FEAT-SEC-003
+- **중요도**: 🔴 Critical | **순서**: 2번째 (1202a와 병렬) | **출처**: FEAT-SEC-003 | **사이즈**: M
 - **하위 할일**
   - [ ] `user_sessions` 테이블 (V051: user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at)
   - [ ] `GET /api/v1/users/me/sessions` — 내 활성 세션 목록
@@ -1043,7 +405,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] 🛡️ 타 사용자 세션 조회/삭제 시도 → 403
 
 ### TASK-1203 🟡 CI/CD 품질 게이트 (k6 + ZAP + SCA)
-- **중요도**: 🟡 Medium | **순서**: 3번째
+- **중요도**: 🟡 Medium | **순서**: 3번째 | **사이즈**: M
 - **하위 할일**
   - [ ] k6 부하 테스트 — GitHub Actions 통합 (p95 < 500ms 게이트)
   - [ ] OWASP ZAP 보안 스캔 이미지 CI 통합 (Critical/High 0건 게이트)
@@ -1053,7 +415,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] 🔬 성능 저하/보안 취약점/커버리지 미달 PR은 자동 차단 확인
 
 ### TASK-1204 🔴 AI 토큰 사용량 추적 + 한도 알림 (비용 통제)
-- **중요도**: 🔴 Critical | **순서**: 4번째
+- **중요도**: 🔴 Critical | **순서**: 4번째 | **사이즈**: L
 - **배경**: 코드베이스 grep 결과 `tokenCount/inputTokens/outputTokens` 추적 코드 0개. 사용자 한도 제어 불가 — 토큰 폭주 시 비용 폭탄 위험.
 - **하위 할일**
   - [ ] AI Engine: Claude API 응답의 `usage.input_tokens` / `output_tokens`를 Backend로 콜백 (`POST /internal/v1/sessions/{id}/token-usage`)
@@ -1067,7 +429,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] 🛡️ 다른 사용자 token_usage 직접 조회 403
 
 ### TASK-1205 🟠 자동 백업 스케줄러 + S3 업로드
-- **중요도**: 🟠 High | **순서**: 5번째
+- **중요도**: 🟠 High | **순서**: 5번째 | **사이즈**: M
 - **배경**: 백업/복구 스크립트 0개. 데이터 손실 시 복구 불가 — 베타 운영 위험.
 - **하위 할일**
   - [ ] `infra/scripts/backup-postgres.sh`: pg_dump + gzip + AWS CLI 업로드
@@ -1080,7 +442,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] 🛡️ S3 버킷 외부 접근 차단(Block Public Access) 확인
 
 ### TASK-1210 🔴 트랜잭션 이메일 발송 인프라 (신규 — V5.5)
-- **중요도**: 🔴 Critical | **순서**: 본 Sprint 핵심
+- **중요도**: 🔴 Critical | **순서**: 본 Sprint 핵심 | **사이즈**: M
 - **배경**: 리포트·야간스캔·GDPR·토큰경고·팀초대 등 제품이 의존하는 메일이 급증했으나 발송 인프라(전용 프로바이더·도메인 인증)가 없음. SMTP 직접 발송은 베타에서 스팸 처리·미도달 위험.
 - **하위 할일**
   - [ ] 트랜잭션 메일 프로바이더 연동 (AWS SES 또는 SendGrid) — `EmailService` 발송 채널 추상화(Strategy)로 SMTP↔프로바이더 전환
@@ -1103,7 +465,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 > **예외**: TASK-1208b(2FA FE)는 사용자가 2FA를 켤 수 있는 유일한 경로 — 베타에서 2FA 활성화가 필요하면 Sprint 12 본진으로 끌어올릴 것.
 
 ### TASK-1206 🟠 알림 센터 풀 페이지 (`/notifications`)
-- **중요도**: 🟠 High | **순서**: 6번째 | **출처**: pages-inventory `EnterpriseChannels.jsx` 일부
+- **중요도**: 🟠 High | **순서**: 6번째 | **출처**: pages-inventory `EnterpriseChannels.jsx` 일부 | **사이즈**: L
 - **배경**: 현재 토스트 알림만 존재. 누적 알림을 다시 보거나 카테고리·시간별로 필터링하는 수단 부재.
 - **하위 할일**
   - [ ] V053: `user_notifications` 테이블 (user_id, category, severity, title, body, action_url, read_at, created_at)
@@ -1117,7 +479,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] ✅ 카테고리 필터 + "읽지 않은 것만" 동시 적용 정확성
 
 ### TASK-1207 🟡 관리자 온보딩 체크리스트 (15-item + Progress Ring)
-- **중요도**: 🟡 Medium | **순서**: 7번째 | **출처**: 신규 UX 스펙
+- **중요도**: 🟡 Medium | **순서**: 7번째 | **출처**: 신규 UX 스펙 | **사이즈**: M
 - **배경**: Enterprise 신규 가입 시 무엇부터 설정해야 하는지 가이드 부재 → 활성화율 저하. Stripe·Linear가 표준으로 채택한 패턴.
 - **하위 할일**
   - [ ] V054: `org_onboarding_progress` 테이블 (org_id, item_key, completed_at)
@@ -1130,7 +492,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] 🛡️ 보너스 크레딧 중복 지급 방지 — `org_onboarding_bonus_granted` 플래그 검증
 
 ### TASK-1208 🟠 감사 로그 페이지 (`/admin/audit-logs`) — EnterpriseLogs.jsx
-- **중요도**: 🟠 High | **순서**: 8번째 | **출처**: pages-inventory `EnterpriseLogs.jsx`
+- **중요도**: 🟠 High | **순서**: 8번째 | **출처**: pages-inventory `EnterpriseLogs.jsx` | **사이즈**: M
 - **배경**: TASK-1202a에서 감사 로그 해시 체이닝 백엔드 완성. 사용자 노출 UI 미구현. ISMS-P 인증 시 감사 로그 조회·내보내기 화면이 필수 증빙.
 - **하위 할일**
   - [ ] `GET /api/v1/admin/audit-logs?from=&to=&actorId=&action=&page=` (Master 권한)
@@ -1144,7 +506,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] 🔬 10만 건 페이지네이션 응답 < 1초
 
 ### TASK-1208b 🟠 SettingsSecurity 2FA 프론트엔드 (QR + 6-digit + 복구 코드)
-- **중요도**: 🟠 High | **순서**: 9번째 | **출처**: pages-inventory `SettingsSecurity.jsx`
+- **중요도**: 🟠 High | **순서**: 9번째 | **출처**: pages-inventory `SettingsSecurity.jsx` | **사이즈**: M
 - **배경**: TASK-806에서 `/auth/2fa/setup`, `/verify`, `DELETE /2fa` 백엔드 완성. Sprint 10에 TODO 플레이스홀더로만 남음. 사용자가 2FA 활성화 불가.
 - **하위 할일**
   - [ ] `app/settings/security/page.tsx`: 2FA 토글 + 비활성 → 활성 모달 플로우
@@ -1158,7 +520,7 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
   - [ ] 🔬 OTP 30초 윈도우 만료 시 재입력 안내
 
 ### TASK-1209 🟡 기업 보안 정책 관리 (`/admin/policies`) — EnterprisePolicies.jsx
-- **중요도**: 🟡 Medium | **순서**: 10번째 | **출처**: pages-inventory `EnterprisePolicies.jsx`
+- **중요도**: 🟡 Medium | **순서**: 10번째 | **출처**: pages-inventory `EnterprisePolicies.jsx` | **사이즈**: M
 - **배경**: 조직 단위 보안 정책(2FA 강제, 비밀번호 정책, 세션 만료, IP Allowlist 강제 등)을 GUI로 관리하는 페이지 부재.
 - **하위 할일**
   - [ ] V057: `org_security_policies` 테이블 (org_id, policy_key, value JSONB, enforced_at)
@@ -1579,6 +941,23 @@ Flyway V030, V031 마이그레이션으로 AuditLog 테이블 활성화 완료.
 ## 미래 기능 후보 (Future Backlog)
 
 > 특정 Sprint에 배치되지 않은 항목들. 우선순위와 리소스에 따라 Sprint에 편입.
+> ⚠️ 아래 표 중 일부는 **이미 스프린트에 배정**되어 이중 등재 상태다. 배정 매핑은 다음과 같으며, 해당 항목은 스프린트 섹션이 정본:
+
+| Future ID | 배정 | 비고 |
+|-----------|------|------|
+| FEAT-SEC-001 (2FA) / FEAT-SEC-002 (IP Allowlist) | ✅ Sprint 8 (806/807) | 완료 |
+| FEAT-OPS-001 (OTEL) / FEAT-OPS-002 (Prometheus) / FEAT-COMP-001 (GDPR) | ✅ Sprint 8~9 | 완료 |
+| FEAT-COMP-003 (감사 로그 불변성) | → Sprint 12 TASK-1202a | 해시 체이닝 |
+| FEAT-SEC-003 (세션 이력) | → Sprint 12 TASK-1202b | |
+| FEAT-SEC-004 (Secrets Detection 강화) | → Sprint 18 TASK-1803 | |
+| FEAT-AI-001 (멀티파일/API 경로) | → Sprint 13 TASK-1301 (MVP: Sprint 11 TASK-1106) | |
+| FEAT-AI-002 (패치 PR) / FEAT-AI-005 (패치 검증) / FEAT-AI-006 (자동 롤백) | → Sprint 14 (1401/1402/1403) | |
+| FEAT-AI-003 (오탐 학습) | → Sprint 13 TASK-1302 | |
+| FEAT-API-002 (Export SARIF) / FEAT-API-003 (Outbound Webhook) | → Sprint 15 TASK-1502 | |
+| MCP-001/002 (PostgreSQL/Docker MCP) | → Sprint 15 (미구현, Sprint 9에서 이관) | |
+| MCP-003/004 (Redis/Brave MCP) | → Sprint 15 TASK-1501 | |
+| FEAT-FE-007 (DAST 시뮬레이터) | → Sprint 16 TASK-1601 | |
+| **나머지 (FEAT-OPS-003·004·005·006, FEAT-PERF-001·002, FEAT-COMP-004, FEAT-AI-004·007·008, FEAT-IDE-*, FEAT-MOB-001, FEAT-FE-006, FEAT-INFRA-*)** | 미배정 | 우선순위에 따라 편입 |
 
 ### MCP 서버 추가
 

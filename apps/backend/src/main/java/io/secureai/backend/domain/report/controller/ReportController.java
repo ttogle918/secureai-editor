@@ -85,6 +85,15 @@ public class ReportController {
         return ResponseEntity.ok().headers(headers).body(content);
     }
 
+    /** 완료된 리포트를 사용자 본인 이메일로 전송 (다운로드 링크 + PDF 첨부) */
+    @PostMapping("/{reportId}/send-email")
+    public ResponseEntity<ApiResponse<Void>> sendEmail(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID reportId) {
+        reportService.sendEmail(userId, reportId);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     /** 리포트 목록 조회 (프로젝트/세션 필터) */
     @GetMapping
     public ResponseEntity<ApiResponse<Page<ReportResponse>>> listReports(

@@ -2,6 +2,7 @@ package io.secureai.backend.domain.report.service;
 
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
+import io.secureai.backend.domain.auth.service.EmailService;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.repository.ProjectRepository;
 import io.secureai.backend.domain.report.dto.ReportRequest;
@@ -14,6 +15,7 @@ import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -40,6 +42,10 @@ public class ReportService {
     private final AnalysisSessionRepository sessionRepository;
     private final UserRepository userRepository;
     private final ReportAsyncProcessor asyncProcessor;
+    private final EmailService emailService;
+
+    @Value("${secureai.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
 
     /**
      * 리포트 생성 요청 — Report 레코드를 PENDING 상태로 저장 후 비동기 생성 트리거.
@@ -106,6 +112,37 @@ public class ReportService {
         }
 
         return readFileAsResource(report);
+    }
+
+    /**
+     * 리포트 다운로드 링크 + PDF 첨부 파일을 사용자 이메일로 전송.
+     */
+    @Transactional(readOnly = true)
+    public void sendEmail(UUID userId, UUID reportId) {
+        Report report = reportRepository.findByIdAndUserId(reportId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
+
+        if (!"COMPLETED".equals(report.getStatus())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "완료된 리포트만 이메일로 전송할 수 있습니다.");
+        }
+
+        User user = findUser(userId);
+        String downloadLink = frontendUrl + "/api/v1/reports/download/" + report.getDownloadToken();
+        String fileName = "report-" + report.getId() + "." + report.getFormat().toLowerCase();
+
+        byte[] pdfBytes = null;
+        if ("PDF".equals(report.getFormat())) {
+            try {
+                Path filePath = Paths.get(report.getFilePath()).toAbsolutePath().normalize();
+                if (filePath.startsWith(REPORT_BASE_DIR)) {
+                    pdfBytes = Files.readAllBytes(filePath);
+                }
+            } catch (IOException e) {
+                log.warn("[ReportService] PDF 첨부 실패 — 링크만 전송 reportId={}", reportId);
+            }
+        }
+
+        emailService.sendReportEmail(user.getEmail(), fileName, downloadLink, pdfBytes);
     }
 
     private void validateFormat(String format) {

@@ -78,7 +78,9 @@ export function PdfReportModal({
   const [sections, setSections]       = useState<ReportSection[]>(DEFAULT_SECTIONS);
   const [state, setState]             = useState<ModalState>('configure');
   const [downloadToken, setToken]     = useState<string | null>(null);
+  const [reportId, setReportId]       = useState<string | null>(null);
   const [fileName, setFileName]       = useState<string>('report.pdf');
+  const [emailSending, setEmailSending] = useState(false);
   const [language, setLanguage]       = useState<ReportLanguage>('ko');
   const [format,   setFormat]         = useState<ReportFormat>('pdf');
   const [progress, setProgress]       = useState(0);
@@ -148,6 +150,7 @@ export function PdfReportModal({
       if (!reportId) {
         throw new Error('reportId 없음');
       }
+      setReportId(reportId);
 
       // 폴링으로 상태 확인
       let pollCount = 0;
@@ -191,6 +194,19 @@ export function PdfReportModal({
     } catch {
       addToast('리포트 요청 중 오류가 발생했습니다.', 'error');
       setState('configure');
+    }
+  };
+
+  const handleEmailSend = async () => {
+    if (!reportId) return;
+    setEmailSending(true);
+    try {
+      await apiClient.post(`/reports/${reportId}/send-email`);
+      addToast('이메일로 리포트를 전송했습니다.', 'info');
+    } catch {
+      addToast('이메일 전송에 실패했습니다.', 'error');
+    } finally {
+      setEmailSending(false);
     }
   };
 
@@ -544,8 +560,15 @@ export function PdfReportModal({
                 >
                   <Copy size={11} />링크 복사
                 </button>
-                <button className="btn btn-sm btn-ghost">
-                  <Mail size={11} />이메일 전송
+                <button
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => { void handleEmailSend(); }}
+                  disabled={emailSending}
+                >
+                  {emailSending
+                    ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} />
+                    : <Mail size={11} />}
+                  {emailSending ? '전송 중…' : '이메일 전송'}
                 </button>
               </div>
             </div>

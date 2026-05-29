@@ -2,6 +2,7 @@ package io.secureai.backend.domain.report.service;
 
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
+import io.secureai.backend.domain.auth.service.EmailService;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.repository.ProjectRepository;
 import io.secureai.backend.domain.report.dto.ReportRequest;
@@ -38,6 +39,7 @@ class ReportServiceTest {
     @Mock AnalysisSessionRepository sessionRepository;
     @Mock UserRepository userRepository;
     @Mock ReportAsyncProcessor asyncProcessor;
+    @Mock EmailService emailService;
 
     @InjectMocks ReportService reportService;
 

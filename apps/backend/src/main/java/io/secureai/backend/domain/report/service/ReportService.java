@@ -66,14 +66,19 @@ public class ReportService {
                 .build();
         Report saved = reportRepository.save(report);
 
-        // 커밋 완료 후 async 트리거 — 커밋 전 실행 시 findById가 "찾을 수 없음" 실패
+        // 커밋 완료 후 async 트리거 — 커밋 전 실행 시 findById가 "찾을 수 없음" 실패.
+        // 트랜잭션 동기화가 없는 경우(트랜잭션 밖 호출·단위 테스트)에는 즉시 실행해 리포트 유실 방지.
         UUID reportId = saved.getId();
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                asyncProcessor.process(reportId);
-            }
-        });
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    asyncProcessor.process(reportId);
+                }
+            });
+        } else {
+            asyncProcessor.process(reportId);
+        }
 
         return ReportResponse.from(saved);
     }

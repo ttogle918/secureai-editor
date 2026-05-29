@@ -19,7 +19,7 @@
 | `feat/frontend-ui` (신규 브랜치) | 백로그 미기재 | **9커밋 ahead** — V4 Hybrid UI 리팩터링 (에디터·온보딩·컴플라이언스·SBOM 등 전 페이지 API 주석 + V4 토큰 적용) | TASK-1100 하위 할일에 추가. refactor/frontend-ui 충돌 해소 시 함께 처리 |
 | `refactor/frontend-ui` 커밋 수 | 백로그 "10커밋 앞서 있음" | **9커밋 ahead** — Pagori 리디자인 Stage 1~6 | 당초 예상대로 충돌 해소 후 머지 |
 | 잠재 충돌 파일 | `settings/page.tsx` 예상 | `onboarding/page.tsx`, `settings/page.tsx`, `sbom/page.tsx` 등 양쪽에서 수정됨 | Stage 0에서 파일별 충돌 전략 확정 |
-| Flyway 최고 번호 | V047 (Sprint 10) | **V046까지 존재** (V047 미생성) | Sprint 11 신규 마이그레이션은 **V047**부터 시작 (V048 예약 취소) |
+| Flyway 최고 번호 | V047 (Sprint 10) | **V047까지 존재** — `feat/modify-bug` 머지로 `V047__extend_reports_format_check.sql` 확정 (2026-05-30) | Sprint 11 신규 마이그레이션은 **V048**부터 시작 |
 | `onboarding/page.tsx` 버전 | refactor 브랜치 버전 유지 권장 | feat/frontend-ui에 Step 0 워크스페이스 모드 선택 추가(842줄), refactor에 Pagori 리디자인 적용 | **feat/frontend-ui 버전 우선** — Step 0 UI가 TASK-1101 직접 대상 |
 | 법적 페이지 디렉토리 | 백로그 V5.2 추가 | `apps/frontend/src/app/legal/` 존재 안 함 | TASK-1104에서 신규 생성 |
 | Sprint 10 수동 검증 12건 | Sprint 10 완료 기록 | 체크리스트 전부 `[ ]` 상태 (코드는 완료, 동작 검증 0건) | TASK-1105에서 Tester 전담 일괄 검증 |
@@ -30,10 +30,10 @@
 
 | 번호 | 태스크 | 파일명 | 비고 |
 |------|--------|--------|------|
-| V047 | TASK-1101 | `V047__add_workspace_mode_to_users.sql` | `users.workspace_mode TEXT DEFAULT 'DEVELOPER'` |
-| V048 | TASK-1104 | `V048__add_legal_consent_to_users.sql` | `terms_accepted_at TIMESTAMP`, `privacy_accepted_at TIMESTAMP` |
+| V048 | TASK-1101 | `V048__add_workspace_mode_to_users.sql` | `users.workspace_mode TEXT DEFAULT 'DEVELOPER'` |
+| V049 | TASK-1104 | `V049__add_legal_consent_to_users.sql` | `terms_accepted_at TIMESTAMP`, `privacy_accepted_at TIMESTAMP` |
 
-> 참고: Sprint 10 계획서의 V047(`alter_pr_review_history_add_check_run.sql`)은 실제로 불필요 판단되어 생성되지 않음. Sprint 11에서 V047 재사용.
+> 참고: V047은 `feat/modify-bug` 머지로 리포트 format CHECK 제약(`V047__extend_reports_format_check.sql`)이 사용. Sprint 11 마이그레이션은 V048부터. (백로그 V4와 동일)
 
 ---
 
@@ -71,15 +71,15 @@
 
 | TASK | 제목 | 서비스 | 파일 | 선행 | 비고 |
 |------|------|--------|------|------|------|
-| **TASK-1101** 🔴 | Persona 온보딩 — 역할 선택 + 백엔드 연동 | backend + frontend | `V047__add_workspace_mode_to_users.sql`, `User.java`, `UserController.java` (`PATCH /users/me/workspace-mode`), `UserMeResponse.java`, `useAuthStore.ts`, `onboarding/page.tsx` | TASK-1100 | Controller `@Pattern(DEVELOPER\|SECURITY_MANAGER\|BOTH)` 필수. `workspaceMode?` 선택적 필드로 추가 (회귀 방지) |
+| **TASK-1101** 🔴 | Persona 온보딩 — 역할 선택 + 백엔드 연동 | backend + frontend | `V048__add_workspace_mode_to_users.sql`, `User.java`, `UserController.java` (`PATCH /users/me/workspace-mode`), `UserMeResponse.java`, `useAuthStore.ts`, `onboarding/page.tsx` | TASK-1100 | Controller `@Pattern(DEVELOPER\|SECURITY_MANAGER\|BOTH)` 필수. `workspaceMode?` 선택적 필드로 추가 (회귀 방지) |
 | **TASK-1103** 🟠 | 디자인 시스템 통일 (Pagori 토큰) | frontend | `globals.css` 토큰 최종 확정, 5개 페이지 CSS 불일치 제거, hover/focus 상태 일관성 | TASK-1100 | `globals.css`만 공유 — TASK-1101과 충돌 시 1101 우선 |
-| **TASK-1104** 🔴 | 법적 페이지 3종 (ToS · Privacy · Cookie) | backend + frontend | `app/legal/terms/page.tsx`, `app/legal/privacy/page.tsx`, `app/legal/cookie/page.tsx`, `CookieConsentBanner.tsx`, `V048__add_legal_consent_to_users.sql`, 회원가입 폼 동의 체크박스, Footer 링크 | TASK-1100 | ko 우선 + en placeholder. 동의 미체크 시 회원가입 400. 푸터에 3종 링크 추가 |
+| **TASK-1104** 🔴 | 법적 페이지 3종 (ToS · Privacy · Cookie) | backend + frontend | `app/legal/terms/page.tsx`, `app/legal/privacy/page.tsx`, `app/legal/cookie/page.tsx`, `CookieConsentBanner.tsx`, `V049__add_legal_consent_to_users.sql`, 회원가입 폼 동의 체크박스, Footer 링크 | TASK-1100 | ko 우선 + en placeholder. 동의 미체크 시 회원가입 400. 푸터에 3종 링크 추가 |
 | **TASK-1105** 🟠 | Sprint 10 수동 검증 청산 (12건) | tester (수동 검증) | (검증 대상 파일 없음 — 발견 버그는 Sprint 11 잔여 시간에 즉시 수정) | TASK-1100 | Tester 전담. 발견 버그는 별도 micro-task로 분리 |
 
 **병렬 안전 조건**:
 - 1101: 백엔드(domain/user/*) + onboarding.tsx — 독립
 - 1103: globals.css + 5개 페이지 CSS — 독립
-- 1104: app/legal/* 신규 + 회원가입 폼 + V048 — 독립
+- 1104: app/legal/* 신규 + 회원가입 폼 + V049 — 독립
 - 1105: 수동 검증 + 런타임 버그 수정 — 독립 (Tester 전담)
 - **공유 파일 0개** → 동시 진행 안전
 
@@ -193,7 +193,7 @@
 | 마일스톤 | 기준 |
 |---------|------|
 | **Stage 0 게이트** | feat/frontend-ui → main 머지 + refactor/frontend-ui 충돌 해소 + `./gradlew test` 통과 + 주요 페이지 5개 렌더링 오류 없음 |
-| **Stage 1 게이트** | (1101) V047 적용 + `PATCH /workspace-mode` 유효하지 않은 값 400 + 온보딩 역할 선택 → DB 저장 / (1103) 5개 페이지 Pagori 토큰 일관성 / (1104) V048 적용 + 동의 체크 미체크 시 회원가입 400 + Footer 3개 링크 동작 + Cookie Banner 표시 / (1105) Sprint 10 검증 12건 PASS 또는 발견 버그 수정 완료 / (1106) api_discovery_node 단위 테스트 통과 + Progress Panel API 그룹 렌더링 확인 |
+| **Stage 1 게이트** | (1101) V048 적용 + `PATCH /workspace-mode` 유효하지 않은 값 400 + 온보딩 역할 선택 → DB 저장 / (1103) 5개 페이지 Pagori 토큰 일관성 / (1104) V049 적용 + 동의 체크 미체크 시 회원가입 400 + Footer 3개 링크 동작 + Cookie Banner 표시 / (1105) Sprint 10 검증 12건 PASS 또는 발견 버그 수정 완료 / (1106) api_discovery_node 단위 테스트 통과 + Progress Panel API 그룹 렌더링 확인 |
 | **Stage 2 게이트** | DEVELOPER → `/editor` 랜딩, SECURITY_MANAGER → `/dashboard` 랜딩, BOTH → `/editor` + 헤더 배지 표시. 사이드바 역할별 메뉴 분기 |
 | **Sprint 11 완료** | 위 3개 게이트 모두 통과 + 베타 배포 가능 상태 (GDPR/PIPA 준수 + 핵심 UX 분기 완성 + API 중심 분석 계획 화면 동작) |
 
@@ -203,8 +203,8 @@
 
 ### 기능 완료
 - [ ] **브랜치 통합**: feat/frontend-ui + refactor/frontend-ui → main 충돌 해소 머지 완료
-- [ ] **V047 마이그레이션**: `users.workspace_mode` 컬럼 추가
-- [ ] **V048 마이그레이션**: `users.terms_accepted_at`, `privacy_accepted_at` 컬럼 추가
+- [ ] **V048 마이그레이션**: `users.workspace_mode` 컬럼 추가
+- [ ] **V049 마이그레이션**: `users.terms_accepted_at`, `privacy_accepted_at` 컬럼 추가
 - [ ] **workspace-mode API**: `PATCH /api/v1/users/me/workspace-mode` 구현 + `@Pattern` 검증
 - [ ] **Persona 온보딩**: 역할 선택 → DB 저장 → 로그인 후 `workspaceMode` 응답 포함
 - [ ] **랜딩 분기**: DEVELOPER → `/editor`, SECURITY_MANAGER → `/dashboard`, BOTH → `/editor` + 배지
@@ -256,14 +256,14 @@
 
 ### Dev 에이전트 (현실성 평가)
 - **계획 수정 사항 (V5.3 동기화)**:
-  1. Flyway V047이 Sprint 10에서 미생성 → V047/V048로 재배정
+  1. V047은 `feat/modify-bug` 리포트 마이그레이션이 사용 → workspace_mode/legal_consent를 V048/V049로 재배정
   2. Sprint 10 수동검증 12건 미실시 → TASK-1105 신설로 청산
   3. 법적 페이지 GDPR 준수 누락 → TASK-1104 신설 (베타 배포 전 필수)
 - **GitHub Webhook 검증 한계**: `extractInstallationToken()` 스텁으로 PR 자동 분석 검증 불가 — TASK-1105에서 제한 명시. Sprint 12 TASK-1201 해소 의존.
 
 ### Reviewer 에이전트 (게이트 검증 항목)
 - Stage 0 종료 시점에 main 브랜치 빌드/테스트 회귀 0건 확인
-- Stage 1 종료 시점에 V047 + V048 마이그레이션 적용 확인 + Controller `@Pattern` 검증 코드 존재
+- Stage 1 종료 시점에 V048 + V049 마이그레이션 적용 확인 + Controller `@Pattern` 검증 코드 존재
 - Stage 2 종료 시점에 클라이언트 리다이렉트 vs 미들웨어 결정 준수 + persist 동작 확인
 
 ---

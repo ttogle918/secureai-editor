@@ -186,14 +186,14 @@ export default function SettingsPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0d0d0f', color: '#e8e8ee', fontFamily: 'var(--font-sans, system-ui)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-1)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans, system-ui)' }}>
       {/* Header */}
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 16 }}>
-        <Link href="/editor" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: 13 }}>
+      <div style={{ borderBottom: '1px solid var(--hairline)', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 16 }}>
+        <Link href="/editor" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-tertiary)', textDecoration: 'none', fontSize: 13 }}>
           <ArrowLeft size={15} /> 에디터로 돌아가기
         </Link>
-        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)' }} />
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#e8e8ee' }}>설정</span>
+        <div style={{ width: 1, height: 20, background: 'var(--hairline)' }} />
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>설정</span>
       </div>
 
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px' }}>
@@ -221,14 +221,14 @@ export default function SettingsPage() {
           </p>
 
           {credits?.hasByok && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderRadius: 8, background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.2)', marginBottom: 16 }}>
-              <Check size={14} color="#22c55e" />
-              <span style={{ fontSize: 13, color: '#22c55e' }}>API 키가 연결되어 있습니다.</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderRadius: 8, background: 'var(--low-dim)', border: '1px solid rgba(34,197,94,0.2)', marginBottom: 16 }}>
+              <Check size={14} color="var(--low)" />
+              <span style={{ fontSize: 13, color: 'var(--low)' }}>API 키가 연결되어 있습니다.</span>
               {/* API: DELETE /api/v1/users/me/api-key */}
               <button
                 onClick={handleRemoveKey}
                 disabled={keyStatus === 'removing'}
-                style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#e24b4b', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
+                style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--critical)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
               >
                 <Trash2 size={12} /> {keyStatus === 'removing' ? '제거 중...' : '제거'}
               </button>
@@ -246,14 +246,14 @@ export default function SettingsPage() {
                 style={{
                   width: '100%', padding: '10px 40px 10px 14px',
                   borderRadius: 8, fontSize: 13, fontFamily: 'var(--font-mono)',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${keyError ? '#e24b4b' : 'rgba(255,255,255,0.12)'}`,
-                  color: '#e8e8ee', outline: 'none', boxSizing: 'border-box',
+                  background: 'var(--surface-hover)',
+                  border: `1px solid ${keyError ? 'var(--critical)' : 'var(--border-2)'}`,
+                  color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box',
                 }}
               />
               <button
                 onClick={() => setShowKey(v => !v)}
-                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', display: 'flex' }}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex' }}
               >
                 {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
@@ -263,7 +263,7 @@ export default function SettingsPage() {
               disabled={!apiKey.trim() || keyStatus === 'saving'}
               style={{
                 padding: '10px 20px', borderRadius: 8,
-                background: keyStatus === 'saved' ? '#22c55e' : '#ea580c',
+                background: keyStatus === 'saved' ? 'var(--low)' : 'var(--orange-2)',
                 color: '#fff', border: 'none', cursor: 'pointer',
                 fontSize: 13, fontWeight: 700, flexShrink: 0,
                 opacity: !apiKey.trim() || keyStatus === 'saving' ? 0.5 : 1,
@@ -272,7 +272,7 @@ export default function SettingsPage() {
               {keyStatus === 'saving' ? '저장 중...' : keyStatus === 'saved' ? '저장됨' : '저장'}
             </button>
           </div>
-          {keyError && <p style={{ fontSize: 12, color: '#e24b4b', marginTop: 8 }}>{keyError}</p>}
+          {keyError && <p style={{ fontSize: 12, color: 'var(--critical)', marginTop: 8 }}>{keyError}</p>}
         </Section>
 
         {/* ── 2FA (TOTP) — TODO: Sprint 11+ — QR 코드 + 복구 코드 8개 + TOTP 검증 6-digit input ──

@@ -84,7 +84,7 @@ export function EditorLayout({ chatDocked = false }: EditorLayoutProps) {
 
         <ResizeHandle onResize={onTerminalResize} direction="vertical" />
 
-        <div style={{ height: terminalHeight, flexShrink: 0, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ height: terminalHeight, flexShrink: 0, borderTop: '1px solid var(--hairline)' }}>
           <DastTerminal />
         </div>
       </div>
@@ -95,8 +95,8 @@ export function EditorLayout({ chatDocked = false }: EditorLayoutProps) {
       <div className="editor-right-panel" style={{
         width: rightPanelWidth,
         flexShrink: 0,
-        background: '#0f0f0f',
-        borderLeft: '1px solid rgba(255,255,255,0.06)',
+        background: 'var(--bg-1)',
+        borderLeft: '1px solid var(--hairline)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',

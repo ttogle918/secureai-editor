@@ -1,8 +1,9 @@
 # Sprint 11 — QA 통합 + Persona UX + 브랜치 머지 + 법적 컴플라이언스 + API 분석 계획
-**기간**: 2026-05-28 ~ 2026-06-10 (Week 23-24)  
-**백로그 버전**: V5.4 (2026-05-29)  
+**기간**: 2026-05-28 ~ 2026-06-10 (Week 23-24)
+**백로그 버전**: V5.4 (2026-05-29)
+**계획 상태**: 최종 확정 (Dev 현실성 평가 반영, 2026-05-30) — **시작점 `/stage 1`**
 **목표**:
-1. ① `feat/frontend-ui` + `refactor/frontend-ui` → main 통합 (충돌 해소)
+1. ① `feat/frontend-ui` + `refactor/frontend-ui` → main 통합 (충돌 해소) — **✅ Stage 0 완료**
 2. ② Persona 기반 온보딩/랜딩 백엔드 연동 (workspace_mode 도입)
 3. ③ 디자인 시스템 통일 (Pagori 토큰)
 4. ④ 법적 페이지 3종 (ToS · Privacy · Cookie) — GDPR/PIPA 준수
@@ -11,18 +12,22 @@
 
 ---
 
-## 사전 발견 사항 (PM 착수 전 보정)
+## 사전 발견 사항 (실측 정정 — Dev 평가 반영)
 
-| 항목 | 백로그 명세 | 실제 상태 | 조치 |
+| 항목 | 백로그/PM 초안 명세 | 실측 상태 | 조치 |
 |------|-----------|---------|------|
-| `feat/sprint10` → main 머지 | TASK-1100 첫 번째 하위 할일 | **이미 완료** — `git log feat/sprint10 ^main` 0건 | TASK-1100에서 제외. `feat/frontend-ui` + `refactor/frontend-ui` 머지만 남음 |
-| `feat/frontend-ui` (신규 브랜치) | 백로그 미기재 | **9커밋 ahead** — V4 Hybrid UI 리팩터링 (에디터·온보딩·컴플라이언스·SBOM 등 전 페이지 API 주석 + V4 토큰 적용) | TASK-1100 하위 할일에 추가. refactor/frontend-ui 충돌 해소 시 함께 처리 |
-| `refactor/frontend-ui` 커밋 수 | 백로그 "10커밋 앞서 있음" | **9커밋 ahead** — Pagori 리디자인 Stage 1~6 | 당초 예상대로 충돌 해소 후 머지 |
-| 잠재 충돌 파일 | `settings/page.tsx` 예상 | `onboarding/page.tsx`, `settings/page.tsx`, `sbom/page.tsx` 등 양쪽에서 수정됨 | Stage 0에서 파일별 충돌 전략 확정 |
-| Flyway 최고 번호 | V047 (Sprint 10) | **V047까지 존재** — `feat/modify-bug` 머지로 `V047__extend_reports_format_check.sql` 확정 (2026-05-30) | Sprint 11 신규 마이그레이션은 **V048**부터 시작 |
-| `onboarding/page.tsx` 버전 | refactor 브랜치 버전 유지 권장 | feat/frontend-ui에 Step 0 워크스페이스 모드 선택 추가(842줄), refactor에 Pagori 리디자인 적용 | **feat/frontend-ui 버전 우선** — Step 0 UI가 TASK-1101 직접 대상 |
-| 법적 페이지 디렉토리 | 백로그 V5.2 추가 | `apps/frontend/src/app/legal/` 존재 안 함 | TASK-1104에서 신규 생성 |
-| Sprint 10 수동 검증 12건 | Sprint 10 완료 기록 | 체크리스트 전부 `[ ]` 상태 (코드는 완료, 동작 검증 0건) | TASK-1105에서 Tester 전담 일괄 검증 |
+| `feat/sprint10` → main 머지 | TASK-1100 첫 번째 하위 할일 | 이미 완료 (`git log feat/sprint10 ^main` 0건) | TASK-1100에서 제외 |
+| `feat/frontend-ui` (신규 브랜치) | 백로그 미기재 | 9커밋 ahead — V4 Hybrid UI 리팩터링 | TASK-1100에 흡수 |
+| `refactor/frontend-ui` | "10커밋 앞서 있음" | 9커밋 ahead — Pagori 리디자인 | 충돌 해소 후 통합 |
+| Flyway 최고 번호 | V047 | **V047까지 존재** (`feat/modify-bug` 머지로 `V047__extend_reports_format_check.sql` 확정) | Sprint 11 신규는 **V048**부터 |
+| `onboarding/page.tsx` Step 0 | "워크스페이스 모드 선택 UI 추가" | **Step 0 UI 완성(842줄)되었으나 `handleModeNext()`가 Zustand에만 저장 — `PATCH /workspace-mode` 호출 없음** | TASK-1101에서 API 호출 결선 (아래 명세) |
+| `StartAnalysisRequest` | "CreateSessionRequest.fileFilter 추가" | **클래스명은 `StartAnalysisRequest`(record), `CreateSessionRequest` 아님.** record라 컴포넌트 기본값 불가 | `fileFilter`를 **마지막 컴포넌트(nullable)** 로 추가 (아래 명세) |
+| `AppSidebar.tsx` | "신규 생성 (SRP)" | **이미 존재** — 에디터 전용 파일트리 사이드바 | 신규 생성 아님. 역할 분기 위치 결정 필요 (S4) |
+| `ProgressPanel.tsx` | "Progress Panel 컴포넌트" | **이미 존재(219줄)** — `useSecureStore.progressSteps` 평면 렌더러 | 전면 재작성 (API 그룹 아코디언) |
+| Footer 컴포넌트 | "Footer 링크 추가" | **부재** — 신규 생성 필요 | TASK-1104에서 신규 (S5) |
+| `app/legal/` 디렉토리 | 백로그 V5.2 추가 | 존재 안 함 | TASK-1104에서 신규 생성 |
+| `useAuth.ts` `UserMeData` / `useAuthStore.ts` `AuthUser` | "useAuthStore 수정" | **두 타입 모두 `workspaceMode` 없음** | TASK-1101에서 둘 다 추가 (동기화 5곳, 아래) |
+| Sprint 10 수동 검증 12건 | Sprint 10 완료 기록 | 체크리스트 전부 `[ ]` (코드 완료, 동작 검증 0건) | TASK-1105 Tester 전담 청산 |
 
 ---
 
@@ -30,248 +35,285 @@
 
 | 번호 | 태스크 | 파일명 | 비고 |
 |------|--------|--------|------|
-| V048 | TASK-1101 | `V048__add_workspace_mode_to_users.sql` | `users.workspace_mode TEXT DEFAULT 'DEVELOPER'` |
-| V049 | TASK-1104 | `V049__add_legal_consent_to_users.sql` | `terms_accepted_at TIMESTAMP`, `privacy_accepted_at TIMESTAMP` |
+| V048 | TASK-1101 | `V048__add_workspace_mode_to_users.sql` | `workspace_mode TEXT DEFAULT 'DEVELOPER'` + CHECK 제약 |
+| V049 | TASK-1104 | `V049__add_legal_consent_to_users.sql` | `terms_accepted_at`, `privacy_accepted_at`, `marketing_opt_in BOOLEAN DEFAULT FALSE` |
 
-> 참고: V047은 `feat/modify-bug` 머지로 리포트 format CHECK 제약(`V047__extend_reports_format_check.sql`)이 사용. Sprint 11 마이그레이션은 V048부터. (백로그 V4와 동일)
-
----
-
-## Stage 0 — 사전 결정 사항 (착수 전 확정)
-
-> 코드 구현 없음. 아래 항목 결정 후 Stage 1 진입.
-
-| # | 항목 | 내용 | 권장 결정 |
-|---|------|------|---------|
-| 1 | **충돌 파일 우선순위** | feat/frontend-ui ↔ refactor/frontend-ui 양쪽 수정 파일 | feat/frontend-ui 버전 기반 → refactor 브랜치의 Pagori 토큰만 수동 통합. `settings/ScanModeDefaultSection` 유지 필수 |
-| 2 | **머지 순서** | 두 브랜치 머지 순서 | feat/frontend-ui 먼저 (현재 HEAD). 이후 refactor/frontend-ui cherry-pick |
-| 3 | **workspaceMode 값** | TASK-1101 API 값 | `DEVELOPER \| SECURITY_MANAGER \| BOTH` 3종 확정 |
-| 4 | **랜딩 분기 기준** | TASK-1102 BOTH 처리 | BOTH → `/editor` (개발 중심) + 헤더 모드 배지 |
-| 5 | **AppSidebar 위치** | 컴포넌트 분리 여부 | 별도 `AppSidebar.tsx` 신규 생성 (SRP) |
-| 6 | **디자인 통일 범위** | TASK-1103 범위 | 주요 5개 페이지(에디터·대시보드·온보딩·설정·컴플라이언스) 우선 |
-| 7 | **법적 페이지 다국어** | TASK-1104 ko/en 동시 vs 단계적 | **ko 우선 + en 영어 placeholder** → Sprint 12에서 정식 번역 |
-| 8 | **회원가입 동의 UX** | TASK-1104 — 체크박스 vs 모달 동의 | 체크박스 2개 (필수: ToS + Privacy) + 광고성 정보 수신 동의 1개 (선택) |
-| 9 | **Sprint 10 수동검증 분류** | TASK-1105 — 어떤 항목 먼저 | Critical 4건(Webhook·Check Run·시크릿 스캔·야간 스캔) → High 4건 → Medium 4건 |
+> V047은 `feat/modify-bug` 머지로 리포트 format CHECK 제약(`V047__extend_reports_format_check.sql`)이 사용. Sprint 11 마이그레이션은 V048부터.
 
 ---
 
-## 실행 계획
+## Stage 0 — 브랜치 통합 및 충돌 해소 ✅ 완료 (2026-05-30)
 
-### Stage 0 — 브랜치 통합 및 충돌 해소 (Critical, 전체 선행) ✅ 완료 (2026-05-30)
-
-| TASK | 제목 | 서비스 | 파일 | 선행 | 비고 |
-|------|------|--------|------|------|------|
-| TASK-1100 ✅ | 브랜치 통합 및 충돌 해소 | frontend | `feat/modify-bug`(리포트+V4 프론트) → main FF 머지, `refactor/frontend-ui` → main 통합 | Stage 0 #1~#2 | feat/sprint10은 이미 main 포함 — 제외 |
+| TASK | 제목 | 서비스 | 선행 | 상태 |
+|------|------|--------|------|------|
+| TASK-1100 | 브랜치 통합 및 충돌 해소 | frontend | — | ✅ 완료 |
 
 **완료 내역 (2026-05-30)**:
 - `feat/modify-bug` → main **fast-forward** 머지 (18커밋, 충돌 0). 리포트 회귀(트랜잭션 동기화) 선수정 후 머지.
-- `refactor/frontend-ui` → main 통합: 충돌 16건을 Stage 0 전략(feat 우선)대로 전부 main 버전 채택 → **해소 결과 트리가 main과 동일**. refactor의 모든 내용(Pagori 리디자인·preferences·uiMockData·MobileBottomNav·CI/테스트 수정)이 feat 라인에 이미 흡수돼 있어 **순변경 0**. 통합 이력 기록용 머지 커밋(`f55c716`)만 추가.
+- `refactor/frontend-ui` → main 통합: 충돌 16건을 Stage 0 전략(feat 우선)대로 전부 main 버전 채택 → 트리가 main과 동일. refactor의 모든 내용(Pagori 리디자인·preferences·uiMockData·MobileBottomNav·CI/테스트 수정)이 feat 라인에 이미 흡수 → **순변경 0**. 통합 이력 기록용 머지 커밋(`f55c716`)만 추가.
 - 병합 완료 브랜치 `feat/frontend-ui`·`refactor/frontend-ui` 삭제.
-- **잔여**: `make dev` 전체 기동 확인은 사용자 수동 검증 항목으로 남음.
-
-**순차 강제 이유**: TASK-1100 완료 전까지 main 코드베이스 불확정 → 이후 모든 개발 파일 경로 미정.
+- **잔여**: `make dev` 전체 기동 확인 = 사용자 수동 검증 항목.
 
 ---
 
-### Stage 1 — Persona 백엔드 + 디자인 통일 + 법적 페이지 + 수동 검증 (Critical + High, TASK-1100 완료 후 4-way 병렬)
+## 실행 계획 (Stage 1 / Stage 2)
 
-| TASK | 제목 | 서비스 | 파일 | 선행 | 비고 |
-|------|------|--------|------|------|------|
-| **TASK-1101** 🔴 | Persona 온보딩 — 역할 선택 + 백엔드 연동 | backend + frontend | `V048__add_workspace_mode_to_users.sql`, `User.java`, `UserController.java` (`PATCH /users/me/workspace-mode`), `UserMeResponse.java`, `useAuthStore.ts`, `onboarding/page.tsx` | TASK-1100 | Controller `@Pattern(DEVELOPER\|SECURITY_MANAGER\|BOTH)` 필수. `workspaceMode?` 선택적 필드로 추가 (회귀 방지) |
-| **TASK-1103** 🟠 | 디자인 시스템 통일 (Pagori 토큰) | frontend | `globals.css` 토큰 최종 확정, 5개 페이지 CSS 불일치 제거, hover/focus 상태 일관성 | TASK-1100 | `globals.css`만 공유 — TASK-1101과 충돌 시 1101 우선 |
-| **TASK-1104** 🔴 | 법적 페이지 3종 (ToS · Privacy · Cookie) | backend + frontend | `app/legal/terms/page.tsx`, `app/legal/privacy/page.tsx`, `app/legal/cookie/page.tsx`, `CookieConsentBanner.tsx`, `V049__add_legal_consent_to_users.sql`, 회원가입 폼 동의 체크박스, Footer 링크 | TASK-1100 | ko 우선 + en placeholder. 동의 미체크 시 회원가입 400. 푸터에 3종 링크 추가 |
-| **TASK-1105** 🟠 | Sprint 10 수동 검증 청산 (12건) | tester (수동 검증) | (검증 대상 파일 없음 — 발견 버그는 Sprint 11 잔여 시간에 즉시 수정) | TASK-1100 | Tester 전담. 발견 버그는 별도 micro-task로 분리 |
+### Stage 1 — Persona 백엔드 + 디자인 + 법적 페이지 + 수동 검증 + API 분석 계획 (5-way 병렬)
 
-**병렬 안전 조건**:
-- 1101: 백엔드(domain/user/*) + onboarding.tsx — 독립
-- 1103: globals.css + 5개 페이지 CSS — 독립
-- 1104: app/legal/* 신규 + 회원가입 폼 + V049 — 독립
-- 1105: 수동 검증 + 런타임 버그 수정 — 독립 (Tester 전담)
-- **공유 파일 0개** → 동시 진행 안전
+선행: TASK-1100(✅). 공유 파일 0개 → 동시 진행 안전.
+
+| TASK | 제목 | 서비스 | 에이전트 | 사이즈 |
+|------|------|--------|---------|--------|
+| TASK-1101 🔴 | Persona 온보딩 — 역할 선택 + 백엔드 연동 | backend + frontend | Dev + Tester | M |
+| TASK-1103 🟠 | 디자인 시스템 통일 (Pagori 토큰) | frontend | Dev | S |
+| TASK-1104 🔴 | 법적 페이지 3종 + 동의 컬럼 | backend + frontend | Dev + Tester | M |
+| TASK-1105 🟠 | Sprint 10 수동 검증 청산 (12건) | tester | Tester | M |
+| TASK-1106 🟠 | API 중심 분석 계획 & 진행률 패널 | ai_engine + backend + frontend | Dev + Tester | **L** |
+
+**공유 파일 소유권 규칙 (유지)**:
+- `globals.css` → **1103 단독 소유**
+- `onboarding/page.tsx` → **1101 단독 소유**
+- `AppSidebar.tsx` → **1102 단독 소유** (Stage 2)
+- 1101(user 도메인) / 1104(legal·signup·V049) / 1106(analysis·ai_engine) → 서로 비충돌
+
+### Stage 2 — 페르소나별 랜딩 & 사이드바 분기 (순차, TASK-1101 완료 후)
+
+| TASK | 제목 | 서비스 | 에이전트 | 사이즈 |
+|------|------|--------|---------|--------|
+| TASK-1102 🔴 | 로그인 후 페르소나별 랜딩 및 사이드바 분기 | frontend | Dev + Tester | M |
+
+**순차 강제 이유**: 1102는 `workspaceMode` 가 `GET /users/me` 응답 + `AuthUser` 타입에 존재해야 분기 가능 → **1101 완료가 절대 선행**.
 
 ---
 
-### Stage 2 — 페르소나별 랜딩 & 사이드바 분기 (Critical, Stage 1 TASK-1101 완료 후)
+## 용량 점검
 
-| TASK | 제목 | 서비스 | 파일 | 선행 | 비고 |
-|------|------|--------|------|------|------|
-| **TASK-1102** 🔴 | 로그인 후 페르소나별 랜딩 및 사이드바 분기 | frontend | `AuthProvider.tsx` (workspaceMode 기반 리다이렉트), `AppSidebar.tsx` (신규 — 역할별 메뉴), `layout.tsx` (AppSidebar 마운트 + 경로별 안내) | TASK-1101 (workspaceMode API 완성 필수) | 금지(403) 아닌 안내(toast) 방식. BOTH → /editor + 헤더 배지 |
-
-**순차 강제 이유**: TASK-1102는 `workspaceMode` API 응답에 의존 → TASK-1101 완료 후만 진행 가능.
+- 사이즈 합계: S×1 (1103) + M×4 (1101·1104·1105·1102) + **L×1 (1106)**.
+- **L = 1개** → L 2개 경계 미만. **과적 아님 → 스프린트 분할 불필요.**
+- 단, 순서 가중 주의: Stage 1 5-way 병렬은 폭이 넓다. 1106(L)이 가장 무거우므로(8파일 연쇄 + ProgressPanel 전면 재작성 + store 신설) Stage 1 착수 즉시 가장 먼저 dev 슬롯에 배정 권고.
+- 11개 태스크가 한 스프린트에 몰렸던 구 Sprint 12 사례와 달리, 본 스프린트는 6개(1100 완료 포함) — 분할 불필요.
 
 ---
 
-### Stage 3 — API 중심 분석 계획 & 진행률 패널 (High, TASK-1100 완료 후 독립 진행)
+## 태스크별 상세 구현 명세
 
-| TASK | 제목 | 서비스 | 파일 | 선행 | 비고 |
-|------|------|--------|------|------|------|
-| **TASK-1106** 🟠 | API 중심 분석 계획 & 진행률 패널 | ai_engine + backend + frontend | `api_discovery_node.py` (신규), `analyze.py`, `scan_files_node.py`, `CreateSessionRequest.java`, Progress Panel 컴포넌트 | TASK-1100 | Stage 1/2와 병렬 진행 가능 — 공유 파일 없음 |
+> Dev·Reviewer가 추가 추론 없이 명세대로 구현·검증할 수 있도록 작성. 모호함은 여기서 모두 제거한다.
 
-**병렬 안전 조건**: TASK-1106은 ai_engine + backend analysis 도메인 + frontend ProgressPanel만 건드림 → TASK-1101~1105와 공유 파일 없음 → Stage 1 착수와 동시에 병렬 진행 가능.
+### TASK-1101 — Persona 온보딩 + 백엔드 연동 (M)
 
-**설계 요점**:
-- `api_discovery_node`: LLM 없이 정적 파싱만 (비용 0). 파싱 prefix: `*Controller` / `*Service` / `*ServiceImpl` / `*Repository` / `*Mapper`
-- import depth-1 추적으로 연관 파일 자동 포함 (full call graph는 Sprint 13 AI Advanced I)
-- `fileFilter` null = 기존 전체 분석 동일 동작 (하위 호환 유지)
-- 새 Redis 이벤트 타입: `api_plan` (api_groups 전체), `scan_complete`에 `files` 목록 추가
+> **숨은 순서 의존성 (필수 보완 1)**: `onboarding/page.tsx` Step 0 UI는 완성됐으나 `handleModeNext()`가 Zustand에만 저장하고 API 호출이 없다. 또 `UserMeData`(useAuth.ts)·`AuthUser`(useAuthStore.ts) 어디에도 `workspaceMode`가 없다. 이 둘을 추가하지 않으면 **TASK-1102 착수 불가**.
 
-**하위 할일**:
-- [ ] **[AI Engine]** `apps/ai_engine/agent/nodes/api_discovery_node.py` 신설
-  - Spring Boot `@*Mapping` 어노테이션 파싱 → URL + 그룹명
-  - FastAPI `@router.*` 데코레이터 파싱
-  - Next.js `app/api/**/route.ts` 경로 → URL 도출
-  - React/TS: `axios.js` / `api.ts` / `client.ts` 내 `axios.get/post` 호출 파싱
-  - Prefix 그룹화: `*Controller` / `*Service` / `*ServiceImpl` / `*Repository` / `*Mapper`
-  - import depth-1 추적 (순환 참조 방어)
-  - 출력: `api_groups: [{name, url, files: [{path, line}]}]`
-- [ ] **[AI Engine]** `analyze.py`: `api_plan` Redis 이벤트 추가 + `scan_complete`에 `files` 포함
-- [ ] **[AI Engine]** `scan_files_node.py`: `fileFilter` 지원 추가
-- [ ] **[Backend]** `CreateSessionRequest.java`: `fileFilter: List<String>` 옵션 필드 + AI Engine 전달
-- [ ] **[Frontend]** Progress Panel 개편:
-  - `api_plan` → API 그룹 아코디언 + 파일 목록 (pending 상태)
-  - `progress` → 파일별 상태 업데이트 (pending → analyzing → done/cached/failed)
-  - 그룹별 진행률 바 (완료/전체)
-  - 파일 클릭 → Monaco Editor 열기
-  - "선택 분석" 모드: 그룹 체크박스 → fileFilter 포함 세션 재시작
+- **변경 파일 (workspaceMode 동기화 5곳)**:
+  1. `apps/backend/src/main/resources/db/migration/V048__add_workspace_mode_to_users.sql` (신규)
+  2. `apps/backend/src/main/java/io/secureai/backend/domain/user/entity/User.java` — `workspaceMode` 필드 추가
+  3. `apps/backend/src/main/java/io/secureai/backend/domain/user/dto/UserMeResponse.java` — 필드 + `from()` 매핑 추가
+  4. `apps/frontend/src/hooks/useAuth.ts` — `UserMeData`에 `workspaceMode` 추가 + `loadUser()` `setUser` 매핑
+  5. `apps/frontend/src/store/useAuthStore.ts` — `AuthUser`에 `workspaceMode` 추가
+  - 추가 변경:
+    - `apps/backend/.../domain/user/controller/UserController.java` — `PATCH /users/me/workspace-mode` 엔드포인트 신규
+    - `apps/backend/.../domain/user/service/UserService.java` — `updateWorkspaceMode(userId, mode)` 추가
+    - `apps/frontend/src/app/onboarding/page.tsx` — `handleModeNext()`에서 `PATCH` 호출 결선
+- **인터페이스 시그니처**:
+  - **S1**: `PATCH /api/v1/users/me/workspace-mode`
+    - 요청 바디: `{ "workspaceMode": "DEVELOPER" | "SECURITY_MANAGER" | "BOTH" }` (필드명 = `workspaceMode`)
+    - 응답: **200 + 표준 envelope `{ data: UserMeResponse }`** (갱신된 전체 me 반환 → 프론트가 store 갱신 단순화)
+    - Controller 검증: `@Pattern(regexp = "^(DEVELOPER|SECURITY_MANAGER|BOTH)$")` + `@NotBlank`
+  - **S2**: User 엔티티 타입 = **`String` + DB CHECK 제약** (엔티티는 `@Enumerated` 강제 안 함 — 마이그레이션 유연성·기존 String 컬럼 패턴 일관성). `@Column(length = 30, nullable = false) private String workspaceMode = "DEVELOPER";`
+  - V048: `ALTER TABLE users ADD COLUMN workspace_mode TEXT NOT NULL DEFAULT 'DEVELOPER';` + `ALTER TABLE users ADD CONSTRAINT chk_workspace_mode CHECK (workspace_mode IN ('DEVELOPER','SECURITY_MANAGER','BOTH'));`
+  - **S3**: 프론트 타입 — `UserMeData.workspaceMode?: 'DEVELOPER'|'SECURITY_MANAGER'|'BOTH'` (**optional `?`**), `AuthUser.workspaceMode: ...` 매핑 시 **null fallback = `'DEVELOPER'`**. (`u.workspaceMode ?? 'DEVELOPER'`)
+- **핵심 로직**:
+  1. 온보딩 Step 0에서 모드 선택 → `handleModeNext()` → `apiClient.patch('/users/me/workspace-mode', { workspaceMode })` → 성공 시 응답 `data`로 `setUser` 갱신 후 다음 스텝.
+  2. 실패(4xx/5xx) → toast 에러, 스텝 비전진 (Zustand 단독 저장 회귀 제거).
+  3. `UserMeResponse.from()`에 `.workspaceMode(user.getWorkspaceMode())` 추가.
+- **예외/엣지**: 잘못된 모드 값 → 400 (Controller `@Pattern`). 미인증 → 401. `workspaceMode` null 사용자(레거시) → DB DEFAULT로 `DEVELOPER` 보장 + 프론트 fallback.
+- **준수 규칙**: 입력 검증 Controller 레이어 한정(general.md), Service 재검증 금지. SQL 파라미터 바인딩(마이그레이션은 DDL이라 무관). 민감정보 로그 금지.
+- **DoD**: V048 적용 / `PATCH` 유효하지 않은 값 400 / 온보딩 모드 선택 → DB 저장 확인 / `GET /users/me` 응답에 `workspaceMode` 포함 / `AuthUser`·`UserMeData` 타입 컴파일 통과.
+
+### TASK-1103 — 디자인 시스템 통일 (Pagori 토큰) (S)
+
+- **변경 파일**: `apps/frontend/src/app/globals.css` (토큰 최종 확정) + 주요 5개 페이지(에디터·대시보드·온보딩·설정·컴플라이언스) CSS 불일치 제거.
+- **핵심 로직**: Pagori 토큰(색·간격·radius·hover/focus) 변수로 통일. 하드코딩 색상 → CSS 변수 치환. hover/focus 상태 일관성.
+- **준수 규칙**: 매직 넘버/문자열 금지(general.md) — 색상값 토큰화.
+- **DoD**: 5개 페이지 Pagori 토큰 일관성 시각 확인 / `globals.css` 외 store·로직 파일 미변경.
+
+### TASK-1104 — 법적 페이지 3종 + 동의 컬럼 (M)
+
+- **변경 파일 (신규/수정)**:
+  - `apps/frontend/src/app/legal/terms/page.tsx` (신규)
+  - `apps/frontend/src/app/legal/privacy/page.tsx` (신규)
+  - `apps/frontend/src/app/legal/cookie/page.tsx` (신규)
+  - `apps/frontend/src/components/layout/CookieConsentBanner.tsx` (신규)
+  - `apps/frontend/src/components/layout/Footer.tsx` (**신규 — S5: Footer 부재**)
+  - 회원가입 폼(`apps/frontend/src/app/(auth)/register` 경로의 폼 컴포넌트) — 동의 체크박스 3개
+  - `apps/backend/.../db/migration/V049__add_legal_consent_to_users.sql` (신규)
+  - `apps/backend/.../domain/user/entity/User.java` — 동의 시각 + marketing 필드
+  - 회원가입 처리 Service/Controller — 동의 강제 검증 + 시각 set
+- **인터페이스/스키마**:
+  - **S5**: `Footer.tsx` 신규 → **루트 `app/layout.tsx`** 에 마운트 (전역 푸터). 3종 링크(`/legal/terms`, `/legal/privacy`, `/legal/cookie`).
+  - **S6**: CookieConsentBanner 동의 저장 = **`localStorage` 키 `secureai-cookie-consent`** (값 `'all'` | `'essential'`). 재표시 조건: 키 부재 시에만 표시. GDPR — "필수만 허용" / "전체 허용" 2선택지 필수("거절" 단일 금지).
+  - **S7**: V049에 **`marketing_opt_in BOOLEAN DEFAULT FALSE` 포함**(권장). 전체: `terms_accepted_at TIMESTAMP NULL`, `privacy_accepted_at TIMESTAMP NULL`, `marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE`.
+  - 회원가입 요청: 기존 바디에 `termsAccepted: boolean`, `privacyAccepted: boolean`, `marketingOptIn?: boolean` 추가.
+- **핵심 로직**:
+  1. 회원가입 폼: ToS·Privacy 필수 체크박스 2 + 광고성 수신 선택 1.
+  2. Controller 검증: `termsAccepted && privacyAccepted` 아니면 **400**.
+  3. 회원가입 트랜잭션에서 `terms_accepted_at = now()`, `privacy_accepted_at = now()`, `marketing_opt_in = marketingOptIn` set.
+  4. legal 페이지 = ko 정식 + en placeholder(Sprint 12 정식 번역).
+- **예외/엣지**: 동의 미체크 회원가입 → 400(Controller). 동의 시각 NULL 금지(가입 시 강제 set).
+- **준수 규칙**: 입력 검증 Controller 한정. 동의 시각 = 분쟁 증빙(보안 리스크 11).
+- **DoD**: V049 적용 / 동의 미체크 회원가입 400 / Footer 3링크 동작 / `/legal/*` 3종 ko 렌더 / Cookie Banner 첫 방문 표시 + 거절 시 비필수 쿠키 미설정.
+
+### TASK-1105 — Sprint 10 수동 검증 청산 (12건) (M)
+
+- **변경 파일**: 검증 대상 소스 없음(Tester 전담). 발견 버그는 micro-task로 분리 후 Dev 즉시 수정.
+- **핵심 로직**: Critical 4건(Webhook·Check Run·시크릿 스캔·야간 스캔) → High 4건 → Medium 4건 순. 이월 항목(k6 p95·OWASP ZAP·2FA QR·Nginx HTTPS·VSCode Ext·GDPR 30일) 포함.
+- **예외/엣지**: GitHub Webhook PR 자동 분석은 `extractInstallationToken()` 스텁으로 동작 불가 — **Sprint 11 결함 아님**, Sprint 12 TASK-1201 의존으로 명시(이월 사유 승인).
+- **DoD**: 12건 PASS 또는 발견 버그 수정 완료. PASS 불가 항목은 부채대장에 사유와 함께 기록.
+
+### TASK-1106 — API 중심 분석 계획 & 진행률 패널 (L)
+
+> **파급 과소평가 보완 (필수 보완 2)**: `fileFilter`는 8파일 연쇄 + ProgressPanel 전면 재작성 + store 상태 신설.
+
+- **변경 파일 (8파일 연쇄 + Progress + store)**:
+  1. `apps/ai_engine/agent/nodes/api_discovery_node.py` (**신규**)
+  2. `apps/ai_engine/api/routes/analyze.py` — `AnalyzeRequest`에 `file_filter` 추가 + `api_plan` 이벤트 발행 + `scan_complete`에 `files` 포함
+  3. `apps/ai_engine/agent/nodes/scan_files_node.py` — `file_filter` 지원 (필터 적용 후 `files_to_scan` 반환)
+  4. `apps/ai_engine/agent/state.py` (`AgentState` TypedDict) — `file_filter`, `api_groups` 키 추가
+  5. `apps/backend/.../domain/analysis/dto/StartAnalysisRequest.java` — `fileFilter` **마지막 컴포넌트(nullable)** 추가
+  6. `apps/backend/.../domain/analysis/service/AiAgentClient.java` — `startAnalysis(...)` 시그니처에 `List<String> fileFilter` 추가
+  7. `apps/backend/.../domain/analysis/service/DefaultAiAgentClient.java` — payload에 `file_filter` 전달
+  8. `apps/backend/.../domain/analysis/service/AnalysisService.java` — `dispatchToAgent`에서 `request.fileFilter()` 전달
+  9. `apps/frontend/src/components/ui/ProgressPanel.tsx` — **전면 재작성** (219줄 평면 렌더러 → API 그룹 아코디언)
+  10. `apps/frontend/src/store/useSecureStore.ts` — **`apiGroups` 상태 신설** + 액션
+  11. `apps/frontend/src/hooks/useSse.ts` — `api_plan` 이벤트 분기 추가 + `scan_complete` `files` 처리 (이벤트 union 타입은 line 37, dispatch는 `parsed.type` 분기)
+- **`StartAnalysisRequest` record 제약 (필수 보완 3)**:
+  - 현재 record 컴포넌트: `(projectId, workspaceRoot, sourceType, githubRepoUrl, githubRef, force, scanMode)`. `fileFilter`는 **`scanMode` 다음 마지막 위치**에 `List<String> fileFilter` 로 추가.
+  - **positional 생성자 사용 테스트 컴파일 영향**: `apps/backend/src/test/.../domain/analysis/service/AnalysisServiceTest.java` 등 기존 호출부 확인 후 — **마지막 인자에 `null` 추가** 또는 보조 정적 팩토리. 컴파일 오류 0건 확인이 DoD.
+- **인터페이스/스키마**:
+  - **S8**: `api_discovery_node` 그래프 위치 = **`scan_files_node` 전(前)**. 실패 시 **skip-and-continue**(빈 `api_groups` 반환, 전체 세션 실패 금지 — general.md 파이프라인 규칙).
+  - **S9**: `api_plan` SSE 이벤트 발행 = **`analyze.py` `_run_analysis`에서 scan(또는 discovery) 완료 직후 1회**. 페이로드 `{ type: 'api_plan', api_groups: [{name, url, files:[{path, line}]}] }`.
+  - **S10**: `useSecureStore`에 `apiGroups: ApiGroup[]` + `setApiGroups` + 파일 상태 갱신 액션 추가. SSE 핸들러는 `useSse.ts`만 수정.
+  - `fileFilter` null = 기존 전체 분석 동일(하위 호환). `scan_files_node`: filter 있으면 교집합만 `files_to_scan`.
+- **api_discovery_node 파싱 명세**: Spring `@*Mapping` → URL+그룹 / FastAPI `@router.*` / Next.js `app/api/**/route.ts` / React `axios.get/post`(`api.ts`·`client.ts`). Prefix 그룹화: `*Controller` / `*Service` / `*ServiceImpl` / `*Repository` / `*Mapper`. import depth-1 추적(순환 참조 방어). **LLM 없이 정적 파싱만(비용 0)**. full call graph는 Sprint 13.
+- **ProgressPanel 재작성 명세**: `api_plan` → API 그룹 아코디언 + 파일목록(pending) / `progress` → 파일별 상태(pending→analyzing→done/cached/failed) / 그룹별 진행률 바 / 파일 클릭 → Monaco Editor 열기 / 그룹 체크박스 "선택 분석" → `fileFilter` 포함 세션 재시작.
+- **준수 규칙**: AI Engine 통신 `X-Internal-Key` 유지. 토큰 로그 금지. 개별 파일 오류 시 skip&log(전체 실패 금지). DTO 변경 시 record 불변성 유지.
+- **DoD**: `api_discovery_node` 단위 테스트(Controller/Service/ServiceImpl/Repository 그룹화) 통과 / `StartAnalysisRequest` 변경 후 백엔드 `./gradlew test` 컴파일·통과 / Progress Panel API 그룹 렌더 / `fileFilter` null = 기존 동작 회귀 없음 / 선택 분석 세션 재시작 동작.
+
+### TASK-1102 — 페르소나별 랜딩 & 사이드바 분기 (M, Stage 2)
+
+- **변경 파일**: `apps/frontend/src/components/layout/AppSidebar.tsx`(기존 — 역할별 메뉴 분기 추가), 리다이렉트 로직(`AuthProvider`/레이아웃 마운트 지점), `app/layout.tsx`.
+- **S4 결정**: `AppSidebar.tsx`는 **에디터 전용 파일트리 사이드바**다. 역할 분기는 거기 직접 넣지 않고 — **(권장 결정)** 역할별 글로벌 네비/리다이렉트는 `AppHeader` + 클라이언트 리다이렉트(`AuthProvider`의 `useEffect` + `router.replace`)로 처리하고, `AppSidebar`에는 역할에 따라 보일 메뉴 항목만 조건부 렌더. 미들웨어가 아닌 **클라이언트 측** 분기(persist 유지).
+- **핵심 로직**: `workspaceMode` 기반 — DEVELOPER → `/editor`, SECURITY_MANAGER → `/dashboard`, BOTH → `/editor` + 헤더 모드 배지(클릭 전환). 잘못된 경로 접근 = 금지(403) 아닌 **toast 안내 + 자연스러운 리다이렉트**(실데이터 접근은 백엔드 `@PreAuthorize` 별도 통제).
+- **DoD**: DEVELOPER→/editor, SECURITY_MANAGER→/dashboard, BOTH→/editor+배지 / 사이드바 역할별 메뉴 분기 / persist 유지.
 
 ---
 
 ## 전체 실행 순서 요약
 
-| 순서 | TASK | 제목 | 선행 | 에이전트 | 우선순위 |
-|------|------|------|------|---------|---------|
-| 0 | TASK-1100 | 브랜치 통합 및 충돌 해소 | — | Dev | 🔴 Critical |
-| 1a | TASK-1101 | Persona 온보딩 + 백엔드 연동 | TASK-1100 | Dev + Tester | 🔴 Critical |
-| 1b | TASK-1103 | 디자인 시스템 통일 | TASK-1100 | Dev | 🟠 High |
-| 1c | TASK-1104 | 법적 페이지 3종 + 동의 컬럼 | TASK-1100 | Dev | 🔴 Critical |
-| 1d | TASK-1105 | Sprint 10 수동 검증 청산 | TASK-1100 | Tester | 🟠 High |
-| 1e | TASK-1106 | API 중심 분석 계획 & 진행률 패널 | TASK-1100 | Dev + Tester | 🟠 High |
-| 2 | TASK-1102 | 페르소나별 랜딩 & 사이드바 | TASK-1101 | Dev + Tester | 🔴 Critical |
+| 순서 | TASK | 제목 | 선행 | 에이전트 | 사이즈 |
+|------|------|------|------|---------|--------|
+| 0 | TASK-1100 ✅ | 브랜치 통합 및 충돌 해소 | — | Dev | M |
+| 1a | TASK-1101 | Persona 온보딩 + 백엔드 연동 | TASK-1100 | Dev + Tester | M |
+| 1b | TASK-1103 | 디자인 시스템 통일 | TASK-1100 | Dev | S |
+| 1c | TASK-1104 | 법적 페이지 3종 + 동의 컬럼 | TASK-1100 | Dev + Tester | M |
+| 1d | TASK-1105 | Sprint 10 수동 검증 청산 | TASK-1100 | Tester | M |
+| 1e | TASK-1106 | API 중심 분석 계획 & 진행률 패널 | TASK-1100 | Dev + Tester | L |
+| 2 | TASK-1102 | 페르소나별 랜딩 & 사이드바 | TASK-1101 | Dev + Tester | M |
 
 **병렬 실행 그룹**:
-- **Stage 0 (순차)**: TASK-1100 단독
-- **Stage 1 (TASK-1100 후, 5-way 병렬)**: TASK-1101 + TASK-1103 + TASK-1104 + TASK-1105 + TASK-1106
-- **Stage 2 (TASK-1101 후, 순차)**: TASK-1102
+- **Stage 0 (✅ 완료)**: TASK-1100
+- **Stage 1 (5-way 병렬)**: TASK-1101 + TASK-1103 + TASK-1104 + TASK-1105 + TASK-1106 (1106[L] 최우선 슬롯)
+- **Stage 2 (순차)**: TASK-1102 (1101 완료 후)
 
 ---
 
-## 이월 태스크
+## 이월 태스크 (Sprint 11 수용)
 
 | 항목 | 출처 | Sprint 11 처리 |
 |------|------|--------------|
-| Sprint 10 완료 기준 12건 (Webhook · Check Run · 시크릿 스캔 · 야간 스캔 · 팀 대시보드 · ROI · 스캔 모드 · CompliancePage · TeamManagementPage · SettingsPage · 이월 수동검증 4건) | Sprint 10 | **TASK-1105에 통합** (Tester 전담) |
-| `make perf-test` k6 p95 < 500ms | Sprint 8 이월 | TASK-1105 일부 |
-| OWASP ZAP Critical 0건 | Sprint 8 이월 | TASK-1105 일부 |
-| 2FA QR Google Authenticator 수동 검증 | Sprint 8 이월 | TASK-1105 일부 (단, 2FA 프론트엔드 UI 자체는 Sprint 12 TASK-1208b) |
-| Nginx HTTP → HTTPS 리다이렉트 | Sprint 8 이월 | TASK-1105 일부 |
-| VSCode Extension 수동 설치 검증 | Sprint 9 이월 | TASK-1105 일부 |
-| GDPR 30일 시뮬레이션 통합 테스트 | Sprint 9 이월 | TASK-1105 일부 |
+| Sprint 10 완료 기준 12건 | Sprint 10 | TASK-1105 통합 (Tester 전담) |
+| `make perf-test` k6 p95 < 500ms | Sprint 8 | TASK-1105 일부 |
+| OWASP ZAP Critical 0건 | Sprint 8 | TASK-1105 일부 |
+| 2FA QR Google Authenticator 검증 | Sprint 8 | TASK-1105 일부 (2FA 프론트 UI는 Sprint 12 TASK-1208b) |
+| Nginx HTTP → HTTPS 리다이렉트 | Sprint 8 | TASK-1105 일부 |
+| VSCode Extension 수동 설치 검증 | Sprint 9 | TASK-1105 일부 |
+| GDPR 30일 시뮬레이션 통합 테스트 | Sprint 9 | TASK-1105 일부 |
+| GitHub Webhook PR 자동 분석 검증 | Sprint 5/6 | **Sprint 12 이월** — TASK-1201(`extractInstallationToken`) 의존. Sprint 11 결함 아님 |
 
 ---
 
 ## 리스크 분석
 
 ### 의존성 리스크
-
-1. **브랜치 충돌 복잡도 (TASK-1100)**: feat/frontend-ui(9커밋) ↔ refactor/frontend-ui(9커밋) 양쪽 동일 파일군 수정. 3-way merge보다 파일별 수동 통합 권장
-2. **`useAuthStore.ts` 동시 수정 (1101 + 1103)**: 스토어는 1101 전담, 1103은 CSS만
-3. **`GET /users/me` 응답 변경 (1101)**: `workspaceMode?` 선택적 필드로 추가 → 기존 컴포넌트 회귀 없음
-4. **AppSidebar.tsx 신규 (1102)**: Stage 0 #5에서 기존 layout.tsx 네비게이션 위치 확인 후 분리 결정
+1. **TASK-1101 숨은 순서 의존성**: workspaceMode 동기화 5곳 미완 시 TASK-1102 착수 불가. → 1101 DoD에 5곳 전부 명시.
+2. **TASK-1106 파급(L)**: 8파일 연쇄 + ProgressPanel 전면 재작성 + store 신설. → Stage 1 최우선 슬롯 + record 마지막 인자 규칙으로 테스트 컴파일 보호.
+3. **`StartAnalysisRequest` record**: 컴포넌트 기본값 불가 → `fileFilter` 마지막 nullable. 기존 positional 테스트 호출부 `null` 보강.
 
 ### 기술 복잡도 리스크
-
-5. **workspaceMode 분기 미들웨어 (1102)**: 서버 측 미들웨어 vs 클라이언트 리다이렉트 → **클라이언트 측** (AuthProvider `useEffect` + `router.replace`)
-6. **BOTH 역할 UX (1102)**: 헤더 배지 클릭으로 즉시 전환, persist 유지
-7. **법적 페이지 ko/en 동시 (1104)**: ko 우선 → en은 Sprint 12 정식 번역 (영문 placeholder만)
-8. **CookieConsentBanner GDPR 준수 (1104)**: "필수만 허용" / "전체 허용" 선택지 필수 — "거절" 단일 옵션 안 됨
+4. **워크스페이스 분기(1102)**: 미들웨어 아닌 클라이언트 측(`AuthProvider` useEffect + `router.replace`), persist 유지.
+5. **CookieConsentBanner GDPR(1104)**: "필수만"/"전체" 2선택 필수 — "거절" 단일 금지.
+6. **법적 페이지 ko/en(1104)**: ko 정식 + en placeholder(Sprint 12 정식 번역).
 
 ### 보안 리스크
-
-9. **workspace_mode Controller 검증 (1101)**: `@Pattern(regexp = "^(DEVELOPER|SECURITY_MANAGER|BOTH)$")` 누락 시 임의 값 DB 저장 위험
-10. **사이드바 분기 (1102)**: SECURITY_MANAGER가 `/editor` 직접 URL 접근 시 → toast 안내 + 자연스러운 리다이렉트 (실제 데이터 접근은 백엔드 `@PreAuthorize`로 별도 통제)
-11. **동의 시각 저장 (1104)**: `terms_accepted_at`, `privacy_accepted_at` 시각이 분쟁 시 증빙. NULL 허용 X — 회원가입 트랜잭션에서 강제 set
-12. **Sprint 10 수동검증 GitHub Webhook (1105)**: Webhook 동작 검증 시 `extractInstallationToken()` 스텁 때문에 PR 자동 분석은 동작 안 함 — Sprint 12 TASK-1201 의존성. **이 한계는 Sprint 11 결함이 아니며 Sprint 12 우선 처리로 명시**
+7. **workspace_mode 검증(1101)**: Controller `@Pattern` + DB CHECK 이중. 누락 시 임의 값 저장 위험.
+8. **사이드바 분기(1102)**: SECURITY_MANAGER의 `/editor` 직접 접근 → toast + 리다이렉트(데이터는 백엔드 `@PreAuthorize`).
+9. **동의 시각(1104)**: `terms/privacy_accepted_at` = 분쟁 증빙. 가입 트랜잭션에서 강제 set.
+10. **GitHub Webhook(1105)**: `extractInstallationToken()` 스텁으로 PR 자동 분석 검증 불가 — Sprint 11 결함 아님, Sprint 12 TASK-1201 의존.
 
 ---
 
-## 스프린트 테스트 마일스톤
+## 완료 게이트
+
+**완료 게이트 = 해당 스프린트 ✅(수동 검증) 잔여 0건** (또는 이월 사유 명시·승인). 미구현 기능의 ✅는 부채 아님.
 
 | 마일스톤 | 기준 |
 |---------|------|
-| **Stage 0 게이트** | feat/frontend-ui → main 머지 + refactor/frontend-ui 충돌 해소 + `./gradlew test` 통과 + 주요 페이지 5개 렌더링 오류 없음 |
-| **Stage 1 게이트** | (1101) V048 적용 + `PATCH /workspace-mode` 유효하지 않은 값 400 + 온보딩 역할 선택 → DB 저장 / (1103) 5개 페이지 Pagori 토큰 일관성 / (1104) V049 적용 + 동의 체크 미체크 시 회원가입 400 + Footer 3개 링크 동작 + Cookie Banner 표시 / (1105) Sprint 10 검증 12건 PASS 또는 발견 버그 수정 완료 / (1106) api_discovery_node 단위 테스트 통과 + Progress Panel API 그룹 렌더링 확인 |
-| **Stage 2 게이트** | DEVELOPER → `/editor` 랜딩, SECURITY_MANAGER → `/dashboard` 랜딩, BOTH → `/editor` + 헤더 배지 표시. 사이드바 역할별 메뉴 분기 |
-| **Sprint 11 완료** | 위 3개 게이트 모두 통과 + 베타 배포 가능 상태 (GDPR/PIPA 준수 + 핵심 UX 분기 완성 + API 중심 분석 계획 화면 동작) |
-
----
-
-## Sprint 11 완료 기준
-
-### 기능 완료
-- [x] **브랜치 통합**: feat/frontend-ui + refactor/frontend-ui → main 충돌 해소 머지 완료 (2026-05-30, `f55c716`)
-- [ ] **V048 마이그레이션**: `users.workspace_mode` 컬럼 추가
-- [ ] **V049 마이그레이션**: `users.terms_accepted_at`, `privacy_accepted_at` 컬럼 추가
-- [ ] **workspace-mode API**: `PATCH /api/v1/users/me/workspace-mode` 구현 + `@Pattern` 검증
-- [ ] **Persona 온보딩**: 역할 선택 → DB 저장 → 로그인 후 `workspaceMode` 응답 포함
-- [ ] **랜딩 분기**: DEVELOPER → `/editor`, SECURITY_MANAGER → `/dashboard`, BOTH → `/editor` + 배지
-- [ ] **AppSidebar**: 역할별 메뉴 분기 완성
-- [ ] **디자인 통일**: 주요 5개 페이지 Pagori 토큰 일관성
-- [ ] **법적 페이지**: `/legal/terms`, `/legal/privacy`, `/legal/cookie` 3종 ko 동작 + Footer 링크
-- [ ] **동의 체크박스**: 회원가입 폼에 ToS/Privacy 필수 + 선택 광고성 정보 수신 동의
-- [ ] **Cookie Banner**: 첫 방문 시 배너 표시 + 거절 시 비필수 쿠키 미설정
-- [ ] **api_discovery_node**: Spring Boot / FastAPI / Next.js / React SPA 4종 파싱 + prefix 그룹화 (`*ServiceImpl` 포함)
-- [ ] **api_plan 이벤트**: 분석 시작 직후 SSE로 전체 API 그룹 + 파일 목록 수신
-- [ ] **Progress Panel**: API 그룹별 아코디언 + 파일별 상태 아이콘 + 그룹 진행률 바
-- [ ] **선택 분석**: API 그룹 체크박스 → fileFilter 포함 세션 재시작
-- [ ] **파일 클릭 네비게이션**: Progress Panel 파일 클릭 → Monaco Editor 해당 파일 열기
+| Stage 0 게이트 | ✅ 머지 + `./gradlew test` 통과 + 주요 5페이지 렌더 오류 0 |
+| Stage 1 게이트 | (1101) V048 + `PATCH` 400 검증 + 온보딩→DB 저장 + me 응답 workspaceMode / (1103) 5페이지 토큰 일관성 / (1104) V049 + 동의 미체크 400 + Footer 3링크 + Cookie Banner / (1105) 12건 PASS 또는 버그 수정 / (1106) api_discovery_node 단위테스트 + Progress Panel 렌더 + record 변경 후 컴파일·테스트 통과 |
+| Stage 2 게이트 | DEVELOPER→/editor, SECURITY_MANAGER→/dashboard, BOTH→/editor+배지 + 사이드바 분기 |
+| Sprint 11 완료 | 3게이트 통과 + 수동 검증 부채대장 잔여 0건(또는 이월 승인) + 베타 배포 가능(GDPR/PIPA + UX 분기 + API 분석 계획 동작) + 세션 로그 작성 |
 
 ### 품질 게이트
-- [ ] **회귀 없음**: `./gradlew test` 전체 통과
-- [ ] **수동 검증**: Sprint 10 완료 기준 12건 검증 PASS 또는 발견 버그 수정 완료
-- [ ] **TASK-1106 단위 테스트**: `api_discovery_node` Controller/Service/ServiceImpl/Repository 그룹화 검증
-- [ ] **세션 로그**: `docs/session_log/2026-06-{day}_*.md` 작성
+- [ ] 회귀 없음: `./gradlew test` 전체 통과 (특히 `StartAnalysisRequest` record 변경 후)
+- [ ] 수동 검증: Sprint 10 12건 PASS 또는 버그 수정 + 부채대장 갱신
+- [ ] TASK-1106 단위 테스트: api_discovery_node 그룹화 검증
+- [ ] 세션 로그: `docs/session_log/2026-06-{day}_*.md`
 
 ---
 
 ## 실행 명령어
 
 ```
-/stage 0   — TASK-1100 (브랜치 통합 + 충돌 해소)
-/stage 1   — TASK-1101 + TASK-1103 + TASK-1104 + TASK-1105 + TASK-1106  ※ 5-way 병렬
-/stage 2   — TASK-1102 (랜딩 분기 + AppSidebar)
-/done      — 세션 로그 작성
+/stage 1   — TASK-1101 + TASK-1103 + TASK-1104 + TASK-1105 + TASK-1106  ※ 5-way 병렬 (1106[L] 최우선 슬롯)
+/stage 2   — TASK-1102 (랜딩 분기 + AppSidebar 역할 메뉴)
+/done      — 세션 로그 작성 + 부채대장 갱신
 ```
 
+> Stage 0(TASK-1100)은 ✅ 완료. **시작점은 `/stage 1`.**
+
 **병행 권장 타이밍**:
-- TASK-1105 수동검증 Critical 4건 → `/stage 1` 시작 직후
-- TASK-1106 ai_discovery_node → Stage 1 착수와 동시 (ai_engine 독립 영역)
-- TASK-1105 이월 수동검증 (k6/ZAP/2FA QR/Nginx HTTPS) → Stage 1 진행 중
-- VSCode Extension + GDPR 30일 시뮬레이션 → Stage 2 진행 중
+- TASK-1106 ai_engine `api_discovery_node` → Stage 1 착수 즉시 (가장 무거움)
+- TASK-1105 Critical 4건 → Stage 1 시작 직후 / 이월 수동검증(k6·ZAP·2FA QR·Nginx) → Stage 1 진행 중
+- VSCode Extension + GDPR 30일 → Stage 2 진행 중
 
 ---
 
-## 에이전트 평가 요약
+## PM · Dev 평가 요약
 
 ### PM 에이전트 (스테이지 설계)
-- Sprint 11 백로그 V5.4 기준 7개 태스크(TASK-1100~1106) 3개 스테이지 배치
-- Critical 4개 + High 3개 — Critical 우선 처리 보장
-- Stage 1을 5-way 병렬로 확장 — TASK-1106 ai_engine 독립 영역으로 충돌 0
-- Stage 0 사전 결정 9건으로 착수 후 결정 지연 방지
-- Sprint 10 수동 검증 이월 12건을 TASK-1105로 일괄 흡수 — 만성 이월 차단
-- TASK-1106: Sprint 13 AI Advanced I MVP 선행 — api_discovery_node 정적 파싱으로 비용 0, import depth-1로 full call graph는 Sprint 13에서 완성
+- 백로그 V5.4 기준 7개 태스크(1100~1106)를 Stage 0(완료)/Stage 1(5-way 병렬)/Stage 2(순차)로 배치.
+- 공유 파일 소유권 규칙(globals.css→1103, onboarding→1101, AppSidebar→1102) 확정 → 병렬 충돌 0.
+- Sprint 10 수동 검증 이월 12건을 TASK-1105로 일괄 흡수 → 만성 이월 차단. 완료 게이트 = 부채대장 잔여 0건.
+- 용량 점검: L=1개로 분할 불필요.
 
-### Dev 에이전트 (현실성 평가)
-- **계획 수정 사항 (V5.3 동기화)**:
-  1. V047은 `feat/modify-bug` 리포트 마이그레이션이 사용 → workspace_mode/legal_consent를 V048/V049로 재배정
-  2. Sprint 10 수동검증 12건 미실시 → TASK-1105 신설로 청산
-  3. 법적 페이지 GDPR 준수 누락 → TASK-1104 신설 (베타 배포 전 필수)
-- **GitHub Webhook 검증 한계**: `extractInstallationToken()` 스텁으로 PR 자동 분석 검증 불가 — TASK-1105에서 제한 명시. Sprint 12 TASK-1201 해소 의존.
-
-### Reviewer 에이전트 (게이트 검증 항목)
-- Stage 0 종료 시점에 main 브랜치 빌드/테스트 회귀 0건 확인
-- Stage 1 종료 시점에 V048 + V049 마이그레이션 적용 확인 + Controller `@Pattern` 검증 코드 존재
-- Stage 2 종료 시점에 클라이언트 리다이렉트 vs 미들웨어 결정 준수 + persist 동작 확인
+### Dev 에이전트 (현실성 평가) — 반영 결과
+- **필수 보완 3건 전부 명세 반영**:
+  1. TASK-1101 숨은 순서 의존성 → workspaceMode **동기화 5곳**(V048·User·UserMeResponse.from·UserMeData·AuthUser) 명시 + `handleModeNext()` API 결선 추가. (실측: 두 프론트 타입 모두 workspaceMode 부재 확인)
+  2. TASK-1106 파급 → **8파일 연쇄 + ProgressPanel(219줄) 전면 재작성 + useSecureStore `apiGroups` 신설 + useSse.ts 분기** 명시. (실측 확인)
+  3. `StartAnalysisRequest` record 제약 → `fileFilter` **마지막 nullable 컴포넌트**, 기존 positional 테스트 호출부 보강 명시. (실측: `CreateSessionRequest` 아닌 `StartAnalysisRequest` record, `scanMode` 마지막)
+- **스펙 공백 10건(S1~S10) 결정 확정**: S1 필드명 workspaceMode + 200/UserMeResponse · S2 String+CHECK · S3 optional+'DEVELOPER' fallback · S4 AppSidebar는 메뉴 분기만/리다이렉트는 AuthProvider 클라이언트 측 · S5 Footer 신규+루트 layout · S6 localStorage `secureai-cookie-consent` · S7 marketing_opt_in 포함 · S8 discovery scan 전+skip-continue · S9 _run_analysis scan 완료 직후 발행 · S10 useSecureStore apiGroups+useSse.ts.
+- **실측 정정**: AppSidebar·ProgressPanel 기존 파일 / Footer 부재 / StartAnalysisRequest record / Flyway V047까지 확정 → V048부터.
+- **동의된 판단 유지**: Stage 구조, 사이즈, 소유권 규칙, Sprint5/6 Webhook 이월, 완료 게이트.
 
 ---
 
-*Sprint 11 계획 작성일: 2026-05-27 (V1) · 갱신: 2026-05-28 (V2 — 백로그 V5.3 반영, TASK-1104/1105 본문 통합, Flyway 번호 재배정) · 2026-05-29 (V3 — TASK-1106 API 중심 분석 계획 & 진행률 패널 신설, Stage 3 추가, 백로그 V5.4)*
+*Sprint 11 계획: 2026-05-27(V1) · 2026-05-28(V2) · 2026-05-29(V3 TASK-1106 신설) · 2026-05-30(V4 — Stage 0 완료 반영, Dev 현실성 평가 필수보완 3 + 스펙결정 10 반영, 실측 정정, 최종 확정)*

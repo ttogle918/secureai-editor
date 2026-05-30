@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -39,14 +41,25 @@ public class GitHubConfig {
      * Webhook HMAC-SHA256 검증용 Mac 빈.
      *
      * webhookSecret으로 초기화된 Mac 인스턴스를 제공한다.
-     * 빈 secret이면 경고 로그만 남기고 null을 반환해
-     * 호출 측에서 검증 스킵 여부를 판단한다.
+     * 빈 secret이면:
+     *  - 운영(prod) 프로파일: 부팅을 실패시켜(fail-fast) 서명 검증이 비활성화된 채
+     *    웹훅이 무인증으로 열리는 것을 원천 차단한다.
+     *  - 그 외(dev/local/test): 경고 로그만 남기고 null을 반환해
+     *    호출 측에서 검증 스킵 여부를 판단한다(로컬 개발 편의).
+     *
+     * @param environment 활성 프로파일 확인용
      */
     @Bean(name = "webhookMac")
-    public Mac webhookMac() {
+    public Mac webhookMac(Environment environment) {
         if (webhookSecret == null || webhookSecret.isBlank()) {
+            boolean isProd = environment.acceptsProfiles(Profiles.of("prod"));
+            if (isProd) {
+                throw new IllegalStateException(
+                        "운영(prod) 환경에서 secureai.github.webhook-secret이 설정되지 않았습니다. " +
+                        "GitHub Webhook 서명 검증을 비활성화할 수 없습니다. 시크릿을 반드시 설정하세요.");
+            }
             log.warn("[github-config] secureai.github.webhook-secret이 설정되지 않았습니다. " +
-                     "운영 환경에서는 반드시 설정해야 합니다.");
+                     "운영 환경에서는 반드시 설정해야 합니다. (현재 비-운영 프로파일 — 서명 검증 스킵 허용)");
             return null;
         }
         try {

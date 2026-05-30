@@ -2,7 +2,6 @@ package io.secureai.backend.domain.compliance.service;
 
 import io.secureai.backend.domain.analysis.service.VulnerabilityQueryService;
 import io.secureai.backend.domain.compliance.dto.ComplianceResponse;
-import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +23,6 @@ import static org.mockito.BDDMockito.given;
 class ComplianceMappingServiceTest {
 
     @Mock VulnerabilityQueryService vulnerabilityQueryService;
-    @Mock ProjectService projectService;
 
     @InjectMocks ComplianceMappingService service;
 
@@ -42,8 +40,7 @@ class ComplianceMappingServiceTest {
     @Test
     @DisplayName("ISO27001 — 취약점 없으면 전체 compliant=true")
     void getComplianceReport_ISO27001_취약점없음_전체compliant() {
-        given(projectService.isMember(projectId, userId)).willReturn(true);
-        given(vulnerabilityQueryService.findOwaspCodesBySessionId(sessionId))
+        given(vulnerabilityQueryService.findOwaspCodesBySession(userId, projectId, sessionId))
                 .willReturn(List.of());
 
         ComplianceResponse report = service.getComplianceReport(projectId, sessionId, "ISO27001", userId);
@@ -57,8 +54,7 @@ class ComplianceMappingServiceTest {
     @Test
     @DisplayName("A01 취약점 1건 → A.9.4.1 컨트롤 compliant=false")
     void getComplianceReport_A01취약점있음_해당컨트롤noncompliant() {
-        given(projectService.isMember(projectId, userId)).willReturn(true);
-        given(vulnerabilityQueryService.findOwaspCodesBySessionId(sessionId))
+        given(vulnerabilityQueryService.findOwaspCodesBySession(userId, projectId, sessionId))
                 .willReturn(List.of("A01"));
 
         ComplianceResponse report = service.getComplianceReport(projectId, sessionId, "ISO27001", userId);
@@ -74,9 +70,12 @@ class ComplianceMappingServiceTest {
     }
 
     @Test
-    @DisplayName("프로젝트 비멤버 → PROJECT_ACCESS_DENIED 예외")
-    void getComplianceReport_비멤버_PROJECT_ACCESS_DENIED() {
-        given(projectService.isMember(projectId, userId)).willReturn(false);
+    @DisplayName("접근 권한 검증 위임 — 비멤버/타프로젝트 세션이면 쿼리 서비스 예외를 그대로 전파한다")
+    void getComplianceReport_접근거부_예외전파() {
+        // 세션-프로젝트 바인딩 및 멤버십 검증은 VulnerabilityQueryService가 담당하므로
+        // 거부 시 발생한 예외가 그대로 호출자에게 전파되어야 한다.
+        given(vulnerabilityQueryService.findOwaspCodesBySession(userId, projectId, sessionId))
+                .willThrow(new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED));
 
         assertThatThrownBy(() ->
                 service.getComplianceReport(projectId, sessionId, "ISO27001", userId))
@@ -88,8 +87,7 @@ class ComplianceMappingServiceTest {
     @Test
     @DisplayName("NIST_CSF framework — 취약점 없으면 전체 compliant=true")
     void getComplianceReport_NIST_CSF_취약점없음_전체compliant() {
-        given(projectService.isMember(projectId, userId)).willReturn(true);
-        given(vulnerabilityQueryService.findOwaspCodesBySessionId(sessionId))
+        given(vulnerabilityQueryService.findOwaspCodesBySession(userId, projectId, sessionId))
                 .willReturn(List.of());
 
         ComplianceResponse report = service.getComplianceReport(projectId, sessionId, "NIST_CSF", userId);
@@ -101,9 +99,8 @@ class ComplianceMappingServiceTest {
     @Test
     @DisplayName("A01:2021 형식 OWASP 코드도 A01로 정규화되어 매핑된다")
     void getComplianceReport_owaspFullFormat_정규화매핑() {
-        given(projectService.isMember(projectId, userId)).willReturn(true);
         // "A01:2021 Broken Access Control" 형식이어도 A01로 추출되어야 한다
-        given(vulnerabilityQueryService.findOwaspCodesBySessionId(sessionId))
+        given(vulnerabilityQueryService.findOwaspCodesBySession(userId, projectId, sessionId))
                 .willReturn(List.of("A01:2021 Broken Access Control"));
 
         ComplianceResponse report = service.getComplianceReport(projectId, sessionId, "ISO27001", userId);

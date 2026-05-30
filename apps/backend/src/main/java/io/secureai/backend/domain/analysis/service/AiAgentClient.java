@@ -2,6 +2,7 @@ package io.secureai.backend.domain.analysis.service;
 
 import io.secureai.backend.domain.analysis.dto.CommitScanRequest;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -19,7 +20,8 @@ public interface AiAgentClient {
             String githubToken,
             String preferredModel,
             String userApiKey,
-            String scanMode
+            String scanMode,
+            List<String> fileFilter
     );
 
     void resumeAnalysis(UUID sessionId);

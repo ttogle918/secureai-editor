@@ -84,14 +84,16 @@ public class AnalysisService {
             aiAgentClient.startAnalysis(
                     session.getId(), project.getId(), null,
                     "github", info.owner(), info.repo(), info.ref(), info.token(),
-                    settings.preferredModel(), settings.apiKey(), request.effectiveScanMode());
+                    settings.preferredModel(), settings.apiKey(), request.effectiveScanMode(),
+                    request.fileFilter());
         } else {
             String workspaceRoot = request.workspaceRoot() != null
                     ? request.workspaceRoot() : "/workspace/" + project.getId();
             aiAgentClient.startAnalysis(
                     session.getId(), project.getId(), workspaceRoot,
                     "local", null, null, null, null,
-                    settings.preferredModel(), settings.apiKey(), request.effectiveScanMode());
+                    settings.preferredModel(), settings.apiKey(), request.effectiveScanMode(),
+                    request.fileFilter());
         }
     }
 

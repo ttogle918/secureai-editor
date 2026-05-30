@@ -122,7 +122,7 @@ class AnalysisServiceTest {
         verify(sessionRepository).markInterrupted(eq(runningSession.getId()),
                 eq(SessionStatus.INTERRUPTED), eq(SessionStatus.RUNNING));
         verify(aiAgentClient).startAnalysis(any(), eq(projectId), eq("/workspace"),
-                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"));
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"), isNull());
     }
 
     @Test
@@ -144,7 +144,7 @@ class AnalysisServiceTest {
 
         verify(aiAgentClient).startAnalysis(any(), eq(projectId),
                 eq("/workspace/" + projectId),
-                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"));
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"), isNull());
         assertThat(response).isNotNull();
     }
 
@@ -172,7 +172,7 @@ class AnalysisServiceTest {
 
         verify(gitHubApiService).resolveAndValidate(userId, "https://github.com/owner/repo", null);
         verify(aiAgentClient).startAnalysis(any(), eq(projectId), isNull(),
-                eq("github"), eq("owner"), eq("repo"), eq("main"), eq("ghp_token"), isNull(), isNull(), eq("PIPELINE"));
+                eq("github"), eq("owner"), eq("repo"), eq("main"), eq("ghp_token"), isNull(), isNull(), eq("PIPELINE"), isNull());
     }
 
     @Test
@@ -207,7 +207,7 @@ class AnalysisServiceTest {
 
         // 에이전트 호출 시 scanMode="PIPELINE" 전달 검증
         verify(aiAgentClient).startAnalysis(any(), eq(projectId), any(),
-                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"));
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"), isNull());
     }
 
     @Test
@@ -242,7 +242,7 @@ class AnalysisServiceTest {
 
         // 에이전트 호출 시 scanMode="AUDIT" 전달 검증
         verify(aiAgentClient).startAnalysis(any(), eq(projectId), any(),
-                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("AUDIT"));
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("AUDIT"), isNull());
     }
 
     // ── resumeSession ────────────────────────────────────────────────────────

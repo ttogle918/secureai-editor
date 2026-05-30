@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 def _make_stream_chunks(texts: list[str]):
     """stream_chat 이 각 texts 요소를 순서대로 yield 하는 async generator 를 반환한다."""
-    async def _gen(session_id, history, user_message):
+    async def _gen(session_id, history, user_message, preferred_model=None, user_api_key=None):
         for t in texts:
             yield t
 
@@ -88,7 +88,7 @@ async def test_chat_history_trimming():
     """이력이 20개(10턴)를 초과하면 route 레벨에서 최신 20개만 전달되는지 확인."""
     captured_history: list = []
 
-    async def _spy_stream(session_id, history, user_message):
+    async def _spy_stream(session_id, history, user_message, preferred_model=None, user_api_key=None):
         captured_history.extend(history)
         yield "ok"
 
@@ -125,7 +125,7 @@ async def test_chat_history_trimming():
 
 @pytest.mark.asyncio
 async def test_chat_endpoint_error_event_on_exception():
-    async def _error_stream(session_id, history, user_message):
+    async def _error_stream(session_id, history, user_message, preferred_model=None, user_api_key=None):
         yield "부분 텍스트"
         raise RuntimeError("Claude API 오류")
 

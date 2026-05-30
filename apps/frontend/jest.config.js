@@ -9,6 +9,14 @@ const config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/**/__tests__/**',
+    '!src/**/*.stories.{ts,tsx}',
+    '!src/lib/{mockData,uiMockData}.ts',
+  ],
+  coverageReporters: ['text-summary', 'lcov'],
 };
 
 module.exports = createJestConfig(config);

@@ -226,12 +226,12 @@ async def test_docker_tool_returns_error_on_http_status_error():
 
 def test_mcp_client_filesystem_env_includes_dast_vars():
     """mcp_session 이 filesystem 서버 env에 BACKEND_INTERNAL_URL 을 전달해야 한다."""
-    import inspect
-    import ast
     import pathlib
 
-    src = pathlib.Path(
-        "C:/Users/ttogl/workspace/secureai-editor/apps/ai_engine/agent/mcp_client.py"
+    # 테스트 파일 위치 기준 상대 경로로 해석한다 (이전엔 개발자 머신의
+    # 절대 Windows 경로가 하드코딩되어 CI/다른 환경에서 항상 실패했다).
+    src = (
+        pathlib.Path(__file__).resolve().parents[2] / "agent" / "mcp_client.py"
     ).read_text(encoding="utf-8")
 
     # BACKEND_INTERNAL_URL 이 filesystem env 딕셔너리에 포함되어 있는지 텍스트 기반 확인

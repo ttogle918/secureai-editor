@@ -29,14 +29,26 @@ jobs:
 
       - name: Install dependencies
         working-directory: apps/ai_engine
-        run: pip install -r requirements.txt pytest pytest-asyncio httpx
+        run: pip install -r requirements.txt pytest pytest-asyncio pytest-cov httpx
 
-      - name: Run tests
+      - name: Run unit tests
         working-directory: apps/ai_engine
         env:
-          INTERNAL_API_KEY: ci-test-internal-key
-          CLAUDE_API_KEY: dummy-for-ci
-        run: pytest tests/ -v --tb=short 2>/dev/null || echo "No tests found yet"
+          # Must match the keys the test fixtures send (see tests/conftest.py).
+          INTERNAL_API_KEY: test-internal-key
+          CLAUDE_API_KEY: test-claude-key
+        # NOTE: do not swallow the exit code — failing/erroring tests must fail CI.
+        # Integration tests require Postgres/Redis + a live backend and are run
+        # separately (see tests/integration); they are excluded from the unit run.
+        run: pytest tests/ --ignore=tests/integration -v --tb=short --cov=. --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-engine-coverage
+          path: apps/ai_engine/coverage.xml
+          if-no-files-found: ignore
 
       - name: Type check
         working-directory: apps/ai_engine

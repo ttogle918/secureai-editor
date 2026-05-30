@@ -67,12 +67,11 @@ async def test_save_vulnerabilities_success():
     mock_resp.raise_for_status = MagicMock()
     mock_resp.json.return_value = {"data": {"saved": 2}}
 
-    mock_client = AsyncMock()
+    # backend_api_client 는 모듈 레벨 ``_client`` 를 재사용하므로 인스턴스를 패치한다.
+    mock_client = MagicMock()
     mock_client.post = AsyncMock(return_value=mock_resp)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("infrastructure.backend_api_client.httpx.AsyncClient", return_value=mock_client):
+    with patch("infrastructure.backend_api_client._client", mock_client):
         result = await save_vulnerabilities(
             "sess-1", "proj-1", "/src/Dao.java",
             [
@@ -86,12 +85,10 @@ async def test_save_vulnerabilities_success():
 
 @pytest.mark.asyncio
 async def test_save_vulnerabilities_http_error_returns_zero():
-    mock_client = AsyncMock()
+    mock_client = MagicMock()
     mock_client.post = AsyncMock(side_effect=Exception("connection refused"))
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("infrastructure.backend_api_client.httpx.AsyncClient", return_value=mock_client):
+    with patch("infrastructure.backend_api_client._client", mock_client):
         result = await save_vulnerabilities(
             "sess-err", "proj-err", "/src/Fail.java",
             [{"type": "XSS", "severity": "LOW", "line": 1}],
@@ -112,12 +109,10 @@ async def test_save_vulnerabilities_payload_shape():
         resp.json.return_value = {"data": {"saved": 1}}
         return resp
 
-    mock_client = AsyncMock()
+    mock_client = MagicMock()
     mock_client.post = _fake_post
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("infrastructure.backend_api_client.httpx.AsyncClient", return_value=mock_client):
+    with patch("infrastructure.backend_api_client._client", mock_client):
         await save_vulnerabilities(
             "s1", "p1", "/path/File.java",
             [{"type": "PATH_TRAVERSAL", "severity": "HIGH", "line": 5}],

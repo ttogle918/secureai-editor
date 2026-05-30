@@ -32,8 +32,12 @@ public class RedisCacheConfig {
         // Jackson2JsonRedisSerializer<Object> + NON_FINAL 조합은 Java record(final class)를
         // 타입 정보 없이 직렬화하여 역직렬화 시 WRAPPER_ARRAY 불일치 오류를 유발한다.
         ObjectMapper objectMapper = buildObjectMapper();
+        // Spring Data Redis 3.4+/4.0: GenericJackson2JsonRedisSerializer(ObjectMapper)
+        // 생성자가 deprecated(removal) → builder 로 동일 동작 구성.
         GenericJackson2JsonRedisSerializer jsonSerializer =
-                new GenericJackson2JsonRedisSerializer(objectMapper);
+                GenericJackson2JsonRedisSerializer.builder()
+                        .objectMapper(objectMapper)
+                        .build();
 
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(DEFAULT_TTL)

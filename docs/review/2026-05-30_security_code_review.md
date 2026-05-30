@@ -134,3 +134,53 @@ Python 쪽은 `compare_digest`인데 불일치.
 ---
 
 *이 리뷰는 2026-05-30 시점 코드 기준이며, #1·#2 수정은 동일 커밋에 포함된다.*
+
+---
+
+## 부록 A — 2차 작업: Medium 수정 + 추가 감사 (2026-05-30, 동일 일자)
+
+### A.1 Medium 권고 추가 수정 (#4·#5·#6·#7)
+
+| # | 항목 | 처리 |
+|---|------|------|
+| #4 | SBOM 저장 엔드포인트 무인증 | **수정 완료** |
+| #5 | MCP 시크릿 차단 미흡 + 확장자 추출 버그 | **수정 완료** |
+| #6 | AI Engine OpenAPI/문서 무인증 노출 | **수정 완료** |
+| #7 | Backend 내부키 비상수시간 비교 | **수정 완료** |
+| #3 | 워크스페이스 무인증 | **보류** (사유 아래) |
+
+- **#4**: `POST /api/v1/sbom/components`는 주석상 "X-Internal-Key 인증"이라 했으나 실제로는
+  `/api/v1/internal/` 경로가 아니어서 `InternalKeyAuthFilter` 보호를 받지 못하고 `permitAll`인
+  **완전 무인증** 상태였다(누구나 임의 세션/프로젝트에 SBOM 컴포넌트 주입 가능).
+  엔드포인트를 `POST /api/v1/internal/sbom/components`로 이전(`SbomController`),
+  `SecurityConfig`의 구 `permitAll` 매처 제거, AI Engine `_SBOM_SAVE_PATH`도 동일 경로로 변경.
+  이제 `InternalKeyAuthFilter`가 `X-Internal-Key`를 검증한다. (AI Engine은 이미 헤더 전송 중)
+- **#5**: `path_validator.ts`에 시크릿 차단 확장 — `.npmrc/.netrc/.pgpass/id_rsa` 등 파일명,
+  `.pem/.key/.p12/.pfx/.keystore/.jks` 등 확장자, `.ssh/.aws/.gnupg/.kube/.docker` 디렉터리,
+  `.git` 내부를 거부. `file_filter.ts`의 확장자 추출 버그(점 없는 파일명에서 `substring(-1)`)를
+  디렉터리 구분자 인식 + dotfile 처리하는 `extractExtension()`으로 교체.
+- **#6**: `main.py`의 FastAPI 생성 시 `openapi_url`을 debug일 때만 노출하도록 변경(`redoc_url`/`docs_url`은
+  이미 비-debug에서 비활성). 운영에서 `/openapi.json`·`/docs`·`/redoc` 모두 비활성화되어 내부 API 명세 노출 차단.
+- **#7**: `InternalKeyAuthFilter`의 `provided.equals(expectedKey)`를 `MessageDigest.isEqual` 기반
+  상수시간 비교로 교체(AI Engine 측 `secrets.compare_digest`와 동작 일치).
+
+#### #3 보류 사유
+`/api/workspace/**` 무인증은 `02_API_DESIGN_V5`에 **명시된 계약**("인증을 요구하지 않는다")이며,
+프론트엔드 업로드 흐름과 직접 얽혀 있다. 인증 강제로 전환하면 문서화된 API 계약과 클라이언트
+동작을 동시에 바꿔야 하므로(파괴적 변경), **제품 의사결정이 필요**하다고 보아 이번 코드 변경에서 제외했다.
+권고: (a) 세션 사용자와 `workspaceId` 바인딩 + 인증 요구, 또는 (b) 업로드 rate limit + workspaceId 엔트로피 강화.
+
+### A.2 추가 감사 결과 (미정독 영역 일부)
+
+| 영역 | 결과 |
+|------|------|
+| Admin 엔드포인트 | ✅ `AdminController`에 클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")` 적용 |
+| 대시보드(프로젝트) | ✅ `DashboardService.verifyProjectAccess(userId, projectId)`로 멤버십 검증 |
+| 초대 GET `permitAll` | 토큰 기반 수락 링크 — 표준 패턴(토큰 추측불가 전제), 추가 점검 권장 |
+| 팀 대시보드/조직 권한 | ⏳ 미완(도구 환경 이슈로 중단) — 후속 정독 권장 |
+
+> 이번 작업 환경의 셸/리더 글리치로 organization/invitation 서비스 레이어 권한 경계는
+> 완전 정독하지 못했다. 후속 감사 대상으로 남긴다.
+
+*2차 작업의 코드 변경은 별도 커밋으로 추가된다.*
+

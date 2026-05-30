@@ -20,7 +20,7 @@ Response:
 1. 파일명 기반 파서 자동 선택 → 컴포넌트 파싱
 2. Backend CVE 검색 API 호출 → CVE 매칭
 3. CycloneDX JSON 생성
-4. Backend POST /api/v1/sbom/components 로 저장
+4. Backend POST /api/v1/internal/sbom/components 로 저장
 """
 import logging
 
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agent", tags=["sbom"])
 
-_SBOM_SAVE_PATH = "/api/v1/sbom/components"
+_SBOM_SAVE_PATH = "/api/v1/internal/sbom/components"
 _HTTP_TIMEOUT = 15
 
 

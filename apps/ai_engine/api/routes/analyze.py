@@ -35,6 +35,7 @@ class AnalyzeRequest(BaseModel):
     github_token: str | None = None      # 복호화된 값 (로그 출력 금지)
     preferred_model: str | None = None
     user_api_key: str | None = None      # BYOK 복호화 키 (로그 출력 금지)
+    file_filter: list[str] | None = None # 선택 분석 — None/빈 값 = 전체 (하위 호환)
 
 
 @router.post("/analyze", status_code=status.HTTP_202_ACCEPTED)
@@ -95,6 +96,8 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
             "preferred_model": req.preferred_model,
             "user_api_key": req.user_api_key,
             "files_to_scan": [],
+            "file_filter": req.file_filter,
+            "api_groups": [],
             "current_file_index": 0,
             "current_file_sha256": None,
             "cache_hit": False,
@@ -116,8 +119,11 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
                 node_name, state = next(iter(event.items()))
 
                 if node_name == "scan_files_node":
-                    total = len(state.get("files_to_scan", []))
-                    await publish("scan_complete", total=total)
+                    files = state.get("files_to_scan", [])
+                    await publish("scan_complete", total=len(files), files=files)
+
+                elif node_name == "api_discovery_node":
+                    await publish("api_plan", api_groups=state.get("api_groups", []))
 
                 elif node_name == "cache_check_node":
                     idx = state.get("current_file_index", 0)
@@ -211,8 +217,11 @@ async def _run_resume(session_id: str) -> None:
                 node_name, state = next(iter(event.items()))
 
                 if node_name == "scan_files_node":
-                    total = len(state.get("files_to_scan", []))
-                    await publish("scan_complete", total=total)
+                    files = state.get("files_to_scan", [])
+                    await publish("scan_complete", total=len(files), files=files)
+
+                elif node_name == "api_discovery_node":
+                    await publish("api_plan", api_groups=state.get("api_groups", []))
 
                 elif node_name == "cache_check_node":
                     idx = state.get("current_file_index", 0)

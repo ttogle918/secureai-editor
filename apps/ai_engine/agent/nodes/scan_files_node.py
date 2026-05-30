@@ -223,6 +223,17 @@ async def scan_files_node(state: AgentState) -> dict:
             # 4. 우선순위 정렬 — 시크릿/키(0) → 설정(1) → 소스(2) → 기타(99)
             files = prioritize_files(files)
 
+            # 5. 선택 분석(fileFilter) — 지정된 파일만 스캔 (None/빈 값 = 전체, 하위 호환)
+            file_filter = state.get("file_filter")
+            if file_filter:
+                filter_set = set(file_filter)
+                before_filter = len(files)
+                files = [f for f in files if f in filter_set]
+                logger.info(
+                    "[scan_files] session=%s file_filter applied: %d/%d files",
+                    session_id, len(files), before_filter,
+                )
+
             await log_completed(
                 session_id, "scan_files", _STEP_ORDER,
                 detail={

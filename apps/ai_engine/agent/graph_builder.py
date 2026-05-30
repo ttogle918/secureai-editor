@@ -10,6 +10,7 @@ from langgraph.graph import END, StateGraph
 
 from agent.agent_state import AgentState
 from agent.nodes.aggregate_node import aggregate_node
+from agent.nodes.api_discovery_node import api_discovery_node
 from agent.nodes.cache_check_node import cache_check_node
 from agent.nodes.next_file_node import next_file_node
 from agent.nodes.patch_node import patch_node
@@ -26,6 +27,7 @@ def _build_graph(checkpointer=None):
     builder = StateGraph(AgentState)
 
     builder.add_node("scan_files_node", scan_files_node)
+    builder.add_node("api_discovery_node", api_discovery_node)
     builder.add_node("cache_check_node", cache_check_node)
     builder.add_node("sast_node", sast_node)
     builder.add_node("next_file_node", next_file_node)
@@ -34,11 +36,13 @@ def _build_graph(checkpointer=None):
 
     builder.set_entry_point("scan_files_node")
 
+    # scan_files → (파일 있으면) api_discovery → cache_check 루프. api_discovery는 1회만 실행.
     builder.add_conditional_edges(
         "scan_files_node",
         route_after_scan,
-        {"cache_check_node": "cache_check_node", "__end__": END},
+        {"cache_check_node": "api_discovery_node", "__end__": END},
     )
+    builder.add_edge("api_discovery_node", "cache_check_node")
     builder.add_conditional_edges(
         "cache_check_node",
         route_after_cache,

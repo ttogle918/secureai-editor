@@ -20,6 +20,10 @@ class AgentState(TypedDict):
     files_to_scan: list[str]
     current_file_index: int
 
+    # API 중심 분석 (TASK-1106) — api_discovery_node 출력 / 선택 분석 입력
+    api_groups: list[dict]            # [{name, url, files:[{path, line}]}]
+    file_filter: list[str] | None     # None = 전체 분석 (하위 호환)
+
     # cache_check_node 가 계산한 현재 파일 SHA-256 (sast_node에서 캐시 저장에 재사용)
     current_file_sha256: str | None
 

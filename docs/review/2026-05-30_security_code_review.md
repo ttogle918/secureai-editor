@@ -174,13 +174,14 @@ Python 쪽은 `compare_digest`인데 불일치.
 
 | 영역 | 결과 |
 |------|------|
-| Admin 엔드포인트 | ✅ `AdminController`에 클래스 레벨 `@PreAuthorize("hasRole('ADMIN')")` 적용 |
-| 대시보드(프로젝트) | ✅ `DashboardService.verifyProjectAccess(userId, projectId)`로 멤버십 검증 |
-| 초대 GET `permitAll` | 토큰 기반 수락 링크 — 표준 패턴(토큰 추측불가 전제), 추가 점검 권장 |
-| 팀 대시보드/조직 권한 | ⏳ 미완(도구 환경 이슈로 중단) — 후속 정독 권장 |
+| Admin 엔드포인트 | ✅ `AdminController` 전 메서드 `@PreAuthorize("@adminGuard.check(authentication)")` |
+| 대시보드(프로젝트) | ✅ `DashboardQueryService`가 `projectService.isMember` 검증(`PROJECT_ACCESS_DENIED`) |
+| 대시보드(팀) | ✅ `TeamDashboardService.verifyTeamMember` 검증(`ORG_ACCESS_DENIED`) |
+| 조직 변경 작업 | ✅ `OrganizationController` 변경 계열에 `@PreAuthorize("@orgGuard.isAdminOrAbove(...)")` |
+| 초대 GET `permitAll` | 토큰 기반 수락 링크(표준 패턴). 단 `GET /api/v1/invitations/{token}`이 인증 없이 `orgId/projectId/email/role/expiresAt`를 반환 → 토큰 노출 시 초대 이메일 등 메타 노출(경미). 토큰 추측불가 전제하에 허용 가능, 필요 시 email 마스킹 권장 |
 
-> 이번 작업 환경의 셸/리더 글리치로 organization/invitation 서비스 레이어 권한 경계는
-> 완전 정독하지 못했다. 후속 감사 대상으로 남긴다.
+> organization/team/admin 권한 경계는 정독 결과 모두 가드(@adminGuard/@orgGuard/멤버십 검증)로 보호됨을 확인했다.
+> 후속 권장: ai_engine LangGraph 노드별 예외/리소스 누수, android 클라이언트, frontend 라우트 가드 전수.
 
 *2차 작업의 코드 변경은 별도 커밋으로 추가된다.*
 

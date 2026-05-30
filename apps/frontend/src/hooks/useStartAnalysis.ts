@@ -24,10 +24,13 @@ export function useStartAnalysis() {
 
   const [scanMode, setScanMode] = useState<ScanMode>('PIPELINE');
 
-  const createSession = useCallback(async (pid: string, force = false, mode: ScanMode = 'PIPELINE') => {
+  const createSession = useCallback(async (pid: string, force = false, mode: ScanMode = 'PIPELINE', fileFilter?: string[]) => {
     const res = await apiClient.post<{ data: SessionData }>(
       '/analysis/sessions',
-      { projectId: pid, workspaceRoot: workspaceId, sourceType: 'local', force, scanMode: mode },
+      {
+        projectId: pid, workspaceRoot: workspaceId, sourceType: 'local', force, scanMode: mode,
+        ...(fileFilter && fileFilter.length ? { fileFilter } : {}),
+      },
     );
     setSseSessionId(res.data.id);
     setViewMode('editor');
@@ -112,5 +115,22 @@ export function useStartAnalysis() {
     clearVulns, clearProgressSteps, addToast, createSession,
   ]);
 
-  return { startAnalysis, isAnalyzing, scanMode, setScanMode };
+  /** 선택 분석 (TASK-1106) — 지정한 파일만 재분석. 기존 projectId 재사용, 항상 새 세션(force). */
+  const startSelectiveAnalysis = useCallback(async (fileFilter: string[]) => {
+    if (isAnalyzing) return;
+    if (!projectId) { addToast('먼저 전체 분석을 한 번 실행해주세요.', 'error'); return; }
+    if (!fileFilter.length) { addToast('분석할 API 그룹을 선택해주세요.', 'warning'); return; }
+    setIsAnalyzing(true);
+    clearVulns();
+    clearProgressSteps();
+    try {
+      await createSession(projectId, true, scanMode, fileFilter);
+    } catch (err) {
+      setIsAnalyzing(false);
+      const msg = err instanceof ApiError ? err.message : '선택 분석 시작에 실패했습니다.';
+      addToast(msg, 'error');
+    }
+  }, [projectId, isAnalyzing, scanMode, setIsAnalyzing, clearVulns, clearProgressSteps, addToast, createSession]);
+
+  return { startAnalysis, startSelectiveAnalysis, isAnalyzing, scanMode, setScanMode };
 }

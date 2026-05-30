@@ -60,6 +60,9 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const setLastTokenUsage    = useSecureStore((s) => s.setLastTokenUsage);
   const setRightTab          = useSecureStore((s) => s.setRightTab);
   const addProgressStep      = useSecureStore((s) => s.addProgressStep);
+  const setApiGroups         = useSecureStore((s) => s.setApiGroups);
+  const setFileStatus        = useSecureStore((s) => s.setFileStatus);
+  const clearApiAnalysis     = useSecureStore((s) => s.clearApiAnalysis);
   const addToast             = useToastStore((s) => s.addToast);
   const { startAnalysis, isAnalyzing } = useStartAnalysis();
 
@@ -166,9 +169,19 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         setRightTab('vulns');
         setIsAnalyzing(false);
       } else if (event.type === 'started') {
+        clearApiAnalysis();
         addProgressStep({ stepName: '분석 시작', stepOrder: Date.now(), target: '초기화 중...', status: 'completed' });
+      } else if (event.type === 'api_plan') {
+        // TASK-1106 — API 그룹 계획 수신 → 파일 전부 pending 초기화
+        setApiGroups(event.api_groups ?? []);
       } else if (event.type === 'progress') {
         if (event.file) {
+          // TASK-1106 — 파일별 분석 상태 갱신
+          if (event.node === 'cache_check') {
+            setFileStatus(event.file, event.cache_hit ? 'cached' : 'analyzing');
+          } else if (event.node === 'sast') {
+            setFileStatus(event.file, 'done');
+          }
           addProgressStep({
             stepName: event.node === 'sast' ? 'SAST 분석' : (event.node ?? '분석 중'),
             stepOrder: Date.now(), target: event.file, status: 'completed',

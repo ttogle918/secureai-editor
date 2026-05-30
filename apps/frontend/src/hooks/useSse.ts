@@ -32,14 +32,23 @@ export interface SastFileResult {
   error?: string;
 }
 
+export interface ApiGroupPlan {
+  name: string;
+  url: string;
+  files: { path: string; line: number }[];
+}
+
 export interface ProgressEvent {
   sessionId: string;
-  type: 'started' | 'progress' | 'completed' | 'error' | 'scan_complete' | 'cancelled' | 'vuln_found';
+  type: 'started' | 'progress' | 'completed' | 'error' | 'scan_complete' | 'cancelled' | 'vuln_found' | 'api_plan';
   node?: string;
   file?: string;
   current?: number;
   total?: number;
   message?: string;
+  // api_plan (TASK-1106)
+  api_groups?: ApiGroupPlan[];
+  files?: string[];
   // completed
   vuln_count?: number;
   results?: SastFileResult[];

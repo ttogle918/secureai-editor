@@ -44,6 +44,20 @@ export interface ProgressStep {
   durationMs?: number;
 }
 
+// API 중심 분석 (TASK-1106) — api_discovery_node 결과
+export type FileAnalysisStatus = 'pending' | 'analyzing' | 'done' | 'cached' | 'failed';
+
+export interface ApiGroupFile {
+  path: string;
+  line: number;
+}
+
+export interface ApiGroup {
+  name: string;
+  url: string;
+  files: ApiGroupFile[];
+}
+
 // 탭 타입 — EditorTabs.tsx와 동일 구조, circular 방지를 위해 인라인 정의
 export interface EditorTab {
   path: string;
@@ -177,6 +191,13 @@ interface SecureStore {
   addProgressStep: (step: ProgressStep) => void;
   updateProgressStep: (stepOrder: number, update: Partial<ProgressStep>) => void;
   clearProgressSteps: () => void;
+
+  // ── API 중심 분석 (TASK-1106) ──────────────────────────────
+  apiGroups: ApiGroup[];
+  fileStatuses: Record<string, FileAnalysisStatus>;
+  setApiGroups: (groups: ApiGroup[]) => void;
+  setFileStatus: (path: string, status: FileAnalysisStatus) => void;
+  clearApiAnalysis: () => void;
 
   // ── 언어 설정 ────────────────────────────────────────────
   displayLanguage: DisplayLanguage;
@@ -385,6 +406,20 @@ export const useSecureStore = create<SecureStore>()(
       ),
     })),
   clearProgressSteps: () => set({ progressSteps: [] }),
+
+  // ── API 중심 분석 (TASK-1106)
+  apiGroups: [],
+  fileStatuses: {},
+  setApiGroups: (groups) => set(() => {
+    // 그룹의 모든 파일을 pending으로 초기화
+    const statuses: Record<string, FileAnalysisStatus> = {};
+    for (const g of groups) for (const f of g.files) statuses[f.path] = 'pending';
+    return { apiGroups: groups, fileStatuses: statuses };
+  }),
+  setFileStatus: (path, status) => set((s) => ({
+    fileStatuses: { ...s.fileStatuses, [path]: status },
+  })),
+  clearApiAnalysis: () => set({ apiGroups: [], fileStatuses: {} }),
 
   // ── 언어
   displayLanguage: 'ko',

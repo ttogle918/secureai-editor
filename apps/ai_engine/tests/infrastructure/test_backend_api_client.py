@@ -72,7 +72,7 @@ async def test_save_vulnerabilities_success():
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("infrastructure.backend_api_client.httpx.AsyncClient", return_value=mock_client):
+    with patch("infrastructure.backend_api_client._client", mock_client):
         result = await save_vulnerabilities(
             "sess-1", "proj-1", "/src/Dao.java",
             [
@@ -91,7 +91,7 @@ async def test_save_vulnerabilities_http_error_returns_zero():
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("infrastructure.backend_api_client.httpx.AsyncClient", return_value=mock_client):
+    with patch("infrastructure.backend_api_client._client", mock_client):
         result = await save_vulnerabilities(
             "sess-err", "proj-err", "/src/Fail.java",
             [{"type": "XSS", "severity": "LOW", "line": 1}],
@@ -117,7 +117,7 @@ async def test_save_vulnerabilities_payload_shape():
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("infrastructure.backend_api_client.httpx.AsyncClient", return_value=mock_client):
+    with patch("infrastructure.backend_api_client._client", mock_client):
         await save_vulnerabilities(
             "s1", "p1", "/path/File.java",
             [{"type": "PATH_TRAVERSAL", "severity": "HIGH", "line": 5}],

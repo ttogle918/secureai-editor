@@ -198,7 +198,10 @@
 - **준수 규칙**: AI Engine 통신 `X-Internal-Key` 유지. 토큰 로그 금지. 개별 파일 오류 시 skip&log(전체 실패 금지). DTO 변경 시 record 불변성 유지.
 - **DoD**: `api_discovery_node` 단위 테스트(Controller/Service/ServiceImpl/Repository 그룹화) 통과 / `StartAnalysisRequest` 변경 후 백엔드 `./gradlew test` 컴파일·통과 / Progress Panel API 그룹 렌더 / `fileFilter` null = 기존 동작 회귀 없음 / 선택 분석 세션 재시작 동작.
 
-### TASK-1102 — 페르소나별 랜딩 & 사이드바 분기 (M, Stage 2)
+### TASK-1102 — 페르소나별 랜딩 & 사이드바 분기 (M, Stage 2) ✅ 완료 (2026-05-31, `7c6ce9e`)
+
+> **구현 결과**: `/dashboard` 라우트는 없고 dashboard는 `viewMode`(editor↔dashboard, `/editor` 내 토글)임이 실측 확인됨 → 로그인/콜백에서 workspaceMode로 **viewMode** 설정(SECURITY_MANAGER→dashboard, 그 외→editor) 후 `/editor` 랜딩. AppHeader 페르소나 배지(개발자/보안 담당/통합), AppSidebar 보안 담당 시 취약점·SBOM 상단 강조. tsc 0에러 + 프론트 테스트 17건 통과.
+
 
 - **변경 파일**: `apps/frontend/src/components/layout/AppSidebar.tsx`(기존 — 역할별 메뉴 분기 추가), 리다이렉트 로직(`AuthProvider`/레이아웃 마운트 지점), `app/layout.tsx`.
 - **S4 결정**: `AppSidebar.tsx`는 **에디터 전용 파일트리 사이드바**다. 역할 분기는 거기 직접 넣지 않고 — **(권장 결정)** 역할별 글로벌 네비/리다이렉트는 `AppHeader` + 클라이언트 리다이렉트(`AuthProvider`의 `useEffect` + `router.replace`)로 처리하고, `AppSidebar`에는 역할에 따라 보일 메뉴 항목만 조건부 렌더. 미들웨어가 아닌 **클라이언트 측** 분기(persist 유지).

@@ -35,13 +35,13 @@ Sprint 8  (Week 17-18): 안정화 & 보안 강화 & 런칭 준비               
 Sprint 9  (Week 19-20): VSCode Extension & 지속 모니터링 (Phase 3)        ✅ 완료
 Sprint 10 (Week 21-22): Enterprise B2B + GitHub Integration                ✅ 완료 (Stage 1~5, feat/sprint10)
 refactor/frontend-ui:   Pagori 리디자인 Stage 1~6 (온보딩·설정·SBOM·ChatFAB) ⚠️ 미머지 → Sprint 11 통합
-Sprint 11 (Week 23-24): QA + 브랜치 통합 + Persona-based UX                 🔄 진행 (Stage 0 ✅ 완료)
-Sprint 12 (Week 25-26): 보안 코어 & 관측성 (GitHub App·해시체인·세션·토큰비용·백업·Loki·Sentry·이메일) 예정
+Sprint 11 (Week 23-24): QA + 브랜치 통합 + Persona-based UX                 ✅ dev 완료 (1105 수동검증만)
+Sprint 12 (Week 25-26): 보안 코어 & 관측성 + ECON-1(프롬프트 캐싱)          예정
 Sprint 12B(분할/후순위): Enterprise Admin UI (알림센터·온보딩·감사로그UI·2FA FE·정책)          예정
-Sprint 13 (Week 27-28): AI Agent Advanced I (API 호출 경로 스캔 & 오탐 학습) 예정
-Sprint 14 (Week 29-30): AI Agent Advanced II (패치 자동화 및 격리 검증)       예정
-Sprint 15 (Week 31-32): Ecosystem & MCP Server Expansion                      예정
-Sprint 16 (Week 33-34): Live Scan Visual Simulator (Loki는 Sprint 12로 이동)   예정
+Sprint 13 (Week 27-28): ★EPIC-VAL 검증 우선 (벤치 점수·AST가드·SAST→DAST증명·트리아지 피드백) 예정 (V5.6 재정렬)
+Sprint 14 (Week 29-30): 검증된 AI (패치 자동화 + VAL-5 안전장치=1402/1403)     예정
+Sprint 15 (Week 31-32): ★EPIC-WEDGE 컴플라이언스 쐐기 + Ecosystem/MCP        예정 (V5.6)
+Sprint 16 (Week 33-34): EPIC-WEDGE 파일럿/준비도 + Live Scan Simulator (Loki→Sprint12) 예정
 Sprint 17 (Week 35-36): 수익화 인프라 (Payment + Billing)                       예정 (신규 — V5 추가)
 Sprint 18 (Week 37-38): Hardening Sprint (E2E·a11y·시크릿·Swagger·StatusPage; Sentry는 Sprint 12로 이동) 예정
 EPIC-MISC:              독립 기능 (스프린트 비종속)
@@ -94,6 +94,29 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - 기존 **Sprint 13(AI Advanced)·14(패치)** 를 VAL-3/4/5와 통합해 "검증된 AI"로 재구성.
 - **WEDGE(컴플라이언스 쐐기)** 는 9~12주 — 기존 컴플라이언스 자산 위 재포지셔닝.
 - 상세 서사·DoD·KPI는 doc 18 참조.
+
+### 신규 태스크 구체화 (materialized — 스프린트 편성 대상)
+> EPIC 접두 ID. 흡수 항목(VAL-2/5/6·WEDGE-1/2·MOAT-2/3·ECON-2/3/4/5)은 기존 태스크에서 처리(매핑표). 아래는 **순수 신규 9건**.
+
+| ID | 제목 | DoD 요약 | 사이즈 |
+|----|------|---------|--------|
+| **VAL-1** 🔴 | OWASP Benchmark 평가 하니스 | 2,740 케이스 → TPR/FPR/score, `make eval` 한 방. README에 FP율/탐지율 첫 숫자 | M |
+| **VAL-3** 🔴 | 결정론적 검증 레이어(AST 할루시네이션 가드) | 모델 보고 file:line·source→sink를 AST로 실재 검증, 불일치 findings 자동 폐기 | L |
+| **VAL-4** 🔴 | SAST→DAST `proven_exploitable` 연결 | SAST 의심 → DAST 샌드박스 익스플로잇 성공 시 라벨. "증명" 데모 영상 1편 | L |
+| **ECON-1** 🔴 | 프롬프트 캐싱 | 가이드라인 컨텍스트 Anthropic prompt caching. 캐시 적중률+토큰 절감률 계측 (claude-api 스킬) | S |
+| **MOAT-1** 🟠 | 트리아지 피드백 UI(확인/기각/채택) | findings 라벨 저장 → 독점 학습 데이터. FEAT-AI-003 리랭커 입력 | M |
+| **WEDGE-3** 🟠 | 컴플라이언스 준비도 대시보드 | "ISMS-P 준비도 73%, 미충족 12개" (ComplianceMappingService 위) | M |
+| **WEDGE-4** 🟢 | 피치/문서 재포지셔닝(문서) | README·랜딩·피치덱 "컴플라이언스 증적 자동화" 중심 | S |
+| **WEDGE-5** 🟠 | 파일럿 고객 PoC(GTM) | ISMS-P 준비 기업과 "3주→3일" 사례 1건 | L |
+| **MOAT-4** 🟢 | 모델 비종속 아키텍처 명문화(문서) | BYOK·모델선택을 "무기"로 서사화 | S |
+
+### 채택된 로드맵 (V5.6 재우선순위)
+- **Sprint 12** (보안 코어) + **ECON-1(프롬프트 캐싱)** 끼움 — 즉시 토큰 절감.
+- **Sprint 13 = EPIC-VAL(검증 우선)**: VAL-1 · VAL-3 · VAL-4 + **MOAT-1**(데이터 수집 1주차 시작) + VAL-2(→1203 eval 게이트). *기존 Sprint 13(멀티파일/오탐/모델벤치)은 VAL-6(신뢰 대시보드=1303 재정의)·MOAT-2(오탐학습=FEAT-AI-003)로 재배치.*
+- **Sprint 14 = 검증된 AI**: 기존 패치(1401) + VAL-5(=1402/1403 안전장치, auto-merge 금지).
+- **Sprint 15~16 = EPIC-WEDGE(컴플라이언스 쐐기)**: WEDGE-1(규제 매핑 심화) · WEDGE-3(준비도) · WEDGE-5(파일럿) · WEDGE-4.
+- 배경 누적: MOAT(데이터 플라이휠)·시스템 오브 레코드는 전 스프린트 걸쳐 누적.
+- ⚠️ 실제 스프린트 배정·DoD 확정은 `/sprint 13`(Opus 4.8 PM)에서.
 
 ---
 

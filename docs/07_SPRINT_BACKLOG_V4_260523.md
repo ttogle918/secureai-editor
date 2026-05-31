@@ -14,7 +14,8 @@
 | V5.2 | 2026-05-28 | pages-inventory & UX 스펙 대조 후 11개 태스크 보강 (알림센터/관리자온보딩/EnterpriseChannels/마켓플레이스/모바일3state/QBR/status) + Future 5개 (TTS/ChatHistory/온콜/단축키/모바일채팅) |
 | V5.3 | 2026-05-28 | **양방향 동기화 완료** — pages-inventory ↔ 백로그 갭 5건 보강: TASK-1208(EnterpriseLogs 감사 로그 페이지) / TASK-1208b(SettingsSecurity 2FA FE 전체) / TASK-1209(EnterprisePolicies) / TASK-1705(EnterpriseScale 랜딩) / TASK-1706(EnterpriseLaunch 30/60/90 플레이북). pages-inventory에 신규 페이지 15종(`/legal/*`, `/notifications`, `/admin/onboarding`, `/admin/audit-logs`, `/admin/policies`, `/settings/channels`, `/settings/security`, `/integrations`, `/billing`, `/enterprise`, `/enterprise/launch`, `/admin/master/qbr`, `apps/status/`) 추가 |
 | V5.4 | 2026-05-29 | TASK-1106 신설 — API 중심 분석 계획 & 진행률 패널 (api_discovery_node · api_plan SSE 이벤트 · fileFilter 선택 분석 · 프론트 Progress Panel 개편). Sprint 11 Stage 3으로 편입 |
-| **V5.5 (현재)** | 2026-05-30 | Sprint 11 Stage 0(브랜치 통합) 완료 기록. **Sprint 12 분할** — 보안·운영 필수(12)와 Enterprise Admin UI(12B)로. 관측성(Loki·Sentry) Sprint 16/18 → 12 편입. **TASK-1210 트랜잭션 이메일 인프라** 신설. Flyway: 리포트 V047 확정에 따라 workspace_mode V048/legal_consent V049 |
+| V5.5 | 2026-05-30 | Sprint 11 Stage 0(브랜치 통합) 완료 기록. **Sprint 12 분할** — 보안·운영 필수(12)와 Enterprise Admin UI(12B)로. 관측성(Loki·Sentry) Sprint 16/18 → 12 편입. **TASK-1210 트랜잭션 이메일 인프라** 신설. Flyway: 리포트 V047 확정에 따라 workspace_mode V048/legal_consent V049 |
+| **V5.6 (현재)** | 2026-05-31 | Sprint 11 Stage 1·2 dev 완료(1101·1102·1103·1104·1106) + 런타임 검증(make dev). **VC 리뷰 대응(doc 18) 통합** — EPIC VAL/WEDGE/MOAT/ECON 평가·ID충돌(Sprint13) 해소·중복 매핑·재우선순위 권고. WebClient.Builder 부팅 fix |
 
 ---
 
@@ -52,6 +53,47 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **브랜치**: `main` (origin 동기화). Sprint 11 **Stage 0·1·2 dev 완료**(1100·1101·1102·1103·1104·1106) — 빌드/테스트 그린, 푸시 완료
 - **남은 것**: TASK-1105(수동 검증 청산, 👤 사용자) + 실런타임 검증(`make dev`)
 - **다음 액션**: Sprint 11 수동 검증 후 **Sprint 12**(보안 코어: GitHub App 인증·해시체인·세션·토큰비용·백업·관측성·이메일)
+- **런타임 검증(2026-05-31)**: `make dev` 백엔드 부팅 ✅(WebClient.Builder 빈 누락 fix `e651fb9` 후), Flyway V048/V049 적용 ✅, 페르소나 API 플로우(가입·동의400·로그인·/me workspaceMode·PATCH200/400) ✅, 프론트 `/login` 200 ✅. 브라우저 시각 랜딩만 사용자 확인 대기.
+
+---
+
+## ⚡ VC 리뷰 대응 — 사업 방어력 재포지셔닝 (doc 18 통합, V5.6)
+
+> 출처: `docs/18_VC_REVIEW_RESPONSE_260530.md` (2026-05-30). VC가 지적한 5약점(해자·레드오션·검증부재·범위과대·단위경제성)에 대응하는 4개 에픽(VAL/WEDGE/MOAT/ECON).
+
+### 평가 (Opus 4.8)
+- **방향 타당**: ① 보안 제품의 정량 신뢰도(FP율·탐지율) 부재는 생존 문제 → VAL 최우선이 맞다. ② 한국형 컴플라이언스 증적은 **이미 만든 자산(Sprint 8 보안문서 생성·Sprint 10 ComplianceMappingService)** 의 재포지셔닝이라 ROI가 높다. ③ 프롬프트 캐싱·증분 스캔은 토큰 비용 구조적 절감 quick win.
+- **단, "20개 신규"가 아님**: doc 18의 TASK는 **(a) 기존 Sprint 13 TASK-1301~1303과 ID 충돌** + **(b) 다수 기존 항목과 중복**. 그대로 추가 시 혼선 → 아래처럼 **EPIC 접두 ID 재정의 + 중복 흡수**로 통합.
+
+### ⚠️ ID 충돌 해소
+기존 Sprint 13에 **TASK-1301(멀티파일)·1302(오탐학습)·1303(모델벤치)** 이 이미 있음 → VC 태스크는 **EPIC 접두 ID**로 표기: `VAL-1..6 · WEDGE-1..5 · MOAT-1..4 · ECON-1..5`. (doc 18의 TASK-13xx 번호는 그 문서 내부 표기로만)
+
+### 중복/신규 매핑
+| VC 항목 | 기존 백로그 관계 | 처리 |
+|---|---|---|
+| VAL-1 OWASP Benchmark 하니스 / VAL-3 AST 할루시네이션 가드 / VAL-4 SAST→DAST proven_exploitable | **신규** | 신규 — 핵심 차별점·최우선 |
+| VAL-2 평가 CI 게이트 | TASK-1203 확장 | 1203에 eval-score 게이트 추가 |
+| VAL-5 패치 안전장치 | **TASK-1402·1403 중복** | 1402/1403로 흡수(auto-merge 금지 원칙) |
+| VAL-6 신뢰 지표 대시보드 | **TASK-1303(모델벤치) 중복** | 1303을 "신뢰 지표 대시보드"로 재정의 |
+| WEDGE-1 취약점→규제 매핑 | ComplianceMappingService+FEAT-COMP-002 확장 | 기존 확장(ISMS-P/행안부 심화) |
+| WEDGE-2 증적 패키지 고도화 | **TASK-MISC-002 Level 2 중복** | MISC-002 Level 2로 흡수 |
+| WEDGE-3 준비도 대시보드 / WEDGE-4 재포지셔닝(문서) / WEDGE-5 파일럿 PoC(GTM) | 신규 | 신규 |
+| MOAT-1/2 트리아지 피드백+리랭커 | **FEAT-AI-003+Sprint13 1302 중복** | 1302/FEAT-AI-003 흡수 + 기각/채택 버튼 UI 신규 |
+| MOAT-3 시스템 오브 레코드 | 감사로그(1202a)+증적 누적 | 기존 위 서사화 |
+| MOAT-4 모델 비종속 명문화(문서) | BYOK(완료) | 신규(문서) |
+| ECON-1 프롬프트 캐싱 | **신규 quick win** | 신규 — 즉시 효과 |
+| ECON-2 증분 스캔 | **TASK-1106 fileFilter(완료) 확장** | 1106 위 PR-diff 한정 추가 |
+| ECON-3 모델 캐스케이드 | TASK-1004 스캔모드 확장 | 1004 확장 |
+| ECON-4 스캔 원가 계측 | **TASK-1204(토큰 추적) 중복** | 1204로 흡수(스캔당 원가 대시보드) |
+| ECON-5 가격 재설계 | Sprint 17(결제) 확장 | Sprint 17에 구독/per-repo 반영 |
+
+→ **순수 신규**: VAL-1·VAL-3·VAL-4 · WEDGE-3·4·5 · MOAT-1(피드백 UI)·MOAT-4 · ECON-1. 나머지는 기존 태스크 확장/재정의.
+
+### 재우선순위 권고 (전략 제안 — 실제 편성은 `/sprint`에서 확정)
+- **근시일 최우선(1~2주)**: VAL-1(벤치 점수) · ECON-1(프롬프트 캐싱) · MOAT-1(기각/채택 버튼) → "FP율 X% / 토큰 절감 / 데이터 수집 개시" 첫 숫자 확보.
+- 기존 **Sprint 13(AI Advanced)·14(패치)** 를 VAL-3/4/5와 통합해 "검증된 AI"로 재구성.
+- **WEDGE(컴플라이언스 쐐기)** 는 9~12주 — 기존 컴플라이언스 자산 위 재포지셔닝.
+- 상세 서사·DoD·KPI는 doc 18 참조.
 
 ---
 

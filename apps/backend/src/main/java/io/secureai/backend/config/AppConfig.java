@@ -9,10 +9,21 @@ import dev.samstevens.totp.qr.ZxingPngQrGenerator;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
 @EnableCaching
 public class AppConfig {
+
+    /**
+     * WebClient.Builder 수동 등록 — Spring Boot 4.0.5 servlet(MVC) 앱에서 webflux 의존성이
+     * 있어도 WebClientAutoConfiguration이 Builder 빈을 제공하지 않아, 이를 주입받는
+     * SlackWebhookAdapter·MonitoringService 부팅 실패(UnsatisfiedDependency)를 방지한다.
+     */
+    @Bean
+    public WebClient.Builder webClientBuilder() {
+        return WebClient.builder();
+    }
 
     @Bean
     public ObjectMapper objectMapper() {

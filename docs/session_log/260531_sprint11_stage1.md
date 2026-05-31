@@ -108,6 +108,19 @@
 
 ---
 
+## 6-B. `/stage 2` (TASK-1102) + 원격 분기 처리 (2026-05-31 후속)
+
+**TASK-1102 페르소나별 랜딩 & 사이드바** ✅ (`7c6ce9e`)
+- **실측 정정**: `/dashboard` 라우트 없음 → dashboard는 `/editor` 내 `viewMode` 토글. 로그인/OAuth 콜백에서 workspaceMode로 viewMode 설정(SECURITY_MANAGER→dashboard, 그 외→editor) 후 `/editor` 랜딩.
+- AppHeader 페르소나 배지(개발자/보안 담당/통합), AppSidebar 보안 담당 시 취약점·SBOM 상단 강조. tsc 0에러 + 프론트 17건 통과.
+
+**원격 분기(divergence) 처리** (앞 세션에서 우려했던 시나리오 실제 발생): push 시 origin/main이 **4커밋 앞서 있었음** — 원격 Claude 세션이 백엔드(RedisCacheConfig)·**AI 테스트 mock 수정(`94723fe`)**·백로그(VC 대응 4에픽)·README 현행화를 푸시. 내 1102와 **파일 겹침 0** → **rebase 무충돌 통합** 후 푸시(`7c6ce9e`). 강제 푸시 없음.
+> ⚠️ §7의 "AI 엔진 13 실패"는 원격 `94723fe`로 **이미 해소됨** (이번 세션 부채 목록에서 제거).
+
+**Sprint 11 dev 완료**: Stage 0·1·2 전부(1100·1101·1102·1103·1104·1106) 구현·테스트·푸시 완료. 남은 건 TASK-1105(수동 검증, 👤사용자) + 실런타임 검증.
+
+---
+
 ## 7. 전체 검증 결과
 
 - **프론트**: `next build` ✅ (21페이지) + tsc 0에러 + jest 통과.
@@ -123,12 +136,13 @@
 
 ## 8. 다음 세션에서 할 것
 
-- [ ] **(택1)** `make infra`+백엔드 기동으로 실제 부팅·Flyway 적용 검증 / 또는 `make dev` 수동 검증
-- [ ] **`/stage 2`** — TASK-1102 (페르소나 랜딩·사이드바). 선행 1101 완료
-- [ ] **수동 검증 부채 대장**(Sprint 7~10) 청산 = TASK-1105
-- [ ] (기존 부채) AI 엔진 13건 테스트 mock 헬퍼 수리 — 이번 작업과 무관, 별도
+- [x] ~~`/stage 2` — TASK-1102~~ ✅ 완료 (`7c6ce9e`, §6-B)
+- [x] ~~AI 엔진 13건 mock 수리~~ ✅ 원격 `94723fe`로 해소됨
+- [ ] **(택1)** `make infra`+백엔드 기동으로 실제 부팅·Flyway(V048/V049) 적용 검증 / 또는 `make dev` 수동 검증 — **유일하게 미관측된 부분**
+- [ ] **TASK-1105** 수동 검증 부채 대장(Sprint 7~10) 청산 — 👤 사용자
+- [ ] Sprint 11 수동 체크리스트: 페르소나 로그인 랜딩(개발자/보안/통합) / 온보딩 저장 / 동의 차단 / legal·쿠키배너 / Progress 아코디언·선택분석
+- [ ] 수동 검증 후 Sprint 11 종료 → **Sprint 12**(보안 코어: GitHub App 인증·해시체인·세션·토큰비용·백업·관측성·이메일)
 - [ ] `git remote set-url origin .../secureai-editor.git` (원격 이전 안내 정리)
-- [ ] Stage 1 수동 체크리스트: 온보딩 저장 / 동의 차단 / legal 페이지·쿠키배너 / Progress 아코디언·선택분석
 
 ---
 

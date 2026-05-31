@@ -440,6 +440,21 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           })}
         </div>
 
+        {/* 페르소나 모드 배지 (TASK-1102) */}
+        {authUser?.workspaceMode && (
+          <span
+            title="워크스페이스 모드"
+            style={{
+              fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
+              background: 'var(--orange-dim)', color: 'var(--orange)',
+              border: '1px solid var(--orange-glow)', whiteSpace: 'nowrap',
+            }}
+          >
+            {authUser.workspaceMode === 'DEVELOPER' ? '개발자'
+              : authUser.workspaceMode === 'SECURITY_MANAGER' ? '보안 담당' : '통합'}
+          </span>
+        )}
+
         <button
           onClick={() => setShowCommitScan(true)}
           title="커밋 시크릿 스캔"

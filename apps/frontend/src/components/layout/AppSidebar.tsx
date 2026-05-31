@@ -346,7 +346,7 @@ function SlimRail({
         .join('')
     : '??';
 
-  const navItems = [
+  const baseNavItems = [
     { icon: <FolderOpen size={16} />, label: '파일',     active: true, badge: openTabCount },
     { icon: <ShieldAlert size={16} />, label: '취약점',  active: false, badge: vulnCount > 0 ? vulnCount : 0 },
     { icon: <Package size={16} />,    label: 'SBOM',    active: false, badge: 0 },
@@ -354,6 +354,10 @@ function SlimRail({
     { icon: <Users size={16} />,      label: '팀',      active: false, badge: 0 },
     { icon: <Settings size={16} />,   label: '설정',    active: false, badge: 0 },
   ];
+  // 페르소나별 메뉴 분기 (TASK-1102) — 보안 담당은 보안 관점(취약점·SBOM)을 상단 강조
+  const navItems = authUser?.workspaceMode === 'SECURITY_MANAGER'
+    ? [baseNavItems[1], baseNavItems[2], baseNavItems[0], baseNavItems[3], baseNavItems[4], baseNavItems[5]]
+    : baseNavItems;
 
   return (
     <div

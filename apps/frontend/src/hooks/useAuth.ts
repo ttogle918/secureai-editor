@@ -2,6 +2,7 @@
 import { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore, type WorkspaceMode } from '@/store/useAuthStore';
+import { useSecureStore } from '@/store/useSecureStore';
 import { apiClient, setAccessToken, onUnauthorized, getAccessToken } from '@/lib/api/client';
 
 // ── API response shapes ──────────────────────────────────────────────────────
@@ -116,18 +117,22 @@ export function useAuth() {
     setError(null);
     try {
       const res = await apiClient.post<{ data: LoginData }>('/auth/login', { email, password });
-      const { accessToken: token, user: u } = res.data;
+      const { accessToken: token } = res.data;
       setAccessToken(token);
       storeSetToken(token);
-      setUser({ id: u.id, email: u.email, username: u.username, plan: u.planName as 'free' | 'pro' | 'team', githubConnected: false, isAdmin: false, avatarUrl: null, displayName: null, workspaceMode: 'DEVELOPER' });
-      router.push('/editor');
+      // 전체 프로필(workspaceMode 포함) 로드 후 페르소나별 랜딩 (TASK-1102)
+      await loadUser();
+      const mode = useAuthStore.getState().user?.workspaceMode ?? 'DEVELOPER';
+      // SECURITY_MANAGER → 대시보드 뷰, 그 외 → 에디터 뷰 (BOTH는 에디터 기본 + 헤더 토글)
+      useSecureStore.getState().setViewMode(mode === 'SECURITY_MANAGER' ? 'dashboard' : 'editor');
+      router.replace('/editor');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '로그인에 실패했습니다.';
       setError(msg);
     } finally {
       setLoading(false);
     }
-  }, [router, setError, setLoading, setUser, storeSetToken]);
+  }, [router, setError, setLoading, loadUser, storeSetToken]);
 
   const register = useCallback(async (
     email: string,

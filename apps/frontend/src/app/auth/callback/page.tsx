@@ -2,6 +2,7 @@
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useSecureStore } from '@/store/useSecureStore';
 import { setAccessToken, apiClient } from '@/lib/api/client';
 
 function CallbackHandler() {
@@ -42,7 +43,9 @@ function CallbackHandler() {
           displayName: null,
           workspaceMode: u.workspaceMode ?? 'DEVELOPER',
         });
-        router.push('/editor');
+        // 페르소나별 랜딩 뷰 (TASK-1102)
+        useSecureStore.getState().setViewMode(u.workspaceMode === 'SECURITY_MANAGER' ? 'dashboard' : 'editor');
+        router.replace('/editor');
       })
       .catch(() => {
         setError('GitHub 인증에 실패했습니다.');

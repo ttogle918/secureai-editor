@@ -43,7 +43,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const searchInputRef       = useRef<HTMLInputElement>(null);
   const sidebarOpen          = useSecureStore((s) => s.sidebarOpen);
   const setSidebarOpen       = useSecureStore((s) => s.setSidebarOpen);
-  const workspaceMode        = useSecureStore((s) => s.workspaceMode);
+  const workspaceMode        = authUser?.workspaceMode ?? 'DEVELOPER';  // 권위 소스(DB /me)로 일원화 — TASK-1102
   const viewMode             = useSecureStore((s) => s.viewMode);
   const setViewMode          = useSecureStore((s) => s.setViewMode);
   const selectedPath         = useSecureStore((s) => s.selectedPath);
@@ -439,21 +439,6 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
             );
           })}
         </div>
-
-        {/* 페르소나 모드 배지 (TASK-1102) */}
-        {authUser?.workspaceMode && (
-          <span
-            title="워크스페이스 모드"
-            style={{
-              fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
-              background: 'var(--orange-dim)', color: 'var(--orange)',
-              border: '1px solid var(--orange-glow)', whiteSpace: 'nowrap',
-            }}
-          >
-            {authUser.workspaceMode === 'DEVELOPER' ? '개발자'
-              : authUser.workspaceMode === 'SECURITY_MANAGER' ? '보안 담당' : '통합'}
-          </span>
-        )}
 
         <button
           onClick={() => setShowCommitScan(true)}

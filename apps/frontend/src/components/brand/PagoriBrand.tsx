@@ -2,7 +2,7 @@
 // Pagori 마크 + 워드마크 lockup — 에디터/대시보드/온보딩 헤더에 모두 사용
 'use client';
 import Image from 'next/image';
-import type { WorkspaceMode } from '@/store/useSecureStore';
+import type { WorkspaceMode } from '@/store/useAuthStore';
 
 interface PagoriMarkProps {
   size?: number;
@@ -40,11 +40,12 @@ interface ModeIndicatorProps {
 }
 
 export function ModeIndicator({ mode, compact = false }: ModeIndicatorProps) {
-  const isDev = mode === 'DEVELOPER';
-  const label = isDev ? '⬡ DEV' : '🛡 SEC MGR';
-  const color = isDev ? 'var(--orange)' : 'var(--tag-1)';
-  const bg    = isDev ? 'var(--orange-dim)' : 'rgba(129,140,248,0.12)';
-  const border = isDev ? 'rgba(249,115,22,0.30)' : 'rgba(129,140,248,0.30)';
+  const isSec = mode === 'SECURITY_MANAGER';
+  const isBoth = mode === 'BOTH';
+  const label = isBoth ? '⬢ BOTH' : isSec ? '🛡 SEC MGR' : '⬡ DEV';
+  const color = isSec ? 'var(--tag-1)' : 'var(--orange)';
+  const bg    = isSec ? 'rgba(129,140,248,0.12)' : 'var(--orange-dim)';
+  const border = isSec ? 'rgba(129,140,248,0.30)' : 'rgba(249,115,22,0.30)';
 
   return (
     <span
@@ -64,7 +65,7 @@ export function ModeIndicator({ mode, compact = false }: ModeIndicatorProps) {
         userSelect: 'none',
         flexShrink: 0,
       }}
-      title={isDev ? '개발자 모드' : '보안 관리자 모드 (읽기 전용)'}
+      title={isBoth ? '통합 모드' : isSec ? '보안 관리자 모드 (읽기 전용)' : '개발자 모드'}
     >
       {label}
     </span>

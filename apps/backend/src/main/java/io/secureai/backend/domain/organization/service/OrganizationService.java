@@ -39,14 +39,14 @@ public class OrganizationService {
     public List<OrgResponse> listMyOrgs(UUID userId) {
         return organizationRepository.findAllByMemberUserId(userId)
                 .stream()
-                .map(org -> toOrgResponse(org))
+                .map(org -> toOrgResponse(org, userId))
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public OrgResponse getOrg(String slug) {
+    public OrgResponse getOrg(String slug, UUID userId) {
         Organization org = loadOrgBySlug(slug);
-        return toOrgResponse(org);
+        return toOrgResponse(org, userId);
     }
 
     public OrgResponse createOrg(UUID ownerId, CreateOrgRequest request) {
@@ -75,7 +75,7 @@ public class OrganizationService {
                 .build();
         orgMemberRepository.save(ownerMember);
 
-        return toOrgResponse(org);
+        return toOrgResponse(org, ownerId);
     }
 
     public OrgResponse updateOrg(String slug, UUID userId, UpdateOrgRequest request) {
@@ -89,7 +89,7 @@ public class OrganizationService {
             org.setDescription(request.description());
         }
         organizationRepository.save(org);
-        return toOrgResponse(org);
+        return toOrgResponse(org, userId);
     }
 
     public void deleteOrg(String slug, UUID userId) {
@@ -242,8 +242,15 @@ public class OrganizationService {
         }
     }
 
-    private OrgResponse toOrgResponse(Organization org) {
+    private OrgResponse toOrgResponse(Organization org, UUID userId) {
         long memberCount = orgMemberRepository.countByOrgIdAndAcceptedAtIsNotNull(org.getId());
+        String role = null;
+        if (userId != null) {
+            role = orgMemberRepository.findByOrgIdAndUserId(org.getId(), userId)
+                    .filter(OrgMember::isAccepted)
+                    .map(OrgMember::getRole)
+                    .orElse(null);
+        }
         return new OrgResponse(
                 org.getId(),
                 org.getName(),
@@ -253,7 +260,8 @@ public class OrganizationService {
                 memberCount,
                 org.getPlan().getName(),
                 org.getAvatarUrl(),
-                org.getCreatedAt()
+                org.getCreatedAt(),
+                role
         );
     }
 

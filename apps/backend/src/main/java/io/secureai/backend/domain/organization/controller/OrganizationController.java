@@ -39,8 +39,9 @@ public class OrganizationController {
 
     @GetMapping("/{slug}")
     public ResponseEntity<ApiResponse<OrgResponse>> getOrg(
-            @PathVariable String slug) {
-        return ResponseEntity.ok(ApiResponse.success(organizationService.getOrg(slug)));
+            @PathVariable String slug,
+            @AuthenticationPrincipal UUID userId) {
+        return ResponseEntity.ok(ApiResponse.success(organizationService.getOrg(slug, userId)));
     }
 
     @PatchMapping("/{slug}")

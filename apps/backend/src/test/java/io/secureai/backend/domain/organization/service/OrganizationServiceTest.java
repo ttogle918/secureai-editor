@@ -29,6 +29,9 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+// OrgAnalyticsService 필드가 @InjectMocks 체인에 없어도 OrganizationService 생성에 필요하지 않음
+// (getOrgUsage에서만 사용하고 이 테스트 클래스에서 해당 메서드는 테스트하지 않음)
+
 @ExtendWith(MockitoExtension.class)
 class OrganizationServiceTest {
 
@@ -36,6 +39,7 @@ class OrganizationServiceTest {
     @Mock OrgMemberRepository orgMemberRepository;
     @Mock UserService userService;
     @Mock PlanService planService;
+    @Mock OrgAnalyticsService orgAnalyticsService;
 
     @InjectMocks OrganizationService organizationService;
 
@@ -88,6 +92,7 @@ class OrganizationServiceTest {
     void listMyOrgs_validUser_returnsOrgList() {
         when(organizationRepository.findAllByMemberUserId(ownerId)).thenReturn(List.of(org));
         when(orgMemberRepository.countByOrgIdAndAcceptedAtIsNotNull(orgId)).thenReturn(1L);
+        when(orgMemberRepository.findByOrgIdAndUserId(orgId, ownerId)).thenReturn(Optional.of(ownerMember));
 
         List<OrgResponse> result = organizationService.listMyOrgs(ownerId);
 
@@ -119,6 +124,7 @@ class OrganizationServiceTest {
             return saved;
         });
         when(orgMemberRepository.countByOrgIdAndAcceptedAtIsNotNull(any())).thenReturn(1L);
+        when(orgMemberRepository.findByOrgIdAndUserId(any(), eq(ownerId))).thenReturn(Optional.of(ownerMember));
 
         OrgResponse response = organizationService.createOrg(ownerId, new CreateOrgRequest("New Org", "new-org", "설명"));
 
@@ -211,5 +217,58 @@ class OrganizationServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.ORG_ACCESS_DENIED);
+    }
+
+    @Test
+    @DisplayName("getOrg — owner가 호출하면 응답에 role=owner가 포함된다")
+    void getOrg_calledByOwner_returnsRoleOwner() {
+        when(organizationRepository.findBySlugAndDeletedAtIsNull("test-org")).thenReturn(Optional.of(org));
+        when(orgMemberRepository.countByOrgIdAndAcceptedAtIsNotNull(orgId)).thenReturn(1L);
+        when(orgMemberRepository.findByOrgIdAndUserId(orgId, ownerId)).thenReturn(Optional.of(ownerMember));
+
+        OrgResponse response = organizationService.getOrg("test-org", ownerId);
+
+        assertThat(response.role()).isEqualTo("owner");
+    }
+
+    @Test
+    @DisplayName("getOrg — member가 호출하면 응답에 role=member가 포함된다")
+    void getOrg_calledByMember_returnsRoleMember() {
+        OrgMember regularMember = OrgMember.builder()
+                .orgId(orgId).userId(memberId).role("member")
+                .acceptedAt(OffsetDateTime.now()).build();
+        when(organizationRepository.findBySlugAndDeletedAtIsNull("test-org")).thenReturn(Optional.of(org));
+        when(orgMemberRepository.countByOrgIdAndAcceptedAtIsNotNull(orgId)).thenReturn(2L);
+        when(orgMemberRepository.findByOrgIdAndUserId(orgId, memberId)).thenReturn(Optional.of(regularMember));
+
+        OrgResponse response = organizationService.getOrg("test-org", memberId);
+
+        assertThat(response.role()).isEqualTo("member");
+    }
+
+    @Test
+    @DisplayName("getOrg — 비멤버가 호출하면 role=null이 포함된다")
+    void getOrg_calledByNonMember_returnsRoleNull() {
+        UUID outsiderId = UUID.randomUUID();
+        when(organizationRepository.findBySlugAndDeletedAtIsNull("test-org")).thenReturn(Optional.of(org));
+        when(orgMemberRepository.countByOrgIdAndAcceptedAtIsNotNull(orgId)).thenReturn(1L);
+        when(orgMemberRepository.findByOrgIdAndUserId(orgId, outsiderId)).thenReturn(Optional.empty());
+
+        OrgResponse response = organizationService.getOrg("test-org", outsiderId);
+
+        assertThat(response.role()).isNull();
+    }
+
+    @Test
+    @DisplayName("listMyOrgs — 반환된 org에 요청자의 role이 채워진다")
+    void listMyOrgs_returnsRoleForEachOrg() {
+        when(organizationRepository.findAllByMemberUserId(ownerId)).thenReturn(List.of(org));
+        when(orgMemberRepository.countByOrgIdAndAcceptedAtIsNotNull(orgId)).thenReturn(1L);
+        when(orgMemberRepository.findByOrgIdAndUserId(orgId, ownerId)).thenReturn(Optional.of(ownerMember));
+
+        List<OrgResponse> result = organizationService.listMyOrgs(ownerId);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).role()).isEqualTo("owner");
     }
 }

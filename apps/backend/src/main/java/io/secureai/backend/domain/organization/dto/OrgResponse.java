@@ -12,6 +12,7 @@ public record OrgResponse(
         long memberCount,
         String planName,
         String avatarUrl,
-        OffsetDateTime createdAt
+        OffsetDateTime createdAt,
+        String role
 ) {
 }

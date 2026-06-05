@@ -16,6 +16,7 @@
 | V5.4 | 2026-05-29 | TASK-1106 신설 — API 중심 분석 계획 & 진행률 패널 (api_discovery_node · api_plan SSE 이벤트 · fileFilter 선택 분석 · 프론트 Progress Panel 개편). Sprint 11 Stage 3으로 편입 |
 | V5.5 | 2026-05-30 | Sprint 11 Stage 0(브랜치 통합) 완료 기록. **Sprint 12 분할** — 보안·운영 필수(12)와 Enterprise Admin UI(12B)로. 관측성(Loki·Sentry) Sprint 16/18 → 12 편입. **TASK-1210 트랜잭션 이메일 인프라** 신설. Flyway: 리포트 V047 확정에 따라 workspace_mode V048/legal_consent V049 |
 | **V5.6 (현재)** | 2026-05-31 | Sprint 11 Stage 1·2 dev 완료(1101·1102·1103·1104·1106) + 런타임 검증(make dev). **VC 리뷰 대응(doc 18) 통합** — EPIC VAL/WEDGE/MOAT/ECON 평가·ID충돌(Sprint13) 해소·중복 매핑·재우선순위 권고. WebClient.Builder 부팅 fix |
+| V5.6.1 | 2026-06-06 | TASK-1105 수동검증 갭 등록 — **TASK-1203b 신설**(OWASP ZAP DAST 스캔 하니스, Sprint 12, TASK-1203 선행). 레포에 ZAP 하니스 0건(검증 인프라 미비) 확인. 수동검증 부채 대장의 "ZAP Critical 0건"(Sprint 8) → 1203b로 이관 |
 
 ---
 
@@ -53,6 +54,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **브랜치**: `main` (origin 동기화). Sprint 11 **Stage 0·1·2 dev 완료**(1100·1101·1102·1103·1104·1106) — 빌드/테스트 그린, 푸시 완료
 - **남은 것**: TASK-1105(수동 검증 청산, 👤 사용자) + 실런타임 검증(`make dev`)
 - **다음 액션**: Sprint 11 수동 검증 후 **Sprint 12**(보안 코어: GitHub App 인증·해시체인·세션·토큰비용·백업·관측성·이메일)
+- **TASK-1105 검증 갭 등록(2026-06-06)**: "OWASP ZAP Critical 0건"(Sprint 8 부채) 검증 시도 중 **레포에 ZAP 하니스/설정 0건** 발견 → 검증 인프라 미비. 신규 **TASK-1203b**(ZAP DAST 스캔 하니스, Sprint 12, TASK-1203 선행) 등록. 해당 부채 항목은 1203b로 이관 후 청산.
 - **런타임 검증(2026-05-31)**: `make dev` 백엔드 부팅 ✅(WebClient.Builder 빈 누락 fix `e651fb9` 후), Flyway V048/V049 적용 ✅, 페르소나 API 플로우(가입·동의400·로그인·/me workspaceMode·PATCH200/400) ✅, 프론트 `/login` 200 ✅. 브라우저 시각 랜딩만 사용자 확인 대기.
 
 ---
@@ -102,7 +104,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 |----|------|---------|--------|
 | **VAL-1** 🔴 | OWASP Benchmark 평가 하니스 | 2,740 케이스 → TPR/FPR/score, `make eval` 한 방. README에 FP율/탐지율 첫 숫자 | M |
 | **VAL-3** 🔴 | 결정론적 검증 레이어(AST 할루시네이션 가드) | 모델 보고 file:line·source→sink를 AST로 실재 검증, 불일치 findings 자동 폐기 | L |
-| **VAL-4** 🔴 | SAST→DAST `proven_exploitable` 연결 | SAST 의심 → DAST 샌드박스 익스플로잇 성공 시 라벨. "증명" 데모 영상 1편 | L |
+| **VAL-4** 🔴 | SAST→DAST `proven_exploitable` 연결 | SAST 의심 → DAST 샌드박스 익스플로잇 성공 시 라벨. "증명" 데모 영상 1편. (인접: ZAP 스캔 하니스 **TASK-1203b** — 단, VAL-4는 AI 라벨링이고 1203b는 회귀 스캔 게이트로 별개 트랙. 묶지 않음) | L |
 | **ECON-1** 🔴 | 프롬프트 캐싱 | 가이드라인 컨텍스트 Anthropic prompt caching. 캐시 적중률+토큰 절감률 계측 (claude-api 스킬) | S |
 | **MOAT-1** 🟠 | 트리아지 피드백 UI(확인/기각/채택) | findings 라벨 저장 → 독점 학습 데이터. FEAT-AI-003 리랭커 입력 | M |
 | **WEDGE-3** 🟠 | 컴플라이언스 준비도 대시보드 | "ISMS-P 준비도 73%, 미충족 12개" (ComplianceMappingService 위) | M |
@@ -137,6 +139,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | 12 | 1202a | 감사 로그 해시체인 | ⬜ | M |
 | 12 | 1202b | 세션 관리·강제 로그아웃 | ⬜ | M |
 | 12 | 1203 | CI/CD 품질 게이트 | ⬜ | M |
+| 12 | 1203b | OWASP ZAP DAST 스캔 하니스 | ⬜ | M |
 | 12 | 1204 | AI 토큰 비용 통제 | ⬜ | L |
 | 12 | 1205 | 자동 백업+S3 | ⬜ | M |
 | 12 | 1210 | 트랜잭션 이메일 인프라 | ⬜ | M |
@@ -157,7 +160,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | 출처 | 미검증 항목(요약) | 상태 | 처리 |
 |------|------------------|------|------|
 | Sprint 7 | PDF 내용·CycloneDX 검증, 차트 5종 시각화, Android 실기기 로그인·루팅·TLS·네비·FCM/SSE | 🟢 구현완료·검증대기 | TASK-1105 일부 + Android 실기기 |
-| Sprint 8 | perf p95<500ms·캐시히트·N+1, ZAP Critical 0·SQLi·XSS, Nginx HTTPS 리다이렉트, 2FA QR | 🟢 구현완료·검증대기 | TASK-1105 (2FA login 검증은 1208b 의존) |
+| Sprint 8 | perf p95<500ms·캐시히트·N+1, ZAP Critical 0·SQLi·XSS, Nginx HTTPS 리다이렉트, 2FA QR | 🟢 구현완료·검증대기 | TASK-1105 (2FA login 검증은 1208b 의존). **ZAP Critical 0건은 실행 수단 미비 → TASK-1203b(하니스 구축)로 이관 후 청산** |
 | Sprint 9 | Slack 알림 포스팅, VSCode `.vsix` 설치, Android 채팅/PDF공유/알림채널 | 🟢 구현완료·검증대기 | TASK-1105 + 클라이언트 실환경 |
 | Sprint 10 | 12건(야간스캔·팀대시보드·ROI·스캔모드·FE 3종 + 이월 4건) | 🟡 진행 | TASK-1105 전담 |
 | Sprint 5/6 | GitHub Webhook→PR 자동분석·Check Run, 커밋 시크릿 스캔 | 🔴 차단 | GitHub App 인증 스텁 — **Sprint 12 TASK-1201 선행** |
@@ -471,13 +474,32 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 ### TASK-1203 🟡 CI/CD 품질 게이트 (k6 + ZAP + SCA)
 - **중요도**: 🟡 Medium | **순서**: 3번째 | **사이즈**: M
+- **선행**: ZAP 스캔 자체 실행 수단은 **TASK-1203b**(로컬 하니스)에서 구축 — 본 태스크는 그 하니스를 GitHub Actions에 연결만.
 - **하위 할일**
   - [ ] k6 부하 테스트 — GitHub Actions 통합 (p95 < 500ms 게이트)
-  - [ ] OWASP ZAP 보안 스캔 이미지 CI 통합 (Critical/High 0건 게이트)
+  - [ ] OWASP ZAP 보안 스캔 이미지 CI 통합 (Critical/High 0건 게이트) — **TASK-1203b `make zap-scan` 재사용**
   - [ ] **npm audit / pip-audit / OWASP Dependency-Check** — 의존성 SCA 자동화 (HIGH 이상 차단)
   - [ ] **JaCoCo + Codecov** 백엔드 라인 커버리지 70% 게이트
 - **테스트 체크리스트**
   - [ ] 🔬 성능 저하/보안 취약점/커버리지 미달 PR은 자동 차단 확인
+
+### TASK-1203b 🟠 OWASP ZAP DAST 스캔 하니스 구축 (baseline scan + Critical 게이트) (신규 — V5.6)
+- **중요도**: 🟠 High | **순서**: 3번째 (TASK-1203 선행) | **사이즈**: M | **출처**: TASK-1105 수동검증 갭 (2026-06-06)
+- **배경**: Sprint 8 TASK-804에서 보안 헤더·ZAP 게이트를 "구현"으로 표기했고, 수동 검증 부채 대장에도 "ZAP Critical 0건"(Sprint 8)이 검증 대기로 누적돼 있다. 그러나 **레포에 ZAP 스캔 하니스/설정이 전혀 없어**(`find -iname "*zap*"` 0건) 검증을 실행할 수단 자체가 없음 — 이는 Sprint 8/10 구현 결함이 아니라 **검증 인프라 미비**다. k6 부하테스트는 `make perf-test`(docker compose `--profile perf`)로 존재하지만 DAST(ZAP) 스캔은 등가 수단이 없다. 본 태스크가 그 실행 수단(로컬 하니스)을 만들고, TASK-1203이 이를 CI에 연결한다.
+- **하위 할일**
+  - [ ] `docker-compose.yml`에 ZAP 서비스 추가 — `ghcr.io/zaproxy/zaproxy:stable`, **`--profile zap`** (perf 프로파일과 동일한 옵트인 패턴)
+  - [ ] `make zap-scan` 타겟 추가 (`make perf-test` 패턴 동형) — 기동된 backend/nginx를 대상으로 `zap-baseline.py`(baseline scan) 실행. full scan은 옵션 변수로 전환 가능하게(`SCAN_TYPE=full`)
+  - [ ] 스캔 대상은 로컬 기동된 스택(backend `:8080` / nginx HTTPS 엔드포인트) — 대상 URL은 환경변수/기본값으로
+  - [ ] ZAP 룰 설정 파일(`infra/zap/zap-baseline.conf` 또는 `.zap/rules.tsv`)로 오탐 룰 IGNORE/FAIL 등급 관리 (예: 인증 미적용 경로 등 알려진 항목 튜닝)
+  - [ ] 결과 리포트 산출 — HTML/JSON 리포트를 호스트 마운트 경로에 저장(`infra/zap/reports/`, `.gitignore` 등록)
+  - [ ] 결과에서 **Critical/High 집계 → 1건 이상이면 비정상 종료코드(게이트)**. baseline은 PASS/WARN/FAIL 매핑 명시
+  - [ ] **`dast-isolated-net` 네트워크 격리 준수** (CLAUDE.md 보안규칙) — ZAP 컨테이너가 호스트/내부 인프라(postgres·redis)에 직접 접근하지 않도록 네트워크 경계 점검. DAST 샌드박스 격리 규칙 동일 적용
+  - [ ] `docs/runbooks/` 또는 Makefile help에 사용법 1줄 + 게이트 해석 가이드
+- **테스트 체크리스트**
+  - [ ] 🔬 `make dev` 기동 후 `make zap-scan` 실행 → baseline 스캔 완료 + 리포트(HTML/JSON) 생성 확인
+  - [ ] 🛡️ 의도적 취약 응답(보안 헤더 누락 등) 주입 시 ZAP가 탐지 → Critical/High 게이트가 비정상 종료코드 반환 확인
+  - [ ] 🛡️ ZAP 컨테이너가 `dast-isolated-net` 격리 안에서만 동작 — postgres/redis 등 내부 서비스에 도달 불가 확인
+  - [ ] ✅ Sprint 8 부채 "ZAP Critical 0건" 항목을 본 하니스로 실제 실행하여 청산 (결과 리포트 첨부)
 
 ### TASK-1204 🔴 AI 토큰 사용량 추적 + 한도 알림 (비용 통제)
 - **중요도**: 🔴 Critical | **순서**: 4번째 | **사이즈**: L
@@ -1251,7 +1273,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | Flyway 마이그레이션 통합 테스트 | CI 파이프라인에서 `flyway:migrate` + 롤백 시나리오 자동화 |
 | AI 파이프라인 병목 프로파일링 | Jaeger 트레이싱 기반 `sast_node` p99 지연 측정 + asyncio 병렬화 개선 |
 | k6 부하 테스트 자동화 | `make perf-test` → CI/CD 파이프라인 통합 (p95 < 500ms 게이트) |
-| OWASP ZAP 자동화 | `ghcr.io/zaproxy/zaproxy:stable` → CI 파이프라인 통합 (Critical 0건 게이트) |
+| OWASP ZAP 자동화 | `ghcr.io/zaproxy/zaproxy:stable` → CI 파이프라인 통합 (Critical 0건 게이트). 로컬 실행 하니스(`make zap-scan`)는 **TASK-1203b**, CI 연결은 **TASK-1203** |
 
 ---
 

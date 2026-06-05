@@ -36,7 +36,7 @@
 | 7 | 리포트 ROI Export (PDF) | ✅ PASS-TEST / 👁 PDF-VIS | `RoiCalculationServiceTest`·`ReportServiceTest` 통과(ROI·MTTR 계산). **실제 PDF 바이트 생성·시각 확인은 사용자** |
 | 8 | 스캔 모드 (Audit haiku / Pipeline sonnet 분기 + UI) | ✅ PASS-TEST / 👁 UI-VIS | 분기 로직 코드·테스트 통과. 프론트 모드 선택 UI 시각 확인은 사용자 |
 | 9 | CompliancePage (ISO27001 / NIST CSF 매핑표) | 👁 BLOCKED-VIS | 프론트 17 테스트(렌더) 통과. 시각 확인은 사용자 |
-| 10 | TeamManagementPage (초대·권한 UI) | 👁 BLOCKED-VIS | 프론트 렌더 테스트 통과. 시각 확인은 사용자 |
+| 10 | TeamManagementPage (초대·권한 UI) | 🐞 FIXED → ✅ PASS-RT | **버그 발견·수정**(BUG-1105-2): owner role 미반환으로 초대버튼 숨김 → 수정 후 `role="owner"` 확인. 초대/역할변경/강퇴 게이팅 복구 |
 | 11 | SettingsPage (알림·플랜·API키·스캔모드 기본값) | 👁 BLOCKED-VIS | 프론트 렌더 테스트 통과. 시각 확인은 사용자 |
 | 12 | Sprint 8 이월 묶음 (k6 · ZAP · 2FA QR · Nginx HTTPS) | 아래 B 섹션 분리 | — |
 
@@ -57,6 +57,13 @@
 
 ## C. 발견·수정 버그 (이번 세션)
 
+### 🐞 BUG-1105-2 — 팀 조직 응답에 요청자 role 누락 → 초대/멤버관리 UI 전원 숨김 (커밋 `1e4ea2d`)
+- **증상**: 팀 멤버 페이지에서 owner인데도 "이메일로 초대"·역할변경·강퇴 버튼이 안 보임(사용자 시각확인 중 발견).
+- **근본원인**: `GET /api/v1/organizations/{slug}` 응답 DTO(`OrgResponse`)에 요청자 역할(`role`)이 없고, 컨트롤러가 `@AuthenticationPrincipal`를 안 받음 → 프론트 게이팅 `meta.role === 'owner'|'admin'`이 항상 false.
+- **수정**: `OrgResponse`에 `role` 추가, `getOrg`에 userId 수신, `OrganizationService`가 `orgMemberRepository`로 요청자 role 조회(비멤버 null). listMyOrgs/createOrg/updateOrg 동일. 단위테스트 4건 추가.
+- **재검증**: 백엔드 재빌드 후 `GET /organizations/team1`(owner) → `role="owner"` → 초대버튼 표시조건 충족. Reviewer PASS.
+- **후속(non-blocking)**: listMyOrgs N+1 → 벌크조회 개선 권고(별도 태스크).
+
 ### 🐞 BUG-1105-1 — health 프로브의 실시간 SMTP 로그인 (커밋 `3edb524`)
 - **증상**: `make perf-test`(k6 100VU, `/actuator/health` 타격)에서 p95=**14.78s**, 에러율 **59.94%**. 무부하 baseline health도 ~1s 레이턴시, 부하 후 readiness **DOWN(503)** 지속.
 - **근본원인**: Spring Boot가 `spring-boot-starter-mail` 존재로 `MailHealthIndicator`를 자동 등록 → `/actuator/health` **매 호출마다 실시간 SMTP 로그인** 수행. k6 부하가 health를 수백 번 치자 Gmail이 `454-4.7.0 Too many login attempts`로 계정 락 → health DOWN 연쇄.
@@ -70,9 +77,9 @@
 
 | 분류 | 건수 | 항목 |
 |------|------|------|
-| ✅ 검증 완료 (RT/TEST/USER/FIXED) | **9** | SBOM·야간스캔·GDPR·시크릿스캔·ROI·스캔모드(로직)·Nginx HTTPS·2FA QR·k6(수정후) + Webhook HMAC수신 |
-| 🐞 버그 발견·수정 | **1** | BUG-1105-1 (MailHealthIndicator) |
-| 👁 브라우저 시각확인 대기 (사용자) | **5** | 팀대시보드·ROI PDF·스캔모드UI·Compliance·TeamMgmt·Settings |
+| ✅ 검증 완료 (RT/TEST/USER/FIXED) | **10** | SBOM·야간스캔·GDPR·시크릿스캔·ROI·스캔모드(로직)·Nginx HTTPS·2FA QR·k6(수정후)·TeamMgmt(수정후) + Webhook HMAC수신 |
+| 🐞 버그 발견·수정 | **2** | BUG-1105-1 (MailHealthIndicator) · BUG-1105-2 (Org role 게이팅) |
+| 👁 브라우저 시각확인 대기 (사용자) | **4** | 팀대시보드·ROI PDF·스캔모드UI·Compliance·Settings |
 | ✋ 사람/외부 필요 | **1** | VSCode Extension 설치 |
 | 🧰 하니스 부재 → 신규 태스크 | **1** | OWASP ZAP |
 | ⏭ 승인된 이월 (Sprint 12) | **2** | GitHub PR 자동분석·Check Run (TASK-1201 의존) |

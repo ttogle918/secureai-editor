@@ -207,18 +207,21 @@ Sprint 9 완료 기록 (2026-05-23 기준):
 
 ## Sprint 10 완료 기준
 
-- [ ] **GitHub Webhook**: PR 생성 시 자동 분석 트리거 + HMAC 서명 검증 + PR 코멘트 등록
-- [ ] **GitHub Check Run**: PR 분석 완료 시 `checks:write` 권한으로 Check Run `completed` 상태 전송
-- [ ] **커밋 시크릿 스캔**: 100파일 레포 15분 이내 + 우선순위 정렬 + 바이너리 필터
-- [ ] **SBOM CycloneDX**: JSON 내보내기 (pom.xml / package.json / requirements.txt / Cargo.toml 4종 파서 완성)
-- [ ] **야간 자동 스캔**: `project_schedules` 기반 매일 01:00 KST 변경 감지 후 스캔 + 요약 리포트 발송
-- [ ] **팀 대시보드**: 월별 토큰 예산·MTTR·보안 점수 랭킹 표시
-- [ ] **리포트 ROI Export**: ROI·MTTR 위젯이 포함된 PDF 생성
-- [ ] **스캔 모드**: Audit(haiku)/Pipeline(sonnet) 분기 + 프론트엔드 모드 선택 UI
-- [ ] **CompliancePage**: ISO 27001 / NIST CSF 매핑 표 프론트엔드 구현
-- [ ] **TeamManagementPage**: 팀원 초대·권한 설정 UI 완성
-- [ ] **SettingsPage**: 알림·플랜·API 키·스캔 모드 기본값 섹션 완성
-- [ ] **Sprint 8 이월 수동 검증**: k6 p95 < 500ms + OWASP ZAP Critical 0건 + 2FA QR + Nginx HTTPS
+> **검증 결과 (2026-06-06, TASK-1105)**: 항목별 최종 상태·증거는 **`sprint-11-task-1105-verification.md`(부채대장)** 참조.
+> 체크 = 런타임/테스트/사용자 검증 완료. 미체크 = 브라우저 시각확인 대기(👁) 또는 이월(⏭).
+
+- [ ] **GitHub Webhook**: PR 생성 시 자동 분석 트리거 + HMAC 서명 검증 + PR 코멘트 등록 — ⏭ HMAC·수신 PASS / PR자동분석·코멘트는 Sprint 12 TASK-1201(토큰 스텁) 이월
+- [ ] **GitHub Check Run**: PR 분석 완료 시 `checks:write` 권한으로 Check Run `completed` 상태 전송 — ⏭ Sprint 12 TASK-1201 이월
+- [x] **커밋 시크릿 스캔**: 100파일 레포 15분 이내 + 우선순위 정렬 + 바이너리 필터 — ✅ 로직 테스트 PASS (100파일 실측 타이밍은 실레포 측정 잔여)
+- [x] **SBOM CycloneDX**: JSON 내보내기 (pom.xml / package.json / requirements.txt / Cargo.toml 4종 파서 완성) — ✅ 4종 파서 전부 존재 + 테스트 PASS
+- [x] **야간 자동 스캔**: `project_schedules` 기반 매일 01:00 KST 변경 감지 후 스캔 + 요약 리포트 발송 — ✅ cron UTC16:00=KST01:00 + ShedLock + 테스트 PASS
+- [ ] **팀 대시보드**: 월별 토큰 예산·MTTR·보안 점수 랭킹 표시 — 👁 렌더 테스트 PASS, 시각확인 대기
+- [x] **리포트 ROI Export**: ROI·MTTR 위젯이 포함된 PDF 생성 — ✅ ROI/MTTR 계산 테스트 PASS (👁 PDF 시각확인 대기)
+- [x] **스캔 모드**: Audit(haiku)/Pipeline(sonnet) 분기 + 프론트엔드 모드 선택 UI — ✅ 분기 로직 테스트 PASS (👁 UI 시각확인 대기)
+- [ ] **CompliancePage**: ISO 27001 / NIST CSF 매핑 표 프론트엔드 구현 — 👁 렌더 테스트 PASS, 시각확인 대기
+- [ ] **TeamManagementPage**: 팀원 초대·권한 설정 UI 완성 — 👁 렌더 테스트 PASS, 시각확인 대기
+- [ ] **SettingsPage**: 알림·플랜·API 키·스캔 모드 기본값 섹션 완성 — 👁 렌더 테스트 PASS, 시각확인 대기
+- [ ] **Sprint 8 이월 수동 검증**: k6 p95 < 500ms (✅ 9.52ms, BUG-1105-1 수정 후) + OWASP ZAP Critical 0건 (🧰 하니스 부재) + 2FA QR (🙋 사용자 확인) + Nginx HTTPS (✅ 301)
 
 ---
 

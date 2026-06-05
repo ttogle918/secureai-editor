@@ -72,6 +72,12 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  health:
+    # 메일 health indicator는 매 /actuator/health 호출마다 실시간 SMTP 로그인을 수행한다.
+    # k8s liveness/readiness 프로브나 부하 시 SMTP 서버가 "로그인 시도 과다"로 계정을 락 → health DOWN 연쇄.
+    # 메일 발송 기능과 무관하게 프로브에서만 제외한다. (TASK-1105 부하검증에서 발견)
+    mail:
+      enabled: false
   tracing:
     sampling:
       probability: 1.0

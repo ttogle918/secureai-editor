@@ -76,3 +76,52 @@
 
 **스택 상태**: backend 8080 + 프론트 3000 실행 중 (사용자 시각확인용)
 
+---
+
+# (이어서) 시각확인 중 2번째 버그 발견·수정 + 사용자 매뉴얼
+
+> 위 /done 이후 사용자가 브라우저 시각확인을 진행하며 추가로 발생한 작업.
+
+## 5. BUG-1105-2 — 팀 초대 버튼 미표시 (실버그) ✅ 수정 (`1e4ea2d`)
+
+- **발견 경위**: 사용자가 `/team/team1/members`에서 "팀 초대가 안 보여"라고 보고. team1 owner인데도 초대 버튼이 안 보임.
+- **근본원인**: `GET /api/v1/organizations/{slug}` 응답 DTO(`OrgResponse`)에 요청자 역할(`role`)이 없고, `getOrg` 컨트롤러가 `@AuthenticationPrincipal`를 안 받음 → 프론트 멤버 페이지의 게이팅 `isAdminOrAbove = meta.role === 'owner'|'admin'`이 **항상 false** → 초대/역할변경/강퇴 버튼이 owner 포함 전원에게 숨겨짐.
+- **실측 확인**: devtest로 `GET /organizations/team1` 호출 시 응답에 role 키 자체가 없음.
+- **수정 (Dev 위임)**: `OrgResponse`에 `String role` 추가, `getOrg`에 userId 수신, `OrganizationService.toOrgResponse(org,userId)`로 통일해 `orgMemberRepository`로 요청자 role 조회(비멤버/미수락 null). `listMyOrgs/createOrg/updateOrg` 동일. 단위테스트 4건 추가(owner/member/비멤버/listMyOrgs) → 13건 통과.
+- **Reviewer**: PASS (비멤버 role=null은 `authenticated()` 게이트라 정보노출 확대 아님). 후속 non-blocking: `listMyOrgs` N+1 → 벌크조회 개선 권고.
+- **재검증**: 백엔드 재빌드 후 `GET /organizations/team1`(owner) → **`role="owner"`** 확인. 초대버튼 표시조건 충족.
+- **의미**: BUG-1105-1(부하)에 이어 **시각확인이 잡은 2번째 실버그**. 팀 협업 기능 전체(초대 없으면 멤버 못 늘림)를 막던 결함.
+
+## 6. 사용자 매뉴얼 HTML 작성 (`1ea1f3b`)
+
+- 사용자 요청: 배포 시 보여줄 **실동작형 UI 매뉴얼**, 빨간 네모로 클릭 유도 + 단계 표시, 전 기능.
+- **산출물**: `docs/manual/2026-06-06/index.html` (+ README). 단일 HTML, 외부 의존성 0.
+  - 17개 기능을 카테고리별 사이드바 + 단계별 진행(이전/다음·키보드 ←→) + **빨간 점선 하이라이트(👆 힌트)** + `기능 N/17·단계 N/M` 인디케이터.
+  - 회원가입·이메일인증·로그인(이메일/GitHub)·온보딩·코드분석·취약점트리아지/오탐·AI채팅·스캔모드·GitHub스캔·시크릿스캔·Compliance·SBOM·대시보드/ROI PDF·팀초대·설정·프로필·로그아웃.
+  - Pagori 실제 디자인 토큰(Dark OLED + Orange `#f97316`) 기반 충실 목업(브라우저 캡처 도구 부재로 실 스크린샷 대신 목업, 라우트·동선은 코드와 일치).
+
+## 7. 마무리 처리
+
+- **테스트 계정**(재확인): `devtest@secureai.test` / `Test1234` — team1 owner, 이메일 인증 완료. 로컬 메모리(`local-dev-test-account.md`)에 보관, 레포 미커밋.
+- **git remote URL 이전 완료**: `secureaiengine.git` → `secureai-editor.git` ("repository moved" 경고 해소).
+- **부채대장 갱신**(`8796787`): BUG-1105-2 추가, TeamMgmt 항목 ✅로 전환. 집계 = ✅검증완료 **10** / 🐞수정 **2** / 👁시각대기 **4**(팀대시보드·ROI PDF·스캔모드UI·Compliance) / ✋VSCode 1 / 🧰ZAP 1 / ⏭이월 2.
+
+## 8. 이번 세션 전체 커밋 (origin/main 동기화, HEAD=`8796787`)
+
+| 커밋 | 내용 |
+|------|------|
+| `3edb524` | fix(backend): MailHealthIndicator 비활성화 (BUG-1105-1) |
+| `ed6a1dc` | docs(sprint): 부채대장 작성 + Sprint10 체크리스트 |
+| `44f8d54` | docs(backlog): TASK-1203b ZAP 하니스 (실제 파일 = `07_SPRINT_BACKLOG_V4_260523.md`) |
+| `316eb79` | docs(session): 세션 로그(전반부) |
+| `1e4ea2d` | fix(backend): OrgResponse role 추가 (BUG-1105-2) |
+| `1ea1f3b` | docs(manual): 사용자 매뉴얼 HTML |
+| `8796787` | docs(sprint): 부채대장 BUG-1105-2 반영 |
+
+## 9. 다음 세션에서 할 것 (갱신)
+
+- [ ] **남은 시각확인 4건**: 팀대시보드(/team/{slug}) · ROI PDF(/editor 대시보드 Executive) · 스캔모드 UI · Compliance(/projects/{id}/compliance). → 끝나면 Sprint 11 공식 종료(부채대장 잔여 0).
+- [ ] VSCode Extension 수동 설치 검증.
+- [ ] **우선순위 재선택**: Sprint 13 `/stage 1`(EPIC-VAL) vs `/sprint 12`(TASK-1201 Webhook + 1203b ZAP).
+- [ ] (잔여) 시크릿스캔 100파일 실측 시간 / listMyOrgs N+1 개선 태스크화.
+

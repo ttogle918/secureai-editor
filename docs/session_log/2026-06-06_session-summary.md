@@ -125,3 +125,51 @@
 - [ ] **우선순위 재선택**: Sprint 13 `/stage 1`(EPIC-VAL) vs `/sprint 12`(TASK-1201 Webhook + 1203b ZAP).
 - [ ] (잔여) 시크릿스캔 100파일 실측 시간 / listMyOrgs N+1 개선 태스크화.
 
+---
+
+# (이어서) SAST 지침 적재 + 계획/stage 배치 + 실시간 진행 기능
+
+## 10. SAST 보안지침 미적재 발견·복구
+
+- **발견**: `security_guidelines` 테이블이 **비어 있어**(0행) SAST가 그동안 docs/security 지침 없이 분석 중이었음(설계는 주입하게 돼 있으나 미적재 — `load_guidelines()`가 ""반환).
+- **복구**: `scripts/import_security_guidelines.py` 실행 → docs/security 17문서 **334섹션** 적재(common 261 + java_spring·python_fastapi·node·go·frontend) + ai_engine 재시작(인메모리 캐시 초기화). 다음 SAST부터 실제 주입.
+- **주의(잔여)**: PHP/Ruby 전용 지침 없음(common만 적용 — dvwa가 PHP) / 임포트가 **수동 단계**라 DB 재생성 시 재실행 필요(배포 시드 자동화 권장) / md 수정 시 재임포트 필요.
+
+## 11. 신규 기능 — 계획→stage 배치 실행 + 실시간 "지금 X 스캔 중"
+
+사용자 요청. 커밋 `ab8144c`(feat) + `f03af73`(진행 버그 fix).
+
+- **Feature 1**: `sast_node` 시작 시 라이브 SSE(`phase:scanning`) 발행 → "지금 {파일} 스캔 중".
+- **Feature 2**: `planning_node`(신규)가 scan→api_discovery 뒤에서 레포를 stage로 묶음.
+  - `planning_mode` 런타임 선택(`Literal["DETERMINISTIC","LLM"]`): DETERMINISTIC=api_groups 재사용(토큰0), LLM=Claude 그룹핑(실패 시 결정론적 fallback).
+  - stage_plan→stage_started→(파일별 progress)→stage_completed 이벤트.
+  - 강제종료 복원력: 기존 파일단위 체크포인트+즉시 DB저장 + planning_node **idempotent**(stages 있으면 no-op로 resume 중복 방지).
+- **backend**: `RedisSubscriber`가 DTO 라운드트립 대신 **원본 JSON Map 패스스루**(Jackson camelCase 기본이라 snake_case 신규필드 소실 방지), type만 readTree로 파싱.
+- **frontend**: useSse 타입 확장 + useSecureStore stage 상태 + AppHeader 핸들러 + ProgressPanel(StagePlanSection·ScanningFileIndicator).
+
+## 12. Reviewer 블로커 + 라이브 데모로 잡은 버그
+
+- **1차 Reviewer 블로커 3건 → 해소**: (1) LLM 반환 경로 화이트리스트 필터(경로순회 방어) (2) planning_node idempotent (3) `planning_mode` Literal 검증. + RedisSubscriber TypeReference.
+- **라이브 데모(ai_engine 자체 101파일 분석)로 발견**:
+  - ✅ 작동: stage_plan 8개(FastAPI 라우트 탐지), scanning 이벤트 101파일 실시간.
+  - 🐞 **진행 버그(단일 근본원인)**: `graph.astream()` 기본(updates) 모드가 노드 **부분출력**만 줘서, analyze.py가 거기서 누적필드(files_to_scan·current_file_index·stages·sast_results·token_usage)를 읽음 → `done`/`cache_check` 이벤트 `file:"" current:1 total:0`, stage_started/completed 미발행, completed `vuln:0/results:[]`. **프론트는 `if(event.file)`라 빈 file이면 스킵 → 진행 스텝 안 쌓여 바 0% 고정**.
+  - **수정(`f03af73`)**: `_run_analysis`/`_run_resume`에 누적 `full_state` 유지 후 핸들러가 그걸 읽음. **라이브 재검증**: done `current:2 total:101` 정상, stage_started 16·completed 15 발행, completed `vuln_count:9`. 단위테스트 25 통과, Reviewer PASS.
+- **실무 발견 — Anthropic 크레딧 고갈**: 데모 중 90/101 파일이 `400 "credit balance is too low"`로 실패(11완료, 취약점 9 DB저장). 파이프라인은 skip&log로 graceful 종료. **전체 분석엔 크레딧 충전 필요.**
+
+## 13. 미해결 / 다른 곳에서 처리
+
+- **UI 진행률 바가 브라우저에서 여전히 안 오름** — 데이터 레이어(SSE 이벤트)는 라이브 캡처로 정확함 확증(stage/done/completed 모두 정상값). 그러나 **프론트 렌더링 UI에 별도 문제 다수** 존재 → 사용자가 **다른 작업에서 별도 해결 예정**.
+  - 참고(프론트 의심점): 전체 ProgressPanel 바는 `progressSteps`(전부 status:'completed'로 추가 → pct 항상 100%)로 계산 / ScanningFileIndicator는 scanningFile.current/total 기반 / stage·apigroup 바는 fileStatuses·stageList 기반. 데이터는 맞으니 렌더/상태배선 점검 필요.
+- (Reviewer non-blocking) `completed` 이벤트가 `results`(sast_results 전체)를 페이로드에 실음 — 대형 레포 시 Redis 메시지 비대 → vuln_count만 보내고 결과는 DB조회로 분리 검토(태스크화 권장).
+- (참고) DETERMINISTIC stage가 비대칭(API 7스테이지×1파일 + 공통/기타 94) — 비-API 레포에선 stage 그룹핑 효용 낮음(설계 한계).
+
+## 14. 이어서 추가된 커밋 (origin/main, HEAD=`f03af73`)
+
+| 커밋 | 내용 |
+|------|------|
+| `c59bfd5` | docs(session): 세션로그 후반부 |
+| `ab8144c` | feat(analysis): 계획 stage 배치 + 실시간 파일 스캔 표시 |
+| `f03af73` | fix(analysis): astream 누적 state로 진행률/stage/completed 정정 |
+
+> SAST 지침 적재(334섹션)는 DB 상태 변경이라 커밋 없음(수동 스크립트). docs/manual(`1ea1f3b`)은 §6 참조.
+

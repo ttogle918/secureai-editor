@@ -38,9 +38,27 @@ export interface ApiGroupPlan {
   files: { path: string; line: number }[];
 }
 
+// Stage 계획 항목 (stage_plan 이벤트)
+export interface StagePlanItem {
+  stage_no: number;
+  name: string;
+  file_count: number;
+}
+
 export interface ProgressEvent {
   sessionId: string;
-  type: 'started' | 'progress' | 'completed' | 'error' | 'scan_complete' | 'cancelled' | 'vuln_found' | 'api_plan';
+  type:
+    | 'started'
+    | 'progress'
+    | 'completed'
+    | 'error'
+    | 'scan_complete'
+    | 'cancelled'
+    | 'vuln_found'
+    | 'api_plan'
+    | 'stage_plan'
+    | 'stage_started'
+    | 'stage_completed';
   node?: string;
   file?: string;
   current?: number;
@@ -58,8 +76,14 @@ export interface ProgressEvent {
     cache_creation_input_tokens?: number;
     cache_read_input_tokens?: number;
   };
-  // progress
+  // progress (phase 구분)
+  phase?: 'scanning' | 'done' | 'checking';
   cache_hit?: boolean;
+  // stage 이벤트
+  stage_no?: number;
+  name?: string;
+  total_in_stage?: number;
+  stages?: StagePlanItem[];
 }
 
 export interface SseOptions {

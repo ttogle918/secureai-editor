@@ -47,6 +47,20 @@ export interface ProgressStep {
 // API 중심 분석 (TASK-1106) — api_discovery_node 결과
 export type FileAnalysisStatus = 'pending' | 'analyzing' | 'done' | 'cached' | 'failed';
 
+// Stage 기반 분석 진행 상태 (신규 ai_engine 이벤트)
+export interface StageInfo {
+  stage_no: number;
+  name: string;
+  file_count: number;
+  status: 'pending' | 'running' | 'completed';
+}
+
+export type ScanningFileState = {
+  file: string;
+  current: number;
+  total: number;
+} | null;
+
 export interface ApiGroupFile {
   path: string;
   line: number;
@@ -198,6 +212,16 @@ interface SecureStore {
   setApiGroups: (groups: ApiGroup[]) => void;
   setFileStatus: (path: string, status: FileAnalysisStatus) => void;
   clearApiAnalysis: () => void;
+
+  // ── Stage 기반 진행 상태 (신규 ai_engine 이벤트) ───────────
+  stageList: StageInfo[];
+  currentStageNo: number | null;
+  scanningFile: ScanningFileState;
+  setStageList: (stages: StageInfo[]) => void;
+  setCurrentStageNo: (no: number | null) => void;
+  markStageCompleted: (stageNo: number) => void;
+  setScanningFile: (state: ScanningFileState) => void;
+  clearStageProgress: () => void;
 
   // ── 언어 설정 ────────────────────────────────────────────
   displayLanguage: DisplayLanguage;
@@ -420,6 +444,20 @@ export const useSecureStore = create<SecureStore>()(
     fileStatuses: { ...s.fileStatuses, [path]: status },
   })),
   clearApiAnalysis: () => set({ apiGroups: [], fileStatuses: {} }),
+
+  // ── Stage 기반 진행 상태
+  stageList: [],
+  currentStageNo: null,
+  scanningFile: null,
+  setStageList: (stages) => set({ stageList: stages }),
+  setCurrentStageNo: (no) => set({ currentStageNo: no }),
+  markStageCompleted: (stageNo) => set((s) => ({
+    stageList: s.stageList.map((st) =>
+      st.stage_no === stageNo ? { ...st, status: 'completed' as const } : st
+    ),
+  })),
+  setScanningFile: (state) => set({ scanningFile: state }),
+  clearStageProgress: () => set({ stageList: [], currentStageNo: null, scanningFile: null }),
 
   // ── 언어
   displayLanguage: 'ko',

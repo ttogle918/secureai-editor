@@ -1,5 +1,6 @@
 // components/ui/ProgressPanel.tsx
 // TASK-406 진행률 패널 + TASK-1106 API 중심 분석 계획(아코디언·파일별 상태·선택 분석)
+// + 신규: stage_plan/stage_started/stage_completed/progress phase 이벤트 UI
 'use client';
 import { useState } from 'react';
 import { CheckSquare, ChevronRight, ChevronDown, Play } from 'lucide-react';
@@ -7,6 +8,7 @@ import {
   useSecureStore,
   type ProgressStep,
   type FileAnalysisStatus,
+  type StageInfo,
 } from '@/store/useSecureStore';
 import { useStartAnalysis } from '@/hooks/useStartAnalysis';
 
@@ -137,6 +139,94 @@ function ApiPlanSection() {
   );
 }
 
+// ── Stage status 아이콘 ───────────────────────────────────────
+function StageStatusIcon({ status }: { status: StageInfo['status'] }) {
+  if (status === 'completed') return <span style={{ color: '#22c55e', fontSize: 12 }} aria-label="완료">✓</span>;
+  if (status === 'running')   return <span style={{ color: '#ea580c', fontSize: 12, display: 'inline-block', animation: 'spin 0.85s linear infinite' }} aria-label="진행 중">⟳</span>;
+  return <span style={{ color: 'rgba(255,255,255,0.28)', fontSize: 12 }} aria-label="대기">○</span>;
+}
+
+// ── Stage 목록 섹션 (stage_plan 수신 시) ─────────────────────
+function StagePlanSection() {
+  const stageList      = useSecureStore((s) => s.stageList);
+  const currentStageNo = useSecureStore((s) => s.currentStageNo);
+
+  if (stageList.length === 0) return null;
+
+  const completedCount = stageList.filter((s) => s.status === 'completed').length;
+
+  return (
+    <div style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#e8e8ee' }}>분석 단계 계획</span>
+        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+          {completedCount}/{stageList.length} 완료
+        </span>
+      </div>
+
+      {stageList.map((stage) => {
+        const isActive = stage.stage_no === currentStageNo;
+        return (
+          <div
+            key={stage.stage_no}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
+              borderRadius: 6, fontSize: 11,
+              background: isActive ? 'rgba(234,88,12,0.08)' : 'transparent',
+              border: `1px solid ${isActive ? 'rgba(234,88,12,0.25)' : 'rgba(255,255,255,0.04)'}`,
+              transition: 'background 0.2s, border-color 0.2s',
+            }}
+          >
+            <StageStatusIcon status={stage.status} />
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>
+              {stage.stage_no}/{stageList.length}
+            </span>
+            <span style={{ flex: 1, color: isActive ? '#ea580c' : 'rgba(255,255,255,0.7)', fontWeight: isActive ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {stage.name}
+            </span>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
+              {stage.file_count}파일
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── 실시간 스캔 중 파일 표시 ─────────────────────────────────
+function ScanningFileIndicator() {
+  const scanningFile = useSecureStore((s) => s.scanningFile);
+
+  if (!scanningFile) return null;
+
+  const { file, current, total } = scanningFile;
+  const fileName = file.split('/').pop() ?? file;
+  const pct = total === 0 ? 0 : Math.round((current / total) * 100);
+
+  return (
+    <div style={{ background: 'rgba(234,88,12,0.06)', border: '1px solid rgba(234,88,12,0.2)', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+        <span style={{ display: 'inline-block', color: '#ea580c', animation: 'spin 0.85s linear infinite', fontSize: 13 }}>⟳</span>
+        <span style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0 }}>지금 스캔 중…</span>
+        <span
+          title={file}
+          style={{ flex: 1, color: '#ea580c', fontWeight: 600, fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {fileName}
+        </span>
+        <span style={{ color: 'rgba(255,255,255,0.35)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>
+          {current}/{total}
+        </span>
+      </div>
+      {/* 진행률 바 */}
+      <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: '#ea580c', borderRadius: 2, transition: 'width 0.15s ease' }} />
+      </div>
+    </div>
+  );
+}
+
 // ── Markdown 생성/다운로드 (기존) ────────────────────────────
 function generateMarkdown(steps: ProgressStep[]): string {
   const completed = steps.filter((s) => s.status === 'completed').length;
@@ -167,6 +257,12 @@ export function ProgressPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 16px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
+      {/* Stage 계획 목록 (stage_plan 수신 시) */}
+      <StagePlanSection />
+
+      {/* 실시간 스캔 중 파일 표시 (progress phase=scanning) */}
+      <ScanningFileIndicator />
+
       {/* TASK-1106 — API 분석 계획 (api_plan 수신 시) */}
       <ApiPlanSection />
 

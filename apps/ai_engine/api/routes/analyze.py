@@ -5,6 +5,7 @@ POST /agent/cancel/{id}      — 분석 중단 요청
 """
 import json
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel
@@ -20,6 +21,65 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
+
+# ── stage 이벤트 헬퍼 ─────────────────────────────────────────────────────────
+
+def _find_stage_for_file(file_path: str, stages: list[dict]) -> dict | None:
+    """파일이 속한 stage를 반환한다. 없으면 None."""
+    for stage in stages:
+        if file_path in stage.get("files", []):
+            return stage
+    return None
+
+
+async def _emit_stage_events(
+    publish,
+    file_path: str,
+    stages: list[dict],
+    last_stage_no: int | None,
+) -> int | None:
+    """파일의 stage가 직전과 달라지면 stage_started 이벤트를 발행한다.
+
+    Returns:
+        현재 stage_no (이벤트 발행 여부와 무관하게 최신값 반환)
+    """
+    if not stages:
+        return last_stage_no
+
+    stage = _find_stage_for_file(file_path, stages)
+    if stage is None:
+        return last_stage_no
+
+    current_stage_no = stage.get("stage_no")
+    if current_stage_no != last_stage_no:
+        await publish(
+            "stage_started",
+            stage_no=current_stage_no,
+            name=stage.get("name"),
+            total_in_stage=len(stage.get("files", [])),
+        )
+    return current_stage_no
+
+
+def _is_stage_completed(
+    files: list[str],
+    stages: list[dict],
+    next_idx: int,
+    last_stage_no: int,
+) -> bool:
+    """next_file_node 이후 stage 완료 여부를 판정한다.
+
+    다음 처리 파일(next_idx)의 stage가 last_stage_no와 다르거나
+    파일이 소진됐으면 stage 완료로 간주한다.
+    """
+    if next_idx >= len(files):
+        return True
+    next_file = files[next_idx]
+    next_stage = _find_stage_for_file(next_file, stages)
+    if next_stage is None:
+        return False
+    return next_stage.get("stage_no") != last_stage_no
+
 _cancel_flags: dict[str, bool] = {}
 
 
@@ -29,6 +89,7 @@ class AnalyzeRequest(BaseModel):
     workspace_root: str = ""
     source_type: str = "local"
     scan_mode: str = "PIPELINE"          # "AUDIT" | "PIPELINE"
+    planning_mode: Literal["DETERMINISTIC", "LLM"] = "DETERMINISTIC"
     github_owner: str | None = None
     github_repo: str | None = None
     github_ref: str | None = None
@@ -98,6 +159,8 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
             "files_to_scan": [],
             "file_filter": req.file_filter,
             "api_groups": [],
+            "planning_mode": req.planning_mode,
+            "stages": [],
             "current_file_index": 0,
             "current_file_sha256": None,
             "cache_hit": False,
@@ -110,6 +173,7 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
         }
 
         async with mcp_session(session_id, workspace_root, settings.mcp_server_script):
+            last_stage_no: int | None = None
             async for event in graph.astream(initial_state, config):
                 if _cancel_flags.get(session_id):
                     logger.info("[analyze] session=%s cancelled by flag", session_id)
@@ -125,14 +189,33 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
                 elif node_name == "api_discovery_node":
                     await publish("api_plan", api_groups=state.get("api_groups", []))
 
+                elif node_name == "planning_node":
+                    stages = state.get("stages", [])
+                    await publish(
+                        "stage_plan",
+                        stages=[
+                            {
+                                "stage_no": s.get("stage_no"),
+                                "name": s.get("name"),
+                                "file_count": len(s.get("files", [])),
+                            }
+                            for s in stages
+                        ],
+                    )
+
                 elif node_name == "cache_check_node":
                     idx = state.get("current_file_index", 0)
                     files = state.get("files_to_scan", [])
+                    stages = state.get("stages", [])
                     file_path = files[idx] if idx < len(files) else ""
                     hit = state.get("cache_hit", False)
+                    last_stage_no = await _emit_stage_events(
+                        publish, file_path, stages, last_stage_no
+                    )
                     await publish(
                         "progress",
                         node="cache_check",
+                        phase="checking",
                         file=file_path,
                         current=idx + 1,
                         total=len(files),
@@ -146,10 +229,21 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
                     await publish(
                         "progress",
                         node="sast",
+                        phase="done",
                         file=file_path,
                         current=idx + 1,
                         total=len(files),
                     )
+
+                elif node_name == "next_file_node":
+                    # stage 완료 감지: 다음 파일의 stage가 바뀌거나 파일이 소진됐을 때
+                    files = state.get("files_to_scan", [])
+                    stages = state.get("stages", [])
+                    next_idx = state.get("current_file_index", 0)
+                    if last_stage_no is not None:
+                        completed = _is_stage_completed(files, stages, next_idx, last_stage_no)
+                        if completed:
+                            await publish("stage_completed", stage_no=last_stage_no)
 
                 elif node_name == "aggregate_node":
                     results = state.get("sast_results", [])
@@ -208,6 +302,7 @@ async def _run_resume(session_id: str) -> None:
         await publish("started")
 
         async with mcp_session(session_id, workspace_root, settings.mcp_server_script):
+            last_stage_no: int | None = None
             async for event in graph.astream(None, config):  # None = 체크포인트에서 재개
                 if _cancel_flags.get(session_id):
                     logger.info("[resume] session=%s cancelled by flag", session_id)
@@ -223,14 +318,33 @@ async def _run_resume(session_id: str) -> None:
                 elif node_name == "api_discovery_node":
                     await publish("api_plan", api_groups=state.get("api_groups", []))
 
+                elif node_name == "planning_node":
+                    stages = state.get("stages", [])
+                    await publish(
+                        "stage_plan",
+                        stages=[
+                            {
+                                "stage_no": s.get("stage_no"),
+                                "name": s.get("name"),
+                                "file_count": len(s.get("files", [])),
+                            }
+                            for s in stages
+                        ],
+                    )
+
                 elif node_name == "cache_check_node":
                     idx = state.get("current_file_index", 0)
                     files = state.get("files_to_scan", [])
+                    stages = state.get("stages", [])
                     file_path = files[idx] if idx < len(files) else ""
                     hit = state.get("cache_hit", False)
+                    last_stage_no = await _emit_stage_events(
+                        publish, file_path, stages, last_stage_no
+                    )
                     await publish(
                         "progress",
                         node="cache_check",
+                        phase="checking",
                         file=file_path,
                         current=idx + 1,
                         total=len(files),
@@ -244,10 +358,20 @@ async def _run_resume(session_id: str) -> None:
                     await publish(
                         "progress",
                         node="sast",
+                        phase="done",
                         file=file_path,
                         current=idx + 1,
                         total=len(files),
                     )
+
+                elif node_name == "next_file_node":
+                    files = state.get("files_to_scan", [])
+                    stages = state.get("stages", [])
+                    next_idx = state.get("current_file_index", 0)
+                    if last_stage_no is not None:
+                        completed = _is_stage_completed(files, stages, next_idx, last_stage_no)
+                        if completed:
+                            await publish("stage_completed", stage_no=last_stage_no)
 
                 elif node_name == "aggregate_node":
                     results = state.get("sast_results", [])

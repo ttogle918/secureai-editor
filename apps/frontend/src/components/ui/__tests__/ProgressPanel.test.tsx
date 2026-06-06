@@ -1,11 +1,31 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ProgressPanel } from '../ProgressPanel';
-import type { ProgressStep } from '@/store/useSecureStore';
+import type { ProgressStep, StageInfo } from '@/store/useSecureStore';
 
 // ── Zustand 스토어 mock ──────────────────────────────────────────
+type MockStore = {
+  progressSteps: ProgressStep[];
+  stageList: StageInfo[];
+  currentStageNo: number | null;
+  scanningFile: null;
+  apiGroups: [];
+  fileStatuses: Record<string, never>;
+  openTab: jest.Mock;
+};
+
+const mockStore: MockStore = {
+  progressSteps: [],
+  stageList: [],
+  currentStageNo: null,
+  scanningFile: null,
+  apiGroups: [],
+  fileStatuses: {},
+  openTab: jest.fn(),
+};
+
 jest.mock('@/store/useSecureStore', () => ({
-  useSecureStore: (selector: (s: { progressSteps: ProgressStep[] }) => unknown) =>
-    selector({ progressSteps: mockSteps }),
+  useSecureStore: (selector: (s: MockStore) => unknown) =>
+    selector({ ...mockStore, progressSteps: mockSteps }),
 }));
 
 const mockSteps: ProgressStep[] = [

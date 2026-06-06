@@ -1,8 +1,7 @@
 package io.secureai.backend.domain.analysis.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.secureai.backend.domain.analysis.dto.ProgressEvent;
-import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.event.SessionCompletedEvent;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,12 +12,26 @@ import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Redis Pub/Sub 수신기 — ai_engine이 발행하는 진행 이벤트를 SSE로 릴레이한다.
+ *
+ * 설계 원칙:
+ * - DTO 라운드트립을 제거하고 원본 JSON body를 Map으로 변환해 SSE로 패스스루한다.
+ *   이렇게 하면 snake_case 키(phase, stage_no, stages 등)가 camelCase 재직렬화 없이
+ *   프론트엔드까지 그대로 전달된다.
+ * - sessionId는 채널명(secureai:progress:{uuid})에서 추출 — body 파싱 의존 없음.
+ * - type 필드만 JsonNode.path("type")으로 가볍게 추출하여 completed/error 분기에 사용.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class RedisSubscriber implements MessageListener {
+
+    private static final String TYPE_COMPLETED = "completed";
+    private static final String TYPE_ERROR      = "error";
 
     private final SseEmitterService sseEmitterService;
     private final AnalysisSessionRepository sessionRepository;
@@ -30,16 +43,20 @@ public class RedisSubscriber implements MessageListener {
     public void onMessage(Message message, byte[] pattern) {
         try {
             String channel = new String(message.getChannel());
-            String body = new String(message.getBody());
+            String body    = new String(message.getBody());
 
             // 채널에서 sessionId 추출: secureai:progress:{uuid}
             String sessionIdStr = channel.substring(channel.lastIndexOf(':') + 1);
             UUID sessionId = UUID.fromString(sessionIdStr);
 
-            ProgressEvent event = objectMapper.readValue(body, ProgressEvent.class);
-            sseEmitterService.send(sessionId, event);
+            // type만 가볍게 파싱 — 전체 DTO 역직렬화 대신 JsonNode.path 사용
+            String type = objectMapper.readTree(body).path("type").asText("");
 
-            if ("completed".equals(event.type())) {
+            // 원본 JSON을 Map으로 변환 → snake_case 키가 그대로 SSE payload에 포함됨
+            Map<String, Object> payload = objectMapper.readValue(body, new TypeReference<Map<String, Object>>() {});
+            sseEmitterService.send(sessionId, payload);
+
+            if (TYPE_COMPLETED.equals(type)) {
                 sessionRepository.findById(sessionId).ifPresent(session -> {
                     session.markCompleted();
                     sessionRepository.save(session);
@@ -48,7 +65,7 @@ public class RedisSubscriber implements MessageListener {
                     log.info("[redis-sub] session completed sessionId={}", sessionId);
                 });
                 sseEmitterService.complete(sessionId);
-            } else if ("error".equals(event.type())) {
+            } else if (TYPE_ERROR.equals(type)) {
                 sessionRepository.findById(sessionId).ifPresent(session -> {
                     session.markError();
                     sessionRepository.save(session);

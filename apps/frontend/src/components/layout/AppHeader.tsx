@@ -63,6 +63,11 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const setApiGroups         = useSecureStore((s) => s.setApiGroups);
   const setFileStatus        = useSecureStore((s) => s.setFileStatus);
   const clearApiAnalysis     = useSecureStore((s) => s.clearApiAnalysis);
+  const setStageList         = useSecureStore((s) => s.setStageList);
+  const setCurrentStageNo    = useSecureStore((s) => s.setCurrentStageNo);
+  const markStageCompleted   = useSecureStore((s) => s.markStageCompleted);
+  const setScanningFile      = useSecureStore((s) => s.setScanningFile);
+  const clearStageProgress   = useSecureStore((s) => s.clearStageProgress);
   const addToast             = useToastStore((s) => s.addToast);
   const { startAnalysis, isAnalyzing } = useStartAnalysis();
 
@@ -170,22 +175,67 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         setIsAnalyzing(false);
       } else if (event.type === 'started') {
         clearApiAnalysis();
+        clearStageProgress();
         addProgressStep({ stepName: '분석 시작', stepOrder: Date.now(), target: '초기화 중...', status: 'completed' });
       } else if (event.type === 'api_plan') {
         // TASK-1106 — API 그룹 계획 수신 → 파일 전부 pending 초기화
         setApiGroups(event.api_groups ?? []);
+      } else if (event.type === 'stage_plan') {
+        // Stage 목록 수신 — 전체 스테이지를 pending으로 초기화
+        setStageList(
+          (event.stages ?? []).map((s) => ({ ...s, status: 'pending' as const }))
+        );
+      } else if (event.type === 'stage_started') {
+        // 현재 실행 중인 stage 강조 — stageList에서 해당 stage를 running으로 전환
+        const stageNo = event.stage_no ?? null;
+        setCurrentStageNo(stageNo);
+        if (stageNo !== null) {
+          const current = useSecureStore.getState().stageList;
+          setStageList(
+            current.map((s) => ({
+              ...s,
+              status: s.stage_no === stageNo ? ('running' as const) : s.status,
+            }))
+          );
+        }
+        addProgressStep({
+          stepName: `Stage ${event.stage_no ?? ''}`,
+          stepOrder: Date.now(),
+          target: event.name ?? '',
+          status: 'running',
+        });
+      } else if (event.type === 'stage_completed') {
+        markStageCompleted(event.stage_no ?? 0);
       } else if (event.type === 'progress') {
         if (event.file) {
           // TASK-1106 — 파일별 분석 상태 갱신
           if (event.node === 'cache_check') {
             setFileStatus(event.file, event.cache_hit ? 'cached' : 'analyzing');
           } else if (event.node === 'sast') {
-            setFileStatus(event.file, 'done');
+            if (event.phase === 'scanning') {
+              // 실시간 스캔 중 — scanningFile 상태 업데이트
+              setScanningFile({
+                file: event.file,
+                current: event.current ?? 0,
+                total: event.total ?? 0,
+              });
+              setFileStatus(event.file, 'analyzing');
+            } else if (event.phase === 'done') {
+              // 파일 완료
+              setFileStatus(event.file, 'done');
+              setScanningFile(null);
+            } else {
+              // phase 없는 기존 progress — 완료로 처리
+              setFileStatus(event.file, 'done');
+            }
           }
-          addProgressStep({
-            stepName: event.node === 'sast' ? 'SAST 분석' : (event.node ?? '분석 중'),
-            stepOrder: Date.now(), target: event.file, status: 'completed',
-          });
+          if (event.phase !== 'scanning') {
+            // scanning 중에는 addProgressStep 호출하지 않음 — 너무 빈번한 업데이트 방지
+            addProgressStep({
+              stepName: event.node === 'sast' ? 'SAST 분석' : (event.node ?? '분석 중'),
+              stepOrder: Date.now(), target: event.file, status: 'completed',
+            });
+          }
         } else if (event.message) {
           addProgressStep({
             stepName: event.node ?? '진행 중', stepOrder: Date.now(),
@@ -193,6 +243,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           });
         }
       } else if (event.type === 'scan_complete') {
+        setScanningFile(null);
         addProgressStep({
           stepName: '스캔 완료', stepOrder: Date.now(),
           target: `취약점 ${event.vuln_count ?? 0}개 발견`, status: 'completed',

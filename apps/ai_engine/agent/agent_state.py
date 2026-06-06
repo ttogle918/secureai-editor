@@ -44,6 +44,12 @@ class AgentState(TypedDict):
     # 스캔 모드 — "AUDIT" (빠른 비용 효율) | "PIPELINE" (고품질 정밀 분석, 기본값)
     scan_mode: str | None
 
+    # 플래닝 모드 — "DETERMINISTIC" (토큰 0, 결정론적) | "LLM" (Claude 그룹핑)
+    planning_mode: str | None
+
+    # planning_node 출력 — [{stage_no, name, files:[경로...], reason}]
+    stages: list[dict]
+
     # 사용자 모델·키 오버라이드 (BYOK)
     preferred_model: str | None
     user_api_key: str | None  # 복호화된 값 (로그 출력 금지)

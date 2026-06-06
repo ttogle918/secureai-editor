@@ -14,6 +14,7 @@ from agent.nodes.api_discovery_node import api_discovery_node
 from agent.nodes.cache_check_node import cache_check_node
 from agent.nodes.next_file_node import next_file_node
 from agent.nodes.patch_node import patch_node
+from agent.nodes.planning_node import planning_node
 from agent.nodes.sast_node import sast_node
 from agent.nodes.scan_files_node import scan_files_node
 from agent.security_audit_graph import route_after_cache, route_after_next, route_after_scan
@@ -28,6 +29,7 @@ def _build_graph(checkpointer=None):
 
     builder.add_node("scan_files_node", scan_files_node)
     builder.add_node("api_discovery_node", api_discovery_node)
+    builder.add_node("planning_node", planning_node)
     builder.add_node("cache_check_node", cache_check_node)
     builder.add_node("sast_node", sast_node)
     builder.add_node("next_file_node", next_file_node)
@@ -36,13 +38,14 @@ def _build_graph(checkpointer=None):
 
     builder.set_entry_point("scan_files_node")
 
-    # scan_files → (파일 있으면) api_discovery → cache_check 루프. api_discovery는 1회만 실행.
+    # scan_files → (파일 있으면) api_discovery → planning → cache_check 루프.
     builder.add_conditional_edges(
         "scan_files_node",
         route_after_scan,
         {"cache_check_node": "api_discovery_node", "__end__": END},
     )
-    builder.add_edge("api_discovery_node", "cache_check_node")
+    builder.add_edge("api_discovery_node", "planning_node")
+    builder.add_edge("planning_node", "cache_check_node")
     builder.add_conditional_edges(
         "cache_check_node",
         route_after_cache,

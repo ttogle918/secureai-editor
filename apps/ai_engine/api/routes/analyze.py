@@ -174,13 +174,19 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
 
         async with mcp_session(session_id, workspace_root, settings.mcp_server_script):
             last_stage_no: int | None = None
+            # astream 기본(updates) 모드는 각 노드의 "부분 출력"만 준다.
+            # 누적 state를 유지해야 다른 노드가 채운 값(files_to_scan·
+            # current_file_index·stages·sast_results·token_usage)을 정확히 읽는다.
+            full_state: dict = dict(initial_state)
             async for event in graph.astream(initial_state, config):
                 if _cancel_flags.get(session_id):
                     logger.info("[analyze] session=%s cancelled by flag", session_id)
                     await publish("cancelled")
                     return
 
-                node_name, state = next(iter(event.items()))
+                node_name, update = next(iter(event.items()))
+                full_state.update(update)
+                state = full_state
 
                 if node_name == "scan_files_node":
                     files = state.get("files_to_scan", [])
@@ -284,12 +290,13 @@ async def _run_resume(session_id: str) -> None:
     # 체크포인트 상태에서 workspace_root 및 source_type 읽기
     workspace_root = settings.mcp_workspace_root
     source_type = "local"
+    resumed_values: dict = {}
     try:
         checkpoint_tuple = await checkpointer.aget_tuple(config)
         if checkpoint_tuple:
-            channel_values = checkpoint_tuple.checkpoint.get("channel_values", {})
-            workspace_root = channel_values.get("workspace_root", workspace_root)
-            source_type = channel_values.get("source_type", "local")
+            resumed_values = checkpoint_tuple.checkpoint.get("channel_values", {})
+            workspace_root = resumed_values.get("workspace_root", workspace_root)
+            source_type = resumed_values.get("source_type", "local")
     except Exception as exc:
         logger.warning("[resume] session=%s checkpoint read failed: %s", session_id, exc)
 
@@ -303,13 +310,17 @@ async def _run_resume(session_id: str) -> None:
 
         async with mcp_session(session_id, workspace_root, settings.mcp_server_script):
             last_stage_no: int | None = None
+            # 누적 state 유지 (resume은 체크포인트 channel_values에서 시작)
+            full_state: dict = dict(resumed_values)
             async for event in graph.astream(None, config):  # None = 체크포인트에서 재개
                 if _cancel_flags.get(session_id):
                     logger.info("[resume] session=%s cancelled by flag", session_id)
                     await publish("cancelled")
                     return
 
-                node_name, state = next(iter(event.items()))
+                node_name, update = next(iter(event.items()))
+                full_state.update(update)
+                state = full_state
 
                 if node_name == "scan_files_node":
                     files = state.get("files_to_scan", [])

@@ -1,10 +1,11 @@
 import Link from 'next/link';
+import LandingNav from '@/components/landing/LandingNav';
 
-// 랜딩 페이지 — 서버 컴포넌트 (인터랙션 없음, 링크만 사용)
+// 랜딩 페이지 — 서버 컴포넌트 (Nav만 클라이언트 분리)
 export default function LandingPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#e8e8ee', fontFamily: 'var(--font-sans, system-ui)' }}>
-      <Nav />
+      <LandingNav />
       <Hero />
       <FeaturesStrip />
       <PricingSection />
@@ -14,57 +15,14 @@ export default function LandingPage() {
   );
 }
 
-/* ── Nav ───────────────────────────────────────────────────────── */
-function Nav() {
-  return (
-    <nav style={{
-      position: 'sticky', top: 0, zIndex: 100,
-      borderBottom: '1px solid rgba(255,255,255,0.06)',
-      background: 'rgba(10,10,10,0.85)',
-      backdropFilter: 'blur(12px)',
-    }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', gap: 40 }}>
-        {/* Logo */}
-        <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.03em', flexShrink: 0 }}>
-          <span style={{ color: '#ea580c' }}>⬡</span>{' '}
-          <span style={{ color: '#e8e8ee' }}>Secure</span><span style={{ color: '#ea580c' }}>AI</span>
-        </div>
-
-        {/* Nav links */}
-        <div style={{ display: 'flex', gap: 28, flex: 1 }}>
-          {['기능', '가격', '문서', 'GitHub'].map((label) => (
-            <span key={label} style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', cursor: 'pointer', transition: 'color 0.15s' }}>
-              {label}
-            </span>
-          ))}
-        </div>
-
-        {/* Auth buttons */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <Link href="/login" style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>
-            로그인
-          </Link>
-          <Link href="/register" style={{
-            padding: '7px 18px', borderRadius: 6,
-            background: '#ea580c', color: '#fff',
-            fontSize: 14, fontWeight: 700, textDecoration: 'none',
-          }}>
-            무료 시작
-          </Link>
-        </div>
-      </div>
-    </nav>
-  );
-}
-
-/* ── Hero ──────────────────────────────────────────────────────── */
+/* ── Hero ──────────────────────────────────────────────────── */
 function Hero() {
   return (
-    <section style={{ maxWidth: 1200, margin: '0 auto', padding: '80px 24px 60px' }}>
-      <div style={{ display: 'flex', gap: 64, alignItems: 'center', flexWrap: 'wrap' }}>
+    <section className="landing-hero">
+      <div className="landing-hero__grid">
 
         {/* Left: copy */}
-        <div style={{ flex: '1 1 440px', minWidth: 300 }}>
+        <div className="landing-hero__copy">
           {/* Tag */}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -101,7 +59,7 @@ function Hero() {
           </div>
 
           {/* CTA buttons */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className="landing-hero__cta-group">
             <Link href="/register" style={{
               padding: '12px 28px', borderRadius: 8,
               background: '#ea580c', color: '#fff',
@@ -130,7 +88,7 @@ function Hero() {
         </div>
 
         {/* Right: 3-Layer cards */}
-        <div style={{ flex: '1 1 320px', minWidth: 280, maxWidth: 420 }}>
+        <div className="landing-hero__layers">
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 16 }}>
             3-Layer 보안 감사
           </div>
@@ -176,7 +134,7 @@ function Arrow() {
   );
 }
 
-/* ── Features strip ────────────────────────────────────────────── */
+/* ── Features strip ────────────────────────────────────────── */
 function FeaturesStrip() {
   const features = [
     { icon: '🔍', title: 'OWASP Top 10', desc: 'SQL Injection, XSS, SSRF 등 자동 탐지 및 CWE 매핑' },
@@ -186,8 +144,8 @@ function FeaturesStrip() {
   ];
 
   return (
-    <section style={{ borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#0f0f0f' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 32 }}>
+    <section id="features" className="landing-features">
+      <div className="landing-features__grid">
         {features.map(({ icon, title, desc }) => (
           <div key={title}>
             <div style={{ fontSize: 24, marginBottom: 12 }}>{icon}</div>
@@ -200,7 +158,7 @@ function FeaturesStrip() {
   );
 }
 
-/* ── Pricing section ────────────────────────────────────────────── */
+/* ── Pricing section ────────────────────────────────────────── */
 const PLANS = [
   {
     name: 'Free',
@@ -262,7 +220,7 @@ function PricingSection() {
         </div>
 
         {/* Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24, alignItems: 'start' }}>
+        <div className="landing-pricing__grid">
           {PLANS.map((plan) => (
             <div key={plan.name} style={{
               position: 'relative',
@@ -343,7 +301,7 @@ function PricingSection() {
   );
 }
 
-/* ── Stats bar ─────────────────────────────────────────────────── */
+/* ── Stats bar ─────────────────────────────────────────────── */
 function StatsBar() {
   const stats = [
     { num: '3-Layer', label: '통합 커버리지' },
@@ -354,7 +312,7 @@ function StatsBar() {
 
   return (
     <section style={{ background: '#141414', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 24px', display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 24 }}>
+      <div className="landing-stats__flex">
         {stats.map(({ num, label }) => (
           <div key={num} style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 26, fontWeight: 800, color: '#ea580c', fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em' }}>{num}</div>
@@ -366,7 +324,7 @@ function StatsBar() {
   );
 }
 
-/* ── Footer ────────────────────────────────────────────────────── */
+/* ── Footer ────────────────────────────────────────────────── */
 function Footer() {
   return (
     <footer style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>

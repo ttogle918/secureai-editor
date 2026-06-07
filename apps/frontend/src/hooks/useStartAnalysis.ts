@@ -22,7 +22,10 @@ export function useStartAnalysis() {
   const clearProgressSteps = useSecureStore((s) => s.clearProgressSteps);
   const addToast        = useToastStore((s) => s.addToast);
 
-  const [scanMode, setScanMode] = useState<ScanMode>('PIPELINE');
+  const [scanMode, setScanMode] = useState<ScanMode>(() => {
+    if (typeof window === 'undefined') return 'PIPELINE';
+    return (localStorage.getItem('scanModeDefault') as ScanMode) ?? 'PIPELINE';
+  });
 
   const createSession = useCallback(async (pid: string, force = false, mode: ScanMode = 'PIPELINE', fileFilter?: string[]) => {
     const res = await apiClient.post<{ data: SessionData }>(

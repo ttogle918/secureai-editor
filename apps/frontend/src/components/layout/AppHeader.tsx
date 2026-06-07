@@ -11,17 +11,19 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import {
+  Shield, Menu, Code, Settings2, ShieldAlert, FileText, Share2,
   PanelLeftClose, PanelLeftOpen, ChevronRight, ChevronDown,
   FileJson, Play, LayoutDashboard, Code2, Settings, History, Users,
-  Search, Bell, Key, Github, X,
+  Search, Bell, Key, Github, X, PanelBottom,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PagoriLockup, ModeIndicator } from '@/components/brand/PagoriBrand';
+import { PagoriMark, ModeIndicator } from '@/components/brand/PagoriBrand';
 import { CommitSecretScanModal } from '@/components/analysis/CommitSecretScanModal';
 import { AnalysisHistoryModal } from '@/components/analysis/AnalysisHistoryModal';
-import { useSecureStore, type SeverityFilter } from '@/store/useSecureStore';
+import { useSecureStore, type SeverityFilter, type ViewMode } from '@/store/useSecureStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useSse, type SseStatus } from '@/hooks/useSse';
 import { useToastStore } from '@/hooks/useToast';
 import { useStartAnalysis } from '@/hooks/useStartAnalysis';
@@ -43,6 +45,8 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const searchInputRef       = useRef<HTMLInputElement>(null);
   const sidebarOpen          = useSecureStore((s) => s.sidebarOpen);
   const setSidebarOpen       = useSecureStore((s) => s.setSidebarOpen);
+  const bottomPanelOpen      = useSecureStore((s) => s.bottomPanelOpen);
+  const setBottomPanelOpen   = useSecureStore((s) => s.setBottomPanelOpen);
   const workspaceMode        = authUser?.workspaceMode ?? 'DEVELOPER';  // 권위 소스(DB /me)로 일원화 — TASK-1102
   const viewMode             = useSecureStore((s) => s.viewMode);
   const setViewMode          = useSecureStore((s) => s.setViewMode);
@@ -70,6 +74,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const clearStageProgress   = useSecureStore((s) => s.clearStageProgress);
   const addToast             = useToastStore((s) => s.addToast);
   const { startAnalysis, isAnalyzing } = useStartAnalysis();
+  const { t }                = useTranslation();
 
   const [sseStatus,         setSseStatus]         = useState<SseStatus>('idle');
   const [showHistory,       setShowHistory]       = useState(false);
@@ -274,12 +279,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const unreadNotifications = 0;
 
   // ── Severity counts (for chip badges) ───────────────────────────
-  const sevCount = (sev: 'critical' | 'high' | 'medium' | 'low') =>
-    vulns.filter(v => v.severity === sev).length;
 
-  const handleSevFilter = (sev: SeverityFilter) => {
-    setSeverityFilter(severityFilter === sev ? 'all' : sev);
-  };
 
   const toggleApiFilter = () => {
     if (!activeApi) return;
@@ -288,6 +288,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
 
   return (
     <header
+      className="hide-scrollbar"
       style={{
         height: '100%',
         borderBottom: '1px solid var(--hairline)',
@@ -299,10 +300,11 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         flexShrink: 0,
         zIndex: 10,
         gap: 12,
+        overflow: 'hidden',
       }}
     >
       {/* ── Left: sidebar toggle + Pagori brand + breadcrumb ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1, whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
         <button
           onClick={() => setSidebarOpen((v) => !v)}
           title={sidebarOpen ? '사이드바 접기' : '사이드바 펼치기'}
@@ -319,7 +321,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
         </button>
 
-        <PagoriLockup size={22} />
+        <PagoriMark size={22} />
 
         <ModeIndicator mode={workspaceMode} compact />
 
@@ -327,10 +329,12 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
 
         {/* Breadcrumb — click api/<group> chip to filter the right panel by that API */}
         <div
+          className="app-header-breadcrumb"
           style={{
             display: 'flex', alignItems: 'center', gap: 4,
             fontSize: 12, color: 'var(--text-on-bg)',
             fontFamily: 'var(--font-mono)', minWidth: 0,
+            overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
           }}
         >
           {breadcrumb.map((seg, i) => {
@@ -338,8 +342,8 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
             const isApiGroup = activeApi && seg === activeApi;
             const apiActive = apiGroupFilter === activeApi;
             return (
-              <span key={`${seg}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                {i > 0 && <ChevronRight size={11} color="var(--text-tertiary)" />}
+              <span key={`${seg}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 0, flexShrink: isFile ? 1 : 0 }}>
+                {i > 0 && <ChevronRight size={11} color="var(--text-tertiary)" style={{ flexShrink: 0 }} />}
                 {isApiGroup ? (
                   <button
                     onClick={toggleApiFilter}
@@ -367,7 +371,10 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
                     style={{
                       padding: '3px 6px', borderRadius: 4,
                       color: isFile ? 'var(--text-active)' : 'var(--text-on-bg)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      minWidth: 0,
                     }}
+                    title={seg}
                   >
                     {seg}
                   </span>
@@ -377,32 +384,36 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           })}
           {!breadcrumb.length && (
             <span style={{ color: 'var(--text-tertiary)' }}>
-              {viewMode === 'editor' ? '파일을 선택하세요' : 'Security Dashboard'}
+              {viewMode === 'editor' ? t('header.editor', '파일을 선택하세요') : viewMode === 'dashboard' ? t('header.dashboard', 'Security Dashboard') : viewMode.toUpperCase()}
             </span>
           )}
         </div>
 
         <div className="header-pipeline-badges">
           {([
-            { label: 'SAST',  color: 'var(--low)',     bg: 'var(--low-dim)' },
-            { label: 'DAST',  color: 'var(--orange)',  bg: 'var(--orange-dim)' },
-            { label: 'PATCH', color: 'var(--tag-1)',   bg: 'rgba(129,140,248,0.10)' },
-          ] as const).map(({ label, color, bg }) => (
-            <div
+            { id: 'sast',  label: 'SAST',  color: 'var(--low)',     bg: 'var(--low-dim)' },
+            { id: 'dast',  label: 'DAST',  color: 'var(--orange)',  bg: 'var(--orange-dim)' },
+            { id: 'patch', label: 'PATCH', color: 'var(--tag-1)',   bg: 'rgba(129,140,248,0.10)' },
+          ] as const).map(({ id, label, color, bg }) => (
+            <button
               key={label}
+              onClick={() => setViewMode(id as ViewMode)}
               style={{
                 fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 10,
                 background: bg, color, border: `0.5px solid ${color}`,
+                cursor: 'pointer', outline: 'none', transition: 'transform 0.1s',
               }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
               {label}
-            </div>
+            </button>
           ))}
         </div>
       </div>
 
       {/* ── Right ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 1, minWidth: 0 }}>
         {/* CMD+K search button — 팔레트 토글 */}
         <button
           title="전역 검색 (⌘K)"
@@ -412,11 +423,13 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
             height: 28, padding: '0 8px 0 10px',
             background: 'var(--bg-3)', border: '1px solid var(--border)',
             borderRadius: 6, color: 'var(--text-tertiary)',
-            fontSize: 11, cursor: 'pointer', minWidth: 200,
+            fontSize: 11, cursor: 'pointer', flexShrink: 1, minWidth: 40, overflow: 'hidden',
           }}
         >
-          <Search size={12} />
-          <span style={{ flex: 1, textAlign: 'left' }}>취약점 · 파일 · CVE 검색</span>
+          <Search size={12} style={{ flexShrink: 0 }} />
+          <span className="app-header-search-text" style={{ flex: 1, textAlign: 'left', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {t('header.search_placeholder', '취약점 · 파일 · CVE 검색')}
+          </span>
           <span
             className="font-mono"
             style={{
@@ -429,36 +442,6 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           </span>
         </button>
 
-        {/* Severity chips — uses global .chip styles, brighter active text */}
-        <div className="header-sev-filters">
-          <button
-            onClick={() => setSeverityFilter('all')}
-            className={`chip ${severityFilter === 'all' ? 'chip-active' : ''}`}
-            style={{ height: 22 }}
-          >
-            ALL
-          </button>
-          {SEV_FILTERS.map(sev => {
-            const active = severityFilter === sev;
-            return (
-              <button
-                key={sev}
-                onClick={() => handleSevFilter(sev)}
-                className={`chip chip-${sev} ${active ? 'chip-active' : ''}`}
-                style={{
-                  height: 22,
-                  opacity: severityFilter !== 'all' && !active ? 0.45 : 1,
-                }}
-              >
-                <span className="severity-dot" style={{ background: `var(--${sev})` }} />
-                {sev.toUpperCase()}
-                {sevCount(sev) > 0 && (
-                  <span style={{ opacity: 0.75, marginLeft: 2 }}>{sevCount(sev)}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
 
         {/* Editor / Dashboard — segmented control */}
         <div
@@ -476,8 +459,8 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
                 onClick={() => setViewMode(v)}
                 style={{
                   padding: '0 10px', borderRadius: 5, border: 'none',
-                  background: active ? 'var(--bg-1)' : 'transparent',
-                  color: active ? 'var(--text-active)' : 'var(--text-tertiary)',
+                  background: active ? 'var(--orange-dim)' : 'transparent',
+                  color: active ? 'var(--orange)' : 'var(--text-tertiary)',
                   fontSize: 11, fontWeight: 600, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 5,
                   boxShadow: active ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
@@ -485,15 +468,32 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
                 }}
               >
                 {v === 'editor' ? <Code2 size={12} /> : <LayoutDashboard size={12} />}
-                {v === 'editor' ? '에디터' : '대시보드'}
+                {v === 'editor' ? t('header.editor', '에디터') : t('header.dashboard', '대시보드')}
               </button>
             );
           })}
         </div>
 
+        {/* 하단 패널 토글 버튼 */}
+        <button
+          onClick={() => setBottomPanelOpen(!bottomPanelOpen)}
+          title="하단 패널 토글"
+          style={{
+            width: 28, height: 28, borderRadius: 6,
+            background: bottomPanelOpen ? 'var(--orange-dim)' : 'var(--bg-2)',
+            color: bottomPanelOpen ? 'var(--orange)' : 'var(--text-secondary)',
+            border: `1px solid ${bottomPanelOpen ? 'rgba(234,88,12,0.3)' : 'var(--border)'}`,
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.15s, color 0.15s',
+          }}
+        >
+          <PanelBottom size={14} />
+        </button>
+
         <button
           onClick={() => setShowCommitScan(true)}
-          title="커밋 시크릿 스캔"
+          title={t('header.commit_scan', '커밋 시크릿 스캔')}
           style={{
             width: 28, height: 28, borderRadius: 6,
             background: 'var(--bg-2)', color: 'var(--text-secondary)',
@@ -506,7 +506,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
 
         <button
           onClick={() => setShowHistory(true)}
-          title="분석 이력 (전체 프로젝트)"
+          title={t('header.history', '분석 이력 (전체 프로젝트)')}
           style={{
             width: 28, height: 28, borderRadius: 6,
             background: 'var(--bg-2)', color: 'var(--text-secondary)',
@@ -518,7 +518,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         </button>
 
         <button
-          title="알림"
+          title={t('header.notifications', '알림')}
           onClick={() => addToast('알림 센터는 곧 출시됩니다', 'info')}
           style={{
             position: 'relative',
@@ -563,11 +563,11 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           {workspaceMode === 'SECURITY_MANAGER'
             ? <Key size={12} />
             : <Play size={12} fill="currentColor" />}
-          {isAnalyzing ? '분석 중...' : workspaceMode === 'SECURITY_MANAGER' ? '분석 요청' : '분석 시작'}
+          {isAnalyzing ? t('header.analyzing', '분석 중...') : workspaceMode === 'SECURITY_MANAGER' ? t('header.analyze_request', '분석 요청') : t('header.analyze_start', '분석 시작')}
         </button>
 
         {showHistory && <AnalysisHistoryModal onClose={() => setShowHistory(false)} />}
-        {showCommitScan && <CommitSecretScanModal onClose={() => setShowCommitScan(false)} />}
+        {showCommitScan && <CommitmentSecretScanModal onClose={() => setShowCommitScan(false)} />}
 
         {onExportJSON && (
           <button
@@ -579,7 +579,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
               alignItems: 'center', gap: 4, marginLeft: 4,
             }}
           >
-            <FileJson size={14} /> Export JSON
+            <FileJson size={14} /> {t('header.export_json', 'Export JSON')}
           </button>
         )}
 

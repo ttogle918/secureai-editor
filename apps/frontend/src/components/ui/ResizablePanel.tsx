@@ -53,14 +53,14 @@ export function ResizableHandle({ direction, onResize }: ResizableHandleProps) {
         flexShrink: 0,
         width:  isH ? 4 : '100%',
         height: isH ? '100%' : 4,
-        background: 'transparent',
+        background: 'rgba(255, 255, 255, 0.04)',
         cursor: isH ? 'col-resize' : 'row-resize',
         position: 'relative',
         zIndex: 10,
         transition: 'background 0.15s',
       }}
       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(234,88,12,0.4)')}
-      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)')}
     />
   );
 }

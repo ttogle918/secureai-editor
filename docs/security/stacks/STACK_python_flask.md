@@ -145,8 +145,6 @@ app.config.from_object(
 def greet():
     name = request.args.get('name', '')
     return render_template('greet.html', name=name)  # 템플릿 파일 사용
-    # 또는 고정 템플릿에 변수 주입
-    # return render_template_string("Hello {{ name }}!", name=name)
 
 # ✅ IDOR 방지
 @app.route('/api/orders/<int:order_id>')

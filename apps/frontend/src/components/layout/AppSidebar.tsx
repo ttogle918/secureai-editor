@@ -18,6 +18,7 @@ import { useWorkspace } from '@/hooks/useWorkspace';
 import { useProjects, type ProjectSummary } from '@/hooks/useProjects';
 import { deriveApiGroup } from '@/lib/vulnUtils';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const VALID_SEV: Severity[] = ['critical', 'high', 'medium', 'low'];
 const VALID_CAT: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
@@ -175,6 +176,7 @@ function ProjectContextMenu({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -213,7 +215,7 @@ function ProjectContextMenu({
         onClick={() => { onActivate(menu.project); onClose(); }}
       >
         <CheckCircle size={13} color="#f97316" />
-        활성 프로젝트로 설정
+        {t('sidebar.set_active_project', '활성 프로젝트로 설정')}
       </button>
       <button
         style={itemStyle}
@@ -222,7 +224,7 @@ function ProjectContextMenu({
         onClick={() => { onLoadLatest(menu.project); onClose(); }}
       >
         <Download size={13} color="rgba(255,255,255,0.5)" />
-        최신 분석 결과 불러오기
+        {t('sidebar.load_latest_results', '최신 분석 결과 불러오기')}
       </button>
     </div>
   );
@@ -469,6 +471,8 @@ function SlimRail({
 
 // ── 메인 사이드바 ─────────────────────────────────────────────────
 export function AppSidebar() {
+  const { t }                = useTranslation();
+  const user                 = useAuthStore((s) => s.user);
   const sidebarOpen          = useSecureStore((s) => s.sidebarOpen);
   const setSidebarOpen       = useSecureStore((s) => s.setSidebarOpen);
   const sidebarWidth         = useSecureStore((s) => s.sidebarWidth);
@@ -620,18 +624,19 @@ export function AppSidebar() {
       }}
       aria-label="워크스페이스 사이드바"
     >
-      {/* ── Logo ── */}
+      {/* ── Team Workspace ── */}
       <div style={{
         padding: '13px 16px',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
       }}>
-        <Shield size={15} color="#f97316" aria-hidden="true" />
+        <Shield size={15} color="#f97316" aria-hidden="true" style={{ flexShrink: 0 }} />
         <span style={{
           fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
           color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
-          SecureAI
+          {user?.plan === 'team' ? `${user.username || 'TEAM'} WORKSPACE` : 'MY WORKSPACE'}
         </span>
       </div>
 
@@ -812,7 +817,7 @@ export function AppSidebar() {
                 fontSize: 9, color: 'rgba(255,255,255,0.2)',
                 textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700,
               }}>
-                Workspace
+                {t('sidebar.workspace', 'Workspace')}
               </span>
               {workspaceExpanded
                 ? <ChevronDown size={11} color="rgba(255,255,255,0.2)" />
@@ -853,10 +858,11 @@ export function AppSidebar() {
 
       {/* ── 하단 액션 ── */}
       <div style={{
-        padding: 10, borderTop: '1px solid rgba(255,255,255,0.06)',
+        padding: 12, borderTop: '1px solid rgba(255,255,255,0.12)',
+        background: 'rgba(255,255,255,0.01)',
+        boxShadow: '0 -4px 12px rgba(0,0,0,0.2)',
         flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4,
       }}>
-        {/* 에디터/대시보드 토글 */}
         <button
           onClick={() => setViewMode((v) => (v === 'editor' ? 'dashboard' : 'editor'))}
           style={{
@@ -864,11 +870,12 @@ export function AppSidebar() {
             background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 7, color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 600,
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+            whiteSpace: 'nowrap', wordBreak: 'keep-all',
           }}
         >
           {viewMode === 'editor'
-            ? <><LayoutDashboard size={11} /> 대시보드</>
-            : <><Code2 size={11} /> 에디터</>}
+            ? <><LayoutDashboard size={11} /> {t('header.dashboard', '대시보드')}</>
+            : <><Code2 size={11} /> {t('header.editor', '에디터')}</>}
         </button>
 
         {/* 사이드바 하단 페이지 링크 */}
@@ -886,6 +893,7 @@ export function AppSidebar() {
                 padding: '6px 10px', borderRadius: 6, textDecoration: 'none',
                 color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: 500,
                 background: 'transparent', transition: 'background 0.12s, color 0.12s',
+                whiteSpace: 'nowrap', wordBreak: 'keep-all',
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(255,255,255,0.05)';

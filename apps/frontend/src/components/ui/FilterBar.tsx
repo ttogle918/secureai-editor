@@ -36,12 +36,12 @@ export default function FilterBar() {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 16,
+        gap: '12px 16px',
+        flexWrap: 'wrap',
         padding: '8px 16px',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         background: 'rgba(0,0,0,0.3)',
         flexShrink: 0,
-        flexWrap: 'wrap',
       }}
     >
       {/* 심각도 필터 */}

@@ -8,6 +8,7 @@ import VulnDetailPanel from '@/components/analysis/VulnDetailPanel';
 import ChatPanel from '@/components/analysis/ChatPanel';
 import { ProgressPanel } from '@/components/ui/ProgressPanel';
 import { SbomPage } from '@/components/analysis/SbomPage';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export function RightPanel() {
   const rightTab     = useSecureStore((s) => s.rightTab);
@@ -16,19 +17,20 @@ export function RightPanel() {
   const isAnalyzing  = useSecureStore((s) => s.isAnalyzing);
   const progressSteps = useSecureStore((s) => s.progressSteps);
   const selectedPath = useSecureStore((s) => s.selectedPath);
+  const { t }        = useTranslation();
   const fileVulnCount = vulns.filter((v) => v.filePath === selectedPath).length;
 
   const completedSteps = progressSteps.filter((s) => s.status === 'completed').length;
   const totalSteps     = progressSteps.length;
   const progressLabel  = isAnalyzing && totalSteps > 0
-    ? `진행률 ${completedSteps}/${totalSteps}`
-    : '진행률';
+    ? `${t('right_panel.progress', '진행률')} ${completedSteps}/${totalSteps}`
+    : t('right_panel.progress', '진행률');
 
   const TABS = [
-    { id: 'vulns'    as const, label: `취약점 (${fileVulnCount})`, icon: <ShieldAlert   size={12} aria-hidden="true" />, pulsing: false },
-    { id: 'chat'     as const, label: 'AI 채팅',                   icon: <MessageSquare size={12} aria-hidden="true" />, pulsing: false },
-    { id: 'progress' as const, label: progressLabel,               icon: <CheckSquare   size={12} aria-hidden="true" />, pulsing: isAnalyzing },
-    { id: 'sbom'     as const, label: 'SBOM',                      icon: <Package       size={12} aria-hidden="true" />, pulsing: false },
+    { id: 'vulns'    as const, label: `${t('right_panel.vulnerabilities', '취약점')} (${fileVulnCount})`, icon: <ShieldAlert   size={12} aria-hidden="true" />, pulsing: false },
+    { id: 'chat'     as const, label: t('right_panel.ai_chat', 'AI 채팅'),                               icon: <MessageSquare size={12} aria-hidden="true" />, pulsing: false },
+    { id: 'progress' as const, label: progressLabel,                                                     icon: <CheckSquare   size={12} aria-hidden="true" />, pulsing: isAnalyzing },
+    { id: 'sbom'     as const, label: t('right_panel.sbom', 'SBOM'),                                     icon: <Package       size={12} aria-hidden="true" />, pulsing: false },
   ] as const;
 
   return (
@@ -44,11 +46,13 @@ export function RightPanel() {
       <div
         role="tablist"
         aria-label="오른쪽 패널 탭"
+        className="hide-scrollbar"
         style={{
           display: 'flex',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
           background: '#141414',
           flexShrink: 0,
+          overflowX: 'auto',
         }}
       >
         {TABS.map((tab) => {
@@ -62,12 +66,12 @@ export function RightPanel() {
               aria-controls={`right-panel-${tab.id}`}
               onClick={() => setRightTab(tab.id)}
               style={{
-                flex: 1,
+                flex: '1 1 0',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 6,
-                padding: '8px 0',
+                gap: 4,
+                padding: '8px 4px',
                 fontSize: 11,
                 fontWeight: 600,
                 background: 'none',
@@ -77,6 +81,10 @@ export function RightPanel() {
                 cursor: 'pointer',
                 transition: 'all 0.15s',
                 position: 'relative',
+                whiteSpace: 'nowrap',
+                wordBreak: 'keep-all',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
               {tab.icon}

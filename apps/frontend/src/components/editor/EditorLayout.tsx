@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
 import { EditorTabs } from '@/components/editor/EditorTabs';
-import DastTerminal from '@/components/analysis/DastTerminal';
+import { BottomPanel } from '@/components/editor/BottomPanel';
 import { RightPanel } from '@/components/analysis/RightPanel';
 import { DockedChatPanel } from '@/components/analysis/ChatFAB';
 import ResizeHandle from '@/components/ui/ResizeHandle';
@@ -34,6 +34,7 @@ export function EditorLayout({ chatDocked = false }: EditorLayoutProps) {
 
   const fileContents   = useSecureStore((s) => s.fileContents);
   const setFileContent = useSecureStore((s) => s.setFileContent);
+  const bottomPanelOpen = useSecureStore((s) => s.bottomPanelOpen);
 
   // 추가 워크스페이스 파일을 선택하면 activeWorkspaceId가 변경됨
   const effectiveWsId = activeWorkspaceId ?? workspaceId;
@@ -62,7 +63,7 @@ export function EditorLayout({ chatDocked = false }: EditorLayoutProps) {
   const fileVulns = vulns.filter((v) => v.filePath === selectedPath);
 
   return (
-    <div style={{ display: 'flex', flex: 1, minWidth: 0, minHeight: '1px', overflow: 'hidden', padding: '16px' }}>
+    <div style={{ display: 'flex', flex: 1, minWidth: 0, minHeight: '1px', overflow: 'hidden', padding: '8px 16px 16px 16px' }}>
 
       {/* ── 코드 + 터미널 ── */}
       <div className="editor-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
@@ -82,11 +83,14 @@ export function EditorLayout({ chatDocked = false }: EditorLayoutProps) {
           />
         </div>
 
-        <ResizeHandle onResize={onTerminalResize} direction="vertical" />
-
-        <div style={{ height: terminalHeight, flexShrink: 0, borderTop: '1px solid var(--hairline)' }}>
-          <DastTerminal />
-        </div>
+        {bottomPanelOpen && (
+          <>
+            <ResizeHandle onResize={onTerminalResize} direction="vertical" />
+            <div style={{ height: terminalHeight, flexShrink: 0, borderTop: '1px solid var(--hairline)' }}>
+              <BottomPanel />
+            </div>
+          </>
+        )}
       </div>
 
       <ResizeHandle onResize={onRightResize} direction="horizontal" />

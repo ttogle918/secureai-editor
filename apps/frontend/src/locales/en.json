@@ -1,0 +1,52 @@
+{
+  "header": {
+    "search_placeholder": "Search vulnerabilities, files, CVE...",
+    "search_shortcut": "⌘K",
+    "editor": "Editor",
+    "dashboard": "Dashboard",
+    "commit_scan": "Commit Secret Scan",
+    "history": "Analysis History (All Projects)",
+    "notifications": "Notifications",
+    "analyze_start": "Start Analysis",
+    "analyzing": "Analyzing...",
+    "analyze_request": "Request Analysis",
+    "export_json": "Export JSON"
+  },
+  "bottom_panel": {
+    "problems": "PROBLEMS",
+    "output": "OUTPUT",
+    "debug_console": "DEBUG CONSOLE",
+    "ports": "PORTS",
+    "ai_log": "AI LOG",
+    "no_problems": "No problems have been detected in the workspace yet.",
+    "start_debug": "Please start a debugging session to evaluate expressions.",
+    "no_ports": "No active ports forwarded.",
+    "ai_waiting": "[Agent] Waiting for task execution..."
+  },
+  "sidebar": {
+    "project": "PROJECT",
+    "search": "SEARCH",
+    "sast": "SAST",
+    "dast": "DAST",
+    "patch": "PATCH",
+    "settings": "SETTINGS",
+    "open_editors": "OPEN EDITORS",
+    "files": "FILES",
+    "workspace": "WORKSPACE",
+    "set_active_project": "Set as Active Project",
+    "load_latest_results": "Load Latest Results",
+    "no_files": "No files",
+    "empty_workspace": "Empty Workspace",
+    "open_folder": "Open Folder",
+    "reading": "Reading...",
+    "uploading": "Uploading..."
+  },
+  "right_panel": {
+    "vulnerabilities": "Vulnerabilities",
+    "ai_chat": "AI Chat",
+    "progress": "Progress",
+    "sbom": "SBOM",
+    "all_severity": "All Severities",
+    "all_api": "All APIs"
+  }
+}

@@ -21,9 +21,11 @@ function ClosedFAB({
   onClick: () => void;
   onDoubleClick: () => void;
 }) {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      {/* 힌트 레이블 */}
+      {/* 힌트 레이블 (툴팁) */}
       <div style={{
         padding: '6px 10px',
         borderRadius: 8,
@@ -37,8 +39,11 @@ function ClosedFAB({
         color: 'var(--text-secondary)',
         userSelect: 'none',
         pointerEvents: 'none',
+        opacity: isHovered ? 1 : 0,
+        transform: isHovered ? 'translateX(0)' : 'translateX(10px)',
+        transition: 'opacity 0.2s, transform 0.2s',
       }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)' }}>한번 클릭</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)' }}>클릭</span>
         <span>·</span>
         <span style={{ fontWeight: 600 }}>AI 채팅</span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)' }}>(더블클릭 → 도크)</span>
@@ -48,6 +53,8 @@ function ClosedFAB({
       <button
         onClick={onClick}
         onDoubleClick={(e) => { e.preventDefault(); onDoubleClick(); }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         aria-label="AI 채팅 열기 (더블클릭: 도크)"
         style={{
           position: 'relative',

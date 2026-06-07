@@ -147,8 +147,8 @@ function KpiStat({ label, value, color = 'var(--text-primary)', sub, divider }: 
 }) {
   return (
     <>
-      <div style={{ flex: 1, padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.02em' }}>{label}</span>
+      <div style={{ flex: 1, padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 'fit-content' }}>
+        <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 500, letterSpacing: '0.02em', whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>{label}</span>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
           <span style={{ fontSize: 22, fontWeight: 700, color, lineHeight: 1, fontFamily: 'var(--font-mono)' }}>{value}</span>
           {sub && <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{sub}</span>}
@@ -170,7 +170,7 @@ function FilterRow({ label, items, onToggle }: {
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ width: 78, fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.06em', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+      <span style={{ width: 78, fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.06em', flexShrink: 0, whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
         {label}
       </span>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -505,7 +505,7 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
         <div style={{ padding: '28px 28px 48px', maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 28 }}>
 
           {/* KPI strip */}
-          <div style={{ display: 'flex', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10 }}>
+          <div className="hide-scrollbar" style={{ display: 'flex', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, overflowX: 'auto' }}>
             <KpiStat label="총 의존성"      value={totalDeps}    divider />
             <KpiStat label="취약한 의존성"  value={vulnDeps}     color="var(--critical)" sub={`(${Math.round(vulnDeps / totalDeps * 100)}%)`} divider />
             <KpiStat label="전체 CVE"        value={totalCves}    color="var(--high)"     divider />
@@ -516,7 +516,7 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
           {/* Filter section */}
           <div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
-              <div>
+              <div style={{ flexShrink: 0, whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>의존성 필터</h3>
                 <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 3 }}>심각도 · 의존성 종류 · 생태계로 좁히기</div>
               </div>
@@ -571,7 +571,7 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
           {/* Table section */}
           <div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
-              <div>
+              <div style={{ flexShrink: 0, whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>의존성 목록</h3>
                 <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 3 }}>{totalDeps}개 의존성 · {vulnDeps}개 취약</div>
               </div>
@@ -592,7 +592,8 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
               </div>
             </div>
 
-            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+            <div className="hide-scrollbar" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, overflowX: 'auto' }}>
+              <div style={{ minWidth: 650 }}>
               {/* Table header */}
               <div style={{
                 display: 'grid',
@@ -603,12 +604,12 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
                 background: 'var(--bg-3)', borderBottom: '1px solid var(--hairline)',
               }}>
                 <span>패키지</span>
-                <span>현재</span>
-                <span>최신</span>
+                <span style={{ whiteSpace: 'nowrap' }}>현재</span>
+                <span style={{ whiteSpace: 'nowrap' }}>최신</span>
                 <span>CVE</span>
-                <span>심각도</span>
-                <span>수정 버전</span>
-                <span style={{ textAlign: 'right' }}>액션</span>
+                <span style={{ whiteSpace: 'nowrap' }}>심각도</span>
+                <span style={{ whiteSpace: 'nowrap' }}>수정 버전</span>
+                <span style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>액션</span>
               </div>
 
               {/* 필터 결과 없음 */}
@@ -701,6 +702,7 @@ export function SbomPage({ projectName = 'shop-api' }: { projectName?: string })
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
 

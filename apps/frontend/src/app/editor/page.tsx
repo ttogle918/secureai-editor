@@ -11,6 +11,9 @@ import { AppSidebar }                from '@/components/layout/AppSidebar';
 import { EditorLayout }              from '@/components/editor/EditorLayout';
 import { AnalysisLoadingOverlay }    from '@/components/analysis/AnalysisLoadingOverlay';
 import DashboardPage                 from '@/components/dashboard/DashboardPage';
+import { SastDashboardPage }         from '@/components/analysis/SastDashboardPage';
+import { DastWorkspacePage }         from '@/components/analysis/DastWorkspacePage';
+import { PatchManagerPage }          from '@/components/analysis/PatchManagerPage';
 import ResizeHandle                  from '@/components/ui/ResizeHandle';
 import { ToastContainer }            from '@/components/ui/Toast';
 import { MobileBottomNav, type MobileScreen } from '@/components/layout/MobileBottomNav';
@@ -170,15 +173,17 @@ export default function EditorPage() {
   return (
     <div
       style={{
+        position: 'fixed',
+        inset: 0,
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
         background: '#080809',
         color: '#e8e8ee',
         overflow: 'hidden',
         userSelect: 'none',
       }}
     >
+      {/* ── 메인 헤더 ── */}
       <div style={{ height: 48, flexShrink: 0 }}>
         <AppHeader onExportJSON={exportJSON} />
       </div>
@@ -208,7 +213,7 @@ export default function EditorPage() {
               >
                 <EditorLayout chatDocked={chatDockMode} />
               </motion.div>
-            ) : (
+            ) : viewMode === 'dashboard' ? (
               <motion.div
                 key="dashboard"
                 initial={{ opacity: 0, y: 6 }}
@@ -218,6 +223,39 @@ export default function EditorPage() {
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}
               >
                 <DashboardPage />
+              </motion.div>
+            ) : viewMode === 'sast' ? (
+              <motion.div
+                key="sast"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}
+              >
+                <SastDashboardPage />
+              </motion.div>
+            ) : viewMode === 'dast' ? (
+              <motion.div
+                key="dast"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}
+              >
+                <DastWorkspacePage />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="patch"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}
+              >
+                <PatchManagerPage />
               </motion.div>
             )}
           </AnimatePresence>

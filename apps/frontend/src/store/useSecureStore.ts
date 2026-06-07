@@ -10,13 +10,14 @@ import type { SeverityLevel } from '@/types';
 
 export type Severity       = 'critical' | 'high' | 'medium' | 'low';
 export type SeverityFilter = 'all' | Severity;
-export type ViewMode       = 'editor' | 'dashboard';
+export type ViewMode       = 'editor' | 'dashboard' | 'sast' | 'dast' | 'patch';
 export type RightTab       = 'vulns' | 'chat' | 'progress' | 'sbom';
 export type DisplayLanguage = 'ko' | 'en';
 export type PreferencesLanguage = 'ko' | 'en' | 'ja' | 'zh' | 'es' | 'de';
 export type PreferencesTheme = 'dark' | 'dim' | 'light';
 export type AiTone = 'direct' | 'friendly' | 'expert' | 'teaching';
 export type WorkspaceMode = 'DEVELOPER' | 'SECURITY_MANAGER';
+export type BottomTab = 'problems' | 'output' | 'ai_log' | 'ports' | 'debug';
 
 export interface DastExploitResult {
   success: boolean;
@@ -248,7 +249,11 @@ interface SecureStore {
   // ── 채팅 ────────────────────────────────────────────────
   chatMessages: ChatMessage[];
   addChatMessage: (m: ChatMessage) => void;
-  sendChat: (text: string) => void;
+  // ── 하단 패널 (터미널/출력 등) ───────────────────────────
+  bottomPanelOpen: boolean;
+  setBottomPanelOpen: (v: boolean) => void;
+  bottomPanelTab: BottomTab;
+  setBottomPanelTab: (t: BottomTab) => void;
 }
 
 // ─── 스토어 구현 ─────────────────────────────────────────────
@@ -499,6 +504,12 @@ export const useSecureStore = create<SecureStore>()(
       set((s) => ({ chatMessages: [...s.chatMessages, aiMsg] }));
     }, 800);
   },
+
+  // ── 하단 패널
+  bottomPanelOpen: true,
+  setBottomPanelOpen: (v) => set({ bottomPanelOpen: v }),
+  bottomPanelTab: 'output',
+  setBottomPanelTab: (t) => set({ bottomPanelTab: t }),
     }),
     {
       name: 'secureai-editor-state',
@@ -519,6 +530,8 @@ export const useSecureStore = create<SecureStore>()(
         dastBaseUrl:     state.dastBaseUrl,
         aiTone:          state.aiTone,
         workspaceMode:   state.workspaceMode,
+        bottomPanelOpen: state.bottomPanelOpen,
+        bottomPanelTab:  state.bottomPanelTab,
       }),
     }
   )

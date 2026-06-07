@@ -91,50 +91,17 @@ export default function DastTerminal() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* 탭 헤더 */}
-      <div
-        className="flex items-center border-b shrink-0 px-3 gap-3"
-        style={{ borderColor: 'var(--border)', background: 'var(--bg-panel)', height: 32 }}
-      >
-        <span
-          className="text-xs font-semibold"
-          style={{ color: 'var(--text-secondary)' }}
-        >
-          DAST 터미널
-        </span>
-
-        {/* 실행 상태 인디케이터 */}
-        {isRunning ? (
-          <span className="flex items-center gap-1.5 text-xs" style={{ color: '#4ade80' }}>
-            <span
-              className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"
-              aria-hidden="true"
-            />
-            DAST 실행 중...
-          </span>
-        ) : (
-          <span className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ background: 'rgba(255,255,255,0.2)' }}
-              aria-hidden="true"
-            />
-            대기 중
-          </span>
-        )}
-      </div>
-
       {/* 로그 출력 영역 */}
       <div
         className="flex-1 overflow-y-auto p-2"
         style={{
           background: '#050810',
           fontFamily: 'var(--font-mono, monospace)',
-          minHeight: 200,
+          minHeight: 0,
         }}
       >
         {dastLogs.length === 0 ? (
-          <p className="text-xs p-2" style={{ color: 'rgba(255,255,255,0.2)' }}>
+          <p className="text-xs p-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
             DAST 분석을 시작하려면 취약점을 선택하세요.
           </p>
         ) : (

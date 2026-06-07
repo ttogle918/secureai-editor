@@ -1,0 +1,52 @@
+{
+  "header": {
+    "search_placeholder": "취약점 · 파일 · CVE 검색",
+    "search_shortcut": "⌘K",
+    "editor": "에디터",
+    "dashboard": "대시보드",
+    "commit_scan": "커밋 시크릿 스캔",
+    "history": "분석 이력 (전체 프로젝트)",
+    "notifications": "알림",
+    "analyze_start": "분석 시작",
+    "analyzing": "분석 중...",
+    "analyze_request": "분석 요청",
+    "export_json": "Export JSON"
+  },
+  "bottom_panel": {
+    "problems": "문제",
+    "output": "출력",
+    "debug_console": "디버그 콘솔",
+    "ports": "포트",
+    "ai_log": "AI 로그",
+    "no_problems": "아직 감지된 취약점이나 문제가 없습니다.",
+    "start_debug": "디버깅 세션을 시작하여 표현식을 평가하세요.",
+    "no_ports": "포워딩된 활성 포트가 없습니다.",
+    "ai_waiting": "[에이전트] 작업 실행 대기 중..."
+  },
+  "sidebar": {
+    "project": "프로젝트",
+    "search": "검색",
+    "sast": "SAST",
+    "dast": "DAST",
+    "patch": "패치",
+    "settings": "설정",
+    "open_editors": "열려있는 편집기",
+    "files": "파일",
+    "workspace": "워크스페이스",
+    "set_active_project": "활성 프로젝트로 설정",
+    "load_latest_results": "최신 분석 결과 불러오기",
+    "no_files": "파일 없음",
+    "empty_workspace": "비어있는 워크스페이스",
+    "open_folder": "폴더 열기",
+    "reading": "읽는 중...",
+    "uploading": "업로드 중..."
+  },
+  "right_panel": {
+    "vulnerabilities": "취약점",
+    "ai_chat": "AI 채팅",
+    "progress": "진행률",
+    "sbom": "SBOM",
+    "all_severity": "전체 심각도",
+    "all_api": "API 전체"
+  }
+}

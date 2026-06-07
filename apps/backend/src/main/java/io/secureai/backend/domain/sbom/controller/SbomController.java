@@ -20,7 +20,7 @@ import java.util.UUID;
 /**
  * SBOM 컴포넌트 API.
  *
- * POST /api/v1/sbom/components                          — AI Engine → Backend 내부 호출 전용 (X-Internal-Key 인증)
+ * POST /api/v1/internal/sbom/components                 — AI Engine → Backend 내부 호출 전용 (X-Internal-Key 인증, InternalKeyAuthFilter)
  * GET  /api/v1/projects/{projectId}/sbom/components     — 인증된 사용자 전용
  * GET  /api/v1/projects/{projectId}/sbom/cyclonedx      — CycloneDX 1.4 JSON 내보내기 (인증된 사용자 전용)
  */
@@ -33,8 +33,11 @@ public class SbomController {
 
     /**
      * AI Engine 에서 파싱한 SBOM 컴포넌트 목록을 저장한다.
+     *
+     * <p>내부 전용 경로(/api/v1/internal/**)에 위치하여 InternalKeyAuthFilter의
+     * X-Internal-Key 검증을 통과해야만 접근할 수 있다(외부 무인증 호출 차단).
      */
-    @PostMapping("/api/v1/sbom/components")
+    @PostMapping("/api/v1/internal/sbom/components")
     public ResponseEntity<ApiResponse<Map<String, Integer>>> saveComponents(
             @Valid @RequestBody SaveComponentsRequest request) {
         int saved = sbomService.saveComponents(request);

@@ -88,7 +88,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/admin/teams/**").authenticated()
                 // AI Engine 내부 호출 전용 — InternalKeyFilter 에서 인증
                 .requestMatchers("/api/v1/cve/search").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/sbom/components").permitAll()
+                // SBOM 컴포넌트 저장은 /api/v1/internal/** 로 이전됨 → InternalKeyAuthFilter가 보호(별도 permitAll 불필요)
                 // FCM 디바이스 토큰 등록/삭제 — JWT 인증 필요 (anyRequest 에 포함되나 명시)
                 // /api/v1/fcm/** 는 별도 permitAll 없으므로 JWT 인증 필수
                 .anyRequest().authenticated()

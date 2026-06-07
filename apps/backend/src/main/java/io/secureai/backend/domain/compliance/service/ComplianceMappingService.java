@@ -2,9 +2,6 @@ package io.secureai.backend.domain.compliance.service;
 
 import io.secureai.backend.domain.analysis.service.VulnerabilityQueryService;
 import io.secureai.backend.domain.compliance.dto.ComplianceResponse;
-import io.secureai.backend.domain.project.service.ProjectService;
-import io.secureai.backend.global.exception.BusinessException;
-import io.secureai.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,9 +65,9 @@ public class ComplianceMappingService {
             "A10", "A10 Server-Side Request Forgery"
     );
 
-    // cross-domain: analysis Repository 직접 주입 대신 서비스 경유
+    // cross-domain: analysis Repository 직접 주입 대신 서비스 경유.
+    // 세션-프로젝트 바인딩 및 멤버십 검증도 VulnerabilityQueryService가 담당한다.
     private final VulnerabilityQueryService vulnerabilityQueryService;
-    private final ProjectService projectService;
 
     /**
      * 특정 세션의 컴플라이언스 보고서를 반환한다.
@@ -82,18 +79,17 @@ public class ComplianceMappingService {
      * @param framework        "ISO27001" 또는 "NIST_CSF" (Controller에서 검증 완료)
      * @param requestingUserId 요청자 ID (멤버 검증용)
      * @return 컴플라이언스 응답
-     * @throws BusinessException PROJECT_ACCESS_DENIED — 프로젝트 멤버 아닌 경우
+     * @throws io.secureai.backend.global.exception.BusinessException
+     *         SESSION_NOT_FOUND(세션 없음/타 프로젝트 소속) 또는 PROJECT_ACCESS_DENIED(멤버 아님)
      */
     public ComplianceResponse getComplianceReport(
             UUID projectId, UUID sessionId, String framework, UUID requestingUserId) {
 
-        // 1. 프로젝트 멤버 검증
-        if (!projectService.isMember(projectId, requestingUserId)) {
-            throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
-        }
-
-        // 2. 세션 취약점의 OWASP 코드 목록 조회 (VulnerabilityQueryService 경유)
-        List<String> owaspCodes = vulnerabilityQueryService.findOwaspCodesBySessionId(sessionId);
+        // 1. 세션-프로젝트 바인딩 + 멤버십 검증 후 OWASP 코드 목록 조회.
+        //    VulnerabilityQueryService가 세션이 projectId 소속인지까지 확인하여
+        //    타 프로젝트 sessionId로 우회 조회하는 IDOR을 차단한다.
+        List<String> owaspCodes =
+                vulnerabilityQueryService.findOwaspCodesBySession(requestingUserId, projectId, sessionId);
 
         // 3. OWASP 카테고리별 취약점 수 집계
         Map<String, String[]> mapping = FRAMEWORK_ISO27001.equals(framework) ? ISO_MAP : NIST_MAP;

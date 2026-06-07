@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 /**
  * AI Engine → Backend 내부 엔드포인트(/api/v1/internal/**)에 대한 X-Internal-Key 헤더 검증 필터.
@@ -39,10 +41,17 @@ public class InternalKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
         String provided = request.getHeader(HEADER_NAME);
-        if (provided == null || !provided.equals(expectedKey)) {
+        // 상수시간 비교 — 타이밍 공격 방지 (AI Engine 측 secrets.compare_digest와 동작 일치)
+        if (provided == null || !constantTimeEquals(provided, expectedKey)) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
         chain.doFilter(request, response);
+    }
+
+    private static boolean constantTimeEquals(String a, String b) {
+        return MessageDigest.isEqual(
+                a.getBytes(StandardCharsets.UTF_8),
+                b.getBytes(StandardCharsets.UTF_8));
     }
 }

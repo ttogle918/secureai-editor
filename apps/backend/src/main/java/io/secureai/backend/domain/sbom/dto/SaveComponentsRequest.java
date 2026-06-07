@@ -9,7 +9,7 @@ import java.util.UUID;
 /**
  * AI Engine → Backend SBOM 컴포넌트 저장 요청 DTO.
  *
- * POST /api/v1/sbom/components
+ * POST /api/v1/internal/sbom/components
  */
 public record SaveComponentsRequest(
 

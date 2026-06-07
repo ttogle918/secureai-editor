@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:ci": "jest --ci --coverage",
     "build:desktop": "cross-env NEXT_OUTPUT=export next build",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

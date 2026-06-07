@@ -13,6 +13,19 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
+
+def pytest_collection_modifyitems(items):
+    """이 디렉터리의 모든 테스트에 'integration' 마커를 자동 적용한다.
+
+    덕분에 `pytest -m "not integration"` 으로도 단위 테스트만 선택 실행할 수 있다.
+    (CI 단위 잡은 --ignore=tests/integration 로 디렉터리 자체를 제외한다.)
+    """
+    for item in items:
+        if "tests/integration/" in str(item.fspath).replace("\\", "/"):
+            item.add_marker(pytest.mark.integration)
+
 # ── 1. Windows event loop 호환 ────────────────────────────────────────
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())

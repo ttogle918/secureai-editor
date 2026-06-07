@@ -9,6 +9,13 @@ Thumbs.db
 *.iws
 *.ipr
 
+# Test coverage reports (generated)
+coverage/
+.coverage
+coverage.xml
+htmlcov/
+*.lcov
+
 # Node.js (Next.js / Frontend)
 node_modules/
 .next/

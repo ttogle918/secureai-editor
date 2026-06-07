@@ -1,0 +1,52 @@
+name: CI — MCP Server
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/mcp_server/**"
+      - ".github/workflows/ci-mcp-server.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/mcp_server/**"
+      - ".github/workflows/ci-mcp-server.yml"
+
+jobs:
+  test-typecheck-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/mcp_server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/mcp_server
+        run: npm ci
+
+      - name: Type check
+        working-directory: apps/mcp_server
+        run: npm run typecheck
+
+      - name: Test
+        working-directory: apps/mcp_server
+        run: npm run test:ci
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-server-coverage
+          path: apps/mcp_server/coverage/
+          if-no-files-found: ignore
+
+      - name: Build
+        working-directory: apps/mcp_server
+        run: npm run build

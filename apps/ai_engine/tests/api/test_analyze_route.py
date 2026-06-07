@@ -53,6 +53,7 @@ async def test_run_analysis_no_files_publishes_started_and_completed():
     async def _fake_astream(state, config=None):
         yield {"scan_files_node": {**state, "files_to_scan": []}}
         yield {"aggregate_node": {**state, "sast_results": [], "status": "completed"}}
+        # 파이프라인 종단 노드(patch_node)에서 "completed" 이벤트가 발행된다.
         yield {"patch_node": {**state, "sast_results": [], "token_usage": {}}}
 
     mock_graph = MagicMock()
@@ -239,6 +240,7 @@ async def test_run_resume_with_checkpointer_emits_completed():
 
     async def _fake_astream(state, config=None):
         yield {"aggregate_node": {"sast_results": [], "status": "completed"}}
+        # 종단 노드(patch_node)에서 "completed" 이벤트가 발행된다.
         yield {"patch_node": {"sast_results": [], "token_usage": {}}}
 
     mock_graph = MagicMock()

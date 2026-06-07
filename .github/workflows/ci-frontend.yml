@@ -39,6 +39,18 @@ jobs:
         working-directory: apps/frontend
         run: npm run lint
 
+      - name: Test
+        working-directory: apps/frontend
+        run: npm run test:ci
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: apps/frontend/coverage/
+          if-no-files-found: ignore
+
       - name: Build
         working-directory: apps/frontend
         env:

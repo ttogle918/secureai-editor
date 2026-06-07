@@ -2,6 +2,7 @@
 TASK-906 — sast_node.py 단위 테스트.
 
 _ai_tokens_counter 가 sast_node() 실행 중 labels().inc() 호출되는지 검증한다.
+_detect_stacks 다중 스택 반환 및 프레임워크 감지를 검증한다.
 모든 외부 의존성(MCP, Claude API, Redis, Backend API, 진행 로그)은 mock으로 대체한다.
 """
 import pytest
@@ -226,3 +227,106 @@ async def test_sast_node_preferred_model_overrides_scan_mode():
     assert captured_model[0] == "claude-opus-4-5", (
         f"BYOK preferred_model이 scan_mode보다 우선해야 하지만 '{captured_model[0]}' 가 전달됐다"
     )
+
+
+# ── _detect_stacks 단위 테스트 ──────────────────────────────────────────────
+
+def test_detect_stacks_java_returns_java_spring():
+    """.java 파일은 content 무관하게 ["java_spring"] 을 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("/app/src/UserService.java", "public class UserService {}")
+    assert result == ["java_spring"]
+
+
+def test_detect_stacks_kotlin_returns_java_spring():
+    """.kt 파일은 ["java_spring"] 을 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("/app/src/User.kt", "class User")
+    assert result == ["java_spring"]
+
+
+def test_detect_stacks_js_returns_node_and_common_js():
+    """.js 파일은 ["node_express_nestjs", "common_js"] 를 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("/app/index.js", "const express = require('express')")
+    assert result == ["node_express_nestjs", "common_js"]
+
+
+def test_detect_stacks_ts_returns_react_and_common_js():
+    """.ts 파일은 ["frontend_react_nextjs", "common_js"] 를 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("/app/page.ts", "export const handler = () => {}")
+    assert result == ["frontend_react_nextjs", "common_js"]
+
+
+def test_detect_stacks_tsx_returns_react_and_common_js():
+    """.tsx 파일은 ["frontend_react_nextjs", "common_js"] 를 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("/app/App.tsx", "export default function App() {}")
+    assert result == ["frontend_react_nextjs", "common_js"]
+
+
+def test_detect_stacks_jsx_returns_react_and_common_js():
+    """.jsx 파일은 ["frontend_react_nextjs", "common_js"] 를 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("/app/Button.jsx", "export default function Button() {}")
+    assert result == ["frontend_react_nextjs", "common_js"]
+
+
+def test_detect_stacks_py_django_import():
+    """.py 파일에 'import django' 가 있으면 python_django 프레임워크를 선택한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    content = "import django\nfrom django.db import models"
+    result = _detect_stacks("/app/models.py", content)
+    assert "common_python" in result
+    assert "python_django" in result
+    assert len(result) == 2
+
+
+def test_detect_stacks_py_django_from_import():
+    """.py 파일에 'from django.' 가 있으면 python_django 를 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    content = "from django.contrib.auth import User"
+    result = _detect_stacks("/app/views.py", content)
+    assert "python_django" in result
+
+
+def test_detect_stacks_py_flask():
+    """.py 파일에 'from flask' 가 있으면 python_flask 를 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    content = "from flask import Flask, request"
+    result = _detect_stacks("/app/app.py", content)
+    assert "common_python" in result
+    assert "python_flask" in result
+
+
+def test_detect_stacks_py_fastapi_default():
+    """.py 파일에 django/flask 패턴이 없으면 python_fastapi 기본값을 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    content = "from fastapi import FastAPI\napp = FastAPI()"
+    result = _detect_stacks("/app/main.py", content)
+    assert "common_python" in result
+    assert "python_fastapi" in result
+
+
+def test_detect_stacks_py_plain_no_framework():
+    """.py 파일에 프레임워크 import가 전혀 없어도 python_fastapi 를 기본으로 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("/app/utils.py", "def helper(): pass")
+    assert "common_python" in result
+    assert "python_fastapi" in result
+
+
+def test_detect_stacks_unknown_extension_returns_common():
+    """알 수 없는 확장자는 ["common"] 을 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("/app/Makefile", "all: build")
+    assert result == ["common"]
+
+
+def test_detect_stacks_does_not_include_common_explicitly():
+    """_detect_stacks 반환값에 "common" 이 명시 포함되지 않는다(load_guidelines 가 추가)."""
+    from agent.nodes.sast_node import _detect_stacks
+    # Python 파일: common_python은 포함되지만 "common" 문자열 자체는 없어야 한다
+    result = _detect_stacks("/app/views.py", "from django.db import models\nimport django")
+    assert "common" not in result  # "common_python"과 구분

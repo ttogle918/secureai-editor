@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 
 import redis.asyncio as aioredis
 from opentelemetry import trace
@@ -32,23 +33,47 @@ _ai_tokens_counter = Counter(
 _redis: aioredis.Redis | None = None
 _CACHE_PREFIX = "secureai:sast:cache:"
 
-# 파일 확장자 → security_guidelines.target_stack 매핑
-_EXT_TO_STACK: dict[str, str] = {
-    ".java": "java_spring",
-    ".kt":   "java_spring",
-    ".py":   "python_fastapi",
-    ".ts":   "frontend_react_nextjs",
-    ".tsx":  "frontend_react_nextjs",
-    ".js":   "node_express_nestjs",
-    ".go":   "go_gin_echo",
-    ".php":  "php_web",
-    ".rb":   "ruby_rails",
+# 파일 확장자 → security_guidelines.target_stack 기본 매핑
+# Python은 프레임워크 감지가 필요하므로 _detect_stacks 에서 별도 처리한다.
+_EXT_TO_STACKS: dict[str, list[str]] = {
+    ".java": ["java_spring"],
+    ".kt":   ["java_spring"],
+    ".js":   ["node_express_nestjs", "common_js"],
+    ".ts":   ["frontend_react_nextjs", "common_js"],
+    ".tsx":  ["frontend_react_nextjs", "common_js"],
+    ".jsx":  ["frontend_react_nextjs", "common_js"],
+    ".go":   ["go_gin_echo"],
+    ".php":  ["php_web"],
+    ".rb":   ["ruby_rails"],
 }
 
+# Python 프레임워크 감지 정규식 패턴 (상수화)
+_DJANGO_PATTERN = re.compile(r"(?:import django|from django[\s.])", re.MULTILINE)
+_FLASK_PATTERN  = re.compile(r"(?:import flask|from flask[\s.])",  re.MULTILINE)
+# fastapi는 else 기본값이므로 패턴 불필요
 
-def _detect_stack(file_path: str) -> str:
+
+def _detect_stacks(file_path: str, content: str) -> list[str]:
+    """파일 경로와 이미 읽은 내용을 바탕으로 target_stack 목록을 반환한다.
+
+    load_guidelines 가 항상 "common" 을 추가하므로 여기서는 common을 명시하지 않는다.
+    이중 파일 읽기 및 경로 순회를 방지하기 위해 content 인자를 그대로 사용한다.
+    """
     ext = os.path.splitext(file_path)[1].lower()
-    return _EXT_TO_STACK.get(ext, "common")
+
+    if ext == ".py":
+        framework: str
+        if _DJANGO_PATTERN.search(content):
+            framework = "python_django"
+        elif _FLASK_PATTERN.search(content):
+            framework = "python_flask"
+        else:
+            framework = "python_fastapi"
+        return ["common_python", framework]
+
+    return list(_EXT_TO_STACKS.get(ext, ["common"]))
+
+
 _CACHE_TTL = 60 * 60 * 24 * 7  # 7일
 _STEP_ORDER = 2
 
@@ -227,8 +252,8 @@ async def sast_node(state: AgentState) -> dict:
         else:
             content = await read_file(session_id, file_path)
 
-        stack = _detect_stack(file_path)
-        guidelines = await load_guidelines(stack)
+        stacks = _detect_stacks(file_path, content)
+        guidelines = await load_guidelines(stacks)
 
         # OTel span 안에서 조회하여 DB 조회 시간도 트레이싱에 포함된다.
         prev_vuln_context = await _fetch_prev_vuln_context(state["project_id"])

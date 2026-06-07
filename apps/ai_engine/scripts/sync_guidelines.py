@@ -33,16 +33,35 @@ logger = logging.getLogger(__name__)
 BATCH_SIZE = 10
 SKIP_FILES = {"D_MASTER.md", "D_종합_마스터_지침서.md", "INJECTION_STRATEGY.md"}
 
-STACK_KEYWORDS = {"java", "python", "frontend"}
+_DEFAULT_STACK = "common"
+# STACK_<name>.md 파일명에서 target_stack을 동적 도출한다.
+# 예: STACK_python_django → python_django, STACK_common_js → common_js
+_STACK_FILE_RE = re.compile(r"^STACK_(.+)$", re.IGNORECASE)
 
 
 def _infer_target_stack(file_path: Path) -> str:
-    """파일 경로에서 target_stack을 추론한다."""
-    parts_lower = [p.lower() for p in file_path.parts]
-    for keyword in STACK_KEYWORDS:
-        if any(keyword in part for part in parts_lower):
-            return keyword
-    return "common"
+    """파일에서 target_stack을 추론한다.
+
+    - ``STACK_<name>.md`` → target_stack = ``<name>`` (파일명에서 동적 도출).
+      새 스택 문서를 추가해도 코드 수정 없이 읽기측(sast_node._detect_stacks)과
+      자동으로 정합된다. 예: STACK_python_django.md → "python_django",
+      STACK_common_js.md → "common_js".
+    - 그 외(attacks/B*, A/C/E 등 범용 기준 문서) → "common".
+      load_guidelines가 항상 "common"을 포함하므로 모든 파일에 적용된다.
+    - 추론 실패 시 "common" 폴백 — 적재 누락(지침 미주입)보다 과적재가 안전하다.
+    """
+    try:
+        match = _STACK_FILE_RE.match(file_path.stem)
+        if match:
+            name = match.group(1).strip().lower()
+            return name or _DEFAULT_STACK
+        return _DEFAULT_STACK
+    except Exception as exc:  # noqa: BLE001 — 추론 실패는 폴백으로 흡수
+        logger.warning(
+            "[sync] target_stack 추론 실패 file=%s error=%s → '%s' 폴백",
+            file_path, exc, _DEFAULT_STACK,
+        )
+        return _DEFAULT_STACK
 
 
 def parse_md_file(file_path: Path, docs_root: Path) -> dict:

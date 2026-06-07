@@ -1,9 +1,10 @@
 """
 security_guidelines 테이블에서 stack별 가이드라인을 조회한다.
 
-- 프로세스 내 캐시 사용 — 동일 stack은 DB를 한 번만 조회
+- 프로세스 내 캐시 사용 — 동일 stacks 조합은 DB를 한 번만 조회
 - DB 연결 실패 시 빈 문자열 반환, 분석은 계속 진행
-- common 가이드라인은 항상 포함
+- common 가이드라인은 항상 포함 (load_guidelines 내부에서 자동 추가)
+- 다중 스택 지원: stacks 인자로 str 또는 list[str] 모두 수용 (하위호환)
 - search_guidelines_by_vuln_type: pgvector 코사인 유사도 기반 의미론적 검색
   - pgvector 미설치 또는 embedding 컬럼 없을 시 load_guidelines("common")으로 폴백
 """
@@ -16,16 +17,47 @@ from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# 프로세스 수명 동안 유지되는 in-memory 캐시 (stack → 가이드라인 텍스트)
+# 프로세스 수명 동안 유지되는 in-memory 캐시
+# 캐시 키: 정렬된 stacks 집합을 "|" 로 결합한 문자열 (단일↔다중 호출 캐시 오염 방지)
 _cache: dict[str, str] = {}
 
+_ALWAYS_INCLUDED_STACK = "common"
 
-async def load_guidelines(target_stack: str) -> str:
-    """target_stack + common 가이드라인을 DB에서 읽어 단일 문자열로 반환한다."""
-    if target_stack in _cache:
-        return _cache[target_stack]
 
-    stacks = list({target_stack, "common"})
+def _normalize_stacks(stacks: "str | list[str]") -> list[str]:
+    """stacks 인자를 list[str]로 정규화하고 common을 항상 포함시킨다.
+
+    중복 제거 및 정렬은 캐시 키 생성 시에 수행한다.
+    """
+    if isinstance(stacks, str):
+        raw = [stacks]
+    else:
+        raw = list(stacks)
+    # common은 항상 포함
+    if _ALWAYS_INCLUDED_STACK not in raw:
+        raw.append(_ALWAYS_INCLUDED_STACK)
+    return raw
+
+
+def _make_cache_key(stacks: list[str]) -> str:
+    """정렬된 고유 stacks 집합으로 캐시 키를 생성한다."""
+    return "|".join(sorted(set(stacks)))
+
+
+async def load_guidelines(stacks: "str | list[str]") -> str:
+    """stacks + common 가이드라인을 DB에서 읽어 단일 문자열로 반환한다.
+
+    Args:
+        stacks: 단일 스택 이름(str) 또는 여러 스택 이름(list[str]).
+                str을 전달하면 [str, "common"] 과 동일하게 동작한다(하위호환).
+    """
+    normalized = _normalize_stacks(stacks)
+    cache_key = _make_cache_key(normalized)
+
+    if cache_key in _cache:
+        return _cache[cache_key]
+
+    query_stacks = list(set(normalized))
 
     try:
         async with await psycopg.AsyncConnection.connect(settings.postgres_url) as conn:
@@ -37,23 +69,23 @@ async def load_guidelines(target_stack: str) -> str:
                     WHERE target_stack = ANY(%s)
                     ORDER BY target_stack, category, title
                     """,
-                    (stacks,),
+                    (query_stacks,),
                 )
                 rows = await cur.fetchall()
     except Exception as exc:
-        logger.warning("[guidelines] DB query failed stack=%s error=%s", target_stack, exc)
-        _cache[target_stack] = ""
+        logger.warning("[guidelines] DB query failed stacks=%s error=%s", cache_key, exc)
+        _cache[cache_key] = ""
         return ""
 
     if not rows:
-        _cache[target_stack] = ""
+        _cache[cache_key] = ""
         return ""
 
     text = "\n\n---\n\n".join(f"## {title}\n{content}" for title, content in rows)
-    _cache[target_stack] = text
+    _cache[cache_key] = text
     logger.info(
-        "[guidelines] loaded stack=%s rows=%d chars=%d",
-        target_stack, len(rows), len(text),
+        "[guidelines] loaded stacks=%s rows=%d chars=%d",
+        cache_key, len(rows), len(text),
     )
     return text
 

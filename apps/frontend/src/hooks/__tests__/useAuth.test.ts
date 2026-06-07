@@ -6,8 +6,9 @@ import { apiClient, setAccessToken, getAccessToken, onUnauthorized } from '@/lib
 // ── mocks ──────────────────────────────────────────────────────────────────────
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
 }));
 
 jest.mock('@/lib/api/client', () => ({
@@ -45,6 +46,14 @@ describe('useAuth.login', () => {
         user: { id: 'u1', email: 'a@b.com', username: 'alice', planName: 'pro' },
       },
     });
+    // 로그인 후 loadUser()가 GET /users/me 로 전체 프로필(workspaceMode 포함)을 불러온다 (TASK-1102)
+    mockGet.mockResolvedValueOnce({
+      data: {
+        id: 'u1', email: 'a@b.com', username: 'alice', displayName: 'Alice',
+        plan: { name: 'pro' }, githubLogin: null, isAdmin: false,
+        avatarUrl: null, workspaceMode: 'DEVELOPER',
+      },
+    });
 
     const { result } = renderHook(() => useAuth());
     await act(async () => { await result.current.login('a@b.com', 'pw'); });
@@ -54,7 +63,7 @@ describe('useAuth.login', () => {
     expect(state.accessToken).toBe('tok-1');
     expect(state.user).toMatchObject({ id: 'u1', username: 'alice', plan: 'pro' });
     expect(mockSetAccessToken).toHaveBeenCalledWith('tok-1');
-    expect(mockPush).toHaveBeenCalledWith('/editor');
+    expect(mockReplace).toHaveBeenCalledWith('/editor');
     expect(state.error).toBeNull();
   });
 
@@ -81,6 +90,7 @@ describe('useAuth.register', () => {
 
     expect(mockPost).toHaveBeenCalledWith('/auth/register', {
       email: 'a@b.com', username: 'alice', password: 'pw', displayName: 'Alice',
+      termsAgreed: false, privacyAgreed: false, marketingAgreed: false,
     });
     expect(mockPush).toHaveBeenCalledWith('/login?registered=1');
   });

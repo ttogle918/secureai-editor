@@ -46,6 +46,16 @@
 2. **Slack / MS Teams 알림 MCP**
    - `send_alert`: 보안 심사 중 긴급한 패치가 필요한 경우, 해당 채널에 멘션과 함께 알림 전송.
 
+### 2.4 리포팅 및 지식 관리 (Reporting & Knowledge Management MCP)
+> **도입 배경**: B2B 엔터프라이즈 환경에서 필수적인 보안 점검 결과, 컴플라이언스 맵핑 결과 등을 기존 사내 업무 툴(Notion, Excel 등)에 자동으로 동기화하여 보안 담당자(Security Manager)의 수작업을 없앱니다.
+
+1. **Excel / Google Sheets MCP**
+   - `export_vulnerabilities`: 발견된 취약점 리스트, 조치 상태, ROI 요약 데이터를 엑셀(.xlsx)로 직접 생성하거나 Google Sheets API를 통해 특정 스프레드시트에 행(Row) 단위로 자동 추가.
+   - ISMS-P 등 정보보호 관리체계 인증 심사 시 필요한 원시 데이터(Raw Data) 추출 자동화.
+
+2. **Notion / Confluence MCP**
+   - `sync_compliance_wiki`: 분석된 프로젝트의 보안 점수, 취약점 패치 런북(Runbook), 보안 가이드라인 등을 사내 위키(Notion 데이터베이스, Confluence 스페이스)에 자동 생성 및 지속 동기화.
+
 ---
 
 ## 3. 구현 지침 및 보안 정책

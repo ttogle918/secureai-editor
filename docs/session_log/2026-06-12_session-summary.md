@@ -51,9 +51,17 @@
 | `f4bc49b` | test/to_sprint11 | test(sprint11): 평가/검증 스크립트 |
 > 이 세션로그는 현재 test/to_sprint11에 작성(UI 테스트 방해 회피) — main 이동은 추후.
 
-## 8. 다음 세션에서 할 것
-- [ ] **구현 시작**: `git switch feat/sprint12` → **G0 검증(Gemini 실호출 + `AQ.` 키 형식 확정)** → 통과 시 **`/stage 1`** (Sprint **12D** COST-1+COST-2). ⚠️ /stage가 12C/12D 중 **12D를 타겟**하도록 지정 필요.
-- [ ] 401 등 키 문제 시 AI Studio에서 `AIza...` 키 재발급.
+## 8. G0 사전검증 — ✅ PASSED (2026-06-12)
+Gemini OpenAI-호환 엔드포인트 실호출:
+- **`AQ.` 키 유효** (404 모델오류였지 401 인증오류 아님 → 인증 통과, 재발급 불필요).
+- **`gemini-2.0-flash` 폐기(404)** → **`gemini-2.5-flash`** 사용. `.env`에 `GEMINI_MODEL=gemini-2.5-flash` 추가(로컬, gitignore). COST-1에서 `settings.gemini_model` 기본값도 변경 필요.
+- usage `prompt_tokens/completion_tokens` 확인(정규화 OK). ⚠️ 2.5-flash는 thinking 토큰 사용(total>prompt+completion) → COST-1 thinking 최소화·COST-3 total 기준.
+- **결론**: Sprint 12D 전제 확정, COST-1 진입 가능.
+
+## 9. 다음 세션에서 할 것
+- [ ] **구현 시작**: `git switch feat/sprint12` → **`/stage 1`** (Sprint **12D** COST-1+COST-2). G0 통과했으니 바로 진입. ⚠️ /stage가 12C/12D 중 **12D를 타겟**하도록 지정.
+- [ ] COST-1 1순위: `gemini_model` 기본값 `gemini-2.5-flash`로, `openai` 패키지 추가, openai_compat provider(system messages·cache_control 제거·usage 정규화).
+- [ ] (선택) credential 정리, 이 세션로그·test 작업분 main 반영.
 - [ ] (선택) credential 정리: `git config --global --unset credential.helper manager-core`.
 - [ ] (선택) 이 세션로그·test 작업분 main 반영 시점 결정.
 - [ ] 우선순위: 12D Phase1(Gemini) → Sprint 12 TASK-1201(GitHub App 블로커) → 12D Phase2 → 12C → 13.

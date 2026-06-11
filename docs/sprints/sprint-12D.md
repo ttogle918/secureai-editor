@@ -14,11 +14,13 @@
 
 ---
 
-## ⚠️ G0 — 사전 검증 게이트 (Dev 강력 권고, /stage 1 전)
-COST-1 착수 **전에** 반드시:
-1. **Gemini 실호출 1회 검증**: `AsyncOpenAI(api_key=$GEMINI_API_KEY, base_url="https://generativelanguage.googleapis.com/v1beta/openai/")` → `chat.completions.create(model="gemini-2.0-flash", messages=[{role:system},{role:user}])` 성공 + **usage 필드 구조(prompt_tokens/completion_tokens) 확인**.
-2. **키 형식 확인**: `.env`의 `GEMINI_API_KEY=AQ.Ab8...` — 표준 AI Studio 키는 `AIza...`. **`AQ.`가 OpenAI호환 엔드포인트에서 통하는지 이 검증으로 판정**(401이면 키 재발급).
-> 이 검증 없이 팩토리/usage 정규화를 먼저 설계하면 잘못 설계될 위험 높음. 검증 통과해야 COST-1 진입.
+## ✅ G0 — 사전 검증 게이트 (2026-06-12 **PASSED**)
+COST-1 착수 전 검증 — **통과 완료**. 결과:
+1. **Gemini 실호출 성공(HTTP 200)**: `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` (Bearer 키, system+user). 응답 `usage:{prompt_tokens,completion_tokens,total_tokens}` 확인 → input/output 정규화 OK.
+2. **`AQ.` 키 형식 = 유효** (404 모델오류였지 401 인증오류 아님 → 인증 통과). **재발급 불필요.**
+3. ⚠️ **모델명 정정**: `gemini-2.0-flash`는 **폐기(404 NOT_FOUND)** → **`gemini-2.5-flash`** 사용. `.env`에 `GEMINI_MODEL=gemini-2.5-flash` 추가 완료. **COST-1은 `settings.gemini_model` 기본값도 `gemini-2.5-flash`로 변경**.
+4. ⚠️ **thinking 토큰**: gemini-2.5-flash는 `total_tokens > prompt+completion`(추론 토큰 사용). SAST엔 불필요 → COST-1에서 thinking 최소화(`reasoning_effort`/extra_body) 고려, COST-3 원가계측은 total 기준.
+> 전제(Gemini로 크레딧 없이 분석) 확정. COST-1 진입 가능.
 
 ---
 

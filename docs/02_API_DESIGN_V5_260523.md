@@ -376,13 +376,73 @@ Authorization: Bearer {accessToken}
     "usage": {
       "sastUsageThisMonth": 12,
       "sastMonthlyLimit": 50
-    }
+    },
+    "workspaceMode": "DEVELOPER",
+    "termsAcceptedAt": "2026-06-11T12:00:00Z",
+    "privacyAcceptedAt": "2026-06-11T12:00:00Z",
+    "marketingOptInAt": null
   }
 }
 ```
 
 `githubLogin`은 GitHub OAuth 연동 전에는 `null`이다.  
 `plan.allowDast`, `plan.allowMonitoring`은 요금제에 따라 다르다.
+
+---
+
+### 3.2 페르소나 (Workspace Mode) 변경
+
+```http
+PATCH /api/v1/users/me/workspace-mode
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+```
+
+**Request**
+```json
+{
+  "workspaceMode": "SECURITY_MANAGER"
+}
+```
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "message": "워크스페이스 모드가 변경되었습니다."
+  }
+}
+```
+
+---
+
+### 3.3 법적 동의 처리
+
+```http
+POST /api/v1/users/me/legal-consent
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+```
+
+**Request**
+```json
+{
+  "termsAgreed": true,
+  "privacyAgreed": true,
+  "marketingAgreed": false
+}
+```
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "message": "법적 동의가 저장되었습니다."
+  }
+}
+```
 
 ---
 

@@ -567,7 +567,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         </button>
 
         {showHistory && <AnalysisHistoryModal onClose={() => setShowHistory(false)} />}
-        {showCommitScan && <CommitmentSecretScanModal onClose={() => setShowCommitScan(false)} />}
+        {showCommitScan && <CommitSecretScanModal onClose={() => setShowCommitScan(false)} />}
 
         {onExportJSON && (
           <button

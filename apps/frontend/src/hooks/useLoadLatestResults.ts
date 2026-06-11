@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient } from '@/lib/api/client';
 import type { Severity, VulnCategory, Vulnerability, PatchSuggestion } from '@/lib/mockData';
 
@@ -60,15 +61,21 @@ export function useLoadLatestResults() {
   const clearProgressSteps   = useSecureStore((s) => s.clearProgressSteps);
   const setPatches           = useSecureStore((s) => s.setPatches);
   const setDastExploitResult = useSecureStore((s) => s.setDastExploitResult);
+  const setIsAnalyzing       = useSecureStore((s) => s.setIsAnalyzing);
+  const setSseSessionId      = useSecureStore((s) => s.setSseSessionId);
+  // auth initAuth() 완료 여부 — true가 되기 전에 API 호출하면 401 발생
+  const isAuthInitialized    = useAuthStore((s) => s.isInitialized);
 
   // 이미 로드한 projectId를 추적해 중복 요청 방지
   const loadedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!projectId || isAnalyzing) return;
+    // isAnalyzing 중에는 skip (SSE로 실시간 업데이트 중) — 단, 최초 로드 전에는 예외
+    if (!projectId) return;
+    // initAuth()가 완료되기 전엔 accessToken이 없어 401 발생 → 대기
+    if (!isAuthInitialized) return;
+    if (isAnalyzing && loadedRef.current === projectId) return;
     if (lockedSessionId) {
-      // 이력 모달에서 특정 세션을 로드 중 — 자동 재로드를 건너뛰되
-      // loadedRef를 갱신해 두어 lock 해제 후에도 중복 로드가 발생하지 않도록 한다.
       loadedRef.current = projectId;
       return;
     }
@@ -78,14 +85,25 @@ export function useLoadLatestResults() {
 
     async function load() {
       try {
-        // 1. 최신 완료 세션 조회
+        // 1. 최신 세션 조회 (completed 우선, 없으면 running도 허용)
         const sessRes = await apiClient.get<{ data: { content: SessionItem[] } }>(
           `/analysis/sessions?projectId=${projectId}&size=5`,
         );
-        const latest = (sessRes.data?.content ?? []).find((s) => s.status === 'completed');
-        if (!latest || latest.vulnCount === 0) return;
+        const sessions = sessRes.data?.content ?? [];
+        const completedSession = sessions.find((s) => s.status === 'completed');
+        const runningSession   = sessions.find((s) => s.status === 'running');
+        // completed 우선, 없으면 running 세션 사용
+        const latest = completedSession ?? runningSession;
+        if (!latest) return;
+
+        // running 세션이면 isAnalyzing=true로 설정 (새로고침 후 복원)
+        if (runningSession && !completedSession) {
+          setIsAnalyzing(true);
+          setSseSessionId(runningSession.id);
+        }
 
         // 2. 해당 세션의 취약점 전체 조회 (최대 500개)
+        // vuln_count 컬럼이 실제 DB 취약점 수와 동기화되지 않을 수 있으므로 직접 조회
         const vulnRes = await apiClient.get<{ data: { content: VulnItem[] } }>(
           `/vulnerabilities?sessionId=${latest.id}&size=500`,
         );
@@ -164,5 +182,5 @@ export function useLoadLatestResults() {
     }
 
     load();
-  }, [projectId, isAnalyzing, lockedSessionId, addVuln, clearVulns, clearProgressSteps, setPatches, setDastExploitResult]);
+  }, [projectId, isAnalyzing, isAuthInitialized, lockedSessionId, addVuln, clearVulns, clearProgressSteps, setPatches, setDastExploitResult, setIsAnalyzing, setSseSessionId]);
 }

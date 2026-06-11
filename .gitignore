@@ -149,3 +149,6 @@ dvwa-source/
 
 # k6 부하테스트 산출물 (make perf-test)
 tests/perf/results.json
+# 로컬 로그 덤프
+backend_logs.txt
+*_logs.txt

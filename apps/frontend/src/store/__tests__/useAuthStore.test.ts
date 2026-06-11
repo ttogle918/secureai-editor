@@ -10,6 +10,7 @@ const sampleUser: AuthUser = {
   isAdmin: false,
   avatarUrl: null,
   displayName: null,
+  workspaceMode: 'DEVELOPER',
 };
 
 beforeEach(() => {

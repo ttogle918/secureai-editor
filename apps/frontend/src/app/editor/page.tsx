@@ -24,6 +24,10 @@ function AnalysisProgressStrip() {
   const isAnalyzing   = useSecureStore((s) => s.isAnalyzing);
   const progressSteps = useSecureStore((s) => s.progressSteps);
   const lastTokenUsage = useSecureStore((s) => s.lastTokenUsage);
+  const vulns          = useSecureStore((s) => s.vulns);
+
+  // SSE 연결 여부: progressSteps가 있으면 SSE 활성, 없으면 백그라운드(새로고침 후)
+  const hasSseProgress = progressSteps.length > 0;
 
   // 현재 분석 중인 파일 (마지막 진행 중 스텝의 target)
   const runningStep = [...progressSteps].reverse().find((s) => s.status === 'running' || s.status === 'completed');
@@ -45,7 +49,7 @@ function AnalysisProgressStrip() {
         flexShrink: 0,
         overflow: 'hidden',
         transition: 'height 0.25s ease',
-        background: 'var(--bg-1)',
+        background: hasSseProgress ? 'var(--bg-1)' : 'rgba(234,88,12,0.06)',
         borderBottom: isAnalyzing ? '1px solid var(--hairline)' : 'none',
         display: 'flex',
         alignItems: 'center',
@@ -67,28 +71,39 @@ function AnalysisProgressStrip() {
                 animation: 'pulse-dot 1.4s infinite',
               }}
             />
-            분석 중 · SAST {completedCount}/{totalCount}
+            {hasSseProgress
+              ? `분석 중 · SAST ${completedCount}/${totalCount}`
+              : `백그라운드에서 SAST 분석 진행 중 · 발견 ${vulns.length}개`}
           </div>
 
-          {/* 진행 바 */}
-          <div style={{ flex: '0 1 320px', minWidth: 80 }}>
-            <div style={{ height: 3, borderRadius: 2, background: 'var(--bg-3)', overflow: 'hidden' }}>
-              <div
-                style={{
-                  height: '100%',
-                  borderRadius: 2,
-                  background: 'var(--orange-2)',
-                  width: `${pct}%`,
-                  transition: 'width 0.4s ease',
-                }}
-              />
+          {/* 진행 바 — SSE 연결 시에만 표시 */}
+          {hasSseProgress && (
+            <div style={{ flex: '0 1 320px', minWidth: 80 }}>
+              <div style={{ height: 3, borderRadius: 2, background: 'var(--bg-3)', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    borderRadius: 2,
+                    background: 'var(--orange-2)',
+                    width: `${pct}%`,
+                    transition: 'width 0.4s ease',
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* 현재 파일 */}
-          {currentTarget && (
+          {/* 현재 파일 — SSE 연결 시에만 표시 */}
+          {hasSseProgress && currentTarget && (
             <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
               현재: {currentTarget}
+            </span>
+          )}
+
+          {/* 백그라운드 분석 시 안내 */}
+          {!hasSseProgress && (
+            <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+              서버에서 분석 진행 중 — 완료 시 자동으로 결과가 표시됩니다
             </span>
           )}
 

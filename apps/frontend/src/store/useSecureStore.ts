@@ -249,6 +249,7 @@ interface SecureStore {
   // ── 채팅 ────────────────────────────────────────────────
   chatMessages: ChatMessage[];
   addChatMessage: (m: ChatMessage) => void;
+  sendChat: (text: string) => void;
   // ── 하단 패널 (터미널/출력 등) ───────────────────────────
   bottomPanelOpen: boolean;
   setBottomPanelOpen: (v: boolean) => void;

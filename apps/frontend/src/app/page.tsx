@@ -1,10 +1,13 @@
 import Link from 'next/link';
 import LandingNav from '@/components/landing/LandingNav';
+import { AuthRedirect } from '@/components/landing/AuthRedirect';
 
-// 랜딩 페이지 — 서버 컴포넌트 (Nav만 클라이언트 분리)
+// 랜딩 페이지 — 서버 컴포넌트 (Nav, AuthRedirect는 클라이언트 분리)
 export default function LandingPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#e8e8ee', fontFamily: 'var(--font-sans, system-ui)' }}>
+      {/* Electron 앱에서 로그인 상태이면 자동으로 /editor로 이동 */}
+      <AuthRedirect />
       <LandingNav />
       <Hero />
       <FeaturesStrip />

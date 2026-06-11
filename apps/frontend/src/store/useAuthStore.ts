@@ -23,6 +23,8 @@ interface AuthStore {
   isLoading: boolean;
   isInitialized: boolean;      // 앱 로드 시 silent refresh 완료 여부
   error: string | null;
+  /** localStorage에서 user 복원 완료 여부 — SSR hydration mismatch 방지용 */
+  _hasHydrated: boolean;
 
   setUser: (user: AuthUser | null) => void;
   setAccessToken: (token: string | null) => void;
@@ -30,6 +32,7 @@ interface AuthStore {
   setInitialized: (v: boolean) => void;
   setError: (msg: string | null) => void;
   logout: () => void;
+  setHasHydrated: (v: boolean) => void;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -40,6 +43,7 @@ export const useAuthStore = create<AuthStore>()(
       isLoading: false,
       isInitialized: false,
       error: null,
+      _hasHydrated: false,
 
       setUser: (user) => set({ user }),
       setAccessToken: (accessToken) => set({ accessToken }),
@@ -47,11 +51,16 @@ export const useAuthStore = create<AuthStore>()(
       setInitialized: (isInitialized) => set({ isInitialized }),
       setError: (error) => set({ error }),
       logout: () => set({ user: null, accessToken: null, error: null }),
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
     }),
     {
       name: 'secureai-auth',
       // accessToken은 메모리에만 — user 정보만 localStorage에 저장 (빠른 UI 렌더링용)
       partialize: (state) => ({ user: state.user }),
+      // localStorage 복원 완료 시점을 정확히 감지
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );

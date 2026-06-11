@@ -56,6 +56,23 @@
 2. **Notion / Confluence MCP**
    - `sync_compliance_wiki`: 분석된 프로젝트의 보안 점수, 취약점 패치 런북(Runbook), 보안 가이드라인 등을 사내 위키(Notion 데이터베이스, Confluence 스페이스)에 자동 생성 및 지속 동기화.
 
+### 2.5 엔터프라이즈 통합 및 사고 대응 (Enterprise ITSM & Incident Response MCP)
+> **도입 배경**: 대규모 엔터프라이즈 환경에서 이미 사용 중인 IT 서비스 관리(ITSM), 관제(SIEM), 장애 대응 툴과 깊게 연동하여 보안 사고의 탐지부터 대응까지의 파이프라인을 완성합니다.
+
+1. **ServiceNow MCP (ITSM 연동)**
+   - `create_change_request`: 취약점 패치 코드를 상용(Production) 서버에 반영하기 위한 공식 변경 요청(CR, Change Request) 티켓 자동 생성 및 결재 라인 연동.
+   - 대기업의 엄격한 컴플라이언스 절차에 맞춰 보안 패치가 승인 절차를 탈 수 있도록 돕습니다.
+
+2. **PagerDuty / Opsgenie MCP (긴급 장애 대응)**
+   - `trigger_incident`: CVSS 9.0 이상의 치명적인(Critical) 제로데이 취약점이나, 이미 배포된 코드에서 심각한 하드코딩된 비밀키(Secret)가 발견되었을 때 당직자(On-call)에게 즉각 알림(전화/SMS) 발송.
+
+3. **Datadog / Splunk MCP (SIEM 및 관측성 연동)**
+   - `correlate_logs`: DAST 엔진이 식별한 취약점 공격 벡터가 실제 운영(Production) 서버의 WAF나 웹 로그(Splunk, Datadog)에 탐지된 적 있는지 AI가 크로스체크(Cross-check).
+   - "이 취약점은 이미 지난주에 3번의 공격 시도가 있었으므로 즉각 조치해야 합니다"와 같은 고도화된 컨텍스트 제공.
+
+4. **Google Drive / Microsoft OneDrive MCP (클라우드 아카이빙)**
+   - `archive_report`: 매월 자동 생성되는 종합 보안 리포트(PDF), ROI 보고서, 규제 준수 증명서 등을 팀 공유 드라이브의 특정 폴더에 자동 업로드 및 버전 관리.
+
 ---
 
 ## 3. 구현 지침 및 보안 정책

@@ -61,6 +61,19 @@ class UserControllerTest {
     }
 
     @Test
+    @DisplayName("updateWorkspaceMode — 올바른 모드를 서비스에 위임하고 갱신 결과를 반환한다")
+    void updateWorkspaceMode_delegates() {
+        UpdateWorkspaceModeRequest req = new UpdateWorkspaceModeRequest("SECURITY_MANAGER");
+        UserMeResponse updated = mock(UserMeResponse.class);
+        when(userService.updateWorkspaceMode(userId, "SECURITY_MANAGER")).thenReturn(updated);
+
+        ResponseEntity<ApiResponse<UserMeResponse>> response = controller.updateWorkspaceMode(userId, req);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody().getData()).isSameAs(updated);
+    }
+
+    @Test
     @DisplayName("changePassword — current/new 비밀번호를 서비스에 전달하고 204 를 반환한다")
     void changePassword_passesBothPasswords() {
         ChangePasswordRequest req = mock(ChangePasswordRequest.class);

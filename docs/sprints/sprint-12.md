@@ -140,6 +140,46 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 
 ---
 
+## Stage 1 완료 (2026-06-12) — 12D Phase1
+**커밋**: `75a9ca9` — `feat(sprint12-stage1): 12D Phase1 — LLM 프로바이더 추상화 + Gemini 라우팅 + 품질벤치`
+**브랜치**: `feat/sprint12` | **파이프라인**: 병렬 Dev(COST-1·COST-2) → Tester PASS → Reviewer FAIL→수정→PASS → 커밋
+
+### COST-1 — 프로바이더 추상화 + AUDIT→Gemini 라우팅
+- 구현: `agent/llm/{base,anthropic_provider,openai_compat_provider,factory,__init__}.py`(신규), `agent/claude_client.py`(얇은 위임·provider keyword-only 하위호환), `agent/nodes/sast_node.py`(provider 체인·AUDIT→Gemini·키없음 haiku 폴백), `config/settings.py`(gemini_model→gemini-2.5-flash·provider 필드), `requirements.txt`(openai==1.82.0)
+- 안전장치: openai_compat `thinking_config` 거부(400/422) 시 제거 후 재시도(`_create_with_thinking_fallback`)
+- **단위 테스트**: 신규/수정 그린(test_llm_factory + test_sast_node mock)
+- 🛡️ Reviewer: 키/페이로드 로그 미출력·DIP·상수화 PASS
+
+### COST-2 — Gemini vs Claude 품질 벤치 하니스
+- 구현: `eval/provider_compare/{runner,report,__init__}.py`+README(신규), `Makefile`(`eval-providers` 타겟). findings 집합비교(합의/미탐/오탐후보)+cost·지연 표+latest.json. 기존 `parse_sast_response` 재사용.
+- **단위 테스트**: 집합비교·정규화 그린
+
+### 검증 (실 LLM 호출 — 블로커 해소 증명 ✅)
+- **Gemini(gemini-2.5-flash) 실호출 성공**: 취약 샘플 1파일 SAST → `SQL_INJECTION [CRITICAL] line 10` 탐지, usage in761/out164, **Anthropic 크레딧 0 사용** = 402 블로커 해소 증명.
+- **docker compose build ai_engine 성공**(exit 0, openai 의존성 포함).
+- Tester: 단위 497 그린(신규 80 포함), 실패는 인프라 미기동 통합 플레이크뿐.
+
+### 후속 보완
+- ✅ **(해결) thinking 비활성**: `extra_body.thinking_config`가 gemini-2.5-flash에서 항상 400 거부되던 문제 → 표준 호환 파라미터 **`reasoning_effort="none"`으로 교체**(거부 없이 1왕복, 실호출 확인). 추론토큰 절감 의도 달성.
+- (비차단, COST-4 전) `reasoning_effort="none"`이 openai_compat에서 **무조건 전송** → openai 직결+비추론 모델(gpt-4o 등)에서 400 위험. 현재 gemini만 라우팅돼 안전하나, **openai 직결 경로 활성화 전** gemini 한정(`base_url`/모델패턴) 또는 좁은 try/except로 가드.
+- (비차단) runner `_collect_files` target 하위 경로 검증, `_default_model_for`↔sast_node 결정관계 주석.
+
+---
+
+## TASK-1201 완료 (2026-06-12) — GitHub App 인증 (백본 2순위)
+**커밋**: `ffba377` — `feat(sprint12): TASK-1201 GitHub App 인증 플로우 완성`
+**파이프라인**: Dev → Tester PASS(28 신규 그린, 회귀 그린) → Reviewer PASS(보안 위반 0) → 커밋
+
+- `GitHubAppAuthService`(신설): App JWT RS256(iss=App ID, exp≤10분) + 설치 토큰 교환, PKCS#8/#1 PEM 로드
+- `GitHubWebhookService`: extractInstallationToken/resolveProjectId 스텁 실구현(미매칭 skip), `projects.github_repo_full_name` 역조회(github_repo_url 컬럼 부재로 재활용)
+- credit_transactions 집계 연동, `PrReviewHistory.project_id` nullable + **V050**
+- **Flyway 재배정**(충돌 해소): 1201=V050 선점 → **1202a=V051, 1202b=V052, COST-3 token_usage=V054**
+- ✅ **인증 검증 완료(2026-06-12)**: PEM 발급·`.env` 연결 후 라이브 `GET /app → 200`(slug=secure-editor, app_id=3851268, owner=ttogle918) — **App ID+키쌍 유효 확정**. 라이브에서 exp=600 시계스큐 401 버그 발견·수정(→540s, `b4018bc`).
+- ⏳ **남은 검증**: `installations=0` — GitHub App을 대상 레포에 **설치** + 그 `owner/repo`를 `projects.github_repo_full_name`에 등록 + `GITHUB_WEBHOOK_SECRET` 설정 후 → 실 PR 웹훅→설치토큰→Check Run 전구간 검증 가능.
+- 기존부채: `VulnerabilityServiceTest` 2건 실패는 `be78682`발(1201 무관, main에서도 실패) — 별도 정리 필요.
+
+---
+
 ## 핵심 결정사항 (요약)
 
 1. **백본 정본 확정**: `12D P1 → 1201 → 12D P2 → 12C S1·2 → S13 VAL → 12C S3`. 12C·12D 양 문서 합의 순서를 검증·채택.

@@ -185,7 +185,7 @@ public class OrganizationService {
         // Project에 orgId 컬럼이 없으므로 org 멤버 소유 프로젝트 기준으로 집계
         long totalScans = orgAnalyticsService.countSessionsByOrgMembers(org.getId());
         long totalVulns = orgAnalyticsService.countVulnsByOrgMembers(org.getId());
-        long totalCreditsUsed = 0L; // TODO: credit_transactions 테이블 연동 후 집계 가능
+        long totalCreditsUsed = orgAnalyticsService.sumCreditsByOrgMembers(org.getId());
         long projectCount = orgAnalyticsService.countProjectsByOrgMembers(org.getId());
 
         return new OrgUsageResponse(

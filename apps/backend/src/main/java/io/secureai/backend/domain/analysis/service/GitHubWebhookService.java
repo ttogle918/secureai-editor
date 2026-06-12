@@ -2,8 +2,12 @@ package io.secureai.backend.domain.analysis.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.secureai.backend.config.GitHubConfig;
+import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.entity.PrReviewHistory;
+import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.analysis.repository.PrReviewHistoryRepository;
+import io.secureai.backend.domain.project.entity.Project;
+import io.secureai.backend.domain.project.repository.ProjectRepository;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -39,6 +44,8 @@ public class GitHubWebhookService {
 
     private static final String SIGNATURE_PREFIX = "sha256=";
     private static final String CHECK_RUN_NAME = "SecureAI Security Review";
+    private static final String SOURCE_TYPE_GITHUB = "github";
+    private static final String SCAN_MODE_AUDIT = "AUDIT";
 
     @Nullable
     private final Mac webhookMac;
@@ -46,6 +53,9 @@ public class GitHubWebhookService {
     private final PrReviewHistoryRepository prReviewHistoryRepository;
     private final AiAgentClient aiAgentClient;
     private final GitHubRestClient gitHubRestClient;
+    private final GitHubAppAuthService gitHubAppAuthService;
+    private final ProjectRepository projectRepository;
+    private final AnalysisSessionRepository analysisSessionRepository;
     private final ObjectMapper objectMapper;
 
     public GitHubWebhookService(
@@ -54,6 +64,9 @@ public class GitHubWebhookService {
             PrReviewHistoryRepository prReviewHistoryRepository,
             AiAgentClient aiAgentClient,
             GitHubRestClient gitHubRestClient,
+            GitHubAppAuthService gitHubAppAuthService,
+            ProjectRepository projectRepository,
+            AnalysisSessionRepository analysisSessionRepository,
             ObjectMapper objectMapper
     ) {
         this.webhookMac = webhookMac;
@@ -61,6 +74,9 @@ public class GitHubWebhookService {
         this.prReviewHistoryRepository = prReviewHistoryRepository;
         this.aiAgentClient = aiAgentClient;
         this.gitHubRestClient = gitHubRestClient;
+        this.gitHubAppAuthService = gitHubAppAuthService;
+        this.projectRepository = projectRepository;
+        this.analysisSessionRepository = analysisSessionRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -127,12 +143,20 @@ public class GitHubWebhookService {
                 action, owner, repoName, prNumber, headSha);
 
         // 1. PrReviewHistory 저장 (status=pending)
+        // resolveProjectId가 empty이면 projectId=null로 저장 (프로젝트 매핑 없이 웹훅 이력은 유지)
+        UUID projectId = resolveProjectId(owner, repoName).orElse(null);
+        if (projectId == null) {
+            log.warn("[webhook] projects 테이블에 owner={} repo={} 매핑 없음 — 웹훅 수신은 유지하나 분석 skip",
+                    owner, repoName);
+        }
+        Long installationId = extractInstallationId(payload);
         PrReviewHistory history = PrReviewHistory.builder()
-                .projectId(resolveProjectId(owner, repoName))
+                .projectId(projectId)
                 .repoOwner(owner)
                 .repoName(repoName)
                 .prNumber(prNumber)
                 .headSha(headSha)
+                .installationId(installationId)
                 .build();
         prReviewHistoryRepository.save(history);
 
@@ -176,11 +200,51 @@ public class GitHubWebhookService {
         final Long finalCheckRunId = checkRunId;
 
         // 3. AI Engine에 분석 요청 (변경 파일만, 비동기)
-        // TODO: PR 전용 분석 엔드포인트 구현 후 연결
-        // 분석 완료 콜백 수신 시:
-        //   - history.markCompleted(vulnCount, finalCheckRunId)
-        //   - completeCheckRunAfterAnalysis(owner, repoName, finalCheckRunId, vulnCount, prNumber, token)
-        log.info("[webhook] AI Engine 분석 요청 (변경 파일={}) — 비동기 처리 시작", changedFiles.size());
+        // projectId 없거나 token 없으면 분석 불가 — 이력만 남기고 종료
+        if (projectId == null) {
+            log.info("[webhook] projectId 없음 — AI Engine 분석 요청 생략 (이력은 저장됨)");
+            return;
+        }
+        if (!hasToken) {
+            log.info("[webhook] token 없음 — AI Engine 분석 요청 생략 (GitHub App 인증 플로우 필요)");
+            return;
+        }
+
+        // AnalysisSession 생성 — 웹훅은 사용자 컨텍스트가 없으므로 프로젝트 소유자를 세션 user로 사용.
+        // (정상 분석 흐름 AnalysisService.startAnalysis 패턴 미러링 — 세션 행이 있어야 ai_engine 콜백이 SESSION_NOT_FOUND 안 남)
+        Project project = projectRepository.findByIdWithOwner(projectId).orElse(null);
+        if (project == null) {
+            log.warn("[webhook] projectId={} 프로젝트 미존재 — 분석 생략", projectId);
+            return;
+        }
+        AnalysisSession session = AnalysisSession.builder()
+                .project(project)
+                .user(project.getOwner())
+                .scanMode(SCAN_MODE_AUDIT)
+                .build();
+        analysisSessionRepository.save(session);
+        session.markRunning();
+        analysisSessionRepository.save(session);
+
+        UUID sessionId = session.getId();
+        history.assignSession(sessionId, installationId);
+        prReviewHistoryRepository.save(history);
+
+        try {
+            final List<String> finalChangedFiles = changedFiles;
+            aiAgentClient.startAnalysis(
+                    sessionId, projectId, null,
+                    SOURCE_TYPE_GITHUB, owner, repoName, headSha, token,
+                    null, null, SCAN_MODE_AUDIT, finalChangedFiles);
+            log.info("[webhook] AI Engine 분석 요청 완료 sessionId={} changedFiles={}",
+                    sessionId, finalChangedFiles.size());
+        } catch (Exception e) {
+            log.warn("[webhook] AI Engine 분석 요청 실패 — history markError sessionId={} err={}",
+                    sessionId, e.getMessage());
+            history.markError();
+            prReviewHistoryRepository.save(history);
+            finalizeCheckRunOnError(owner, repoName, finalCheckRunId, token);
+        }
     }
 
     /**
@@ -284,21 +348,58 @@ public class GitHubWebhookService {
 
     /**
      * 페이로드에서 GitHub App 설치 토큰을 추출한다.
-     * 실제 운영에서는 GitHub App JWT → Installation Token 교환 흐름이 필요하다.
      *
-     * 현재는 빈 문자열을 반환하며, 호출 측에서 blank 여부를 확인 후 skip 처리한다.
-     * TODO: GitHub App 인증 플로우 구현 후 대체 (TASK-502 후속)
+     * 흐름: payload.installation.id → GitHubAppAuthService.exchangeInstallationToken()
+     * → GitHub App JWT(RS256) 생성 → POST /app/installations/{id}/access_tokens → token 반환.
+     *
+     * App ID 또는 Private Key 미설정 시 빈 문자열을 반환하며 (skip & log),
+     * 호출 측에서 blank 여부를 확인 후 Check Run / 파일 조회를 skip 한다.
+     *
+     * 보안: token은 절대 로그 출력 금지 (GitHubAppAuthService 내부도 동일).
      */
     private String extractInstallationToken(Map<String, Object> payload) {
-        return "";
+        return gitHubAppAuthService.extractInstallationToken(payload);
     }
 
     /**
-     * owner/repoName으로 프로젝트 ID를 조회한다.
-     * TODO: ProjectRepository 연동으로 실제 프로젝트 ID 반환
+     * 페이로드에서 GitHub App Installation ID를 추출한다.
+     * 분석 완료 콜백 시 설치 토큰 재발급을 위해 PrReviewHistory에 저장한다.
+     * installation 필드가 없거나 id가 없으면 null 반환.
      */
-    private UUID resolveProjectId(String owner, String repoName) {
-        return new UUID(0L, 0L);
+    @SuppressWarnings("unchecked")
+    private Long extractInstallationId(Map<String, Object> payload) {
+        Object installationObj = payload.get("installation");
+        if (installationObj == null) {
+            return null;
+        }
+        try {
+            Map<String, Object> installation = (Map<String, Object>) installationObj;
+            Object idObj = installation.get("id");
+            if (idObj == null) {
+                return null;
+            }
+            return ((Number) idObj).longValue();
+        } catch (Exception e) {
+            log.warn("[webhook] installation.id 추출 실패 err={}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * owner/repoName을 "owner/repoName" 형식으로 합성하여 projects 테이블의
+     * github_repo_full_name 컬럼으로 역조회한다.
+     *
+     * 매핑 없으면 Optional.empty() 반환 — 호출 측에서 null로 처리하고 분석을 skip한다.
+     * 웹훅 수신 자체는 유지한다 (이력 저장 목적).
+     *
+     * @param owner    GitHub 레포지토리 소유자
+     * @param repoName 레포지토리 이름
+     * @return 매핑된 프로젝트 UUID (없으면 empty)
+     */
+    private Optional<UUID> resolveProjectId(String owner, String repoName) {
+        String repoFullName = owner + "/" + repoName;
+        return projectRepository.findByGithubRepoFullName(repoFullName)
+                .map(project -> project.getId());
     }
 
     /**
@@ -338,10 +439,11 @@ public class GitHubWebhookService {
     }
 
     /**
-     * 파일 조회 실패 등 오류 상황에서 Check Run을 failure로 완료한다.
+     * 분석/파일조회 오류 상황에서 Check Run을 failure로 완료한다.
+     * RedisSubscriber(PR 완료 콜백)에서도 호출하므로 package-scoped.
      * 실패 시 skip & log.
      */
-    private void finalizeCheckRunOnError(String owner, String repo, Long checkRunId, String token) {
+    void finalizeCheckRunOnError(String owner, String repo, Long checkRunId, String token) {
         if (checkRunId == null || token == null || token.isBlank()) {
             return;
         }

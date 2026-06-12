@@ -2,8 +2,10 @@ package io.secureai.backend.domain.analysis.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
+import io.secureai.backend.domain.analysis.entity.PrReviewHistory;
 import io.secureai.backend.domain.analysis.event.SessionCompletedEvent;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
+import io.secureai.backend.domain.analysis.repository.PrReviewHistoryRepository;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,12 +34,17 @@ class RedisSubscriberTest {
     @Mock private SseEmitterService           sseEmitterService;
     @Mock private AnalysisSessionRepository   sessionRepository;
     @Mock private ApplicationEventPublisher   eventPublisher;
+    @Mock private PrReviewHistoryRepository   prReviewHistoryRepository;
+    @Mock private GitHubWebhookService        gitHubWebhookService;
+    @Mock private GitHubAppAuthService        gitHubAppAuthService;
 
     private RedisSubscriber subscriber;
 
     @BeforeEach
     void setUp() {
-        subscriber = new RedisSubscriber(sseEmitterService, sessionRepository, OBJECT_MAPPER, eventPublisher);
+        subscriber = new RedisSubscriber(
+                sseEmitterService, sessionRepository, OBJECT_MAPPER, eventPublisher,
+                prReviewHistoryRepository, gitHubWebhookService, gitHubAppAuthService);
     }
 
     // ── 헬퍼 ─────────────────────────────────────────────────────────────────
@@ -154,6 +161,8 @@ class RedisSubscriberTest {
         when(mockSession.getProject()).thenReturn(mockProject);
         when(mockSession.getUser()).thenReturn(mockUser);
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(mockSession));
+        // 일반 분석 세션: PR 이력 없음
+        when(prReviewHistoryRepository.findBySessionId(sessionId)).thenReturn(Optional.empty());
 
         String body = OBJECT_MAPPER.writeValueAsString(Map.of(
                 "session_id", sessionId.toString(),
@@ -167,6 +176,9 @@ class RedisSubscriberTest {
         verify(sessionRepository).save(mockSession);
         verify(eventPublisher).publishEvent(any(SessionCompletedEvent.class));
         verify(sseEmitterService).complete(sessionId);
+        // PR 경로 콜백은 미호출
+        verify(gitHubWebhookService, never()).completeCheckRunAfterAnalysis(
+                any(), any(), any(), anyInt(), anyInt(), any());
     }
 
     // ── TC-5: error 이벤트 — 세션 markError + SSE complete ─────────────────
@@ -178,6 +190,8 @@ class RedisSubscriberTest {
 
         AnalysisSession mockSession = mock(AnalysisSession.class);
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(mockSession));
+        // 일반 분석 세션: PR 이력 없음
+        when(prReviewHistoryRepository.findBySessionId(sessionId)).thenReturn(Optional.empty());
 
         String body = OBJECT_MAPPER.writeValueAsString(Map.of(
                 "session_id", sessionId.toString(),
@@ -190,6 +204,111 @@ class RedisSubscriberTest {
         verify(mockSession).markError();
         verify(sessionRepository).save(mockSession);
         verify(eventPublisher, never()).publishEvent(any());
+        verify(sseEmitterService).complete(sessionId);
+    }
+
+    // ── TC-9: PR 분석 completed 콜백 — markCompleted + Check Run 완료 ────────
+
+    @Test
+    @DisplayName("completed 이벤트 수신 시 PR 세션이면 markCompleted + completeCheckRunAfterAnalysis가 호출된다")
+    void onMessage_completed_prSession_callsCheckRunComplete() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+
+        // 일반 분석 세션 없음 (PR 전용 세션)
+        when(sessionRepository.findById(sessionId)).thenReturn(Optional.empty());
+
+        PrReviewHistory prHistory = mock(PrReviewHistory.class);
+        when(prHistory.getRepoOwner()).thenReturn("testorg");
+        when(prHistory.getRepoName()).thenReturn("testrepo");
+        when(prHistory.getCheckRunId()).thenReturn(99L);
+        when(prHistory.getPrNumber()).thenReturn(42);
+        when(prHistory.getSessionId()).thenReturn(sessionId);
+        when(prHistory.getInstallationId()).thenReturn(12345L);
+        when(prReviewHistoryRepository.findBySessionId(sessionId)).thenReturn(Optional.of(prHistory));
+        when(prReviewHistoryRepository.save(any(PrReviewHistory.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gitHubAppAuthService.exchangeInstallationToken(12345L)).thenReturn("fresh-token");
+
+        String body = OBJECT_MAPPER.writeValueAsString(Map.of(
+                "session_id", sessionId.toString(),
+                "type",       "completed",
+                "vuln_count", 3
+        ));
+
+        subscriber.onMessage(buildMessage(sessionId, body), null);
+
+        verify(gitHubWebhookService, times(1)).completeCheckRunAfterAnalysis(
+                eq("testorg"), eq("testrepo"), eq(99L), eq(3), eq(42), eq("fresh-token"));
+        verify(prHistory).markCompleted(eq(3), eq(99L));
+        verify(prReviewHistoryRepository).save(prHistory);
+        verify(sseEmitterService).complete(sessionId);
+    }
+
+    // ── TC-10: PR 분석 error 콜백 — markError + Check Run failure ────────────
+
+    @Test
+    @DisplayName("error 이벤트 수신 시 PR 세션이면 markError + finalizeCheckRunOnError이 호출된다")
+    void onMessage_error_prSession_callsCheckRunFailure() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+
+        when(sessionRepository.findById(sessionId)).thenReturn(Optional.empty());
+
+        PrReviewHistory prHistory = mock(PrReviewHistory.class);
+        when(prHistory.getCheckRunId()).thenReturn(99L);
+        when(prHistory.getRepoOwner()).thenReturn("testorg");
+        when(prHistory.getRepoName()).thenReturn("testrepo");
+        when(prHistory.getSessionId()).thenReturn(sessionId);
+        when(prHistory.getInstallationId()).thenReturn(12345L);
+        when(prReviewHistoryRepository.findBySessionId(sessionId)).thenReturn(Optional.of(prHistory));
+        when(prReviewHistoryRepository.save(any(PrReviewHistory.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gitHubAppAuthService.exchangeInstallationToken(12345L)).thenReturn("fresh-token");
+
+        String body = OBJECT_MAPPER.writeValueAsString(Map.of(
+                "session_id", sessionId.toString(),
+                "type",       "error",
+                "message",    "analysis failed"
+        ));
+
+        subscriber.onMessage(buildMessage(sessionId, body), null);
+
+        verify(gitHubWebhookService, times(1)).finalizeCheckRunOnError(
+                eq("testorg"), eq("testrepo"), eq(99L), eq("fresh-token"));
+        verify(prHistory).markError();
+        verify(prReviewHistoryRepository).save(prHistory);
+        verify(sseEmitterService).complete(sessionId);
+    }
+
+    // ── TC-11: PR 세션 completed — sessionId 비매칭이면 일반 경로만 처리 ────────
+
+    @Test
+    @DisplayName("completed 이벤트 수신 시 PR 이력이 없으면 completeCheckRunAfterAnalysis를 호출하지 않는다")
+    void onMessage_completed_noPrSession_skipsCheckRun() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+        UUID userId    = UUID.randomUUID();
+
+        Project mockProject = mock(Project.class);
+        when(mockProject.getId()).thenReturn(projectId);
+        User mockUser = mock(User.class);
+        when(mockUser.getId()).thenReturn(userId);
+        AnalysisSession mockSession = mock(AnalysisSession.class);
+        when(mockSession.getProject()).thenReturn(mockProject);
+        when(mockSession.getUser()).thenReturn(mockUser);
+        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(mockSession));
+        when(prReviewHistoryRepository.findBySessionId(sessionId)).thenReturn(Optional.empty());
+
+        String body = OBJECT_MAPPER.writeValueAsString(Map.of(
+                "session_id", sessionId.toString(),
+                "type",       "completed",
+                "vuln_count", 2
+        ));
+
+        subscriber.onMessage(buildMessage(sessionId, body), null);
+
+        // PR 경로는 비호출
+        verify(gitHubWebhookService, never()).completeCheckRunAfterAnalysis(
+                any(), any(), any(), anyInt(), anyInt(), any());
+        // 일반 경로는 정상 처리
+        verify(mockSession).markCompleted();
         verify(sseEmitterService).complete(sessionId);
     }
 

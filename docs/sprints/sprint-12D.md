@@ -12,6 +12,8 @@
   - 12C STAGE-2는 ⑤(13)보다 **먼저 머지**(graph_builder/agent_state 충돌). 이전 표기 "이후 12C → 13"은 STAGE-3가 13 뒤라는 제약을 누락 → 본 순서로 정정.
 - **ECON-1(캐싱)**: 이미 `claude_client.py`/`chat_client.py`에 `cache_control:ephemeral` **구현됨** → 별도 태스크 폐기, 계측은 COST-3 흡수. ⚠️ **캐싱은 Anthropic 전용**(Gemini/OpenAI 미적용).
 - **1204(토큰비용)**: **COST-3으로 대체·확장**(provider 인지).
+- **COST-1 Gemini 라우팅 소비처 (2026-06-12 추가)**: **TASK-1211**(PR 웹훅 → AI 취약점 분석 디스패치)이 COST-1의 `scanMode=AUDIT→Gemini` 라우팅을 소비한다. 1201 검증 중 PR 분석 호출이 미배선(TODO)임이 발견되어 신설 — 1201(인증)+12D(Gemini 분석)를 잇는 마지막 칸. 상세는 백로그 TASK-1211. ⚠️ 실행 중 ai_engine 컨테이너는 `GEMINI_MODEL=gemini-2.0-flash`(폐기)로 떠 있어 **재기동(→2.5-flash) 필요**.
+- **⚠️ MCP github 도구체인 미운영 → github-소스 Gemini 분석 차단 (2026-06-12 실 PR #78 시연 발견)**: TASK-1211로 PR→웹훅→설치토큰→`startAnalysis(source_type=github, scanMode=AUDIT)`까지 실증됐으나, ai_engine의 github-소스 분석이 **MCP github 도구(`github_list_directory`)로 레포 파일을 읽는데 그 도구가 컨테이너에서 미등록**(`MCP tool not found`)이라 Gemini 분석이 시작 못 함. node·`/app/mcp_server`는 존재하나 STDIO MCP 서버 spawn/등록·설치토큰 주입이 안 됨. **COST-1 Gemini 라우팅 자체는 정상**(로컬·1파일 분석으로 증명됨, COST-1 DoD ✅) — 차단은 **github-소스 파일 획득 경로(MCP)** 한정. → **신규 백로그 TASK-1212(MCP github 도구체인 운영화)** 로 분리. 12D 범위 밖(기존 인프라 의존성).
 
 ---
 

@@ -432,28 +432,58 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 > **재구성 (V5.5, 2026-05-30)**: 기존 Sprint 12가 11개 태스크로 과적 → **보안·운영 필수**(본 Sprint)와 **Enterprise Admin UI**(Sprint 12B)로 분할. 베타 운영에 직결되는 관측성(Loki·Sentry)·이메일 인프라를 Sprint 16/18에서 본 Sprint로 앞당김.
 > **실행 우선순위**: **TASK-1204(토큰 비용 통제)·TASK-1201(인증)을 최우선**. 실사용자 유입 시 토큰 비용 폭주와 웹훅 미동작이 가장 큰 리스크.
 > **참고**: ADR-016(AI Engine → Backend API 전환)은 Sprint 9에서 완료됨 — 제외.
+> **진행 포인터 (2026-06-12)**: 통합 마스터 계획 `docs/sprints/sprint-12.md`(3트랙: 본진/12C/12D). 브랜치 `feat/sprint12`. **Stage1=12D Phase1(COST-1 프로바이더 추상화+Gemini 라우팅, COST-2 품질벤치) 완료**(`75a9ca9`) — Gemini 실호출로 **크레딧 402 블로커 해소 증명**(Anthropic 0 사용). **TASK-1204(토큰비용)는 12D COST-3으로 흡수**(provider 인지 확장, Phase2 예정). ECON-1(프롬프트 캐싱)은 구현 완료로 폐기. 다음: 본진 1201/1202a·b 또는 12D Phase2.
 
 ---
 
-### TASK-1201 🔴 GitHub App 인증 플로우 완성 (Sprint 10 기술 부채 해소)
-- **중요도**: 🔴 Critical | **순서**: 1번째 | **사이즈**: L
+### TASK-1201 🔴 GitHub App 인증 플로우 완성 (Sprint 10 기술 부채 해소) — 🟢 구현완료(`ffba377`)·실웹훅 검증대기
+- **중요도**: 🔴 Critical | **순서**: 1번째 | **사이즈**: L | **상태**: 코드+단위 28 그린 / 🔬 실 GitHub App PEM 대기
 - **배경**: `GitHubWebhookService`의 `extractInstallationToken()` / `resolveProjectId()`가 스텁으로 남아  
   PR 자동 분석·Check Run API가 실제로 동작하지 않음.
 - **하위 할일**
-  - [ ] GitHub App private key (PEM) + App ID 환경변수 설정 (`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`)
-  - [ ] `extractInstallationToken(payload)`: payload의 `installation.id` → GitHub API JWT 생성 → Installation Token 교환
-  - [ ] `resolveProjectId(owner, repoName)`: `projects` 테이블의 `github_repo_url` 컬럼으로 역조회  
-    (없으면 `Optional.empty()` 반환 후 웹훅 수신은 유지하되 분석 skip)
-  - [ ] `credit_transactions` 연동 — `OrganizationService.getUsage()` `totalCreditsUsed` 실제 집계
+  - [x] GitHub App private key (PEM) + App ID 환경변수 **배선** (`GITHUB_APP_ID`/`GITHUB_APP_PRIVATE_KEY`/`_PATH`, GitHubConfig) — ⚠️ PEM 실값은 사용자 발급 대기(App ID 3851268 설정됨)
+  - [x] `extractInstallationToken(payload)`: `installation.id` → App JWT(RS256) → Installation Token 교환 (`GitHubAppAuthService`)
+  - [x] `resolveProjectId(owner, repoName)`: `projects.github_repo_full_name`(`owner/repo`) 역조회, 미매칭 시 null→분석 skip (※ github_repo_url 컬럼 부재로 full_name 재활용)
+  - [x] `credit_transactions` 연동 — `OrgAnalyticsService.sumCreditsByOrgMembers` + `OrganizationService` totalCreditsUsed
 - **테스트 체크리스트**
-  - [ ] 🧪 Installation Token 교환 로직 단위 테스트 (mock GitHub API)
-  - [ ] 🔬 실제 GitHub Webhook push → resolveProjectId 성공 → 분석 세션 생성 확인
-  - [ ] 🛡️ invalid JWT 서명 → 401 반환 확인
+  - [x] 🧪 Installation Token 교환 로직 단위 테스트 (mock GitHub API)
+  - [ ] 🔬 실제 GitHub Webhook push → resolveProjectId 성공 → 분석 세션 생성 확인 (PEM 발급 후)
+  - [x] 🛡️ invalid JWT/App 미설정 → GITHUB_APP_AUTH_FAILED / skip 확인 (단위)
+
+### TASK-1211 🔴 PR 웹훅 → AI 취약점 분석 디스패치 (1201 후속) — 🟢 구현완료·실PR 디스패치 검증
+- **중요도**: 🔴 Critical | **순서**: 1201 직후 | **사이즈**: M | **출처**: 1201 검증 중 발견(2026-06-12) | **상태**: 코드+단위 그린, 실 PR(#78)로 웹훅→설치토큰→Check Run→startAnalysis→AnalysisSession 생성까지 검증. 단 **Gemini 실분석은 MCP github 도구 미운영으로 차단 → TASK-1212로 분리**.
+- **배경**: TASK-1201로 GitHub App 인증(설치토큰)+Check Run 배선은 완료됐으나, `GitHubWebhookService.handlePullRequest()` line 192~197이 `// TODO: PR 전용 분석 엔드포인트 구현 후 연결`로 **실제 분석 호출이 비어 있음**. PR을 열어도 Check Run(in_progress)만 뜨고 취약점 분석/결과가 없음. **1201(인증)+12D(Gemini 분석)를 잇는 마지막 칸.**
+- **발견 핵심**: `AiAgentClient.startAnalysis(...sourceType,githubOwner,githubRepo,githubRef,githubToken,...,scanMode,fileFilter)` GitHub 변종이 **이미 존재** → 웹훅이 호출만 하면 됨(변경파일=fileFilter, 설치토큰=githubToken, scanMode=AUDIT→Gemini).
+- **하위 할일**
+  - [x] `handlePullRequest`: AnalysisSession 생성(`AnalysisService` 패턴 미러링) → `aiAgentClient.startAnalysis`(github, fileFilter=changedFiles, githubToken=설치토큰, scanMode=AUDIT) 호출
+  - [x] PR↔세션 연결: `pr_review_history`에 `session_id`, `installation_id` 컬럼 추가(Flyway V051)
+  - [x] 완료 콜백: `RedisSubscriber`가 분석 완료(sessionId) 수신 → PrReviewHistory 역조회 → `installation_id`로 설치토큰 재발급 → `completeCheckRunAfterAnalysis`
+  - [x] 에러/타임아웃 시 Check Run failure 마감(`finalizeCheckRunOnError`)
+- **테스트 체크리스트**
+  - [x] 🧪 handlePullRequest가 startAnalysis(github,fileFilter,token,AUDIT) 호출 (mock)
+  - [x] 🧪 완료 콜백 → PrReviewHistory markCompleted + Check Run 완료 (mock)
+  - [x] 🔬 실 PR(#78,ngrok) → 웹훅→설치토큰→Check Run→startAnalysis→**AnalysisSession 생성** 검증 (로그 확인). Gemini 실분석 산출은 TASK-1212 차단.
+- **선행/전제**: 1201(✅), 12D COST-1 Gemini 라우팅(✅). **후속 차단: TASK-1212(MCP github 도구).**
+- **실 시연 발견·수정(2026-06-12 커밋)**: 웹훅 보안경로 `/webhooks`→`/api/v1/webhooks`(401 차단 버그), JWT exp 600→540s(시계스큐), **AnalysisSession 미생성→SESSION_NOT_FOUND 수정**, docker-compose GitHub App env 전달+PEM 마운트.
+
+### TASK-1212 🟠 MCP GitHub 도구체인 운영화 (github-소스 분석 활성화) (신규 — 2026-06-12)
+- **중요도**: 🟠 High | **순서**: 1211 후속(github 분석 실동작 전제) | **사이즈**: M | **출처**: TASK-1211 실 PR 시연 중 발견
+- **배경**: TASK-1211로 PR→웹훅→설치토큰→분석 디스패치(`source_type=github`, scanMode=AUDIT)까지 실증됐으나, **ai_engine의 github-소스 분석이 MCP github 도구(`github_list_directory`/`list_github_files`)로 레포 파일을 읽는데 그 MCP 도구체인이 운영 안 됨** → `[scan_files] MCP tool 'github_list_directory' not found`로 분석 중단. 1201/1211과 무관한 **기존 인프라 의존성**.
+- **실측(2026-06-12)**: ai_engine 컨테이너에 `node`(/usr/bin/node)·`/app/mcp_server`(dist/node_modules) **존재**. MCP 서버는 **STDIO 서브프로세스로 ai_engine이 spawn**(별도 컨테이너 아님, compose에서 주석처리). 그러나 ① `[mcp] postgres_ro start failed — No such file or directory`(spawn 경로/엔트리 문제 추정) ② github MCP 도구 미등록(`GITHUB_TOKEN` 컨테이너 env 미설정, github MCP 서버 spawn/등록 실패).
+- **하위 할일**
+  - [ ] `agent/mcp_client.py` STDIO spawn 경로 점검 — `node <entry>` / `npx <server>` 커맨드가 컨테이너에서 실제 기동되는지(엔트리 파일 경로, dist 빌드 유무, npx 오프라인 캐시)
+  - [ ] github MCP 서버 등록 + 설치토큰 주입 경로 — 분석 시 전달되는 installation token을 github MCP 도구(`list_github_files`/read)가 사용하도록 배선(현재 `GITHUB_TOKEN` env 미설정)
+  - [ ] `scan_files_node`(source_type=github) → MCP 도구 실호출로 레포 파일 목록/내용 획득 → SAST 분석까지 전구간
+  - [ ] (선택) MCP 서버 미가용 시 명확 폴백/에러 메시지(현재 tool not found로 세션 무한 in_progress)
+- **테스트 체크리스트**
+  - [ ] 🔬 ai_engine MCP github 도구 등록 확인(spawn 성공 + `github_list_directory` 가용)
+  - [ ] 🔬 실 PR(#78 재시연) → github-소스 분석이 변경파일 읽고 취약점 산출 → Check Run ✓/✗ + PR 코멘트(취약점 N건)
+- **선행/전제**: TASK-1211(✅), MCP 서버(`apps/mcp_server`) 빌드본, github 설치토큰 플러밍.
 
 ### TASK-1202a 🔴 감사 로그 불변성 (해시 체이닝)
 - **중요도**: 🔴 Critical | **순서**: 2번째 | **출처**: FEAT-COMP-003 | **사이즈**: M
 - **하위 할일**
-  - [ ] `audit_logs` 테이블에 `prev_hash`, `current_hash` 컬럼 추가 (Flyway V050)
+  - [ ] `audit_logs` 테이블에 `prev_hash`, `current_hash` 컬럼 추가 (Flyway **V052** — V050=1201, V051=1211 선점)
   - [ ] 신규 감사 로그 저장 시 이전 로그 해시 → 현재 로그 해시 체인 구성 (`SHA-256(prev_hash + payload)`)
   - [ ] `GET /api/v1/admin/audit-logs/verify` — 해시 체인 무결성 검증 API
   - [ ] (선택) 외부 SIEM(AWS CloudTrail/Azure Monitor) 비동기 전송
@@ -464,7 +494,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ### TASK-1202b 🔴 세션 이력 관리 및 강제 로그아웃
 - **중요도**: 🔴 Critical | **순서**: 2번째 (1202a와 병렬) | **출처**: FEAT-SEC-003 | **사이즈**: M
 - **하위 할일**
-  - [ ] `user_sessions` 테이블 (V051: user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at)
+  - [ ] `user_sessions` 테이블 (**V053** — V050=1201, V051=1211, V052=1202a 선점: user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at)
   - [ ] `GET /api/v1/users/me/sessions` — 내 활성 세션 목록
   - [ ] `DELETE /api/v1/users/me/sessions/{sessionId}` — 특정 세션 강제 로그아웃 (Redis JWT blacklist)
   - [ ] Settings 페이지에 "활성 기기 관리" 섹션 추가
@@ -506,7 +536,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **배경**: 코드베이스 grep 결과 `tokenCount/inputTokens/outputTokens` 추적 코드 0개. 사용자 한도 제어 불가 — 토큰 폭주 시 비용 폭탄 위험.
 - **하위 할일**
   - [ ] AI Engine: Claude API 응답의 `usage.input_tokens` / `output_tokens`를 Backend로 콜백 (`POST /internal/v1/sessions/{id}/token-usage`)
-  - [ ] V052: `token_usage` 테이블 (session_id, user_id, model, input_tokens, output_tokens, cost_usd, occurred_at)
+  - [ ] **V054** (잠정): `token_usage` 테이블 — **12D COST-3로 흡수**(provider 인지 확장). V052는 1202b가 선점. (session_id, user_id, provider, model, input/output_tokens, cost_usd, occurred_at)
   - [ ] `TokenUsageService.java`: 월별 집계 + 플랜별 한도 비교
   - [ ] `EmailService.sendTokenLimitWarning()`: 80% 도달 시 경고 메일, 100% 도달 시 분석 일시 차단
   - [ ] 대시보드 위젯 `TokenUsageChart.tsx`: 일별 사용량 + 예상 월 비용

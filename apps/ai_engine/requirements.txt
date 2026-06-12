@@ -16,6 +16,12 @@ pydantic-settings==2.14.0
 anthropic==0.97.0
 
 # ───────────────────────────────────────────────────
+# OpenAI SDK — Gemini OpenAI호환 엔드포인트 및 OpenAI 직접 연동
+# google SDK 불필요: Gemini는 OpenAI 호환 API 사용
+# ───────────────────────────────────────────────────
+openai==1.82.0
+
+# ───────────────────────────────────────────────────
 # LangChain / LangGraph / LangSmith
 # 2025 H2에 0.x → 1.x 메이저 버전 전환됨
 # langchain 0.3.x, langgraph 0.2.x, langsmith 0.1.x 는 사용 금지

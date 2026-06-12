@@ -100,7 +100,13 @@ secureai:
     client-id: ${GITHUB_CLIENT_ID:}
     client-secret: ${GITHUB_CLIENT_SECRET:}
     webhook-secret: ${GITHUB_WEBHOOK_SECRET:}
+    # GitHub App ID (숫자 형식, OAuth Client ID와 별개)
     check-run-app-id: ${GITHUB_APP_ID:}
+    # GitHub App RSA Private Key (PEM 인라인 — 개행은 \n으로 이스케이프하여 환경변수에 설정)
+    # appPrivateKeyPath와 상호 배타적: 인라인 키가 있으면 경로는 무시됨
+    app-private-key: ${GITHUB_APP_PRIVATE_KEY:}
+    # GitHub App RSA Private Key 파일 경로 (GITHUB_APP_PRIVATE_KEY 미설정 시 대체 사용)
+    app-private-key-path: ${GITHUB_APP_PRIVATE_KEY_PATH:}
   ai-agent:
     url: ${AI_AGENT_URL:http://localhost:8000}
   internal-api-key: ${INTERNAL_API_KEY}

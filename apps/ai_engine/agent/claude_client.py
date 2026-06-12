@@ -1,18 +1,17 @@
 """
-Anthropic SDK 래퍼 — SAST 분석 전용.
+SAST 분석 진입점 — LLM 프로바이더로 얇은 위임.
 
-- 시스템 프롬프트에 prompt caching 적용 (반복 호출 시 토큰 절감)
-- 반환값은 원문 텍스트 (파싱은 response_parser.py 에서 처리)
+기존 시그니처(file_path, content, guidelines, model, api_key)를 유지하며,
+내부에서 AnthropicProvider 또는 provider 인자에 맞는 구현체를 통해 호출한다.
+
+기존 호출부(sast_node 등)는 변경 없이 사용 가능하다.
 """
 import logging
 
-from anthropic import AsyncAnthropic
-
+from agent.llm.factory import get_provider, PROVIDER_ANTHROPIC, PROVIDER_GEMINI, PROVIDER_OPENAI
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
-
-_client: AsyncAnthropic | None = None
 
 _SYSTEM_PROMPT = """\
 You are a senior security engineer performing SAST (Static Application Security Testing).
@@ -64,14 +63,11 @@ PHP-specific patterns (ALWAYS report these as CRITICAL/HIGH SECURITY):
 """
 
 
-def _get_client(api_key: str | None = None) -> AsyncAnthropic:
-    """플랫폼 클라이언트(싱글턴)를 반환하거나, BYOK 키가 있으면 1회용 클라이언트를 생성한다."""
-    if api_key:
-        return AsyncAnthropic(api_key=api_key)
-    global _client
-    if _client is None:
-        _client = AsyncAnthropic(api_key=settings.claude_api_key)
-    return _client
+def _build_system_text(guidelines: str) -> str:
+    """가이드라인 유무에 따라 system_text를 구성한다."""
+    if guidelines:
+        return f"{_SYSTEM_PROMPT}\n\n---\n\n# Stack-Specific Security Patterns\n\n{guidelines}"
+    return _SYSTEM_PROMPT
 
 
 async def analyze_for_sast(
@@ -80,51 +76,46 @@ async def analyze_for_sast(
     guidelines: str = "",
     model: str | None = None,
     api_key: str | None = None,
+    *,
+    provider: str = PROVIDER_ANTHROPIC,
 ) -> tuple[str, dict]:
-    """파일 하나에 대한 SAST 분석을 Claude에 요청하고 (원문 응답, token_usage)를 반환한다.
+    """파일 하나에 대한 SAST 분석을 요청하고 (원문 응답, token_usage)를 반환한다.
 
-    model/api_key가 제공되면 사용자 BYOK 설정을 우선 적용한다.
-    가이드라인 포함 시 1,024 tokens 초과 → prompt caching 실제 동작.
+    Args:
+        file_path:  분석 대상 파일 경로 (로그 및 컨텍스트용).
+        content:    파일 내용 문자열.
+        guidelines: 스택별 보안 가이드라인 (optional).
+        model:      사용할 모델명. None이면 provider 기본 모델 사용.
+        api_key:    BYOK 키. None이면 플랫폼 기본 키 사용.
+        provider:   "anthropic" | "gemini" | "openai" (keyword-only, 기본 anthropic).
+
+    Returns:
+        (raw_text, usage_dict) — usage_dict 는 4키(input/output/cache_creation/cache_read).
     """
-    client = _get_client(api_key)
-    effective_model = model or settings.claude_model
+    system_text = _build_system_text(guidelines)
+    user_content = f"File: {file_path}\n\n```\n{content}\n```"
 
-    system_text = (
-        f"{_SYSTEM_PROMPT}\n\n---\n\n# Stack-Specific Security Patterns\n\n{guidelines}"
-        if guidelines
-        else _SYSTEM_PROMPT
-    )
+    # 프로바이더에 맞는 기본 모델 결정
+    effective_model = model or _default_model_for(provider)
 
-    response = await client.messages.create(
-        model=effective_model,
-        max_tokens=4096,
-        system=[
-            {
-                "type": "text",
-                "text": system_text,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
-        messages=[
-            {
-                "role": "user",
-                "content": f"File: {file_path}\n\n```\n{content}\n```",
-            }
-        ],
-    )
+    llm = get_provider(provider, api_key)
+    raw, usage = await llm.analyze(system_text, user_content, effective_model)
 
-    raw = response.content[0].text
-    u = response.usage
-    usage = {
-        "input_tokens":                  u.input_tokens,
-        "output_tokens":                 u.output_tokens,
-        "cache_creation_input_tokens":   getattr(u, "cache_creation_input_tokens", 0) or 0,
-        "cache_read_input_tokens":       getattr(u, "cache_read_input_tokens", 0) or 0,
-    }
     logger.debug(
-        "[claude] file=%s model=%s in=%d out=%d cache_write=%d cache_read=%d",
-        file_path, effective_model,
+        "[claude_client] file=%s provider=%s model=%s in=%d out=%d",
+        file_path, provider, effective_model,
         usage["input_tokens"], usage["output_tokens"],
-        usage["cache_creation_input_tokens"], usage["cache_read_input_tokens"],
     )
     return raw, usage
+
+
+def _default_model_for(provider: str) -> str:
+    """provider에 맞는 settings 기본 모델명을 반환한다."""
+    if provider == PROVIDER_ANTHROPIC:
+        return settings.claude_model
+    if provider == PROVIDER_GEMINI:
+        return settings.gemini_model
+    if provider == PROVIDER_OPENAI:
+        return settings.openai_model
+    # 미지원 provider는 factory.get_provider 에서 ValueError 발생하므로 여기선 claude 기본
+    return settings.claude_model

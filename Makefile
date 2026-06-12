@@ -1,16 +1,20 @@
-.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner perf-test ssl-cert help
+.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner perf-test ssl-cert eval-providers help
 
 # ──────────────────────────────────────────────────────────────────
-# make dev        전체 서비스 (postgres, redis, backend, ai_engine, frontend)
-# make infra      인프라만 (postgres, redis) — 로컬 개발 시
-# make down       모든 컨테이너 중지
-# make clean      컨테이너 + 볼륨 삭제 (데이터 초기화)
-# make logs       전체 로그 스트리밍
-# make rebuild    backend 이미지 재빌드 후 재시작
-# make backend    백엔드 로컬 실행 (Gradle, infra 필요)
-# make frontend   프론트엔드 로컬 실행 (npm dev)
-# make ai-engine  AI 엔진 로컬 실행 (uvicorn, infra 필요)
-# make viewer     세션 로그 뷰어 빌드 & 서빙 (localhost:8082)
+# make dev              전체 서비스 (postgres, redis, backend, ai_engine, frontend)
+# make infra            인프라만 (postgres, redis) — 로컬 개발 시
+# make down             모든 컨테이너 중지
+# make clean            컨테이너 + 볼륨 삭제 (데이터 초기화)
+# make logs             전체 로그 스트리밍
+# make rebuild          backend 이미지 재빌드 후 재시작
+# make backend          백엔드 로컬 실행 (Gradle, infra 필요)
+# make frontend         프론트엔드 로컬 실행 (npm dev)
+# make ai-engine        AI 엔진 로컬 실행 (uvicorn, infra 필요)
+# make viewer           세션 로그 뷰어 빌드 & 서빙 (localhost:8082)
+# make eval-providers   Gemini vs Claude SAST 품질 비교 하니스 실행
+#   TARGET=<dir>        분석 대상 디렉터리 (필수)
+#   PROVIDERS=gemini,anthropic  provider 목록 (기본: gemini,anthropic)
+#   LIMIT=N             최대 파일 수 (선택)
 # ──────────────────────────────────────────────────────────────────
 
 dev:
@@ -79,6 +83,20 @@ ssl-cert: ## 개발용 자체 서명 인증서 생성 (nginx/certs/server.key, s
 	  -out nginx/certs/server.crt \
 	  -subj "/C=KR/ST=Seoul/L=Seoul/O=SecureAI/CN=localhost"
 	@echo "✓ 인증서 생성 완료: nginx/certs/server.crt, nginx/certs/server.key"
+
+eval-providers: ## Gemini vs Claude SAST 품질 비교 (TARGET=<dir> PROVIDERS=gemini,anthropic [LIMIT=N])
+	@if [ -z "$(TARGET)" ]; then \
+		echo "Usage: make eval-providers TARGET=<dir> [PROVIDERS=gemini,anthropic] [LIMIT=N]"; \
+		echo "  TARGET    분석 대상 디렉터리 (필수)"; \
+		echo "  PROVIDERS provider 목록, 콤마 구분 (기본: gemini,anthropic)"; \
+		echo "  LIMIT     최대 파일 수 (기본: 제한 없음)"; \
+		exit 1; \
+	fi
+	cd apps/ai_engine && python -m eval.provider_compare.runner \
+		--target "$(TARGET)" \
+		--providers "$${PROVIDERS:-gemini,anthropic}" \
+		$(if $(LIMIT),--limit $(LIMIT),) \
+		--output "eval/provider_compare/results/latest.json"
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | sort

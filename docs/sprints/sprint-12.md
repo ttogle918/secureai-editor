@@ -174,7 +174,8 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 - `GitHubWebhookService`: extractInstallationToken/resolveProjectId 스텁 실구현(미매칭 skip), `projects.github_repo_full_name` 역조회(github_repo_url 컬럼 부재로 재활용)
 - credit_transactions 집계 연동, `PrReviewHistory.project_id` nullable + **V050**
 - **Flyway 재배정**(충돌 해소): 1201=V050 선점 → **1202a=V051, 1202b=V052, COST-3 token_usage=V054**
-- ⚠️ **검증 대기**: 🔬 실 웹훅→설치토큰 플로우는 GitHub App **PEM(.pem) 발급 후** 가능. App ID 3851268·OAuth Client는 설정됨, **PEM만 미설정**.
+- ✅ **인증 검증 완료(2026-06-12)**: PEM 발급·`.env` 연결 후 라이브 `GET /app → 200`(slug=secure-editor, app_id=3851268, owner=ttogle918) — **App ID+키쌍 유효 확정**. 라이브에서 exp=600 시계스큐 401 버그 발견·수정(→540s, `b4018bc`).
+- ⏳ **남은 검증**: `installations=0` — GitHub App을 대상 레포에 **설치** + 그 `owner/repo`를 `projects.github_repo_full_name`에 등록 + `GITHUB_WEBHOOK_SECRET` 설정 후 → 실 PR 웹훅→설치토큰→Check Run 전구간 검증 가능.
 - 기존부채: `VulnerabilityServiceTest` 2건 실패는 `be78682`발(1201 무관, main에서도 실패) — 별도 정리 필요.
 
 ---

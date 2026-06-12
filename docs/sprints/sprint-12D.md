@@ -12,6 +12,7 @@
   - 12C STAGE-2는 ⑤(13)보다 **먼저 머지**(graph_builder/agent_state 충돌). 이전 표기 "이후 12C → 13"은 STAGE-3가 13 뒤라는 제약을 누락 → 본 순서로 정정.
 - **ECON-1(캐싱)**: 이미 `claude_client.py`/`chat_client.py`에 `cache_control:ephemeral` **구현됨** → 별도 태스크 폐기, 계측은 COST-3 흡수. ⚠️ **캐싱은 Anthropic 전용**(Gemini/OpenAI 미적용).
 - **1204(토큰비용)**: **COST-3으로 대체·확장**(provider 인지).
+- **COST-1 Gemini 라우팅 소비처 (2026-06-12 추가)**: **TASK-1211**(PR 웹훅 → AI 취약점 분석 디스패치)이 COST-1의 `scanMode=AUDIT→Gemini` 라우팅을 소비한다. 1201 검증 중 PR 분석 호출이 미배선(TODO)임이 발견되어 신설 — 1201(인증)+12D(Gemini 분석)를 잇는 마지막 칸. 상세는 백로그 TASK-1211. ⚠️ 실행 중 ai_engine 컨테이너는 `GEMINI_MODEL=gemini-2.0-flash`(폐기)로 떠 있어 **재기동(→2.5-flash) 필요**.
 
 ---
 

@@ -450,10 +450,25 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [ ] 🔬 실제 GitHub Webhook push → resolveProjectId 성공 → 분석 세션 생성 확인 (PEM 발급 후)
   - [x] 🛡️ invalid JWT/App 미설정 → GITHUB_APP_AUTH_FAILED / skip 확인 (단위)
 
+### TASK-1211 🔴 PR 웹훅 → AI 취약점 분석 디스패치 (1201 후속 — 미배선분 완성)
+- **중요도**: 🔴 Critical | **순서**: 1201 직후 | **사이즈**: M | **출처**: 1201 검증 중 발견(2026-06-12)
+- **배경**: TASK-1201로 GitHub App 인증(설치토큰)+Check Run 배선은 완료됐으나, `GitHubWebhookService.handlePullRequest()` line 192~197이 `// TODO: PR 전용 분석 엔드포인트 구현 후 연결`로 **실제 분석 호출이 비어 있음**. PR을 열어도 Check Run(in_progress)만 뜨고 취약점 분석/결과가 없음. **1201(인증)+12D(Gemini 분석)를 잇는 마지막 칸.**
+- **발견 핵심**: `AiAgentClient.startAnalysis(...sourceType,githubOwner,githubRepo,githubRef,githubToken,...,scanMode,fileFilter)` GitHub 변종이 **이미 존재** → 웹훅이 호출만 하면 됨(변경파일=fileFilter, 설치토큰=githubToken, scanMode=AUDIT→Gemini).
+- **하위 할일**
+  - [ ] `handlePullRequest`: AnalysisSession 생성 → `aiAgentClient.startAnalysis`(github 변종, fileFilter=changedFiles, githubToken=설치토큰, scanMode=AUDIT) 호출
+  - [ ] PR↔세션 연결: `pr_review_history`에 `session_id`, `installation_id` 컬럼 추가(Flyway V051) — 완료 콜백 매칭 + 토큰 재발급용
+  - [ ] 완료 콜백: `RedisSubscriber`가 분석 완료(sessionId) 수신 → PrReviewHistory 역조회 → `installation_id`로 설치토큰 재발급 → `completeCheckRunAfterAnalysis`(Check Run 완료 + PR 코멘트 취약점 N건)
+  - [ ] 에러/타임아웃 시 Check Run failure 마감(기존 finalizeCheckRunOnError 재사용)
+- **테스트 체크리스트**
+  - [ ] 🧪 handlePullRequest가 startAnalysis(github,fileFilter,token,AUDIT) 호출 (mock)
+  - [ ] 🧪 완료 콜백 → PrReviewHistory markCompleted + Check Run 완료 (mock)
+  - [ ] 🔬 실 PR(ngrok) → 웹훅 → Gemini 분석 → Check Run ✓/✗ + PR 코멘트 (수동, App 설치+터널 필요)
+- **선행/전제**: 1201(✅), 12D COST-1 Gemini 라우팅(✅), ai_engine 컨테이너 `GEMINI_MODEL=gemini-2.5-flash` 재기동, ngrok 터널.
+
 ### TASK-1202a 🔴 감사 로그 불변성 (해시 체이닝)
 - **중요도**: 🔴 Critical | **순서**: 2번째 | **출처**: FEAT-COMP-003 | **사이즈**: M
 - **하위 할일**
-  - [ ] `audit_logs` 테이블에 `prev_hash`, `current_hash` 컬럼 추가 (Flyway **V051** — V050은 TASK-1201이 선점)
+  - [ ] `audit_logs` 테이블에 `prev_hash`, `current_hash` 컬럼 추가 (Flyway **V052** — V050=1201, V051=1211 선점)
   - [ ] 신규 감사 로그 저장 시 이전 로그 해시 → 현재 로그 해시 체인 구성 (`SHA-256(prev_hash + payload)`)
   - [ ] `GET /api/v1/admin/audit-logs/verify` — 해시 체인 무결성 검증 API
   - [ ] (선택) 외부 SIEM(AWS CloudTrail/Azure Monitor) 비동기 전송
@@ -464,7 +479,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ### TASK-1202b 🔴 세션 이력 관리 및 강제 로그아웃
 - **중요도**: 🔴 Critical | **순서**: 2번째 (1202a와 병렬) | **출처**: FEAT-SEC-003 | **사이즈**: M
 - **하위 할일**
-  - [ ] `user_sessions` 테이블 (**V052** — 1202a가 V051로 이동: user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at)
+  - [ ] `user_sessions` 테이블 (**V053** — V050=1201, V051=1211, V052=1202a 선점: user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at)
   - [ ] `GET /api/v1/users/me/sessions` — 내 활성 세션 목록
   - [ ] `DELETE /api/v1/users/me/sessions/{sessionId}` — 특정 세션 강제 로그아웃 (Redis JWT blacklist)
   - [ ] Settings 페이지에 "활성 기기 관리" 섹션 추가

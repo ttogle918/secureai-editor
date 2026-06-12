@@ -149,6 +149,8 @@ dvwa-source/
 
 # k6 부하테스트 산출물 (make perf-test)
 tests/perf/results.json
+# provider 품질벤치 산출물 (make eval-providers)
+apps/ai_engine/eval/provider_compare/results/
 # 로컬 로그 덤프
 backend_logs.txt
 *_logs.txt

@@ -118,12 +118,16 @@ class GitHubAppAuthServiceTest {
             Date now = new Date();
             assertThat(iat).isBefore(now);
 
-            // exp는 현재 시각보다 미래 (최대 10분)
+            // exp는 현재 시각보다 미래
             Date exp = claims.getExpiration();
             assertThat(exp).isAfter(now);
-            // exp - iat <= 660초 (offset 60 + expiry 600)
+            // GitHub는 exp가 자기 시계 기준 600s 초과면 거부 → exp는 now+600 이내여야 한다.
+            // (스큐 마진 위해 540s 사용. 이 상한을 어기면 라이브에서 401 발생 — 회귀 가드)
+            long expFromNowSeconds = (exp.getTime() - now.getTime()) / 1000;
+            assertThat(expFromNowSeconds).isLessThanOrEqualTo(600);
+            // exp - iat == offset(60) + expiry(540) = 600
             long diffSeconds = (exp.getTime() - iat.getTime()) / 1000;
-            assertThat(diffSeconds).isLessThanOrEqualTo(660);
+            assertThat(diffSeconds).isLessThanOrEqualTo(600);
         }
 
         @Test

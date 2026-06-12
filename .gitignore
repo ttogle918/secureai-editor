@@ -81,6 +81,9 @@ ngrok.yml
 *.key
 *.p12
 *.pfx
+# GitHub App 개인키 (TASK-1201) — *.pem 로 이미 커버되나 명시
+*.private-key.pem
+secure-editor.*.private-key.pem
 *.keystore
 *.jks
 certs/

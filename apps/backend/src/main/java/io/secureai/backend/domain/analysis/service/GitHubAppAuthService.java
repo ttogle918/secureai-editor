@@ -38,8 +38,13 @@ import java.util.Map;
 @Service
 public class GitHubAppAuthService {
 
-    /** JWT exp: GitHub API 허용 최대치 10분 (권장 값 사용) */
-    private static final int JWT_EXPIRY_SECONDS = 600;
+    /**
+     * JWT exp: GitHub는 exp가 자기 시계 기준 10분(600s)을 초과하면 거부한다.
+     * 정확히 600으로 두면 클라이언트 시계가 GitHub보다 조금만 앞서거나 요청 지연이 있어도
+     * "'exp' claim too far in the future" 401이 발생한다(라이브 GET /app로 재현 확인).
+     * 따라서 540초(9분)로 두어 60초 스큐/지연 마진을 확보한다.
+     */
+    private static final int JWT_EXPIRY_SECONDS = 540;
     /** GitHub App JWT의 iat는 시계 오차 대비 60초 이전으로 설정 (GitHub 권장) */
     private static final int JWT_ISSUED_AT_OFFSET_SECONDS = 60;
 
@@ -57,8 +62,8 @@ public class GitHubAppAuthService {
     /**
      * GitHub App JWT(RS256)를 생성한다.
      *
-     * iss = App ID (숫자 형식), iat = now - 60s, exp = now + 10min
-     * GitHub 시계 오차 허용을 위해 iat를 60초 과거로 설정한다.
+     * iss = App ID (숫자 형식), iat = now - 60s, exp = now + 9min(540s)
+     * GitHub 시계 오차 허용을 위해 iat를 60초 과거로 설정하고, exp는 10분 상한에서 60초 마진을 둔다.
      *
      * @return 서명된 JWT 문자열 (로그 출력 금지)
      * @throws BusinessException GITHUB_APP_AUTH_FAILED — private key 로드 실패 또는 App ID 미설정

@@ -11,13 +11,10 @@ OpenAI SDK 기반 LLMProvider 구현체 (Gemini OpenAI호환 엔드포인트 / O
 import logging
 import re
 
-from openai import AsyncOpenAI, BadRequestError, UnprocessableEntityError
+from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-# thinking 최소화: gemini-2.5-flash 는 reasoning 토큰을 사용하므로 budget=0 으로 최소화한다.
-# 엔드포인트/모델 버전에 따라 미지원일 수 있어 거부 시 제거하고 재시도한다.
-_THINKING_EXTRA_BODY = {"thinking_config": {"thinking_budget": 0}}
 
 # markdown 코드 펜스 제거 정규식
 _FENCE_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)\s*```", re.IGNORECASE)
@@ -40,22 +37,18 @@ class OpenAICompatProvider:
         # api_key는 로그에 절대 출력하지 않는다.
         self._client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
-    async def _create_with_thinking_fallback(self, model: str, max_tokens: int, messages: list):
-        """thinking 비활성 extra_body로 호출하되, 엔드포인트가 거부하면 제거하고 재시도한다."""
-        try:
-            return await self._client.chat.completions.create(
-                model=model, max_tokens=max_tokens, messages=messages,
-                extra_body=_THINKING_EXTRA_BODY,
-            )
-        except (BadRequestError, UnprocessableEntityError) as exc:
-            # 거부 이유는 모델 버전별. 키/페이로드는 로그 금지 — model명과 예외 타입만.
-            logger.warning(
-                "[openai_compat] thinking_config rejected by endpoint (model=%s): %s; retrying without",
-                model, type(exc).__name__,
-            )
-            return await self._client.chat.completions.create(
-                model=model, max_tokens=max_tokens, messages=messages,
-            )
+    async def _create_completion(self, model: str, max_tokens: int, messages: list):
+        """chat.completions 호출. reasoning_effort='none'으로 thinking을 비활성화한다.
+
+        gemini-2.5-flash OpenAI호환 엔드포인트는 표준 `reasoning_effort`를 수락한다
+        (구 `extra_body.thinking_config`는 400 거부 → 1회 왕복으로 대체).
+        """
+        return await self._client.chat.completions.create(
+            model=model,
+            max_tokens=max_tokens,
+            messages=messages,
+            reasoning_effort="none",
+        )
 
     async def analyze(
         self,
@@ -73,7 +66,7 @@ class OpenAICompatProvider:
             {"role": "system", "content": system_text},
             {"role": "user",   "content": user_content},
         ]
-        response = await self._create_with_thinking_fallback(model, max_tokens, messages)
+        response = await self._create_completion(model, max_tokens, messages)
 
         choice = response.choices[0]
         raw = choice.message.content or ""

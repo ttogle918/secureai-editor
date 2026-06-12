@@ -159,8 +159,9 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 - **docker compose build ai_engine 성공**(exit 0, openai 의존성 포함).
 - Tester: 단위 497 그린(신규 80 포함), 실패는 인프라 미기동 통합 플레이크뿐.
 
-### ⚠️ 후속 보완 (비차단 — 다음 라운드/COST-3 전)
-- **`thinking_config`가 gemini-2.5-flash OpenAI호환 엔드포인트에서 항상 400 거부됨** → 매 Gemini 호출 1왕복 낭비 + thinking 실제 미비활성(추론토큰 그대로). 올바른 파라미터(`reasoning_effort` 또는 `extra_body.google.thinking_config`) 검증 후 교체하거나 제거 필요. **COST-3 원가계측 전 처리 권장**(추론토큰이 output 비용에 포함).
+### 후속 보완
+- ✅ **(해결) thinking 비활성**: `extra_body.thinking_config`가 gemini-2.5-flash에서 항상 400 거부되던 문제 → 표준 호환 파라미터 **`reasoning_effort="none"`으로 교체**(거부 없이 1왕복, 실호출 확인). 추론토큰 절감 의도 달성.
+- (비차단, COST-4 전) `reasoning_effort="none"`이 openai_compat에서 **무조건 전송** → openai 직결+비추론 모델(gpt-4o 등)에서 400 위험. 현재 gemini만 라우팅돼 안전하나, **openai 직결 경로 활성화 전** gemini 한정(`base_url`/모델패턴) 또는 좁은 try/except로 가드.
 - (비차단) runner `_collect_files` target 하위 경로 검증, `_default_model_for`↔sast_node 결정관계 주석.
 
 ---

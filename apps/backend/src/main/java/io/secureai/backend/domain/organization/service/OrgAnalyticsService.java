@@ -58,4 +58,27 @@ public class OrgAnalyticsService {
         Long count = jdbcTemplate.queryForObject(sql, Long.class, orgId);
         return count != null ? count : 0L;
     }
+
+    /**
+     * 조직 멤버들이 사용한 총 크레딧을 credit_transactions 테이블에서 집계한다.
+     * delta가 음수(차감)인 행만 합산하여 소비량으로 계산한다.
+     * 파라미터 바인딩으로 SQL 인젝션 방지.
+     *
+     * @param orgId 조직 UUID
+     * @return 총 소비 크레딧 (양수 값, 0 이상)
+     */
+    @Transactional(readOnly = true)
+    public long sumCreditsByOrgMembers(UUID orgId) {
+        String sql = """
+                SELECT COALESCE(SUM(ABS(ct.delta)), 0)
+                FROM credit_transactions ct
+                WHERE ct.delta < 0
+                  AND ct.user_id IN (
+                    SELECT user_id FROM org_members
+                    WHERE org_id = ? AND accepted_at IS NOT NULL
+                  )
+                """;
+        Long sum = jdbcTemplate.queryForObject(sql, Long.class, orgId);
+        return sum != null ? sum : 0L;
+    }
 }

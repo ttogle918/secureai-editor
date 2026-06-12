@@ -29,7 +29,11 @@ public class PrReviewHistory {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "project_id", nullable = false)
+    /**
+     * 웹훅 수신 시 projects 테이블에 매핑되는 프로젝트가 없을 경우 null이 될 수 있다.
+     * null이면 해당 레포지토리는 SecureAI에 등록되지 않은 상태이며 분석은 skip된다.
+     */
+    @Column(name = "project_id")
     private UUID projectId;
 
     @Column(name = "repo_owner", nullable = false)

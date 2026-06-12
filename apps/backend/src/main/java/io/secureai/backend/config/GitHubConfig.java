@@ -17,7 +17,7 @@ import java.nio.charset.StandardCharsets;
  * GitHub 연동 설정.
  *
  * application.yml의 secureai.github.* 키를 바인딩한다.
- * webhookSecret은 절대 로그에 출력하지 않는다.
+ * webhookSecret, appPrivateKey는 절대 로그에 출력하지 않는다.
  */
 @Slf4j
 @Configuration
@@ -31,8 +31,24 @@ public class GitHubConfig {
     /** GitHub Webhook Secret (설정 없으면 빈 문자열 — 운영 환경에서 반드시 설정 필요) */
     private String webhookSecret = "";
 
-    /** GitHub App ID (Check Run 생성에 사용) */
+    /**
+     * GitHub App ID (Check Run 생성 + Installation Token 교환에 사용).
+     * OAuth Client ID와 별개임에 주의: App ID는 숫자(예: "123456"),
+     * Client ID는 "Iv1.xxxxx" 형식의 OAuth 앱 식별자이다.
+     */
     private String checkRunAppId = "";
+
+    /**
+     * GitHub App RSA Private Key (PEM 인라인 — 환경변수 GITHUB_APP_PRIVATE_KEY로 주입).
+     * 절대 로그 출력 금지. appPrivateKeyPath와 상호 배타적으로 사용한다.
+     */
+    private String appPrivateKey = "";
+
+    /**
+     * GitHub App RSA Private Key 파일 경로 (환경변수 GITHUB_APP_PRIVATE_KEY_PATH로 주입).
+     * appPrivateKey가 비어 있을 때 이 경로에서 PEM을 읽는다.
+     */
+    private String appPrivateKeyPath = "";
 
     /** critical 취약점 발견 시 머지 차단 여부 */
     private boolean blockMergeOnCritical = true;

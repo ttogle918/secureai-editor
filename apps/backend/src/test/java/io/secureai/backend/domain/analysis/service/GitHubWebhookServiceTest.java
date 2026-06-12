@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.secureai.backend.config.GitHubConfig;
 import io.secureai.backend.domain.analysis.entity.PrReviewHistory;
 import io.secureai.backend.domain.analysis.repository.PrReviewHistoryRepository;
+import io.secureai.backend.domain.project.entity.Project;
+import io.secureai.backend.domain.project.repository.ProjectRepository;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +21,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,6 +52,8 @@ class GitHubWebhookServiceTest {
     @Mock AiAgentClient aiAgentClient;
     @Mock GitHubConfig gitHubConfig;
     @Mock GitHubRestClient gitHubRestClient;
+    @Mock GitHubAppAuthService gitHubAppAuthService;
+    @Mock ProjectRepository projectRepository;
 
     private GitHubWebhookService webhookService;
     private Mac testMac;
@@ -67,6 +73,8 @@ class GitHubWebhookServiceTest {
                 prReviewHistoryRepository,
                 aiAgentClient,
                 gitHubRestClient,
+                gitHubAppAuthService,
+                projectRepository,
                 new ObjectMapper()
         );
     }
@@ -125,6 +133,8 @@ class GitHubWebhookServiceTest {
     @DisplayName("action=opened인 PR Webhook 페이로드를 받으면 PrReviewHistory가 저장된다")
     void handlePullRequest_actionOpened_savesHistory() {
         Map<String, Object> payload = buildPrPayload("opened");
+        when(gitHubAppAuthService.extractInstallationToken(any())).thenReturn("");
+        when(projectRepository.findByGithubRepoFullName(anyString())).thenReturn(Optional.empty());
         when(prReviewHistoryRepository.save(any(PrReviewHistory.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
@@ -137,6 +147,8 @@ class GitHubWebhookServiceTest {
     @DisplayName("action=synchronize인 PR Webhook 페이로드를 받으면 PrReviewHistory가 저장된다")
     void handlePullRequest_actionSynchronize_savesHistory() {
         Map<String, Object> payload = buildPrPayload("synchronize");
+        when(gitHubAppAuthService.extractInstallationToken(any())).thenReturn("");
+        when(projectRepository.findByGithubRepoFullName(anyString())).thenReturn(Optional.empty());
         when(prReviewHistoryRepository.save(any(PrReviewHistory.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
@@ -166,13 +178,73 @@ class GitHubWebhookServiceTest {
         verify(prReviewHistoryRepository, never()).save(any());
     }
 
+    // ─── resolveProjectId 테스트 ─────────────────────────────────────────────
+
+    @Test
+    @DisplayName("projects 테이블에 매핑된 레포가 있으면 PrReviewHistory에 projectId가 저장된다")
+    void handlePullRequest_projectFound_savesHistoryWithProjectId() {
+        UUID expectedProjectId = UUID.randomUUID();
+        Project mockProject = mock(Project.class);
+        when(mockProject.getId()).thenReturn(expectedProjectId);
+
+        when(projectRepository.findByGithubRepoFullName("testorg/testrepo"))
+                .thenReturn(Optional.of(mockProject));
+        when(gitHubAppAuthService.extractInstallationToken(any())).thenReturn("");
+        when(prReviewHistoryRepository.save(any(PrReviewHistory.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        Map<String, Object> payload = buildPrPayload("opened");
+        webhookService.handlePullRequest(payload);
+
+        // projectId가 expectedProjectId로 설정된 PrReviewHistory가 저장되었는지 확인
+        verify(prReviewHistoryRepository, times(1)).save(argThat(history ->
+                expectedProjectId.equals(history.getProjectId())
+        ));
+    }
+
+    @Test
+    @DisplayName("projects 테이블에 매핑된 레포가 없으면 projectId=null로 PrReviewHistory가 저장된다")
+    void handlePullRequest_projectNotFound_savesHistoryWithNullProjectId() {
+        when(projectRepository.findByGithubRepoFullName("testorg/testrepo"))
+                .thenReturn(Optional.empty());
+        when(gitHubAppAuthService.extractInstallationToken(any())).thenReturn("");
+        when(prReviewHistoryRepository.save(any(PrReviewHistory.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        Map<String, Object> payload = buildPrPayload("opened");
+        webhookService.handlePullRequest(payload);
+
+        // projectId=null로 저장 (매핑 없음 — 웹훅 이력은 유지)
+        verify(prReviewHistoryRepository, times(1)).save(argThat(history ->
+                history.getProjectId() == null
+        ));
+    }
+
+    @Test
+    @DisplayName("projects 테이블 조회 시 owner/repoName을 'owner/repoName' 형식으로 합성하여 조회한다")
+    void handlePullRequest_callsRepositoryWithFullRepoName() {
+        when(projectRepository.findByGithubRepoFullName("testorg/testrepo"))
+                .thenReturn(Optional.empty());
+        when(gitHubAppAuthService.extractInstallationToken(any())).thenReturn("");
+        when(prReviewHistoryRepository.save(any(PrReviewHistory.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        Map<String, Object> payload = buildPrPayload("opened");
+        webhookService.handlePullRequest(payload);
+
+        // "testorg/testrepo" 형식으로 조회됐는지 확인
+        verify(projectRepository, times(1)).findByGithubRepoFullName("testorg/testrepo");
+    }
+
     // ─── Check Run / 토큰 가드 테스트 ────────────────────────────────────────────
 
     @Test
     @DisplayName("Installation Token 없을 때 PR opened 처리 시 Check Run 생성을 건너뛴다")
     void handlePullRequest_noInstallationToken_skipsCheckRun() {
-        // given: extractInstallationToken()은 항상 ""를 반환 (GitHub App 미구현)
+        // given: extractInstallationToken()이 빈 문자열을 반환 (App 미설정)
         Map<String, Object> payload = buildPrPayload("opened");
+        when(gitHubAppAuthService.extractInstallationToken(any())).thenReturn("");
+        when(projectRepository.findByGithubRepoFullName(anyString())).thenReturn(Optional.empty());
         when(prReviewHistoryRepository.save(any(PrReviewHistory.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
@@ -190,6 +262,8 @@ class GitHubWebhookServiceTest {
     @DisplayName("Installation Token 없을 때 PR opened 처리 시 예외 없이 완료된다")
     void handlePullRequest_noInstallationToken_completesWithoutException() {
         Map<String, Object> payload = buildPrPayload("opened");
+        when(gitHubAppAuthService.extractInstallationToken(any())).thenReturn("");
+        when(projectRepository.findByGithubRepoFullName(anyString())).thenReturn(Optional.empty());
         when(prReviewHistoryRepository.save(any(PrReviewHistory.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 

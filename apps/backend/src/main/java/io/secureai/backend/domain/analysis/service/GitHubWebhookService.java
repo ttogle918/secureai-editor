@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.secureai.backend.config.GitHubConfig;
 import io.secureai.backend.domain.analysis.entity.PrReviewHistory;
 import io.secureai.backend.domain.analysis.repository.PrReviewHistoryRepository;
+import io.secureai.backend.domain.project.repository.ProjectRepository;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -46,6 +48,8 @@ public class GitHubWebhookService {
     private final PrReviewHistoryRepository prReviewHistoryRepository;
     private final AiAgentClient aiAgentClient;
     private final GitHubRestClient gitHubRestClient;
+    private final GitHubAppAuthService gitHubAppAuthService;
+    private final ProjectRepository projectRepository;
     private final ObjectMapper objectMapper;
 
     public GitHubWebhookService(
@@ -54,6 +58,8 @@ public class GitHubWebhookService {
             PrReviewHistoryRepository prReviewHistoryRepository,
             AiAgentClient aiAgentClient,
             GitHubRestClient gitHubRestClient,
+            GitHubAppAuthService gitHubAppAuthService,
+            ProjectRepository projectRepository,
             ObjectMapper objectMapper
     ) {
         this.webhookMac = webhookMac;
@@ -61,6 +67,8 @@ public class GitHubWebhookService {
         this.prReviewHistoryRepository = prReviewHistoryRepository;
         this.aiAgentClient = aiAgentClient;
         this.gitHubRestClient = gitHubRestClient;
+        this.gitHubAppAuthService = gitHubAppAuthService;
+        this.projectRepository = projectRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -127,8 +135,14 @@ public class GitHubWebhookService {
                 action, owner, repoName, prNumber, headSha);
 
         // 1. PrReviewHistory 저장 (status=pending)
+        // resolveProjectId가 empty이면 projectId=null로 저장 (프로젝트 매핑 없이 웹훅 이력은 유지)
+        UUID projectId = resolveProjectId(owner, repoName).orElse(null);
+        if (projectId == null) {
+            log.warn("[webhook] projects 테이블에 owner={} repo={} 매핑 없음 — 웹훅 수신은 유지하나 분석 skip",
+                    owner, repoName);
+        }
         PrReviewHistory history = PrReviewHistory.builder()
-                .projectId(resolveProjectId(owner, repoName))
+                .projectId(projectId)
                 .repoOwner(owner)
                 .repoName(repoName)
                 .prNumber(prNumber)
@@ -284,21 +298,34 @@ public class GitHubWebhookService {
 
     /**
      * 페이로드에서 GitHub App 설치 토큰을 추출한다.
-     * 실제 운영에서는 GitHub App JWT → Installation Token 교환 흐름이 필요하다.
      *
-     * 현재는 빈 문자열을 반환하며, 호출 측에서 blank 여부를 확인 후 skip 처리한다.
-     * TODO: GitHub App 인증 플로우 구현 후 대체 (TASK-502 후속)
+     * 흐름: payload.installation.id → GitHubAppAuthService.exchangeInstallationToken()
+     * → GitHub App JWT(RS256) 생성 → POST /app/installations/{id}/access_tokens → token 반환.
+     *
+     * App ID 또는 Private Key 미설정 시 빈 문자열을 반환하며 (skip & log),
+     * 호출 측에서 blank 여부를 확인 후 Check Run / 파일 조회를 skip 한다.
+     *
+     * 보안: token은 절대 로그 출력 금지 (GitHubAppAuthService 내부도 동일).
      */
     private String extractInstallationToken(Map<String, Object> payload) {
-        return "";
+        return gitHubAppAuthService.extractInstallationToken(payload);
     }
 
     /**
-     * owner/repoName으로 프로젝트 ID를 조회한다.
-     * TODO: ProjectRepository 연동으로 실제 프로젝트 ID 반환
+     * owner/repoName을 "owner/repoName" 형식으로 합성하여 projects 테이블의
+     * github_repo_full_name 컬럼으로 역조회한다.
+     *
+     * 매핑 없으면 Optional.empty() 반환 — 호출 측에서 null로 처리하고 분석을 skip한다.
+     * 웹훅 수신 자체는 유지한다 (이력 저장 목적).
+     *
+     * @param owner    GitHub 레포지토리 소유자
+     * @param repoName 레포지토리 이름
+     * @return 매핑된 프로젝트 UUID (없으면 empty)
      */
-    private UUID resolveProjectId(String owner, String repoName) {
-        return new UUID(0L, 0L);
+    private Optional<UUID> resolveProjectId(String owner, String repoName) {
+        String repoFullName = owner + "/" + repoName;
+        return projectRepository.findByGithubRepoFullName(repoFullName)
+                .map(project -> project.getId());
     }
 
     /**

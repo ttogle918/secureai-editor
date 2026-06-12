@@ -121,6 +121,13 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private Boolean githubBlockMergeOnCritical = false;
 
+    /**
+     * 선호 LLM 프로바이더 — COST-4 멀티-프로바이더 BYOK.
+     * 허용 값: anthropic | gemini | openai | null (플랫폼 기본 anthropic).
+     */
+    @Column(name = "preferred_provider", length = 20)
+    private String preferredProvider;
+
     /** Gamification 보안 점수 (0~100). 분석 완료 시 업데이트된다. */
     @Column(nullable = false)
     @Builder.Default

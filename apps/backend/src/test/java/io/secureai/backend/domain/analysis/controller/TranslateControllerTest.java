@@ -32,7 +32,7 @@ class TranslateControllerTest {
     @DisplayName("translate — 지정한 targetLang 과 사용자 API 키로 번역을 위임한다")
     void translate_usesTargetLangAndUserKey() {
         when(userService.getAnalysisSettings(userId))
-                .thenReturn(new UserService.UserAnalysisSettings("model", "sk-user"));
+                .thenReturn(new UserService.UserAnalysisSettings("model", "sk-user", null));
         when(aiAgentClient.translate("hello", "ja", "sk-user")).thenReturn("こんにちは");
 
         var response = controller.translate(userId,
@@ -46,7 +46,7 @@ class TranslateControllerTest {
     @DisplayName("translate — targetLang 이 없으면 기본값 ko 로 번역한다")
     void translate_defaultsToKorean() {
         when(userService.getAnalysisSettings(userId))
-                .thenReturn(new UserService.UserAnalysisSettings("model", null));
+                .thenReturn(new UserService.UserAnalysisSettings("model", null, null));
         when(aiAgentClient.translate("hello", "ko", null)).thenReturn("안녕");
 
         var response = controller.translate(userId,

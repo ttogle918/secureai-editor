@@ -101,21 +101,30 @@ public class UserService {
         request.validate();
         User user = loadUser(userId);
         user.setPreferredModel(request.preferredModel());
+        if (request.preferredProvider() != null) {
+            user.setPreferredProvider(request.preferredProvider());
+        }
         userRepository.save(user);
         return CreditSummaryResponse.from(user);
     }
 
-    /** 분석 시작 전 사용자의 복호화된 API 키와 선호 모델을 반환한다. */
+    /** 분析 시작 전 사용자의 복호화된 API 키, 선호 모델, 선호 프로바이더를 반환한다. */
     @Transactional(readOnly = true)
     public UserAnalysisSettings getAnalysisSettings(UUID userId) {
         User user = loadUser(userId);
         return new UserAnalysisSettings(
                 user.getPreferredModel(),
-                user.getAnthropicApiKey()   // 이미 복호화된 상태로 반환됨
+                user.getAnthropicApiKey(),   // 이미 복호화된 상태로 반환됨
+                user.getPreferredProvider()  // 선호 프로바이더 (null = anthropic 기본)
         );
     }
 
-    public record UserAnalysisSettings(String preferredModel, String apiKey) {}
+    /**
+     * 분析 디스패치에 필요한 사용자 설정.
+     * apiKey: 레거시 anthropic_api_key (복호화 완료).
+     * preferredProvider: 사용자가 설정한 프로바이더 (null = 플랫폼 기본 anthropic).
+     */
+    public record UserAnalysisSettings(String preferredModel, String apiKey, String preferredProvider) {}
 
     // ── 크로스 도메인 파사드 (analysis/organization 도메인에서 사용) ───────────
 

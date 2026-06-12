@@ -17,6 +17,7 @@ from api.routes.dast import router as dast_router
 from api.routes.sbom import router as sbom_router
 from api.routes.translate import router as translate_router
 from api.routes.secret_scan import router as secret_scan_router
+from api.routes.validate_key import router as validate_key_router
 from config.settings import settings
 from infrastructure.checkpointer import set_checkpointer
 
@@ -101,6 +102,7 @@ app.include_router(dast_router)
 app.include_router(sbom_router)
 app.include_router(translate_router)
 app.include_router(secret_scan_router)
+app.include_router(validate_key_router)
 
 
 @app.get("/health")

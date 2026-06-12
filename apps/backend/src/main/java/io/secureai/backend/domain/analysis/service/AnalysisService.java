@@ -8,6 +8,7 @@ import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.domain.user.entity.User;
+import io.secureai.backend.domain.user.service.ProviderKeyService;
 import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
@@ -31,6 +32,7 @@ public class AnalysisService {
     private final AiAgentClient aiAgentClient;
     private final GitHubApiService gitHubApiService;
     private final UserService userService;
+    private final ProviderKeyService providerKeyService;
     private final AnalysisMetrics analysisMetrics;
 
     @Transactional
@@ -78,22 +80,28 @@ public class AnalysisService {
 
     private void dispatchToAgent(AnalysisSession session, Project project, UUID userId,
                                  StartAnalysisRequest request, UserService.UserAnalysisSettings settings) {
+        // COST-4: provider 키 해결 (fallback 포함)
+        ProviderKeyService.ResolvedKey resolved =
+                providerKeyService.resolveKeyForAnalysis(userId, settings.preferredProvider());
+        String resolvedProvider = resolved.provider();
+        String resolvedApiKey   = resolved.apiKey() != null ? resolved.apiKey() : settings.apiKey();
+
         if ("github".equalsIgnoreCase(request.effectiveSourceType())) {
             GitHubApiService.GithubRepoInfo info =
                     gitHubApiService.resolveAndValidate(userId, request.githubRepoUrl(), request.githubRef());
             aiAgentClient.startAnalysis(
                     session.getId(), project.getId(), null,
                     "github", info.owner(), info.repo(), info.ref(), info.token(),
-                    settings.preferredModel(), settings.apiKey(), request.effectiveScanMode(),
-                    request.fileFilter());
+                    settings.preferredModel(), resolvedApiKey, request.effectiveScanMode(),
+                    request.fileFilter(), resolvedProvider);
         } else {
             String workspaceRoot = request.workspaceRoot() != null
                     ? request.workspaceRoot() : "/workspace/" + project.getId();
             aiAgentClient.startAnalysis(
                     session.getId(), project.getId(), workspaceRoot,
                     "local", null, null, null, null,
-                    settings.preferredModel(), settings.apiKey(), request.effectiveScanMode(),
-                    request.fileFilter());
+                    settings.preferredModel(), resolvedApiKey, request.effectiveScanMode(),
+                    request.fileFilter(), resolvedProvider);
         }
     }
 

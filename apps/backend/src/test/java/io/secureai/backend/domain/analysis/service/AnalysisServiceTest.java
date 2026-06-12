@@ -8,6 +8,7 @@ import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.service.ProjectService;
 import io.secureai.backend.domain.user.entity.User;
+import io.secureai.backend.domain.user.service.ProviderKeyService;
 import io.secureai.backend.domain.user.service.UserService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
@@ -36,6 +37,7 @@ class AnalysisServiceTest {
     @Mock AiAgentClient aiAgentClient;
     @Mock GitHubApiService gitHubApiService;
     @Mock UserService userService;
+    @Mock ProviderKeyService providerKeyService;
     @Mock io.secureai.backend.infrastructure.metrics.AnalysisMetrics analysisMetrics;
 
     @InjectMocks AnalysisService analysisService;
@@ -59,7 +61,10 @@ class AnalysisServiceTest {
         user = mock(User.class);
         lenient().when(user.getId()).thenReturn(userId);
 
-        settings = new UserService.UserAnalysisSettings(null, null);
+        // COST-4: preferredProvider=null → fallback to anthropic with null apiKey
+        settings = new UserService.UserAnalysisSettings(null, null, null);
+        lenient().when(providerKeyService.resolveKeyForAnalysis(any(), any()))
+                .thenReturn(new ProviderKeyService.ResolvedKey("anthropic", null));
     }
 
     // ── startAnalysis ────────────────────────────────────────────────────────
@@ -122,7 +127,7 @@ class AnalysisServiceTest {
         verify(sessionRepository).markInterrupted(eq(runningSession.getId()),
                 eq(SessionStatus.INTERRUPTED), eq(SessionStatus.RUNNING));
         verify(aiAgentClient).startAnalysis(any(), eq(projectId), eq("/workspace"),
-                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"), isNull());
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"), isNull(), eq("anthropic"));
     }
 
     @Test
@@ -144,7 +149,7 @@ class AnalysisServiceTest {
 
         verify(aiAgentClient).startAnalysis(any(), eq(projectId),
                 eq("/workspace/" + projectId),
-                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"), isNull());
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"), isNull(), eq("anthropic"));
         assertThat(response).isNotNull();
     }
 
@@ -172,7 +177,7 @@ class AnalysisServiceTest {
 
         verify(gitHubApiService).resolveAndValidate(userId, "https://github.com/owner/repo", null);
         verify(aiAgentClient).startAnalysis(any(), eq(projectId), isNull(),
-                eq("github"), eq("owner"), eq("repo"), eq("main"), eq("ghp_token"), isNull(), isNull(), eq("PIPELINE"), isNull());
+                eq("github"), eq("owner"), eq("repo"), eq("main"), eq("ghp_token"), isNull(), isNull(), eq("PIPELINE"), isNull(), eq("anthropic"));
     }
 
     @Test
@@ -207,7 +212,7 @@ class AnalysisServiceTest {
 
         // 에이전트 호출 시 scanMode="PIPELINE" 전달 검증
         verify(aiAgentClient).startAnalysis(any(), eq(projectId), any(),
-                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"), isNull());
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("PIPELINE"), isNull(), eq("anthropic"));
     }
 
     @Test
@@ -242,7 +247,7 @@ class AnalysisServiceTest {
 
         // 에이전트 호출 시 scanMode="AUDIT" 전달 검증
         verify(aiAgentClient).startAnalysis(any(), eq(projectId), any(),
-                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("AUDIT"), isNull());
+                eq("local"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq("AUDIT"), isNull(), eq("anthropic"));
     }
 
     // ── resumeSession ────────────────────────────────────────────────────────

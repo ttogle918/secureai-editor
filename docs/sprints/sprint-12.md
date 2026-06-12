@@ -140,6 +140,31 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 
 ---
 
+## Stage 1 완료 (2026-06-12) — 12D Phase1
+**커밋**: `75a9ca9` — `feat(sprint12-stage1): 12D Phase1 — LLM 프로바이더 추상화 + Gemini 라우팅 + 품질벤치`
+**브랜치**: `feat/sprint12` | **파이프라인**: 병렬 Dev(COST-1·COST-2) → Tester PASS → Reviewer FAIL→수정→PASS → 커밋
+
+### COST-1 — 프로바이더 추상화 + AUDIT→Gemini 라우팅
+- 구현: `agent/llm/{base,anthropic_provider,openai_compat_provider,factory,__init__}.py`(신규), `agent/claude_client.py`(얇은 위임·provider keyword-only 하위호환), `agent/nodes/sast_node.py`(provider 체인·AUDIT→Gemini·키없음 haiku 폴백), `config/settings.py`(gemini_model→gemini-2.5-flash·provider 필드), `requirements.txt`(openai==1.82.0)
+- 안전장치: openai_compat `thinking_config` 거부(400/422) 시 제거 후 재시도(`_create_with_thinking_fallback`)
+- **단위 테스트**: 신규/수정 그린(test_llm_factory + test_sast_node mock)
+- 🛡️ Reviewer: 키/페이로드 로그 미출력·DIP·상수화 PASS
+
+### COST-2 — Gemini vs Claude 품질 벤치 하니스
+- 구현: `eval/provider_compare/{runner,report,__init__}.py`+README(신규), `Makefile`(`eval-providers` 타겟). findings 집합비교(합의/미탐/오탐후보)+cost·지연 표+latest.json. 기존 `parse_sast_response` 재사용.
+- **단위 테스트**: 집합비교·정규화 그린
+
+### 검증 (실 LLM 호출 — 블로커 해소 증명 ✅)
+- **Gemini(gemini-2.5-flash) 실호출 성공**: 취약 샘플 1파일 SAST → `SQL_INJECTION [CRITICAL] line 10` 탐지, usage in761/out164, **Anthropic 크레딧 0 사용** = 402 블로커 해소 증명.
+- **docker compose build ai_engine 성공**(exit 0, openai 의존성 포함).
+- Tester: 단위 497 그린(신규 80 포함), 실패는 인프라 미기동 통합 플레이크뿐.
+
+### ⚠️ 후속 보완 (비차단 — 다음 라운드/COST-3 전)
+- **`thinking_config`가 gemini-2.5-flash OpenAI호환 엔드포인트에서 항상 400 거부됨** → 매 Gemini 호출 1왕복 낭비 + thinking 실제 미비활성(추론토큰 그대로). 올바른 파라미터(`reasoning_effort` 또는 `extra_body.google.thinking_config`) 검증 후 교체하거나 제거 필요. **COST-3 원가계측 전 처리 권장**(추론토큰이 output 비용에 포함).
+- (비차단) runner `_collect_files` target 하위 경로 검증, `_default_model_for`↔sast_node 결정관계 주석.
+
+---
+
 ## 핵심 결정사항 (요약)
 
 1. **백본 정본 확정**: `12D P1 → 1201 → 12D P2 → 12C S1·2 → S13 VAL → 12C S3`. 12C·12D 양 문서 합의 순서를 검증·채택.

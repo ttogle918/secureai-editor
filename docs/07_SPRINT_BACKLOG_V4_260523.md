@@ -432,6 +432,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 > **재구성 (V5.5, 2026-05-30)**: 기존 Sprint 12가 11개 태스크로 과적 → **보안·운영 필수**(본 Sprint)와 **Enterprise Admin UI**(Sprint 12B)로 분할. 베타 운영에 직결되는 관측성(Loki·Sentry)·이메일 인프라를 Sprint 16/18에서 본 Sprint로 앞당김.
 > **실행 우선순위**: **TASK-1204(토큰 비용 통제)·TASK-1201(인증)을 최우선**. 실사용자 유입 시 토큰 비용 폭주와 웹훅 미동작이 가장 큰 리스크.
 > **참고**: ADR-016(AI Engine → Backend API 전환)은 Sprint 9에서 완료됨 — 제외.
+> **진행 포인터 (2026-06-12)**: 통합 마스터 계획 `docs/sprints/sprint-12.md`(3트랙: 본진/12C/12D). 브랜치 `feat/sprint12`. **Stage1=12D Phase1(COST-1 프로바이더 추상화+Gemini 라우팅, COST-2 품질벤치) 완료**(`75a9ca9`) — Gemini 실호출로 **크레딧 402 블로커 해소 증명**(Anthropic 0 사용). **TASK-1204(토큰비용)는 12D COST-3으로 흡수**(provider 인지 확장, Phase2 예정). ECON-1(프롬프트 캐싱)은 구현 완료로 폐기. 다음: 본진 1201/1202a·b 또는 12D Phase2.
 
 ---
 

@@ -8,7 +8,8 @@
 
 ## 스프린트 번호·우선순위 (PM 결정)
 - **신규 `Sprint 12C` (EPIC-STAGE)** — 보안코어(12)·검증(13) 어디에도 안 맞는 **분석 파이프라인 UX/원가 트랙**. Sprint 12 본진과 병행 가능한 독립 트랙.
-- **EPIC-VAL(Sprint 13)과 순서**: 권고 = **STAGE-1·2 먼저 → Sprint 13 EPIC-VAL → STAGE-3**. 이유: ②컨펌게이트가 원가통제 즉효 + ③/②는 그래프 구조변경 최소(저위험). ①(허브 리팩터)은 VAL-3와 `api_discovery_node`/`graph_builder` 충돌 → VAL-3 머지 후가 안전.
+- **전역 순서 (12C·12D·13 통합 — 2026-06-12 단일화)**: **12D Phase1(COST-1·2, 크레딧 블로커) → 1201 → 12D Phase2(COST-3·4) → 12C STAGE-1·2 → Sprint 13 EPIC-VAL → 12C STAGE-3**. (12D 문서와 동일 — single source.)
+- **EPIC-VAL(Sprint 13)과 12C 내부 순서**: **STAGE-1·2 먼저 → Sprint 13 EPIC-VAL → STAGE-3**. 이유: ②컨펌게이트가 원가통제 즉효 + ③/②는 그래프 구조변경 최소(저위험). ①(허브 리팩터)은 VAL-3와 `api_discovery_node`/`graph_builder` 충돌 → VAL-3 머지 후가 안전.
 - **Flyway**: 본 에픽 **신규 마이그레이션 불필요**(스키마 변경 없음). (참고 최고번호 V049, 컬럼 추가 시 V054부터.)
 
 ---
@@ -45,7 +46,7 @@
 
 > 실측: LangGraph **`1.1.9`** — `interrupt_after`·`aupdate_state` API 실재(버전업 불요). 체크포인터 + `/agent/resume` 존재. planning_node idempotent(stages 있으면 no-op). **그러나 PM 가정과 다른 점 3가지 발견(아래 ⚠️).**
 
-- **변경 파일**: `graph_builder.py`(interrupt_after + 캐시키 분리), `analyze.py`(GraphInterrupt catch + confirm 경로), `agent_state.py`(`confirmed:bool`), `planning_node.py`(confirm 제외 반영 — idempotent 양립), `AnalysisController.java`·`AnalysisService.java`(confirm API + SessionStatus), AI Engine 호출 클라이언트, `useSse.ts`·`PlanConfirmModal.tsx`(신규)·`useSecureStore.ts`·`AppHeader.tsx`·`useStartAnalysis.ts`(planning_mode 경로).
+- **변경 파일**: `graph_builder.py`(interrupt_after + 캐시키 분리), `analyze.py`(GraphInterrupt catch + confirm 경로), `agent_state.py`(`confirmed:bool`), `planning_node.py`(confirm 제외 반영 — idempotent 양립), `AnalysisController.java`(confirm 엔드포인트 신규)·`AnalysisService.java`·**`RedisSubscriber.java`**(`awaiting_confirmation` 수신→`AWAITING_CONFIRMATION` status 전환 — 현재 completed/error만 처리하므로 케이스 추가 필수)(confirm API + SessionStatus), AI Engine 호출 클라이언트, `useSse.ts`·`PlanConfirmModal.tsx`(신규)·`useSecureStore.ts`·`AppHeader.tsx`·`useStartAnalysis.ts`(planning_mode 경로).
 
 ### ⚠️ Dev 필수 보완 (PM 가정 정정)
 1. **interrupt 시 `GraphInterrupt` 예외 발생** — `PregelLoop.after_tick()`가 `raise GraphInterrupt()`. 현 astream 루프가 못 잡으면 `except Exception`에 걸려 **error 이벤트 발행**됨. → **반드시** `from langgraph.errors import GraphInterrupt` + 별도 catch:

@@ -8,7 +8,8 @@
 
 ## 스프린트 번호·우선순위 (PM 결정)
 - **신규 `Sprint 12D` (EPIC-COST)** — 12(보안코어)·12C(분석UX)·13(VAL) 어디에도 안 맞는 **원가/프로바이더 트랙**. 크레딧 고갈(2026-06-07: failed 402, 취약점 0)이 현재 최우선 블로커.
-- **우선순위**: ① **12D Phase 1(멀티-프로바이더 라우팅)** 즉시 1순위 → ② Sprint 12 **TASK-1201(GitHub App)** → ③ **12D Phase 2(원가계측+BYOK UI)** → 이후 12C → 13.
+- **우선순위 (12C·12D·13 통합 — 2026-06-12 단일화)**: ① **12D Phase 1(COST-1·2)** 즉시 1순위(크레딧 블로커) → ② Sprint 12 **TASK-1201(GitHub App)** → ③ **12D Phase 2(COST-3·4)** → ④ **12C STAGE-1·2** → ⑤ **Sprint 13 EPIC-VAL** → ⑥ **12C STAGE-3**(VAL-3 머지 후 — api_discovery 충돌 회피).
+  - 12C STAGE-2는 ⑤(13)보다 **먼저 머지**(graph_builder/agent_state 충돌). 이전 표기 "이후 12C → 13"은 STAGE-3가 13 뒤라는 제약을 누락 → 본 순서로 정정.
 - **ECON-1(캐싱)**: 이미 `claude_client.py`/`chat_client.py`에 `cache_control:ephemeral` **구현됨** → 별도 태스크 폐기, 계측은 COST-3 흡수. ⚠️ **캐싱은 Anthropic 전용**(Gemini/OpenAI 미적용).
 - **1204(토큰비용)**: **COST-3으로 대체·확장**(provider 인지).
 
@@ -55,7 +56,7 @@ COST-1 착수 전 검증 — **통과 완료**. 결과:
 - **인터페이스**:
   - `base.LLMProvider.analyze(system_text, user_content, model, max_tokens=4096) -> (raw_text, usage_4keys)`.
   - `factory.get_provider(provider, api_key=None) -> LLMProvider` (anthropic/gemini/openai, 미지원 ValueError, 플랫폼키 싱글턴·BYOK 1회용).
-  - Gemini base_url=`https://generativelanguage.googleapis.com/v1beta/openai/`, model=gemini-2.0-flash.
+  - Gemini base_url=`https://generativelanguage.googleapis.com/v1beta/openai/`, model=`gemini-2.5-flash` (G0 정정 — `gemini-2.0-flash`는 404 폐기. `settings.gemini_model` 기본값도 동일).
   - `analyze_for_sast(file_path, content, guidelines="", model=None, api_key=None, *, provider="anthropic")`.
 - **핵심 로직(sast_node, 기존 model 결정 블록 뒤)**: `preferred_provider`(state, COST-4) → None이면 scan_mode(AUDIT→audit_provider, PIPELINE→pipeline_provider) → `_default_model_for(provider)`로 provider/model 짝 강제(preferred_model 우선) → `_analyze_chunks(..., provider)`.
 - **엣지**: 키 없음→폴백(위 #4) or ValueError 조기로깅. Gemini 펜스/빈응답→가드. 토큰/키 로그 금지. gemini 컨텍스트 1M라 지침 53~58K 여유.
@@ -92,7 +93,7 @@ COST-1 착수 전 검증 — **통과 완료**. 결과:
 
 ### ⚠️ Dev 필수 보완 (#6)
 - **기존 BYOK 합류 명시**: 현재 `users.anthropic_api_key`→`UserService.getAnalysisSettings()`→`UserAnalysisSettings(preferredModel,apiKey)`→`AnalysisService`→`DefaultAiAgentClient.doStartAnalysis(...userApiKey)`→`AnalyzeRequest.user_api_key`→state→`_get_client`. → COST-4는 이 경로를 **provider 인지로 확장**:
-  - `UserAnalysisSettings` record에 **`preferredProvider` 추가**(또는 신규 DTO).
+  - `UserAnalysisSettings` record(**`UserService.java` 소유** — `getAnalysisSettings()` 반환)에 **`preferredProvider` 추가**(또는 신규 DTO). **변경 파급: `UserService.java`(record 확장) + `AnalysisService.dispatchToAgent()` github/local 두 호출 경로 모두 수정 + AiAgentClient mock 테스트 연쇄.**
   - **`AiAgentClient`/`DefaultAiAgentClient.doStartAnalysis`에 `preferredProvider` 파라미터 추가**(인터페이스 변경).
   - `AnalyzeRequest.preferred_provider`·`AgentState.preferred_provider` 추가(+ `initial_state` dict 수정).
   - **fallback 레이어**: provider 키 없으면 `users.anthropic_api_key`(레거시)→플랫폼 기본 순. `ProviderKeyService`에서 처리.

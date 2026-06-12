@@ -410,6 +410,77 @@ docker logs secureai-backend 2>&1 | grep "handlePullRequest"
 
 ---
 
+## 이슈 7 — Spring 6.x: 생성자 2개 + @Autowired 없으면 context 로딩 실패
+
+### 증상
+- COST-4 ProviderKeyService 구현 후 `BackendApplicationTests.contextLoads()` FAIL
+- 스택트레이스: `NoSuchMethodException: ProviderKeyService.<init>()`
+- AnalysisService → AnalysisController 빈 생성 연쇄 실패
+- 컨텍스트 로딩 자체 블록 (Spring DI 엔진이 생성자 선택 불가)
+
+### 원인 분석
+**근본 원인**: Spring 6.x 생성자 주입 매칭 규칙
+
+```java
+// ❌ 문제 코드
+public class ProviderKeyService {
+    private final RestClient restClient;
+    
+    // 1. Spring DI용 (필드 @Value 의존성)
+    public ProviderKeyService(
+        @Value("${ai.engine.url}") String engineUrl
+    ) {
+        this.restClient = new RestClient(engineUrl);
+    }
+    
+    // 2. 테스트용 (모킹용 생성자)
+    ProviderKeyService(RestClient mock) {
+        this.restClient = mock;
+    }
+    
+    // ❌ @Autowired 명시 없음
+}
+```
+
+- Spring 5.x: 매개변수 가장 많은 생성자 우선 선택
+- Spring 6.x: **@Autowired 명시 필수** — 여러 생성자 있으면 no-arg 생성자 찾음 → 없으면 실패
+- 결과: Spring이 위 두 생성자 모두 ambiguous로 판단, no-arg 찾기 시도 → 404 → 컨텍스트 로딩 실패
+
+### 해결
+**커밋**: 177e56a
+
+```java
+// ✅ 수정 코드
+public class ProviderKeyService {
+    private final RestClient restClient;
+    
+    // primary 생성자에 @Autowired 명시
+    @Autowired
+    public ProviderKeyService(
+        @Value("${ai.engine.url}") String engineUrl
+    ) {
+        this.restClient = new RestClient(engineUrl);
+    }
+    
+    // 테스트용 생성자는 package-private (Spring 선택 대상 제외)
+    ProviderKeyService(RestClient mock) {
+        this.restClient = mock;
+    }
+}
+```
+
+**검증**:
+- `BackendApplicationTests.contextLoads()` → **PASS** ✅
+- 단위테스트 (`ProviderKeyServiceTest`) → **PASS** ✅
+- 테스트 생성자는 패키지 내에서만 `new ProviderKeyService(mockRestClient)` 호출 가능
+
+### 교훈
+- Spring 6.x는 명시성 강화 → 다중 생성자 시 @Autowired 필수 표기
+- 테스트 생성자는 package-private (public 아님)로 Spring 자동 선택 범위 밖으로 둘 것
+- 마이그레이션 전, 생성자 주입 규칙 확인 필수
+
+---
+
 ## 다음 시연/검증 체크리스트
 
 - [ ] 실 PR #78: 웹훅 도달 → Check Run 생성 → 분석 완료 (E2E flow 재확인)
@@ -420,5 +491,5 @@ docker logs secureai-backend 2>&1 | grep "handlePullRequest"
 ---
 
 **작성**: 2026-06-13  
-**대상 브랜치**: feat/sprint12  
-**연계 세션 로그**: docs/session_log/2026-06-13_session-summary.md (섹션 3 버그 수정 참고)
+**대상 브랜치**: feat/sprint12 (Phase1) + feat/sprint12-phase2 (COST-4/COST-3)  
+**연계 세션 로그**: docs/session_log/2026-06-13_session-summary.md (섹션 3·9 참고)

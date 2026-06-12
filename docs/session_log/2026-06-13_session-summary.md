@@ -118,35 +118,129 @@
 
 ---
 
+## 9. 후반부 작업 (이어서)
+
+### 9.1 Logger 에이전트 확장
+**작업**: `.claude/agents/logger.md` 및 `.claude/skills/done.md` 수정
+- logger가 `/done` 호출 시 "트러블슈팅 대상 이슈"를 입력받으면, `docs/troubleshooting/YYYY-MM-DD_<주제-slug>.md` 자동 작성
+- 조건부 로직: 이슈 1건 이상 → 트러블슈팅 문서 생성 / 이슈 없음 → 세션 로그만 작성
+- 목적: Cold agent(새로 생성) 비용 회피 → 기존 logger 확장으로 효율화
+- ⚠️ `.claude/` 경로는 gitignore 대상 → 로컬 전용, 커밋 미포함
+
+### 9.2 트러블슈팅 문서 작성 (새 흐름 검증)
+**작업**: PR #78 라이브 시연에서 발견된 6가지 이슈를 `docs/troubleshooting/2026-06-13_sprint12-github-webhook-demo.md`로 기록
+- 이슈 1~6: 웹훅 401 경로오류 / JWT exp 시계스큐 / SESSION_NOT_FOUND / 도커 환경변수/PEM / Flyway 비번+이미지캐시 / ngrok URL 동기화
+- 커밋: e2659e3
+- 형식: 증상/원인분석/해결/교훈 5단계
+
+### 9.3 데모 정리 및 후속 PR 처리
+**작업**: 
+- PR #78 close 검토 (데모용 완료, 리뷰대기 불필요)
+- `demo/webhook-sast` 브랜치 삭제 여부 확인 (로컬 테스트용이므로 삭제 권고)
+- ngrok 세션 종료 (터널 비용/안보위협 고려)
+
+### 9.4 머지 A: feat/sprint12 → main (Phase 1+1201+1211)
+**단계**:
+1. **사전점검**: `git fetch origin && git pull --rebase origin main` → 미머지 브랜치 확인 → 충돌 없음 (clean ff 가능)
+2. **전체테스트 확인**:
+   - ai_engine: 497개 테스트 PASS
+   - backend: COST-1/COST-2 신규 테스트 PASS, 기존 테스트 실패 0건 (VulnerabilityServiceTest 2·DomainVerificationRedisIT 4는 우리 범위 밖)
+3. **Reviewer 게이트**:
+   - 설계: V050(TASK-1201)+V051(TASK-1211)+COST-1 라우팅 경로 검증
+   - 보안: GitHub App PEM 파일 마운트 · JWT 만료 마진 · 웹훅 경로 prefix
+   - 아키텍처: AnalysisSession 엔티티 초기화 위치 · 웹훅→분석 흐름 + Redis 콜백
+   - 미리뷰 커밋(e2659e3) 기록 검토 PASS
+4. **`--no-ff` 머지** (선형 이력 + Feature 브랜치 기록):
+   ```bash
+   git checkout main && git merge --no-ff feat/sprint12
+   # 커밋 f753d13 생성
+   ```
+5. **푸시** + 브랜치 삭제: `git push origin main && git push origin --delete feat/sprint12`
+6. **Flyway 번호 확정**: V050(TASK-1201), V051(TASK-1211), V052+ 이월 대기
+
+### 9.5 Stage 2 = 12D Phase 2 (COST-4·COST-3, 순차)
+**배경**: COST-4(ProviderKeyService)와 COST-3(TokenUsageChart)이 `AnalysisService`·`agent_state.py`를 공유 + COST-3의 BYOK 한도제외가 COST-4 구현에 의존 → 병렬 불가, 순차 필수
+
+#### 9.5.1 COST-4: ProviderKeyService + Preferred Provider
+**작업**:
+- user_provider_keys 테이블(V052): provider_id(enum), encrypted_key(AES), created_at
+- users.preferred_provider(V053): ENUM(CLAUDE, GEMINI)
+- ProviderKeyService: create(user, provider, apiKey) → 암호화·DB 저장 / validate(provider, key) → ai_engine 호출
+- ProviderKeyController: GET /me/providers / POST /me/providers/{provider}/validate / PATCH /me/providers/{id}/prefer
+- ai_engine validate-key 엔드포인트: POST /internal/validate-key?provider={provider}&key={key}
+- AiAgentClient: 13개 파라미터 확장(기존 8 + provider, key, timeout, retry, sandbox 추가)
+- Settings UI: 프로바이더 추가/삭제 탭 + 기본 선택 라디오
+
+**테스트 실패**→수정:
+- Tester FAIL: `ProviderKeyService` 생성자 2개(Spring DI용 @Value + 테스트용 RestClient mock) 공존인데 @Autowired 없음 → Spring 6.x no-arg 생성자 찾기 실패
+  - 해결: primary 생성자에 `@Autowired` 명시 (177e56a)
+- Reviewer FAIL: `ProviderKeyController` @PathVariable에 @Pattern 검증 추가 (보안규칙 준수 — Controller 진입점 검증)
+  - 해결: `@PathVariable @Pattern("^[a-z_]+$") String provider`
+
+**커밋**: 177e56a
+
+#### 9.5.2 COST-3: Token Usage Tracking + Monthly Quota
+**작업**:
+- token_usage 테이블(V054): session_id, model, input_tokens, output_tokens, cost, created_at
+- PricingTable 엔티티: model·provider별 input/output 단가(USD)
+- TokenUsageService: session 종료 콜백(patch_node → POST /internal/token-usage 1회) / 월한도 체크(BYOK 제외)
+- AnalysisController: GET /me/token-usage (월별·모델별 차트데이터) + 403(한도초과, BYOK 제외)
+- TokenUsageChart: React 컴포넌트(월 누적비용 + 모델별 막대그래프)
+
+**테스트 결과**: Tester PASS / Reviewer PASS
+
+**커밋**: 72d873d
+
+**Flyway 확정**:
+- V052: user_provider_keys (COST-4)
+- V053: users.preferred_provider (COST-4)
+- V054: token_usage (COST-3)
+- 본진 1202a/b는 V055/V056으로 이월(최저 가용번호 규칙)
+
+### 9.6 머지 B: feat/sprint12-phase2 → main (COST-4+COST-3)
+**단계**:
+1. 사전점검: clean ff 확인
+2. `--no-ff` 머지 (커밋 dd6d004)
+3. 푸시 + 브랜치 삭제: `git push origin main && git push origin --delete feat/sprint12-phase2`
+
+---
+
 ## 5. 형상 상태(세션 종료 시)
 
 | 항목 | 상태 |
 |------|------|
-| **main** | 계획문서만(sprint-12.md) · origin 동기화 |
-| **feat/sprint12** | 17커밋 · origin/main 이후 · 구현 완료(1201+1211+COST-1+COST-2) |
+| **main** | dd6d004(feat/sprint12-phase2 머지) · origin 동기화 |
+| **feat/sprint12** | ✅ 머지 완료(f753d13) → 삭제 |
+| **feat/sprint12-phase2** | ✅ 머지 완료(dd6d004) → 삭제 |
 | **작업트리** | clean |
-| **데모 아티팩트** | PR #78 open · demo/webhook-sast 브랜치 · ngrok 임시 URL 가동 중 |
-| **컨테이너** | backend/ai_engine(feat/sprint12 빌드) + postgres/redis 실행 |
+| **데모 아티팩트** | PR #78 open · demo/webhook-sast 브랜치(삭제 권고) · ngrok 종료(보안) |
+| **컨테이너** | backend/ai_engine(main 최신 빌드) + postgres/redis 실행 |
 | **.env** | gitignore · 실 Gemini 키 + GitHub App PEM 경로 포함(로컬) |
+| **Sprint 12 진행** | Phase1(COST-1/2+1201/1211) ✅ main / Phase2(COST-4/COST-3) ✅ main / 미착수: 1212(MCP)·본진1202a/b·1203·1205·관측성 |
 
 ---
 
-## 6. 커밋 요약(17개, 일부 목록)
+## 6. 커밋 요약(누적)
 
-| 해시 | 브랜치 | 메시지 | 주요 변경 |
-|------|--------|--------|---------|
-| dff30bc | main | docs: Sprint 12 통합 마스터 계획 | docs/sprints/sprint-12.md 신설 |
-| 75a9ca9 | feat/sprint12 | feat: LLMProvider protocol + Gemini 라우팅(COST-1) | ai_engine/core/llm_provider.py |
-| ece54a4 | feat/sprint12 | refactor: reasoning_effort="none"으로 thinking_config 교체 | Gemini 호환성 |
-| a48871c | feat/sprint12 | test: Gemini provider 통합테스트(품질벤치, COST-2) | tests/integration/test_gemini_provider.py |
-| ffba377 | feat/sprint12 | feat: GitHub App JWT + 설치토큰 교환(TASK-1201) | backend/.../app_service.py |
-| b4018bc | feat/sprint12 | fix: JWT exp 540s 시계스큐 마진 | JWT validation |
-| 8d37d2e | feat/sprint12 | feat: PR 웹훅 → AI 분석 디스패치(TASK-1211) | handlePullRequest 배선 |
-| e795f99 | feat/sprint12 | fix: 웹훅 경로 `/api/v1/webhooks`로 보안 라우팅 | SecurityConfig |
-| 9cc45b5 | feat/sprint12 | refactor: GitHub App PEM 파일마운트(docker-compose) | volumes 추가 |
-| a387c3b | feat/sprint12 | fix: docker-compose env 전달 + 이미지 재빌드 | ci/docker-compose.yml |
-| 9bb9159 | feat/sprint12 | fix: AnalysisSession 미생성(V051 트랜잭션) | transaction scope |
-| a3a3d49 | feat/sprint12 | docs: TASK-1212 MCP github 도구 백로그 추가 | .claude/agents/dev.md |
+| 해시 | 메시지 | 주요 변경 |
+|------|--------|---------|
+| dff30bc | docs: Sprint 12 통합 마스터 계획 | docs/sprints/sprint-12.md 신설 |
+| 75a9ca9 | feat: LLMProvider protocol + Gemini 라우팅(COST-1) | ai_engine/core/llm_provider.py |
+| ece54a4 | refactor: reasoning_effort="none"으로 thinking_config 교체 | Gemini 호환성 |
+| a48871c | test: Gemini provider 통합테스트(품질벤치, COST-2) | tests/integration/test_gemini_provider.py |
+| ffba377 | feat: GitHub App JWT + 설치토큰 교환(TASK-1201) | backend/.../app_service.py |
+| b4018bc | fix: JWT exp 540s 시계스큐 마진 | JWT validation |
+| 8d37d2e | feat: PR 웹훅 → AI 분석 디스패치(TASK-1211) | handlePullRequest 배선 |
+| e795f99 | fix: 웹훅 경로 `/api/v1/webhooks`로 보안 라우팅 | SecurityConfig |
+| 9cc45b5 | refactor: GitHub App PEM 파일마운트(docker-compose) | volumes 추가 |
+| a387c3b | fix: docker-compose env 전달 + 이미지 재빌드 | ci/docker-compose.yml |
+| 9bb9159 | fix: AnalysisSession 미생성(V051 트랜잭션) | transaction scope |
+| a3a3d49 | docs: TASK-1212 MCP github 도구 백로그 추가 | .claude/agents/dev.md |
+| e2659e3 | docs: 2026-06-13 트러블슈팅 기록(6이슈) | docs/troubleshooting/... |
+| 177e56a | fix: ProviderKeyService 생성자 @Autowired | COST-4 테스트 PASS |
+| 72d873d | feat: Token Usage Tracking + 월한도 | COST-3 구현완료 |
+| f753d13 | Merge branch 'feat/sprint12' → main | Phase 1 + 1201 + 1211 |
+| dd6d004 | Merge branch 'feat/sprint12-phase2' → main | COST-4 + COST-3 |
 
 ---
 

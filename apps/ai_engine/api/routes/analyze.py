@@ -98,6 +98,8 @@ class AnalyzeRequest(BaseModel):
     user_api_key: str | None = None      # BYOK 복호화 키 (로그 출력 금지)
     preferred_provider: str | None = None  # COST-4 멀티-프로바이더 (anthropic|gemini|openai)
     file_filter: list[str] | None = None # 선택 분석 — None/빈 값 = 전체 (하위 호환)
+    # COST-3: 세션 종료 시 토큰 사용량 콜백에 사용 (로그 출력 금지)
+    user_id: str | None = None
 
 
 @router.post("/analyze", status_code=status.HTTP_202_ACCEPTED)
@@ -158,6 +160,7 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
             "preferred_model": req.preferred_model,
             "user_api_key": req.user_api_key,
             "preferred_provider": req.preferred_provider,  # COST-4 멀티-프로바이더
+            "user_id": req.user_id,                         # COST-3 토큰 사용량 콜백용
             "files_to_scan": [],
             "file_filter": req.file_filter,
             "api_groups": [],

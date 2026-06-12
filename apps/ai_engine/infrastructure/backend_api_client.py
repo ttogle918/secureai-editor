@@ -119,6 +119,52 @@ async def get_vuln_context(project_id: str) -> list[dict]:
         return []
 
 
+async def report_token_usage(
+    session_id: str,
+    user_id: str,
+    project_id: str,
+    provider: str,
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cache_creation: int,
+    cache_read: int,
+) -> None:
+    """세션 종료 시 누적 토큰 사용량을 Backend에 1회 보고한다 (COST-3).
+
+    파일별 POST 금지 — 세션 종료 노드(patch_node)에서만 호출한다.
+    토큰 수치는 로그에 기록하되, API 키·토큰 값은 절대 출력 금지.
+    실패 시 경고 로그만 남기고 세션 실패로 전파하지 않는다.
+    """
+    payload = {
+        "userId": user_id,
+        "projectId": project_id,
+        "provider": provider,
+        "model": model,
+        "inputTokens": input_tokens,
+        "outputTokens": output_tokens,
+        "cacheCreation": cache_creation,
+        "cacheRead": cache_read,
+    }
+    try:
+        resp = await _client.post(
+            f"/api/v1/internal/sessions/{session_id}/token-usage",
+            json=payload,
+        )
+        resp.raise_for_status()
+        logger.info(
+            "[backend-api] token_usage reported session=%s provider=%s model=%s "
+            "input=%d output=%d cache_creation=%d cache_read=%d",
+            session_id, provider, model,
+            input_tokens, output_tokens, cache_creation, cache_read,
+        )
+    except Exception as exc:
+        logger.warning(
+            "[backend-api] report_token_usage failed session=%s provider=%s: %s",
+            session_id, provider, exc,
+        )
+
+
 async def get_patch_examples(vuln_type: str, language: str) -> list[dict]:
     """이전 성공 패치 예시를 Backend에서 조회한다 (최대 3건).
 

@@ -7,6 +7,7 @@ import io.secureai.backend.domain.analysis.entity.SessionStatus;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.service.ProjectService;
+import io.secureai.backend.domain.usage.service.TokenUsageService;
 import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.service.ProviderKeyService;
 import io.secureai.backend.domain.user.service.UserService;
@@ -38,6 +39,7 @@ class AnalysisServiceTest {
     @Mock GitHubApiService gitHubApiService;
     @Mock UserService userService;
     @Mock ProviderKeyService providerKeyService;
+    @Mock TokenUsageService tokenUsageService;
     @Mock io.secureai.backend.infrastructure.metrics.AnalysisMetrics analysisMetrics;
 
     @InjectMocks AnalysisService analysisService;
@@ -306,5 +308,85 @@ class AnalysisServiceTest {
         assertThat(session.getStatus()).isEqualTo(SessionStatus.CANCELLED);
         verify(sessionRepository).save(session);
         verify(aiAgentClient).cancelAnalysis(sessionId);
+    }
+
+    // ── COST-3: 토큰 한도 가드 ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("비BYOK + 월 한도 100% 초과 — TOKEN_LIMIT_EXCEEDED 예외가 발생한다")
+    void startAnalysis_nonByok_limitExceeded_throwsTokenLimitExceeded() {
+        // given: 사용자가 BYOK 없음(apiKey=null), 한도 초과
+        when(projectService.findOrThrow(projectId)).thenReturn(project);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
+        when(sessionRepository.existsByProjectIdAndStatus(any(), any())).thenReturn(false);
+        when(userService.getAnalysisSettings(userId))
+                .thenReturn(new UserService.UserAnalysisSettings(null, null, null));
+        // BYOK 없음: resolveKeyForAnalysis.apiKey() = null
+        when(providerKeyService.resolveKeyForAnalysis(userId, null))
+                .thenReturn(new ProviderKeyService.ResolvedKey("anthropic", null));
+        when(tokenUsageService.isMonthlyLimitExceeded(userId)).thenReturn(true);
+
+        StartAnalysisRequest req = new StartAnalysisRequest(projectId, null, "local", null, null, false, null);
+
+        assertThatThrownBy(() -> analysisService.startAnalysis(userId, req))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.TOKEN_LIMIT_EXCEEDED);
+
+        verifyNoInteractions(aiAgentClient);
+    }
+
+    @Test
+    @DisplayName("BYOK 세션 + 월 한도 초과 — 403 없이 분석이 시작된다 (BYOK는 한도 제외)")
+    void startAnalysis_byok_limitExceeded_allowed() {
+        // given: 사용자가 BYOK 있음(apiKey 보유), 한도 초과 상태
+        when(projectService.findOrThrow(projectId)).thenReturn(project);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
+        when(sessionRepository.existsByProjectIdAndStatus(any(), any())).thenReturn(false);
+        when(userService.getAnalysisSettings(userId))
+                .thenReturn(new UserService.UserAnalysisSettings(null, "sk-legacy", "anthropic"));
+        // BYOK 있음: resolveKeyForAnalysis.apiKey() = "sk-byok-key" (null 아님 → BYOK)
+        when(providerKeyService.resolveKeyForAnalysis(userId, "anthropic"))
+                .thenReturn(new ProviderKeyService.ResolvedKey("anthropic", "sk-byok-key"));
+        when(userService.findOrThrow(userId)).thenReturn(user);
+        when(sessionRepository.save(any())).thenAnswer(inv -> {
+            AnalysisSession s = inv.getArgument(0);
+            ReflectionTestUtils.setField(s, "id", sessionId);
+            return s;
+        });
+
+        StartAnalysisRequest req = new StartAnalysisRequest(projectId, null, "local", null, null, false, null);
+
+        // BYOK이므로 한도 초과여도 예외 없이 실행됨
+        assertThatCode(() -> analysisService.startAnalysis(userId, req))
+                .doesNotThrowAnyException();
+
+        // BYOK이므로 isMonthlyLimitExceeded 자체를 호출하지 않음 (short-circuit)
+        verify(tokenUsageService, never()).isMonthlyLimitExceeded(any());
+    }
+
+    @Test
+    @DisplayName("비BYOK + 한도 미달 — 정상적으로 분석이 시작된다")
+    void startAnalysis_nonByok_underLimit_allowed() {
+        // given: 사용자 BYOK 없음, 한도 미달
+        when(projectService.findOrThrow(projectId)).thenReturn(project);
+        when(projectService.isMember(projectId, userId)).thenReturn(true);
+        when(sessionRepository.existsByProjectIdAndStatus(any(), any())).thenReturn(false);
+        when(userService.getAnalysisSettings(userId))
+                .thenReturn(new UserService.UserAnalysisSettings(null, null, null));
+        when(providerKeyService.resolveKeyForAnalysis(userId, null))
+                .thenReturn(new ProviderKeyService.ResolvedKey("anthropic", null));
+        when(tokenUsageService.isMonthlyLimitExceeded(userId)).thenReturn(false);
+        when(userService.findOrThrow(userId)).thenReturn(user);
+        when(sessionRepository.save(any())).thenAnswer(inv -> {
+            AnalysisSession s = inv.getArgument(0);
+            ReflectionTestUtils.setField(s, "id", sessionId);
+            return s;
+        });
+
+        StartAnalysisRequest req = new StartAnalysisRequest(projectId, null, "local", null, null, false, null);
+
+        assertThatCode(() -> analysisService.startAnalysis(userId, req))
+                .doesNotThrowAnyException();
     }
 }

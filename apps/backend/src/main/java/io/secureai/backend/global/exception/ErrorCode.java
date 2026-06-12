@@ -18,6 +18,7 @@ public enum ErrorCode {
 
     PLAN_FEATURE_NOT_ALLOWED(HttpStatus.FORBIDDEN, "현재 플랜에서 지원하지 않는 기능입니다."),
     PLAN_LIMIT_EXCEEDED(HttpStatus.FORBIDDEN, "월별 사용 한도를 초과했습니다."),
+    TOKEN_LIMIT_EXCEEDED(HttpStatus.FORBIDDEN, "이번 달 토큰 사용 한도를 초과했습니다. BYOK를 사용하면 한도 없이 분석할 수 있습니다."),
 
     RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "API 호출 횟수를 초과했습니다."),
 

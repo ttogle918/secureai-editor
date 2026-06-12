@@ -51,7 +51,8 @@ public class DefaultAiAgentClient implements AiAgentClient {
     @Override
     @CircuitBreaker(name = CB_NAME, fallbackMethod = "startAnalysisLocalFallback")
     public void startAnalysis(UUID sessionId, UUID projectId, String workspaceRoot) {
-        doStartAnalysis(sessionId, projectId, workspaceRoot, "local", null, null, null, null, null, null, "PIPELINE", null, null);
+        doStartAnalysis(sessionId, projectId, workspaceRoot, "local", null, null, null, null,
+                null, null, "PIPELINE", null, null, null);
     }
 
     @SuppressWarnings("unused")
@@ -70,14 +71,29 @@ public class DefaultAiAgentClient implements AiAgentClient {
     ) {
         doStartAnalysis(sessionId, projectId, workspaceRoot, sourceType,
                 githubOwner, githubRepo, githubRef, githubToken, preferredModel, userApiKey,
-                scanMode, fileFilter, preferredProvider);
+                scanMode, fileFilter, preferredProvider, null);
+    }
+
+    /**
+     * COST-3: userId 포함 오버로드 — AnalysisService가 직접 호출한다.
+     * 인터페이스 시그니처 변경 없이 userId를 body에 추가 전달한다.
+     */
+    void startAnalysisWithUser(
+            UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
+            String githubOwner, String githubRepo, String githubRef, String githubToken,
+            String preferredModel, String userApiKey, String scanMode, List<String> fileFilter,
+            String preferredProvider, UUID userId
+    ) {
+        doStartAnalysis(sessionId, projectId, workspaceRoot, sourceType,
+                githubOwner, githubRepo, githubRef, githubToken, preferredModel, userApiKey,
+                scanMode, fileFilter, preferredProvider, userId);
     }
 
     private void doStartAnalysis(
             UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
             String githubOwner, String githubRepo, String githubRef, String githubToken,
             String preferredModel, String userApiKey, String scanMode, List<String> fileFilter,
-            String preferredProvider
+            String preferredProvider, UUID userId
     ) {
         Map<String, Object> body = new HashMap<>();
         body.put("session_id", sessionId.toString());
@@ -93,6 +109,8 @@ public class DefaultAiAgentClient implements AiAgentClient {
         if (userApiKey != null) body.put("user_api_key", userApiKey);
         if (preferredProvider != null) body.put("preferred_provider", preferredProvider);
         if (fileFilter != null && !fileFilter.isEmpty()) body.put("file_filter", fileFilter);
+        // COST-3: 토큰 사용량 콜백을 위해 userId 전달 (인터페이스 시그니처 불변)
+        if (userId != null) body.put("user_id", userId.toString());
 
         restClient.post()
                 .uri("/agent/analyze")

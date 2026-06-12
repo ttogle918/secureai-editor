@@ -7,6 +7,7 @@ import io.secureai.backend.domain.analysis.entity.SessionStatus;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.service.ProjectService;
+import io.secureai.backend.domain.usage.service.TokenUsageService;
 import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.service.ProviderKeyService;
 import io.secureai.backend.domain.user.service.UserService;
@@ -33,6 +34,7 @@ public class AnalysisService {
     private final GitHubApiService gitHubApiService;
     private final UserService userService;
     private final ProviderKeyService providerKeyService;
+    private final TokenUsageService tokenUsageService;
     private final AnalysisMetrics analysisMetrics;
 
     @Transactional
@@ -43,6 +45,16 @@ public class AnalysisService {
         }
 
         handleRunningSession(request.projectId(), request.isForce());
+
+        // COST-3: 월 토큰 한도 가드 — BYOK 세션은 제외
+        // BYOK 판정: user_provider_keys 또는 legacy anthropic_api_key 보유 시 플랫폼 과금 없음
+        UserService.UserAnalysisSettings settings = userService.getAnalysisSettings(userId);
+        boolean isByok = providerKeyService.resolveKeyForAnalysis(
+                userId, settings.preferredProvider()).apiKey() != null;
+        if (!isByok && tokenUsageService.isMonthlyLimitExceeded(userId)) {
+            log.warn("[analysis] monthly token limit exceeded userId={}", userId);
+            throw new BusinessException(ErrorCode.TOKEN_LIMIT_EXCEEDED);
+        }
 
         User user = userService.findOrThrow(userId);
         AnalysisSession session = AnalysisSession.builder()
@@ -56,7 +68,6 @@ public class AnalysisService {
 
         analysisMetrics.incrementSessions();
 
-        UserService.UserAnalysisSettings settings = userService.getAnalysisSettings(userId);
         try {
             dispatchToAgent(session, project, userId, request, settings);
         } catch (Exception e) {
@@ -86,22 +97,46 @@ public class AnalysisService {
         String resolvedProvider = resolved.provider();
         String resolvedApiKey   = resolved.apiKey() != null ? resolved.apiKey() : settings.apiKey();
 
-        if ("github".equalsIgnoreCase(request.effectiveSourceType())) {
-            GitHubApiService.GithubRepoInfo info =
-                    gitHubApiService.resolveAndValidate(userId, request.githubRepoUrl(), request.githubRef());
-            aiAgentClient.startAnalysis(
-                    session.getId(), project.getId(), null,
-                    "github", info.owner(), info.repo(), info.ref(), info.token(),
-                    settings.preferredModel(), resolvedApiKey, request.effectiveScanMode(),
-                    request.fileFilter(), resolvedProvider);
+        // COST-3: userId를 body에 포함하여 세션 종료 시 토큰 사용량 콜백에 활용
+        // DefaultAiAgentClient.startAnalysisWithUser 를 직접 캐스팅하여 호출한다.
+        // AiAgentClient 인터페이스 시그니처는 변경하지 않는다.
+        if (aiAgentClient instanceof DefaultAiAgentClient defaultClient) {
+            if ("github".equalsIgnoreCase(request.effectiveSourceType())) {
+                GitHubApiService.GithubRepoInfo info =
+                        gitHubApiService.resolveAndValidate(userId, request.githubRepoUrl(), request.githubRef());
+                defaultClient.startAnalysisWithUser(
+                        session.getId(), project.getId(), null,
+                        "github", info.owner(), info.repo(), info.ref(), info.token(),
+                        settings.preferredModel(), resolvedApiKey, request.effectiveScanMode(),
+                        request.fileFilter(), resolvedProvider, userId);
+            } else {
+                String workspaceRoot = request.workspaceRoot() != null
+                        ? request.workspaceRoot() : "/workspace/" + project.getId();
+                defaultClient.startAnalysisWithUser(
+                        session.getId(), project.getId(), workspaceRoot,
+                        "local", null, null, null, null,
+                        settings.preferredModel(), resolvedApiKey, request.effectiveScanMode(),
+                        request.fileFilter(), resolvedProvider, userId);
+            }
         } else {
-            String workspaceRoot = request.workspaceRoot() != null
-                    ? request.workspaceRoot() : "/workspace/" + project.getId();
-            aiAgentClient.startAnalysis(
-                    session.getId(), project.getId(), workspaceRoot,
-                    "local", null, null, null, null,
-                    settings.preferredModel(), resolvedApiKey, request.effectiveScanMode(),
-                    request.fileFilter(), resolvedProvider);
+            // 테스트 mock 등 비DefaultAiAgentClient 구현: userId 없이 기존 인터페이스 사용
+            if ("github".equalsIgnoreCase(request.effectiveSourceType())) {
+                GitHubApiService.GithubRepoInfo info =
+                        gitHubApiService.resolveAndValidate(userId, request.githubRepoUrl(), request.githubRef());
+                aiAgentClient.startAnalysis(
+                        session.getId(), project.getId(), null,
+                        "github", info.owner(), info.repo(), info.ref(), info.token(),
+                        settings.preferredModel(), resolvedApiKey, request.effectiveScanMode(),
+                        request.fileFilter(), resolvedProvider);
+            } else {
+                String workspaceRoot = request.workspaceRoot() != null
+                        ? request.workspaceRoot() : "/workspace/" + project.getId();
+                aiAgentClient.startAnalysis(
+                        session.getId(), project.getId(), workspaceRoot,
+                        "local", null, null, null, null,
+                        settings.preferredModel(), resolvedApiKey, request.effectiveScanMode(),
+                        request.fileFilter(), resolvedProvider);
+            }
         }
     }
 

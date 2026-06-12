@@ -108,7 +108,9 @@ async def test_sast_node_audit_mode_uses_haiku_model():
     }
     captured_model: list[str | None] = []
 
-    async def fake_analyze_chunks(file_path, content, guidelines="", model=None, api_key=None):
+    async def fake_analyze_chunks(
+        file_path, content, guidelines="", model=None, api_key=None, provider="anthropic"
+    ):
         # preferred_model 로 전달된 모델명을 캡처한다
         captured_model.append(model)
         return ([], fake_usage)
@@ -116,6 +118,11 @@ async def test_sast_node_audit_mode_uses_haiku_model():
     mock_settings = MagicMock()
     mock_settings.audit_model = "claude-haiku-4-5-20251001"
     mock_settings.pipeline_model = "claude-sonnet-4-6"
+    mock_settings.audit_provider = "anthropic"
+    mock_settings.pipeline_provider = "anthropic"
+    mock_settings.gemini_api_key = ""
+    mock_settings.gemini_model = "gemini-2.5-flash"
+    mock_settings.openai_model = "gpt-4o-mini"
 
     with (
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
@@ -153,13 +160,20 @@ async def test_sast_node_pipeline_mode_uses_sonnet_model():
     }
     captured_model: list[str | None] = []
 
-    async def fake_analyze_chunks(file_path, content, guidelines="", model=None, api_key=None):
+    async def fake_analyze_chunks(
+        file_path, content, guidelines="", model=None, api_key=None, provider="anthropic"
+    ):
         captured_model.append(model)
         return ([], fake_usage)
 
     mock_settings = MagicMock()
     mock_settings.audit_model = "claude-haiku-4-5-20251001"
     mock_settings.pipeline_model = "claude-sonnet-4-6"
+    mock_settings.audit_provider = "anthropic"
+    mock_settings.pipeline_provider = "anthropic"
+    mock_settings.gemini_api_key = ""
+    mock_settings.gemini_model = "gemini-2.5-flash"
+    mock_settings.openai_model = "gpt-4o-mini"
 
     with (
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
@@ -197,13 +211,20 @@ async def test_sast_node_preferred_model_overrides_scan_mode():
     }
     captured_model: list[str | None] = []
 
-    async def fake_analyze_chunks(file_path, content, guidelines="", model=None, api_key=None):
+    async def fake_analyze_chunks(
+        file_path, content, guidelines="", model=None, api_key=None, provider="anthropic"
+    ):
         captured_model.append(model)
         return ([], fake_usage)
 
     mock_settings = MagicMock()
     mock_settings.audit_model = "claude-haiku-4-5-20251001"
     mock_settings.pipeline_model = "claude-sonnet-4-6"
+    mock_settings.audit_provider = "anthropic"
+    mock_settings.pipeline_provider = "anthropic"
+    mock_settings.gemini_api_key = ""
+    mock_settings.gemini_model = "gemini-2.5-flash"
+    mock_settings.openai_model = "gpt-4o-mini"
 
     with (
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),

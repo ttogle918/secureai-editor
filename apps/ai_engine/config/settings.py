@@ -25,7 +25,20 @@ class Settings(BaseSettings):
 
     # Gemini
     gemini_api_key: str = Field("", alias="GEMINI_API_KEY")
-    gemini_model: str = Field("gemini-2.0-flash", alias="GEMINI_MODEL")
+    gemini_model: str = Field("gemini-2.5-flash", alias="GEMINI_MODEL")
+    # G0 정정: gemini-2.0-flash 폐기(404) → gemini-2.5-flash
+    gemini_base_url: str = Field(
+        "https://generativelanguage.googleapis.com/v1beta/openai/",
+        alias="GEMINI_BASE_URL",
+    )
+
+    # Provider 라우팅 (COST-1)
+    # default_provider: fallback 기본 프로바이더
+    # audit_provider:   AUDIT 모드(빠른 스캔) 에 사용할 프로바이더
+    # pipeline_provider: PIPELINE 모드(정밀 분석) 에 사용할 프로바이더
+    default_provider: str = Field("anthropic", alias="DEFAULT_PROVIDER")
+    audit_provider: str = Field("gemini", alias="AUDIT_PROVIDER")
+    pipeline_provider: str = Field("anthropic", alias="PIPELINE_PROVIDER")
 
     # LangSmith tracing
     langsmith_api_key: str = Field("", alias="LANGCHAIN_API_KEY")

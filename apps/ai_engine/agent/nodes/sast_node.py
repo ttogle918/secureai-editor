@@ -10,6 +10,7 @@ from prometheus_client import Counter
 
 from agent.agent_state import AgentState
 from agent.claude_client import analyze_for_sast
+from agent.llm.factory import PROVIDER_ANTHROPIC, PROVIDER_GEMINI, PROVIDER_OPENAI
 from agent.nodes.code_chunker import chunk_file
 from agent.nodes.vuln_classifier import classify_and_enrich
 from infrastructure.backend_api_client import get_vuln_context, save_vulnerabilities
@@ -146,8 +147,9 @@ async def _analyze_chunks(
     guidelines: str = "",
     model: str | None = None,
     api_key: str | None = None,
+    provider: str = PROVIDER_ANTHROPIC,
 ) -> tuple[list[dict], dict]:
-    """파일을 청크로 분할하고 Claude를 병렬 호출해 (취약점 목록, token_usage)를 반환한다.
+    """파일을 청크로 분할하고 LLM 프로바이더를 병렬 호출해 (취약점 목록, token_usage)를 반환한다.
 
     300 라인 이하면 청크 없이 단일 호출, 초과면 asyncio.gather로 병렬 처리한다.
     개별 청크 분석 오류는 경고 로그만 남기고 해당 청크 결과를 빈 목록으로 처리한다.
@@ -155,7 +157,9 @@ async def _analyze_chunks(
     chunks = chunk_file(file_path, content)
 
     if len(chunks) == 1:
-        raw, usage = await analyze_for_sast(file_path, chunks[0].content, guidelines, model, api_key)
+        raw, usage = await analyze_for_sast(
+            file_path, chunks[0].content, guidelines, model, api_key, provider=provider
+        )
         return parse_sast_response(raw, file_path), usage
 
     tasks = [
@@ -165,6 +169,7 @@ async def _analyze_chunks(
             guidelines,
             model,
             api_key,
+            provider=provider,
         )
         for c in chunks
     ]
@@ -264,17 +269,50 @@ async def sast_node(state: AgentState) -> dict:
                 + prev_vuln_context
             )
 
-        # Audit: 빠른 비용 효율. Pipeline: 고품질 정밀 분석
-        # preferred_model(BYOK)이 명시적으로 지정된 경우 그것을 최우선으로 사용한다.
-        preferred_model = state.get("preferred_model")
-        if preferred_model is None:
+        # ── Provider/Model 결정 블록 ──────────────────────────────────────────
+        # 우선순위:
+        # 1. preferred_provider (COST-4 에서 state에 주입 — 현재 없으면 None)
+        # 2. scan_mode 기반 라우팅 (AUDIT→audit_provider, PIPELINE→pipeline_provider)
+        # 3. AUDIT→gemini 인데 키 없음 → anthropic audit_model 폴백 (세션 중단 금지)
+        preferred_provider: str | None = state.get("preferred_provider")  # COST-4 준비
+        if preferred_provider is None:
             scan_mode = state.get("scan_mode", "PIPELINE")
             if scan_mode == "AUDIT":
+                preferred_provider = settings.audit_provider
+            else:
+                preferred_provider = settings.pipeline_provider
+
+        # AUDIT fallback: gemini 라우팅인데 키 없으면 anthropic haiku로 폴백
+        resolved_provider = preferred_provider
+        if resolved_provider == PROVIDER_GEMINI and not settings.gemini_api_key:
+            logger.warning(
+                "[sast] session=%s AUDIT→gemini requested but GEMINI_API_KEY not set; "
+                "falling back to anthropic audit_model=%s",
+                session_id, settings.audit_model,
+            )
+            resolved_provider = PROVIDER_ANTHROPIC
+
+        # preferred_model(BYOK)이 명시적으로 지정된 경우 그것을 최우선으로 사용한다.
+        # 없으면 provider/scan_mode에 맞는 기본 모델을 settings에서 직접 조회한다.
+        preferred_model = state.get("preferred_model")
+        if preferred_model is None:
+            effective_scan_mode = state.get("scan_mode", "PIPELINE")
+            if resolved_provider == PROVIDER_ANTHROPIC and effective_scan_mode == "AUDIT":
+                # anthropic fallback 또는 원래 anthropic audit 라우팅
                 preferred_model = settings.audit_model
+            elif resolved_provider == PROVIDER_ANTHROPIC:
+                preferred_model = settings.pipeline_model
+            elif resolved_provider == PROVIDER_GEMINI:
+                preferred_model = settings.gemini_model
+            elif resolved_provider == PROVIDER_OPENAI:
+                preferred_model = settings.openai_model
             else:
                 preferred_model = settings.pipeline_model
+
         user_api_key = state.get("user_api_key")
-        raw_vulns, file_usage = await _analyze_chunks(file_path, content, guidelines, preferred_model, user_api_key)
+        raw_vulns, file_usage = await _analyze_chunks(
+            file_path, content, guidelines, preferred_model, user_api_key, resolved_provider
+        )
         vulns = classify_and_enrich(raw_vulns, file_path)
 
         token_count = file_usage.get("input_tokens", 0) + file_usage.get("output_tokens", 0)

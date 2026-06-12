@@ -367,7 +367,8 @@ class GitHubWebhookServiceTest {
                 isNull(),              // preferredModel=null
                 isNull(),              // userApiKey=null
                 eq("AUDIT"),           // scanMode
-                eq(List.of("src/Foo.java", "src/Bar.java")) // fileFilter
+                eq(List.of("src/Foo.java", "src/Bar.java")), // fileFilter
+                isNull()               // preferredProvider=null (COST-4)
         );
     }
 
@@ -383,7 +384,7 @@ class GitHubWebhookServiceTest {
         webhookService.handlePullRequest(buildPrPayload("opened"));
 
         verify(aiAgentClient, never()).startAnalysis(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -430,7 +431,7 @@ class GitHubWebhookServiceTest {
 
         // token 없으면 changedFiles 조회 자체가 skip되고 token이 blank이므로 startAnalysis 호출 안 됨
         verify(aiAgentClient, never()).startAnalysis(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

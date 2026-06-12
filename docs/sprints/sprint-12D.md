@@ -113,7 +113,8 @@ COST-1 착수 전 검증 — **통과 완료**. 결과:
 ## Flyway (Dev #5 — 재조정 필요)
 - 머지 최고 **V049**. 백로그 예약(미머지): V050/051=Sprint12(1202a/b), **V052=token_usage(Sprint13 1204)**, V053/054/055=알림·온보딩·채널.
 - **COST-3 token_usage = 1204와 동일 테이블** → 슬롯 단일화. **번호는 머지 순서로 확정**(12/13 미머지면 12D가 선점, 추적표에 명기). COST-4 user_provider_keys도 동일.
-- Flyway는 갭 허용·순서 엄격 → **실제 머지 시점에 가용 최저번호 부여**(잠정 COST-3=V054, COST-4=V055, 충돌 시 재배정).
+- Flyway는 갭 허용·순서 엄격 → **실제 머지 시점에 가용 최저번호 부여**.
+- **✅ 최종 확정(2026-06-13, feat/sprint12-phase2)**: V050=1201, V051=1211, **V052=COST-4 user_provider_keys, V053=COST-4 users.preferred_provider, V054=COST-3 token_usage**. → 백로그 본진 1202a→V055, 1202b→V056 이월. COST-1/2/COST-3 모두 **구현완료**(Stage1 12D Phase1 COST-1/2, Stage2 12D Phase2 COST-3/4).
 
 ---
 

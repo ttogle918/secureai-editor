@@ -21,7 +21,8 @@ public interface AiAgentClient {
             String preferredModel,
             String userApiKey,
             String scanMode,
-            List<String> fileFilter
+            List<String> fileFilter,
+            String preferredProvider
     );
 
     void resumeAnalysis(UUID sessionId);

@@ -180,6 +180,26 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 
 ---
 
+## Stage 2 완료 (2026-06-13) — 12D Phase2 (브랜치 `feat/sprint12-phase2`)
+**커밋**: `177e56a`(COST-4) · `72d873d`(COST-3) | COST-4 → COST-3 순차(공유파일 AnalysisService/agent_state 충돌 회피), 각 Dev→Tester→Reviewer(각 FAIL 1건 수정)→커밋.
+
+### COST-4 — 멀티-프로바이더 BYOK
+- `user_provider_keys`(V052, AES 암호화) + `users.preferred_provider`(V053). ProviderKeyService/Controller(저장·hasKey만·삭제·validate; provider 화이트리스트 @Pattern Controller검증, 타사용자 403, 키 평문 미반환/미로그).
+- ai_engine `POST /agent/validate-key`(boolean) + `agent_state.preferred_provider`. 기존 BYOK 경로 provider 인지 확장(`AiAgentClient.startAnalysis` 13-param, fallback 레이어). frontend Settings UI.
+- Reviewer FAIL→수정: DELETE/validate PathVariable `@Pattern` Controller 검증 보강 + ProviderKeyService 생성자 @Autowired.
+
+### COST-3 — 토큰 원가계측(provider 인지) + 한도 (=1204 확장)
+- `token_usage`(V054) + domain/usage(TokenUsage/Repo/Service/**PricingTable**/Internal·UserController). 세션종료 1회 집계 콜백(ai_engine `patch_node._report_session_token_usage` → `POST /internal/v1/sessions/{id}/token-usage` X-Internal-Key) → cost 적재. DefaultAiAgentClient userId 오버로드 → body `user_id` 귀속.
+- 한도 가드: 비BYOK 월100%→403(`TOKEN_LIMIT_EXCEEDED`), **BYOK 세션 제외**. `GET /api/v1/users/me/token-usage`(userId=principal). frontend TokenUsageChart.
+
+### 검증·Flyway
+- Tester: backend 신규실패 0(기존부채 6만), ai_engine 512 그린, frontend 68 그린.
+- **Flyway 최종**: V050=1201, V051=1211, **V052·V053=COST-4, V054=COST-3** → 백로그 1202a→V055, 1202b→V056 이월.
+- 🔬 실 콜백→적재→대시보드, ✅ Settings UI/차트는 수동검증.
+- 후속(비차단): resolveKeyForAnalysis 이중호출 캐싱, PricingTable @ConfigurationProperties 외부화, ConstraintViolation 400 핸들러, TokenUsageChart 단위테스트.
+
+---
+
 ## 핵심 결정사항 (요약)
 
 1. **백본 정본 확정**: `12D P1 → 1201 → 12D P2 → 12C S1·2 → S13 VAL → 12C S3`. 12C·12D 양 문서 합의 순서를 검증·채택.

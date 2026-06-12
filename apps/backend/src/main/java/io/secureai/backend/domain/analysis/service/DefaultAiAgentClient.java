@@ -51,12 +51,13 @@ public class DefaultAiAgentClient implements AiAgentClient {
     @Override
     @CircuitBreaker(name = CB_NAME, fallbackMethod = "startAnalysisLocalFallback")
     public void startAnalysis(UUID sessionId, UUID projectId, String workspaceRoot) {
-        doStartAnalysis(sessionId, projectId, workspaceRoot, "local", null, null, null, null, null, null, "PIPELINE", null);
+        doStartAnalysis(sessionId, projectId, workspaceRoot, "local", null, null, null, null,
+                null, null, "PIPELINE", null, null, null);
     }
 
     @SuppressWarnings("unused")
     private void startAnalysisLocalFallback(UUID sessionId, UUID projectId, String workspaceRoot, Throwable t) {
-        log.warn("[circuit] startAnalysis fallback triggered sessionId={} cause={}", sessionId, t.getMessage());
+        log.warn("[circuit] startAnalysisLocal fallback triggered sessionId={} cause={}", sessionId, t.getMessage());
         throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);
     }
 
@@ -65,16 +66,34 @@ public class DefaultAiAgentClient implements AiAgentClient {
     public void startAnalysis(
             UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
             String githubOwner, String githubRepo, String githubRef, String githubToken,
-            String preferredModel, String userApiKey, String scanMode, List<String> fileFilter
+            String preferredModel, String userApiKey, String scanMode, List<String> fileFilter,
+            String preferredProvider
     ) {
         doStartAnalysis(sessionId, projectId, workspaceRoot, sourceType,
-                githubOwner, githubRepo, githubRef, githubToken, preferredModel, userApiKey, scanMode, fileFilter);
+                githubOwner, githubRepo, githubRef, githubToken, preferredModel, userApiKey,
+                scanMode, fileFilter, preferredProvider, null);
+    }
+
+    /**
+     * COST-3: userId 포함 오버로드 — AnalysisService가 직접 호출한다.
+     * 인터페이스 시그니처 변경 없이 userId를 body에 추가 전달한다.
+     */
+    void startAnalysisWithUser(
+            UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
+            String githubOwner, String githubRepo, String githubRef, String githubToken,
+            String preferredModel, String userApiKey, String scanMode, List<String> fileFilter,
+            String preferredProvider, UUID userId
+    ) {
+        doStartAnalysis(sessionId, projectId, workspaceRoot, sourceType,
+                githubOwner, githubRepo, githubRef, githubToken, preferredModel, userApiKey,
+                scanMode, fileFilter, preferredProvider, userId);
     }
 
     private void doStartAnalysis(
             UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
             String githubOwner, String githubRepo, String githubRef, String githubToken,
-            String preferredModel, String userApiKey, String scanMode, List<String> fileFilter
+            String preferredModel, String userApiKey, String scanMode, List<String> fileFilter,
+            String preferredProvider, UUID userId
     ) {
         Map<String, Object> body = new HashMap<>();
         body.put("session_id", sessionId.toString());
@@ -88,7 +107,10 @@ public class DefaultAiAgentClient implements AiAgentClient {
         if (githubToken != null) body.put("github_token", githubToken);
         if (preferredModel != null) body.put("preferred_model", preferredModel);
         if (userApiKey != null) body.put("user_api_key", userApiKey);
+        if (preferredProvider != null) body.put("preferred_provider", preferredProvider);
         if (fileFilter != null && !fileFilter.isEmpty()) body.put("file_filter", fileFilter);
+        // COST-3: 토큰 사용량 콜백을 위해 userId 전달 (인터페이스 시그니처 불변)
+        if (userId != null) body.put("user_id", userId.toString());
 
         restClient.post()
                 .uri("/agent/analyze")
@@ -97,15 +119,16 @@ public class DefaultAiAgentClient implements AiAgentClient {
                 .retrieve()
                 .toBodilessEntity();
 
-        log.info("[agent-client] startAnalysis sessionId={} sourceType={} scanMode={}",
-                sessionId, sourceType, scanMode);
+        log.info("[agent-client] startAnalysis sessionId={} sourceType={} scanMode={} preferredProvider={}",
+                sessionId, sourceType, scanMode, preferredProvider);
     }
 
     @SuppressWarnings("unused")
     private void startAnalysisFallback(
             UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
             String githubOwner, String githubRepo, String githubRef, String githubToken,
-            String preferredModel, String userApiKey, String scanMode, List<String> fileFilter, Throwable t
+            String preferredModel, String userApiKey, String scanMode, List<String> fileFilter,
+            String preferredProvider, Throwable t
     ) {
         log.warn("[circuit] startAnalysis fallback triggered sessionId={} cause={}", sessionId, t.getMessage());
         throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);

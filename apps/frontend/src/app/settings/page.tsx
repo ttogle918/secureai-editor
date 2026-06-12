@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe, Github, Copy, ToggleLeft, ToggleRight, MessageSquare, Zap } from 'lucide-react';
+import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe, Github, Copy, ToggleLeft, ToggleRight, MessageSquare, Zap, Shield } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient, BASE_URL } from '@/lib/api/client';
 import { useSecureStore, type DisplayLanguage, type AiTone } from '@/store/useSecureStore';
@@ -30,6 +30,48 @@ interface PrReviewHistoryItem {
   createdAt: string;
   completedAt: string | null;
 }
+
+type SupportedProvider = 'anthropic' | 'gemini' | 'openai';
+
+interface ProviderKeyInfo {
+  provider: SupportedProvider;
+  hasKey: boolean;
+  defaultModel: string | null;
+}
+
+const PROVIDERS: Array<{
+  id: SupportedProvider;
+  label: string;
+  desc: string;
+  placeholder: string;
+  fallbackNote: string;
+  color: string;
+}> = [
+  {
+    id: 'anthropic',
+    label: 'Anthropic (Claude)',
+    desc: 'PIPELINE 모드 기본 프로바이더. 정밀 보안 분석에 최적.',
+    placeholder: 'sk-ant-api03-...',
+    fallbackNote: '미설정 시 플랫폼 기본 Anthropic 키 사용.',
+    color: '#818cf8',
+  },
+  {
+    id: 'gemini',
+    label: 'Google Gemini',
+    desc: 'AUDIT 모드 기본 프로바이더. 저비용·고속 스캔에 최적.',
+    placeholder: 'AIza...',
+    fallbackNote: '미설정 시 플랫폼 기본 Gemini 키 사용 (없으면 Haiku 폴백).',
+    color: '#34d399',
+  },
+  {
+    id: 'openai',
+    label: 'OpenAI (GPT)',
+    desc: '선택적 프로바이더. GPT-4o 등 사용 가능.',
+    placeholder: 'sk-proj-...',
+    fallbackNote: '미설정 시 Anthropic 폴백.',
+    color: '#60a5fa',
+  },
+];
 
 const MODELS = [
   { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku', tier: 'haiku', desc: '빠르고 저렴 — 대부분의 프로젝트에 추천', creditCost: 1, color: '#22c55e' },
@@ -59,6 +101,19 @@ export default function SettingsPage() {
   const [showKey, setShowKey] = useState(false);
   const [keyStatus, setKeyStatus] = useState<'idle' | 'saving' | 'saved' | 'removing' | 'error'>('idle');
   const [keyError, setKeyError] = useState('');
+
+  // 멀티-프로바이더 BYOK 상태
+  const [providerKeys, setProviderKeys] = useState<ProviderKeyInfo[]>([]);
+  const [providerInputs, setProviderInputs] = useState<Record<SupportedProvider, string>>({
+    anthropic: '', gemini: '', openai: '',
+  });
+  const [providerShowKey, setProviderShowKey] = useState<Record<SupportedProvider, boolean>>({
+    anthropic: false, gemini: false, openai: false,
+  });
+  const [providerStatus, setProviderStatus] = useState<Record<SupportedProvider, 'idle' | 'saving' | 'saved' | 'validating' | 'valid' | 'invalid' | 'removing'>>({
+    anthropic: 'idle', gemini: 'idle', openai: 'idle',
+  });
+  const [selectedProvider, setSelectedProvider] = useState<SupportedProvider>('anthropic');
 
   const [selectedModel, setSelectedModel] = useState('claude-haiku-4-5-20251001');
   const [modelStatus, setModelStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -94,9 +149,63 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const fetchProviderKeys = useCallback(async () => {
+    try {
+      const res = await apiClient.get<{ data: ProviderKeyInfo[] }>('/users/me/provider-keys');
+      setProviderKeys(res.data ?? []);
+    } catch {
+      // 로드 실패 시 무시 (빈 목록으로 유지)
+    }
+  }, []);
+
   useEffect(() => {
     fetchCredits();
-  }, [fetchCredits]);
+    fetchProviderKeys();
+  }, [fetchCredits, fetchProviderKeys]);
+
+  // 멀티-프로바이더 핸들러
+  const handleSaveProviderKey = async (provider: SupportedProvider) => {
+    const key = providerInputs[provider].trim();
+    if (!key) return;
+    setProviderStatus(prev => ({ ...prev, [provider]: 'saving' }));
+    try {
+      await apiClient.post('/users/me/provider-keys', { provider, apiKey: key, defaultModel: null });
+      setProviderStatus(prev => ({ ...prev, [provider]: 'saved' }));
+      setProviderInputs(prev => ({ ...prev, [provider]: '' }));
+      fetchProviderKeys();
+      setTimeout(() => setProviderStatus(prev => ({ ...prev, [provider]: 'idle' })), 2000);
+    } catch {
+      setProviderStatus(prev => ({ ...prev, [provider]: 'idle' }));
+    }
+  };
+
+  const handleRemoveProviderKey = async (provider: SupportedProvider) => {
+    setProviderStatus(prev => ({ ...prev, [provider]: 'removing' }));
+    try {
+      await apiClient.delete(`/users/me/provider-keys/${provider}`);
+      fetchProviderKeys();
+      setProviderStatus(prev => ({ ...prev, [provider]: 'idle' }));
+    } catch {
+      setProviderStatus(prev => ({ ...prev, [provider]: 'idle' }));
+    }
+  };
+
+  const handleValidateProviderKey = async (provider: SupportedProvider) => {
+    const key = providerInputs[provider].trim();
+    if (!key) return;
+    setProviderStatus(prev => ({ ...prev, [provider]: 'validating' }));
+    try {
+      const res = await apiClient.post<{ data: { valid: boolean } }>(
+        `/users/me/provider-keys/${provider}/validate`,
+        { provider, apiKey: key }
+      );
+      setProviderStatus(prev => ({ ...prev, [provider]: res.data.valid ? 'valid' : 'invalid' }));
+      setTimeout(() => setProviderStatus(prev => ({ ...prev, [provider]: 'idle' })), 3000);
+    } catch {
+      setProviderStatus(prev => ({ ...prev, [provider]: 'invalid' }));
+      setTimeout(() => setProviderStatus(prev => ({ ...prev, [provider]: 'idle' })), 3000);
+    }
+  };
 
   const handleSaveKey = async () => {
     if (!apiKey.trim()) return;
@@ -273,6 +382,129 @@ export default function SettingsPage() {
             </button>
           </div>
           {keyError && <p style={{ fontSize: 12, color: 'var(--critical)', marginTop: 8 }}>{keyError}</p>}
+        </Section>
+
+        {/* ── 멀티-프로바이더 BYOK ── */}
+        <Section icon={<Shield size={16} />} title="멀티-프로바이더 API 키 (BYOK)">
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 20, lineHeight: 1.6 }}>
+            provider별 API 키를 등록해 분석에 사용할 LLM을 직접 선택하세요.<br />
+            키는 AES-256-GCM으로 암호화 저장됩니다. 키 미설정 시 플랫폼 기본 키로 폴백됩니다.
+          </p>
+
+          {/* provider 탭 선택 */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            {PROVIDERS.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedProvider(p.id)}
+                style={{
+                  flex: 1, padding: '10px 14px', borderRadius: 8, textAlign: 'center',
+                  background: selectedProvider === p.id ? `${p.color}12` : 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${selectedProvider === p.id ? p.color + '55' : 'rgba(255,255,255,0.08)'}`,
+                  cursor: 'pointer', fontSize: 13, fontWeight: selectedProvider === p.id ? 700 : 400,
+                  color: selectedProvider === p.id ? '#e8e8ee' : 'rgba(255,255,255,0.45)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, display: 'inline-block', flexShrink: 0 }} />
+                  {p.label}
+                </div>
+                {providerKeys.find(k => k.provider === p.id)?.hasKey && (
+                  <div style={{ fontSize: 10, color: '#22c55e', marginTop: 2 }}>연결됨</div>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* 선택된 provider 상세 */}
+          {PROVIDERS.filter(p => p.id === selectedProvider).map(p => {
+            const keyInfo = providerKeys.find(k => k.provider === p.id);
+            const st = providerStatus[p.id];
+            return (
+              <div key={p.id}>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginBottom: 12, lineHeight: 1.6 }}>
+                  {p.desc}<br />
+                  <span style={{ color: 'rgba(255,255,255,0.2)' }}>{p.fallbackNote}</span>
+                </p>
+
+                {keyInfo?.hasKey && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 16px', borderRadius: 8, marginBottom: 14,
+                    background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)',
+                  }}>
+                    <Check size={13} color="#22c55e" />
+                    <span style={{ fontSize: 13, color: '#22c55e', flex: 1 }}>
+                      API 키가 연결되어 있습니다.
+                      {keyInfo.defaultModel && <span style={{ color: 'rgba(255,255,255,0.3)', marginLeft: 8 }}>{keyInfo.defaultModel}</span>}
+                    </span>
+                    {/* API: DELETE /api/v1/users/me/provider-keys/{provider} */}
+                    <button
+                      onClick={() => handleRemoveProviderKey(p.id)}
+                      disabled={st === 'removing'}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--critical)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
+                    >
+                      <Trash2 size={12} /> {st === 'removing' ? '제거 중...' : '제거'}
+                    </button>
+                  </div>
+                )}
+
+                {/* API: POST /api/v1/users/me/provider-keys — { provider, apiKey } */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <input
+                      type={providerShowKey[p.id] ? 'text' : 'password'}
+                      value={providerInputs[p.id]}
+                      onChange={e => setProviderInputs(prev => ({ ...prev, [p.id]: e.target.value }))}
+                      placeholder={p.placeholder}
+                      style={{
+                        width: '100%', padding: '10px 40px 10px 14px',
+                        borderRadius: 8, fontSize: 13, fontFamily: 'var(--font-mono)',
+                        background: 'var(--surface-hover)',
+                        border: `1px solid ${st === 'invalid' ? 'var(--critical)' : st === 'valid' ? '#22c55e' : 'var(--border-2)'}`,
+                        color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      onClick={() => setProviderShowKey(prev => ({ ...prev, [p.id]: !prev[p.id] }))}
+                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex' }}
+                    >
+                      {providerShowKey[p.id] ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  {/* API: POST /api/v1/users/me/provider-keys/{provider}/validate */}
+                  <button
+                    onClick={() => handleValidateProviderKey(p.id)}
+                    disabled={!providerInputs[p.id].trim() || st === 'validating'}
+                    style={{
+                      padding: '10px 16px', borderRadius: 8, flexShrink: 0,
+                      background: st === 'valid' ? 'rgba(34,197,94,0.15)' : st === 'invalid' ? 'rgba(226,75,75,0.12)' : 'rgba(255,255,255,0.06)',
+                      border: `1px solid ${st === 'valid' ? 'rgba(34,197,94,0.35)' : st === 'invalid' ? 'rgba(226,75,75,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                      color: st === 'valid' ? '#22c55e' : st === 'invalid' ? '#e24b4b' : 'rgba(255,255,255,0.55)',
+                      fontSize: 13, cursor: 'pointer',
+                      opacity: !providerInputs[p.id].trim() || st === 'validating' ? 0.5 : 1,
+                    }}
+                  >
+                    {st === 'validating' ? '검증 중...' : st === 'valid' ? '유효' : st === 'invalid' ? '무효' : '검증'}
+                  </button>
+                  <button
+                    onClick={() => handleSaveProviderKey(p.id)}
+                    disabled={!providerInputs[p.id].trim() || st === 'saving'}
+                    style={{
+                      padding: '10px 20px', borderRadius: 8, flexShrink: 0,
+                      background: st === 'saved' ? 'var(--low)' : 'var(--orange-2)',
+                      color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                      opacity: !providerInputs[p.id].trim() || st === 'saving' ? 0.5 : 1,
+                    }}
+                  >
+                    {st === 'saving' ? '저장 중...' : st === 'saved' ? '저장됨' : '저장'}
+                  </button>
+                </div>
+                {st === 'valid' && <p style={{ fontSize: 12, color: '#22c55e', marginTop: 4 }}>API 키가 유효합니다.</p>}
+                {st === 'invalid' && <p style={{ fontSize: 12, color: '#e24b4b', marginTop: 4 }}>API 키가 유효하지 않습니다. 키를 확인해주세요.</p>}
+              </div>
+            );
+          })}
         </Section>
 
         {/* ── 2FA (TOTP) — TODO: Sprint 11+ — QR 코드 + 복구 코드 8개 + TOTP 검증 6-digit input ──

@@ -50,9 +50,10 @@ class AgentState(TypedDict):
     # planning_node 출력 — [{stage_no, name, files:[경로...], reason}]
     stages: list[dict]
 
-    # 사용자 모델·키 오버라이드 (BYOK)
+    # 사용자 모델·키·프로바이더 오버라이드 (BYOK + 멀티-프로바이더 COST-4)
     preferred_model: str | None
-    user_api_key: str | None  # 복호화된 값 (로그 출력 금지)
+    user_api_key: str | None      # 복호화된 값 (로그 출력 금지)
+    preferred_provider: str | None  # "anthropic" | "gemini" | "openai" | None
 
     # 토큰 사용량 누적 (input, output, cache_creation_input, cache_read_input)
     token_usage: dict

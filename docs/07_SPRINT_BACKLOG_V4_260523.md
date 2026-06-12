@@ -483,7 +483,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ### TASK-1202a 🔴 감사 로그 불변성 (해시 체이닝)
 - **중요도**: 🔴 Critical | **순서**: 2번째 | **출처**: FEAT-COMP-003 | **사이즈**: M
 - **하위 할일**
-  - [ ] `audit_logs` 테이블에 `prev_hash`, `current_hash` 컬럼 추가 (Flyway **V052** — V050=1201, V051=1211 선점)
+  - [ ] `audit_logs` 테이블에 `prev_hash`, `current_hash` 컬럼 추가 (Flyway **V055** — V050=1201, V051=1211, V052·V053=COST-4, V054=COST-3 선점)
   - [ ] 신규 감사 로그 저장 시 이전 로그 해시 → 현재 로그 해시 체인 구성 (`SHA-256(prev_hash + payload)`)
   - [ ] `GET /api/v1/admin/audit-logs/verify` — 해시 체인 무결성 검증 API
   - [ ] (선택) 외부 SIEM(AWS CloudTrail/Azure Monitor) 비동기 전송
@@ -494,7 +494,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ### TASK-1202b 🔴 세션 이력 관리 및 강제 로그아웃
 - **중요도**: 🔴 Critical | **순서**: 2번째 (1202a와 병렬) | **출처**: FEAT-SEC-003 | **사이즈**: M
 - **하위 할일**
-  - [ ] `user_sessions` 테이블 (**V053** — V050=1201, V051=1211, V052=1202a 선점: user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at)
+  - [ ] `user_sessions` 테이블 (**V056** — V050~V054 선점(1201/1211/COST-4×2/COST-3), V055=1202a: user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at)
   - [ ] `GET /api/v1/users/me/sessions` — 내 활성 세션 목록
   - [ ] `DELETE /api/v1/users/me/sessions/{sessionId}` — 특정 세션 강제 로그아웃 (Redis JWT blacklist)
   - [ ] Settings 페이지에 "활성 기기 관리" 섹션 추가
@@ -531,8 +531,8 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [ ] 🛡️ ZAP 컨테이너가 `dast-isolated-net` 격리 안에서만 동작 — postgres/redis 등 내부 서비스에 도달 불가 확인
   - [ ] ✅ Sprint 8 부채 "ZAP Critical 0건" 항목을 본 하니스로 실제 실행하여 청산 (결과 리포트 첨부)
 
-### TASK-1204 🔴 AI 토큰 사용량 추적 + 한도 알림 (비용 통제)
-- **중요도**: 🔴 Critical | **순서**: 4번째 | **사이즈**: L
+### TASK-1204 🔴 AI 토큰 사용량 추적 + 한도 알림 (비용 통제) — 🟢 **12D COST-3로 구현완료**(`72d873d`)
+- **중요도**: 🔴 Critical | **순서**: 4번째 | **사이즈**: L | **상태**: 12D COST-3(provider 인지 확장)로 완료 — token_usage(V054)·PricingTable·세션종료 콜백·월100% 403(BYOK 제외)·`GET /me/token-usage`·TokenUsageChart. 🔬 실콜백/대시보드 수동검증. 상세 `docs/sprints/sprint-12.md` §Stage2.
 - **배경**: 코드베이스 grep 결과 `tokenCount/inputTokens/outputTokens` 추적 코드 0개. 사용자 한도 제어 불가 — 토큰 폭주 시 비용 폭탄 위험.
 - **하위 할일**
   - [ ] AI Engine: Claude API 응답의 `usage.input_tokens` / `output_tokens`를 Backend로 콜백 (`POST /internal/v1/sessions/{id}/token-usage`)

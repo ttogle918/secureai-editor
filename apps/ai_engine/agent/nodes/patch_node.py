@@ -17,7 +17,7 @@ from jinja2 import Environment, FileSystemLoader
 from agent.agent_state import AgentState
 from agent.nodes.diff_generator import parse_patch_response
 from config.settings import settings
-from infrastructure.backend_api_client import get_patch_examples, save_patch_results
+from infrastructure.backend_api_client import get_patch_examples, report_token_usage, save_patch_results
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -196,4 +196,59 @@ async def patch_node(state: AgentState) -> dict:
 
     await save_patch_results(session_id, project_id, patch_results)
 
+    # COST-3: 세션 종료 시 누적 토큰 사용량 집계 1회 콜백 (파일별 POST 금지)
+    await _report_session_token_usage(state)
+
     return {"patch_results": patch_results}
+
+
+async def _report_session_token_usage(state: AgentState) -> None:
+    """세션의 누적 토큰 사용량을 Backend에 1회 보고한다 (COST-3).
+
+    state.token_usage 는 planning_node / sast_node 등에서 _add_usage 로 누적된 값.
+    provider/model 은 state.preferred_provider / preferred_model 우선,
+    없으면 scan_mode 기반 기본값을 사용한다.
+    실패 시 경고 로그만 남기고 세션 완료 처리를 방해하지 않는다.
+    """
+    session_id = state["session_id"]
+    user_id = state.get("user_id") or state.get("userId")
+    project_id = state["project_id"]
+
+    # user_id가 없으면 보고 불가 — 경고만 남기고 생략
+    if not user_id:
+        logger.warning("[patch] token_usage report skipped: user_id missing session=%s", session_id)
+        return
+
+    token_usage: dict = state.get("token_usage") or {}
+    input_tokens        = int(token_usage.get("input_tokens", 0))
+    output_tokens       = int(token_usage.get("output_tokens", 0))
+    cache_creation      = int(token_usage.get("cache_creation_input_tokens", 0))
+    cache_read          = int(token_usage.get("cache_read_input_tokens", 0))
+
+    # provider/model 결정: preferred_provider → scan_mode fallback
+    provider = state.get("preferred_provider")
+    model = state.get("preferred_model")
+
+    if not provider:
+        scan_mode = (state.get("scan_mode") or "PIPELINE").upper()
+        if scan_mode == "AUDIT":
+            provider = settings.audit_provider
+            model = model or settings.gemini_model
+        else:
+            provider = settings.pipeline_provider
+            model = model or settings.pipeline_model
+
+    if not model:
+        model = settings.pipeline_model
+
+    await report_token_usage(
+        session_id=session_id,
+        user_id=str(user_id),
+        project_id=str(project_id),
+        provider=provider,
+        model=model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cache_creation=cache_creation,
+        cache_read=cache_read,
+    )

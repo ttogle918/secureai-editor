@@ -235,7 +235,7 @@ public class GitHubWebhookService {
             aiAgentClient.startAnalysis(
                     sessionId, projectId, null,
                     SOURCE_TYPE_GITHUB, owner, repoName, headSha, token,
-                    null, null, SCAN_MODE_AUDIT, finalChangedFiles);
+                    null, null, SCAN_MODE_AUDIT, finalChangedFiles, null);
             log.info("[webhook] AI Engine 분석 요청 완료 sessionId={} changedFiles={}",
                     sessionId, finalChangedFiles.size());
         } catch (Exception e) {

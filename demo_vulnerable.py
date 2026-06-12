@@ -35,3 +35,9 @@ def read_file():
     # [취약] Path Traversal — 사용자 입력으로 경로 조립
     with open("/data/" + name) as f:
         return f.read()
+
+
+# [취약] 안전하지 않은 역직렬화
+import pickle
+def load(data):
+    return pickle.loads(data)  # nosec false-positive 유도

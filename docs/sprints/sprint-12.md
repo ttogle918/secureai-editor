@@ -166,6 +166,19 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 
 ---
 
+## TASK-1201 완료 (2026-06-12) — GitHub App 인증 (백본 2순위)
+**커밋**: `ffba377` — `feat(sprint12): TASK-1201 GitHub App 인증 플로우 완성`
+**파이프라인**: Dev → Tester PASS(28 신규 그린, 회귀 그린) → Reviewer PASS(보안 위반 0) → 커밋
+
+- `GitHubAppAuthService`(신설): App JWT RS256(iss=App ID, exp≤10분) + 설치 토큰 교환, PKCS#8/#1 PEM 로드
+- `GitHubWebhookService`: extractInstallationToken/resolveProjectId 스텁 실구현(미매칭 skip), `projects.github_repo_full_name` 역조회(github_repo_url 컬럼 부재로 재활용)
+- credit_transactions 집계 연동, `PrReviewHistory.project_id` nullable + **V050**
+- **Flyway 재배정**(충돌 해소): 1201=V050 선점 → **1202a=V051, 1202b=V052, COST-3 token_usage=V054**
+- ⚠️ **검증 대기**: 🔬 실 웹훅→설치토큰 플로우는 GitHub App **PEM(.pem) 발급 후** 가능. App ID 3851268·OAuth Client는 설정됨, **PEM만 미설정**.
+- 기존부채: `VulnerabilityServiceTest` 2건 실패는 `be78682`발(1201 무관, main에서도 실패) — 별도 정리 필요.
+
+---
+
 ## 핵심 결정사항 (요약)
 
 1. **백본 정본 확정**: `12D P1 → 1201 → 12D P2 → 12C S1·2 → S13 VAL → 12C S3`. 12C·12D 양 문서 합의 순서를 검증·채택.

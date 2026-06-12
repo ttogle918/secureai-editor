@@ -436,25 +436,24 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 ---
 
-### TASK-1201 🔴 GitHub App 인증 플로우 완성 (Sprint 10 기술 부채 해소)
-- **중요도**: 🔴 Critical | **순서**: 1번째 | **사이즈**: L
+### TASK-1201 🔴 GitHub App 인증 플로우 완성 (Sprint 10 기술 부채 해소) — 🟢 구현완료(`ffba377`)·실웹훅 검증대기
+- **중요도**: 🔴 Critical | **순서**: 1번째 | **사이즈**: L | **상태**: 코드+단위 28 그린 / 🔬 실 GitHub App PEM 대기
 - **배경**: `GitHubWebhookService`의 `extractInstallationToken()` / `resolveProjectId()`가 스텁으로 남아  
   PR 자동 분석·Check Run API가 실제로 동작하지 않음.
 - **하위 할일**
-  - [ ] GitHub App private key (PEM) + App ID 환경변수 설정 (`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`)
-  - [ ] `extractInstallationToken(payload)`: payload의 `installation.id` → GitHub API JWT 생성 → Installation Token 교환
-  - [ ] `resolveProjectId(owner, repoName)`: `projects` 테이블의 `github_repo_url` 컬럼으로 역조회  
-    (없으면 `Optional.empty()` 반환 후 웹훅 수신은 유지하되 분석 skip)
-  - [ ] `credit_transactions` 연동 — `OrganizationService.getUsage()` `totalCreditsUsed` 실제 집계
+  - [x] GitHub App private key (PEM) + App ID 환경변수 **배선** (`GITHUB_APP_ID`/`GITHUB_APP_PRIVATE_KEY`/`_PATH`, GitHubConfig) — ⚠️ PEM 실값은 사용자 발급 대기(App ID 3851268 설정됨)
+  - [x] `extractInstallationToken(payload)`: `installation.id` → App JWT(RS256) → Installation Token 교환 (`GitHubAppAuthService`)
+  - [x] `resolveProjectId(owner, repoName)`: `projects.github_repo_full_name`(`owner/repo`) 역조회, 미매칭 시 null→분석 skip (※ github_repo_url 컬럼 부재로 full_name 재활용)
+  - [x] `credit_transactions` 연동 — `OrgAnalyticsService.sumCreditsByOrgMembers` + `OrganizationService` totalCreditsUsed
 - **테스트 체크리스트**
-  - [ ] 🧪 Installation Token 교환 로직 단위 테스트 (mock GitHub API)
-  - [ ] 🔬 실제 GitHub Webhook push → resolveProjectId 성공 → 분석 세션 생성 확인
-  - [ ] 🛡️ invalid JWT 서명 → 401 반환 확인
+  - [x] 🧪 Installation Token 교환 로직 단위 테스트 (mock GitHub API)
+  - [ ] 🔬 실제 GitHub Webhook push → resolveProjectId 성공 → 분석 세션 생성 확인 (PEM 발급 후)
+  - [x] 🛡️ invalid JWT/App 미설정 → GITHUB_APP_AUTH_FAILED / skip 확인 (단위)
 
 ### TASK-1202a 🔴 감사 로그 불변성 (해시 체이닝)
 - **중요도**: 🔴 Critical | **순서**: 2번째 | **출처**: FEAT-COMP-003 | **사이즈**: M
 - **하위 할일**
-  - [ ] `audit_logs` 테이블에 `prev_hash`, `current_hash` 컬럼 추가 (Flyway V050)
+  - [ ] `audit_logs` 테이블에 `prev_hash`, `current_hash` 컬럼 추가 (Flyway **V051** — V050은 TASK-1201이 선점)
   - [ ] 신규 감사 로그 저장 시 이전 로그 해시 → 현재 로그 해시 체인 구성 (`SHA-256(prev_hash + payload)`)
   - [ ] `GET /api/v1/admin/audit-logs/verify` — 해시 체인 무결성 검증 API
   - [ ] (선택) 외부 SIEM(AWS CloudTrail/Azure Monitor) 비동기 전송
@@ -465,7 +464,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ### TASK-1202b 🔴 세션 이력 관리 및 강제 로그아웃
 - **중요도**: 🔴 Critical | **순서**: 2번째 (1202a와 병렬) | **출처**: FEAT-SEC-003 | **사이즈**: M
 - **하위 할일**
-  - [ ] `user_sessions` 테이블 (V051: user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at)
+  - [ ] `user_sessions` 테이블 (**V052** — 1202a가 V051로 이동: user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at)
   - [ ] `GET /api/v1/users/me/sessions` — 내 활성 세션 목록
   - [ ] `DELETE /api/v1/users/me/sessions/{sessionId}` — 특정 세션 강제 로그아웃 (Redis JWT blacklist)
   - [ ] Settings 페이지에 "활성 기기 관리" 섹션 추가
@@ -507,7 +506,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **배경**: 코드베이스 grep 결과 `tokenCount/inputTokens/outputTokens` 추적 코드 0개. 사용자 한도 제어 불가 — 토큰 폭주 시 비용 폭탄 위험.
 - **하위 할일**
   - [ ] AI Engine: Claude API 응답의 `usage.input_tokens` / `output_tokens`를 Backend로 콜백 (`POST /internal/v1/sessions/{id}/token-usage`)
-  - [ ] V052: `token_usage` 테이블 (session_id, user_id, model, input_tokens, output_tokens, cost_usd, occurred_at)
+  - [ ] **V054** (잠정): `token_usage` 테이블 — **12D COST-3로 흡수**(provider 인지 확장). V052는 1202b가 선점. (session_id, user_id, provider, model, input/output_tokens, cost_usd, occurred_at)
   - [ ] `TokenUsageService.java`: 월별 집계 + 플랜별 한도 비교
   - [ ] `EmailService.sendTokenLimitWarning()`: 80% 도달 시 경고 메일, 100% 도달 시 분석 일시 차단
   - [ ] 대시보드 위젯 `TokenUsageChart.tsx`: 일별 사용량 + 예상 월 비용

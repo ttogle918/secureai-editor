@@ -57,6 +57,20 @@ public class PrReviewHistory {
     @Column(name = "check_run_id")
     private Long checkRunId;
 
+    /**
+     * AI Engine 분석 세션 ID — Redis 완료 콜백에서 PrReviewHistory를 역조회하는 키.
+     * 분석 시작 전에는 null이며, startAnalysis 호출 후 세팅된다.
+     */
+    @Column(name = "session_id")
+    private UUID sessionId;
+
+    /**
+     * GitHub App Installation ID — 분석 완료 시 설치 토큰을 재발급하기 위해 보관.
+     * 원 토큰은 ~1시간 후 만료되므로 완료 콜백 시점에 재발급이 필요할 수 있다.
+     */
+    @Column(name = "installation_id")
+    private Long installationId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -66,7 +80,7 @@ public class PrReviewHistory {
 
     @Builder
     public PrReviewHistory(UUID projectId, String repoOwner, String repoName,
-                           int prNumber, String headSha) {
+                           int prNumber, String headSha, UUID sessionId, Long installationId) {
         this.projectId = projectId;
         this.repoOwner = repoOwner;
         this.repoName = repoName;
@@ -74,6 +88,17 @@ public class PrReviewHistory {
         this.headSha = headSha;
         this.status = STATUS_PENDING;
         this.vulnCount = 0;
+        this.sessionId = sessionId;
+        this.installationId = installationId;
+    }
+
+    /**
+     * AI Engine 분석 시작 후 sessionId를 기록한다.
+     * 생성자에서 세팅할 수 없는 경우(sessionId가 startAnalysis 호출 후 확정되는 경우)에만 사용한다.
+     */
+    public void assignSession(UUID sessionId, Long installationId) {
+        this.sessionId = sessionId;
+        this.installationId = installationId;
     }
 
     /**

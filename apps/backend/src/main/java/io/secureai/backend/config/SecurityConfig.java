@@ -81,7 +81,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/reports/security/download").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/invitations/**").permitAll()
                 // GitHub 웹훅 인바운드만 공개 — GET /history 등 나머지는 JWT 필요
-                .requestMatchers(HttpMethod.POST, "/webhooks/github").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/github").permitAll()
                 // 내부 통신 엔드포인트 — JWT 불필요, InternalKeyAuthFilter가 X-Internal-Key 헤더 검증
                 .requestMatchers("/api/v1/internal/**").permitAll()
                 // 팀 설정 관리 — 관리자 전용 (adminGuard.check로 2차 검증)

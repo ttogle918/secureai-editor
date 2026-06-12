@@ -2,8 +2,11 @@ package io.secureai.backend.domain.analysis.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.secureai.backend.config.GitHubConfig;
+import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.entity.PrReviewHistory;
+import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.analysis.repository.PrReviewHistoryRepository;
+import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.repository.ProjectRepository;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
@@ -52,6 +55,7 @@ public class GitHubWebhookService {
     private final GitHubRestClient gitHubRestClient;
     private final GitHubAppAuthService gitHubAppAuthService;
     private final ProjectRepository projectRepository;
+    private final AnalysisSessionRepository analysisSessionRepository;
     private final ObjectMapper objectMapper;
 
     public GitHubWebhookService(
@@ -62,6 +66,7 @@ public class GitHubWebhookService {
             GitHubRestClient gitHubRestClient,
             GitHubAppAuthService gitHubAppAuthService,
             ProjectRepository projectRepository,
+            AnalysisSessionRepository analysisSessionRepository,
             ObjectMapper objectMapper
     ) {
         this.webhookMac = webhookMac;
@@ -71,6 +76,7 @@ public class GitHubWebhookService {
         this.gitHubRestClient = gitHubRestClient;
         this.gitHubAppAuthService = gitHubAppAuthService;
         this.projectRepository = projectRepository;
+        this.analysisSessionRepository = analysisSessionRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -204,7 +210,23 @@ public class GitHubWebhookService {
             return;
         }
 
-        UUID sessionId = UUID.randomUUID();
+        // AnalysisSession 생성 — 웹훅은 사용자 컨텍스트가 없으므로 프로젝트 소유자를 세션 user로 사용.
+        // (정상 분석 흐름 AnalysisService.startAnalysis 패턴 미러링 — 세션 행이 있어야 ai_engine 콜백이 SESSION_NOT_FOUND 안 남)
+        Project project = projectRepository.findByIdWithOwner(projectId).orElse(null);
+        if (project == null) {
+            log.warn("[webhook] projectId={} 프로젝트 미존재 — 분석 생략", projectId);
+            return;
+        }
+        AnalysisSession session = AnalysisSession.builder()
+                .project(project)
+                .user(project.getOwner())
+                .scanMode(SCAN_MODE_AUDIT)
+                .build();
+        analysisSessionRepository.save(session);
+        session.markRunning();
+        analysisSessionRepository.save(session);
+
+        UUID sessionId = session.getId();
         history.assignSession(sessionId, installationId);
         prReviewHistoryRepository.save(history);
 

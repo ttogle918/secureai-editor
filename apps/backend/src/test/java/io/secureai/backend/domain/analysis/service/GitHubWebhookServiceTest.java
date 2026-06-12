@@ -2,10 +2,13 @@ package io.secureai.backend.domain.analysis.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.secureai.backend.config.GitHubConfig;
+import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.entity.PrReviewHistory;
+import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.analysis.repository.PrReviewHistoryRepository;
 import io.secureai.backend.domain.project.entity.Project;
 import io.secureai.backend.domain.project.repository.ProjectRepository;
+import org.springframework.test.util.ReflectionTestUtils;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,6 +61,7 @@ class GitHubWebhookServiceTest {
     @Mock GitHubRestClient gitHubRestClient;
     @Mock GitHubAppAuthService gitHubAppAuthService;
     @Mock ProjectRepository projectRepository;
+    @Mock AnalysisSessionRepository analysisSessionRepository;
 
     private GitHubWebhookService webhookService;
     private Mac testMac;
@@ -79,8 +83,18 @@ class GitHubWebhookServiceTest {
                 gitHubRestClient,
                 gitHubAppAuthService,
                 projectRepository,
+                analysisSessionRepository,
                 new ObjectMapper()
         );
+
+        // 분석 도달 테스트용: save 시 AnalysisSession에 id를 부여(영속 시뮬레이션) — getId() non-null 보장
+        lenient().when(analysisSessionRepository.save(any(AnalysisSession.class))).thenAnswer(inv -> {
+            AnalysisSession s = inv.getArgument(0);
+            if (s.getId() == null) {
+                ReflectionTestUtils.setField(s, "id", UUID.randomUUID());
+            }
+            return s;
+        });
     }
 
     // ─── validateSignature 테스트 (기존 4개 — 회귀 없음) ────────────────────────
@@ -329,6 +343,7 @@ class GitHubWebhookServiceTest {
         when(mockProject.getId()).thenReturn(projectId);
         when(projectRepository.findByGithubRepoFullName("testorg/testrepo"))
                 .thenReturn(Optional.of(mockProject));
+        when(projectRepository.findByIdWithOwner(projectId)).thenReturn(Optional.of(mockProject));
         when(gitHubAppAuthService.extractInstallationToken(any())).thenReturn("test-token");
         when(gitHubRestClient.createCheckRun(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(new GitHubRestClient.CheckRunResponse(99L));
@@ -379,6 +394,7 @@ class GitHubWebhookServiceTest {
         when(mockProject.getId()).thenReturn(projectId);
         when(projectRepository.findByGithubRepoFullName("testorg/testrepo"))
                 .thenReturn(Optional.of(mockProject));
+        when(projectRepository.findByIdWithOwner(projectId)).thenReturn(Optional.of(mockProject));
         when(gitHubAppAuthService.extractInstallationToken(any())).thenReturn("test-token");
         when(gitHubRestClient.createCheckRun(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(new GitHubRestClient.CheckRunResponse(99L));

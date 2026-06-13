@@ -480,27 +480,27 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [ ] 🔬 실 PR(#78 재시연) → github-소스 분석이 변경파일 읽고 취약점 산출 → Check Run ✓/✗ + PR 코멘트(취약점 N건)
 - **선행/전제**: TASK-1211(✅), MCP 서버(`apps/mcp_server`) 빌드본, github 설치토큰 플러밍.
 
-### TASK-1202a 🔴 감사 로그 불변성 (해시 체이닝)
+### TASK-1202a 🔴 감사 로그 불변성 (해시 체이닝) — 🟢 **완료**(`9f1a964`, Stage3)
 - **중요도**: 🔴 Critical | **순서**: 2번째 | **출처**: FEAT-COMP-003 | **사이즈**: M
 - **하위 할일**
-  - [ ] `audit_logs` 테이블에 `prev_hash`, `current_hash` 컬럼 추가 (Flyway **V055** — V050=1201, V051=1211, V052·V053=COST-4, V054=COST-3 선점)
-  - [ ] 신규 감사 로그 저장 시 이전 로그 해시 → 현재 로그 해시 체인 구성 (`SHA-256(prev_hash + payload)`)
-  - [ ] `GET /api/v1/admin/audit-logs/verify` — 해시 체인 무결성 검증 API
-  - [ ] (선택) 외부 SIEM(AWS CloudTrail/Azure Monitor) 비동기 전송
+  - [x] `audit_logs` 테이블에 `prev_hash`, `current_hash` 컬럼 추가 (Flyway **V055**)
+  - [x] 신규 감사 로그 저장 시 이전 로그 해시 → 현재 로그 해시 체인 구성 (`SHA-256(prev_hash + canonical payload)`) — ReentrantLock+REPEATABLE_READ+SELECT FOR UPDATE 단일라이터 직렬화(AuditLogChainAppender/AuditLogHashService)
+  - [x] `GET /api/v1/admin/audit-logs/verify` — 해시 체인 무결성 검증 API (@PreAuthorize admin)
+  - [ ] (선택) 외부 SIEM(AWS CloudTrail/Azure Monitor) 비동기 전송 — 미구현(선택 항목)
 - **테스트 체크리스트**
-  - [ ] 🧪 중간 로그 위변조 시 무결성 검증 API에서 감지 (단위 테스트)
-  - [ ] 🔬 운영 환경에서 10만건 체인 검증 1초 이내
+  - [x] 🧪 중간 로그 위변조 시 무결성 검증 API에서 감지 (단위 테스트) — AuditVerifyServiceTest(중간/genesis/prev_hash 조작 감지)
+  - [ ] 🔬 운영 환경에서 10만건 체인 검증 1초 이내 (성능 검증 미실행)
 
-### TASK-1202b 🔴 세션 이력 관리 및 강제 로그아웃
+### TASK-1202b 🔴 세션 이력 관리 및 강제 로그아웃 — 🟢 **완료**(`9f1a964`, Stage3)
 - **중요도**: 🔴 Critical | **순서**: 2번째 (1202a와 병렬) | **출처**: FEAT-SEC-003 | **사이즈**: M
 - **하위 할일**
-  - [ ] `user_sessions` 테이블 (**V056** — V050~V054 선점(1201/1211/COST-4×2/COST-3), V055=1202a: user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at)
-  - [ ] `GET /api/v1/users/me/sessions` — 내 활성 세션 목록
-  - [ ] `DELETE /api/v1/users/me/sessions/{sessionId}` — 특정 세션 강제 로그아웃 (Redis JWT blacklist)
-  - [ ] Settings 페이지에 "활성 기기 관리" 섹션 추가
+  - [x] `user_sessions` 테이블 (**V056**: user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at)
+  - [x] `GET /api/v1/users/me/sessions` — 내 활성 세션 목록
+  - [x] `DELETE /api/v1/users/me/sessions/{sessionId}` — 특정 세션 강제 로그아웃 (Redis JWT blacklist, TTL=토큰 잔여만료)
+  - [x] Settings 페이지에 "활성 기기 관리" 섹션 추가 (ActiveDeviceSection)
 - **테스트 체크리스트**
-  - [ ] 🔬 강제 로그아웃 시 즉시 JWT 무효화 + 다음 요청 401 반환
-  - [ ] 🛡️ 타 사용자 세션 조회/삭제 시도 → 403
+  - [x] 🔬 강제 로그아웃 시 즉시 JWT 무효화 + 다음 요청 401 반환 — JwtAuthenticationFilterBlacklistTest(필터 레벨), 🔬 실 앱+Redis e2e는 수동검증
+  - [x] 🛡️ 타 사용자 세션 조회/삭제 시도 → 403 — UserSessionServiceTest(revokeSession_nonOwner_throws403)
 
 ### TASK-1203 🟡 CI/CD 품질 게이트 (k6 + ZAP + SCA)
 - **중요도**: 🟡 Medium | **순서**: 3번째 | **사이즈**: M

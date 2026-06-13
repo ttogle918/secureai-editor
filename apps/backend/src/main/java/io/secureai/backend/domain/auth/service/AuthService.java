@@ -6,6 +6,7 @@ import io.secureai.backend.domain.user.entity.RefreshToken;
 import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.repository.RefreshTokenRepository;
 import io.secureai.backend.domain.user.repository.UserRepository;
+import io.secureai.backend.domain.user.service.UserSessionService;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import io.secureai.backend.global.security.JwtProperties;
@@ -45,6 +46,7 @@ public class AuthService {
     private final EmailService emailService;
     private final RedisTemplate<String, String> redisTemplate;
     private final JwtProperties jwtProperties;
+    private final UserSessionService userSessionService;
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
@@ -114,11 +116,12 @@ public class AuthService {
         user.setLastLoginAt(OffsetDateTime.now());
         userRepository.save(user);
 
-        String accessToken = tokenService.generateAccessToken(user.getId(), user.getEmail());
+        TokenService.TokenWithJti tokenWithJti = tokenService.generateAccessTokenWithJtiResult(user.getId(), user.getEmail());
+        recordSession(user, tokenWithJti.jti(), httpRequest);
         String rawRefreshToken = issueRefreshToken(user, httpRequest);
         setRefreshCookie(rawRefreshToken, httpResponse);
 
-        return new LoginResponse(accessToken, "Bearer", jwtProperties.getAccessTokenExpirySeconds(), user);
+        return new LoginResponse(tokenWithJti.token(), "Bearer", jwtProperties.getAccessTokenExpirySeconds(), user);
     }
 
     @Transactional
@@ -142,11 +145,12 @@ public class AuthService {
         refreshTokenRepository.save(stored);
 
         User user = stored.getUser();
-        String newAccessToken = tokenService.generateAccessToken(user.getId(), user.getEmail());
+        TokenService.TokenWithJti tokenWithJti = tokenService.generateAccessTokenWithJtiResult(user.getId(), user.getEmail());
+        recordSession(user, tokenWithJti.jti(), request);
         String newRawRefresh = issueRefreshToken(user, request);
         setRefreshCookie(newRawRefresh, response);
 
-        return new TokenRefreshResponse(newAccessToken, jwtProperties.getAccessTokenExpirySeconds());
+        return new TokenRefreshResponse(tokenWithJti.token(), jwtProperties.getAccessTokenExpirySeconds());
     }
 
     @Transactional
@@ -171,10 +175,11 @@ public class AuthService {
                 .orElse(user);
         freshUser.setLastLoginAt(OffsetDateTime.now());
         userRepository.save(freshUser);
-        String accessToken = tokenService.generateAccessToken(freshUser.getId(), freshUser.getEmail());
+        TokenService.TokenWithJti tokenWithJti = tokenService.generateAccessTokenWithJtiResult(freshUser.getId(), freshUser.getEmail());
+        recordSession(freshUser, tokenWithJti.jti(), httpRequest);
         String rawRefreshToken = issueRefreshToken(freshUser, httpRequest);
         setRefreshCookie(rawRefreshToken, httpResponse);
-        return new LoginResponse(accessToken, "Bearer", jwtProperties.getAccessTokenExpirySeconds(), freshUser);
+        return new LoginResponse(tokenWithJti.token(), "Bearer", jwtProperties.getAccessTokenExpirySeconds(), freshUser);
     }
 
     @Transactional
@@ -262,6 +267,19 @@ public class AuthService {
     private String extractRefreshCookie(HttpServletRequest request) {
         Cookie cookie = WebUtils.getCookie(request, REFRESH_COOKIE);
         return cookie != null ? cookie.getValue() : null;
+    }
+
+    private void recordSession(User user, String jti, HttpServletRequest request) {
+        OffsetDateTime expiresAt = OffsetDateTime.now()
+                .plusSeconds(jwtProperties.getAccessTokenExpirySeconds());
+        userSessionService.createSession(
+                user,
+                jti,
+                request.getHeader("User-Agent"),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent"),
+                expiresAt
+        );
     }
 
     static String sha256(String input) {

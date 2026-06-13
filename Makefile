@@ -1,4 +1,4 @@
-.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner perf-test ssl-cert eval-providers help
+.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner perf-test zap-scan zap-gate ssl-cert eval-providers help
 
 # ──────────────────────────────────────────────────────────────────
 # make dev              전체 서비스 (postgres, redis, backend, ai_engine, frontend)
@@ -11,6 +11,10 @@
 # make frontend         프론트엔드 로컬 실행 (npm dev)
 # make ai-engine        AI 엔진 로컬 실행 (uvicorn, infra 필요)
 # make viewer           세션 로그 뷰어 빌드 & 서빙 (localhost:8082)
+# make zap-scan         OWASP ZAP DAST baseline 스캔 (make dev 기동 상태 필요)
+#   ZAP_TARGET_URL=<url>  스캔 대상 URL (기본: http://secureai-nginx:80)
+#   SCAN_TYPE=full        full 스캔 전환 (기본: baseline)
+# make zap-gate         ZAP JSON 리포트 게이트 단독 실행 (infra/zap/reports/zap-report.json)
 # make eval-providers   Gemini vs Claude SAST 품질 비교 하니스 실행
 #   TARGET=<dir>        분석 대상 디렉터리 (필수)
 #   PROVIDERS=gemini,anthropic  provider 목록 (기본: gemini,anthropic)
@@ -75,6 +79,44 @@ viewer:
 
 perf-test: ## k6 부하 테스트 실행 (Docker 기동 상태 필요)
 	docker compose --profile perf run --rm k6 run /scripts/load-test.js
+
+zap-scan: ## OWASP ZAP DAST 스캔 실행 (make dev 기동 + dast-isolated-net 필요)
+	@echo "▶ ZAP 스캔 준비 중..."
+	@echo "  대상 URL : $${ZAP_TARGET_URL:-http://secureai-nginx:80}"
+	@echo "  스캔 유형: $${SCAN_TYPE:-baseline}"
+	@docker network inspect dast-isolated-net >/dev/null 2>&1 || \
+	  (echo "✗ dast-isolated-net 없음. 먼저 실행: docker network create dast-isolated-net" && exit 1)
+	@mkdir -p infra/zap/reports
+	@if [ "$${SCAN_TYPE:-baseline}" = "full" ]; then \
+	  echo "▶ Full 스캔 실행 중 (시간이 더 소요됩니다)..."; \
+	  docker compose --profile zap run --rm \
+	    -e ZAP_TARGET_URL=$${ZAP_TARGET_URL:-http://secureai-nginx:80} \
+	    zap zap-full-scan.py \
+	      -t $${ZAP_TARGET_URL:-http://secureai-nginx:80} \
+	      -c /zap/wrk/zap-baseline.conf \
+	      -r /zap/wrk/reports/zap-report.html \
+	      -J /zap/wrk/reports/zap-report.json \
+	      -I -l WARN; \
+	else \
+	  echo "▶ Baseline 스캔 실행 중..."; \
+	  docker compose --profile zap run --rm \
+	    -e ZAP_TARGET_URL=$${ZAP_TARGET_URL:-http://secureai-nginx:80} \
+	    zap; \
+	fi
+	@echo "▶ 게이트 집계 중 (Critical/High → exit code)..."
+	@python infra/zap/gate.py infra/zap/reports/zap-report.json; \
+	  GATE_EXIT=$$?; \
+	  echo "  리포트 HTML : infra/zap/reports/zap-report.html"; \
+	  echo "  리포트 JSON : infra/zap/reports/zap-report.json"; \
+	  if [ $$GATE_EXIT -eq 0 ]; then \
+	    echo "✓ ZAP 스캔 PASS — Critical/High 0건"; \
+	  else \
+	    echo "✗ ZAP 스캔 FAIL — Critical/High 1건 이상 (infra/zap/reports/zap-report.html 참조)"; \
+	  fi; \
+	  exit $$GATE_EXIT
+
+zap-gate: ## ZAP 리포트 게이트 단독 실행 (infra/zap/reports/zap-report.json 필요)
+	@python infra/zap/gate.py infra/zap/reports/zap-report.json
 
 ssl-cert: ## 개발용 자체 서명 인증서 생성 (nginx/certs/server.key, server.crt)
 	mkdir -p nginx/certs

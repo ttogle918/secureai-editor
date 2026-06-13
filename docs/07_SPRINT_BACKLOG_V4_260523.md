@@ -513,23 +513,23 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **테스트 체크리스트**
   - [ ] 🔬 성능 저하/보안 취약점/커버리지 미달 PR은 자동 차단 확인
 
-### TASK-1203b 🟠 OWASP ZAP DAST 스캔 하니스 구축 (baseline scan + Critical 게이트) (신규 — V5.6)
+### TASK-1203b 🟠 OWASP ZAP DAST 스캔 하니스 구축 (baseline scan + Critical 게이트) (신규 — V5.6) — 🟢 **완료**(`0101624`, Stage4)
 - **중요도**: 🟠 High | **순서**: 3번째 (TASK-1203 선행) | **사이즈**: M | **출처**: TASK-1105 수동검증 갭 (2026-06-06)
 - **배경**: Sprint 8 TASK-804에서 보안 헤더·ZAP 게이트를 "구현"으로 표기했고, 수동 검증 부채 대장에도 "ZAP Critical 0건"(Sprint 8)이 검증 대기로 누적돼 있다. 그러나 **레포에 ZAP 스캔 하니스/설정이 전혀 없어**(`find -iname "*zap*"` 0건) 검증을 실행할 수단 자체가 없음 — 이는 Sprint 8/10 구현 결함이 아니라 **검증 인프라 미비**다. k6 부하테스트는 `make perf-test`(docker compose `--profile perf`)로 존재하지만 DAST(ZAP) 스캔은 등가 수단이 없다. 본 태스크가 그 실행 수단(로컬 하니스)을 만들고, TASK-1203이 이를 CI에 연결한다.
 - **하위 할일**
-  - [ ] `docker-compose.yml`에 ZAP 서비스 추가 — `ghcr.io/zaproxy/zaproxy:stable`, **`--profile zap`** (perf 프로파일과 동일한 옵트인 패턴)
-  - [ ] `make zap-scan` 타겟 추가 (`make perf-test` 패턴 동형) — 기동된 backend/nginx를 대상으로 `zap-baseline.py`(baseline scan) 실행. full scan은 옵션 변수로 전환 가능하게(`SCAN_TYPE=full`)
-  - [ ] 스캔 대상은 로컬 기동된 스택(backend `:8080` / nginx HTTPS 엔드포인트) — 대상 URL은 환경변수/기본값으로
-  - [ ] ZAP 룰 설정 파일(`infra/zap/zap-baseline.conf` 또는 `.zap/rules.tsv`)로 오탐 룰 IGNORE/FAIL 등급 관리 (예: 인증 미적용 경로 등 알려진 항목 튜닝)
-  - [ ] 결과 리포트 산출 — HTML/JSON 리포트를 호스트 마운트 경로에 저장(`infra/zap/reports/`, `.gitignore` 등록)
-  - [ ] 결과에서 **Critical/High 집계 → 1건 이상이면 비정상 종료코드(게이트)**. baseline은 PASS/WARN/FAIL 매핑 명시
-  - [ ] **`dast-isolated-net` 네트워크 격리 준수** (CLAUDE.md 보안규칙) — ZAP 컨테이너가 호스트/내부 인프라(postgres·redis)에 직접 접근하지 않도록 네트워크 경계 점검. DAST 샌드박스 격리 규칙 동일 적용
-  - [ ] `docs/runbooks/` 또는 Makefile help에 사용법 1줄 + 게이트 해석 가이드
+  - [x] `docker-compose.yml`에 ZAP 서비스 추가 — `ghcr.io/zaproxy/zaproxy:stable`, **`--profile zap`** (perf 프로파일과 동일한 옵트인 패턴)
+  - [x] `make zap-scan` 타겟 추가 (`make perf-test` 패턴 동형) — `zap-baseline.py`. full scan은 `SCAN_TYPE=full`로 전환
+  - [x] 스캔 대상 URL 환경변수화(`ZAP_TARGET_URL`, 기본 nginx 엔드포인트)
+  - [x] ZAP 룰 설정 파일(`infra/zap/rules.tsv` + `zap-baseline.conf`)로 오탐 룰 IGNORE/WARN/FAIL 등급 관리
+  - [x] 결과 리포트 HTML/JSON → `infra/zap/reports/` 마운트, `.gitignore` 등록
+  - [x] **Critical/High(riskcode≥3) 집계 → 1건+ exit 1 게이트** (`infra/zap/gate.py`, 단위테스트 23)
+  - [x] **`dast-isolated-net` 격리** — zap이 해당 네트워크에만 연결(data-net 미연결 → postgres/redis 직접 도달 불가). Reviewer 네트워크 레이어 검증 PASS
+  - [x] `docs/runbooks/zap-dast.md` 사용법 + 게이트 해석 가이드
 - **테스트 체크리스트**
-  - [ ] 🔬 `make dev` 기동 후 `make zap-scan` 실행 → baseline 스캔 완료 + 리포트(HTML/JSON) 생성 확인
-  - [ ] 🛡️ 의도적 취약 응답(보안 헤더 누락 등) 주입 시 ZAP가 탐지 → Critical/High 게이트가 비정상 종료코드 반환 확인
-  - [ ] 🛡️ ZAP 컨테이너가 `dast-isolated-net` 격리 안에서만 동작 — postgres/redis 등 내부 서비스에 도달 불가 확인
-  - [ ] ✅ Sprint 8 부채 "ZAP Critical 0건" 항목을 본 하니스로 실제 실행하여 청산 (결과 리포트 첨부)
+  - [ ] 🔬 `make dev` 기동 후 `make zap-scan` 실행 → baseline 스캔 완료 + 리포트(HTML/JSON) 생성 확인 (도커 환경 — 수동검증)
+  - [ ] 🛡️ 의도적 취약 응답 주입 시 게이트 비정상 종료코드 반환 (게이트 로직은 gate.py 단위테스트로 검증 / 실 스캔 주입은 수동검증)
+  - [x] 🛡️ ZAP 컨테이너가 `dast-isolated-net` 격리 — postgres/redis 도달 불가 (Reviewer 네트워크 토폴로지 검증). 🔬 실 컨테이너 격리는 수동검증
+  - [ ] ✅ Sprint 8 부채 "ZAP Critical 0건" 항목을 본 하니스로 실제 실행하여 청산 (수동검증 — 실 스캔 리포트 첨부)
 
 ### TASK-1204 🔴 AI 토큰 사용량 추적 + 한도 알림 (비용 통제) — 🟢 **12D COST-3로 구현완료**(`72d873d`)
 - **중요도**: 🔴 Critical | **순서**: 4번째 | **사이즈**: L | **상태**: 12D COST-3(provider 인지 확장)로 완료 — token_usage(V054)·PricingTable·세션종료 콜백·월100% 403(BYOK 제외)·`GET /me/token-usage`·TokenUsageChart. 🔬 실콜백/대시보드 수동검증. 상세 `docs/sprints/sprint-12.md` §Stage2.

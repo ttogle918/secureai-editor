@@ -205,6 +205,32 @@ services:
     depends_on:
       - backend
 
+  # ── OWASP ZAP DAST 스캐너 ────────────────────────────
+  # make zap-scan 시에만 기동 (profile: zap)
+  # 네트워크: dast-isolated-net 전용 — postgres/redis 도달 불가 (보안규칙)
+  # 사전 준비: docker network create dast-isolated-net (없으면 make dev 전에 실행)
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    profiles: ["zap"]
+    container_name: secureai-zap
+    user: zap
+    command: >
+      zap-baseline.py
+        -t ${ZAP_TARGET_URL:-http://secureai-nginx:80}
+        -c /zap/wrk/zap-baseline.conf
+        -r /zap/wrk/reports/zap-report.html
+        -J /zap/wrk/reports/zap-report.json
+        -I
+        -l WARN
+    volumes:
+      - ./infra/zap:/zap/wrk:rw
+    environment:
+      - ZAP_TARGET_URL=${ZAP_TARGET_URL:-http://secureai-nginx:80}
+    networks:
+      - dast-isolated-net
+    depends_on:
+      - nginx
+
   # ── Nginx API Gateway ────────────────────────────────
   # HTTP(80) → HTTPS(443) 강제 리다이렉트 + SSL 종단 + Rate Limiting
   # 사전 준비: make ssl-cert  (개발용 자체 서명 인증서 생성)
@@ -220,6 +246,9 @@ services:
       - ./nginx/certs:/etc/nginx/certs:ro
     networks:
       - app-net
+      # dast-isolated-net: ZAP 스캐너가 nginx 공개 엔드포인트에 접근하기 위해 추가
+      # (ZAP → nginx 경로만 허용, ZAP는 data-net에 없어 postgres/redis 도달 불가)
+      - dast-isolated-net
     depends_on:
       - backend
       # frontend 서비스 활성화 시 아래 주석 해제

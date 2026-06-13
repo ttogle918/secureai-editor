@@ -154,6 +154,8 @@ dvwa-source/
 tests/perf/results.json
 # provider 품질벤치 산출물 (make eval-providers)
 apps/ai_engine/eval/provider_compare/results/
+# OWASP ZAP DAST 스캔 산출물 (make zap-scan) — 커밋 금지
+infra/zap/reports/
 # 로컬 로그 덤프
 backend_logs.txt
 *_logs.txt

@@ -12,6 +12,7 @@ import java.util.UUID;
 /**
  * 감사 로그 엔티티.
  * immutable 레코드이므로 BaseTimeEntity 상속 없이 createdAt만 보유한다.
+ * prev_hash/current_hash 쌍으로 SHA-256 해시 체인을 형성한다.
  */
 @Getter
 @Builder
@@ -46,8 +47,27 @@ public class AuditLogEntry {
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    /**
+     * 직전 로그의 current_hash. genesis 로그는 64자 '0'으로 채운다.
+     * 마이그레이션 이전 기존 행은 NULL.
+     */
+    @Column(name = "prev_hash", length = 64)
+    private String prevHash;
+
+    /**
+     * SHA-256(prevHash || canonicalPayload) 결과값 (hex 64자).
+     * 마이그레이션 이전 기존 행은 NULL.
+     */
+    @Column(name = "current_hash", length = 64)
+    private String currentHash;
+
+    /**
+     * JPA @PrePersist 콜백.
+     * AuditLogAspect에서 draft 엔트리의 createdAt을 미리 고정할 때도 직접 호출된다.
+     * public으로 선언해 Aspect가 직접 호출 가능하도록 한다.
+     */
     @PrePersist
-    protected void onCreate() {
+    public void onCreate() {
         if (this.createdAt == null) {
             this.createdAt = OffsetDateTime.now();
         }

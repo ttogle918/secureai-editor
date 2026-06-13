@@ -26,13 +26,14 @@ import static org.mockito.Mockito.*;
 class UserControllerTest {
 
     @Mock UserService userService;
+    @Mock io.secureai.backend.domain.user.service.UserSessionService userSessionService;
 
     private UserController controller;
     private final UUID userId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        controller = new UserController(userService);
+        controller = new UserController(userService, userSessionService);
     }
 
     @Test

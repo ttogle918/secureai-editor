@@ -37,6 +37,7 @@ class AuthServiceRefreshTest {
     @Mock EmailService emailService;
     @Mock RedisTemplate<String, String> redisTemplate;
     @Mock ValueOperations<String, String> valueOps;
+    @Mock io.secureai.backend.domain.user.service.UserSessionService userSessionService;
 
     AuthService authService;
 
@@ -50,7 +51,7 @@ class AuthServiceRefreshTest {
         authService = new AuthService(
                 userRepository, refreshTokenRepository, planRepository,
                 tokenService, new BCryptPasswordEncoder(4),
-                emailService, redisTemplate, props
+                emailService, redisTemplate, props, userSessionService
         );
 
         org.mockito.Mockito.lenient().when(redisTemplate.opsForValue()).thenReturn(valueOps);

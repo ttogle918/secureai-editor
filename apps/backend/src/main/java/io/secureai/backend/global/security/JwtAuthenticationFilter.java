@@ -1,5 +1,6 @@
 package io.secureai.backend.global.security;
 
+import io.secureai.backend.domain.user.service.UserSessionService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +24,7 @@ import java.util.UUID;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
+    private final UserSessionService userSessionService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -30,6 +32,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = extractToken(request);
         if (StringUtils.hasText(token) && tokenService.isValid(token)) {
             try {
+                String jti = tokenService.extractJti(token);
+                if (jti != null && userSessionService.isJtiBlacklisted(jti)) {
+                    log.debug("JWT blocked — jti is blacklisted");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 UUID userId = tokenService.extractUserId(token);
                 var auth = new UsernamePasswordAuthenticationToken(
                         userId, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));

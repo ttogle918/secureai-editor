@@ -20,19 +20,20 @@ import static org.mockito.Mockito.*;
 /**
  * AuditLogAspect 단위 테스트.
  * AspectJProxyFactory로 AOP 프록시를 직접 생성하여 스프링 컨텍스트 없이 검증한다.
+ * AuditLogChainAppender를 mock으로 주입 — 해시 체인 로직은 별도 테스트에서 검증.
  */
 @ExtendWith(MockitoExtension.class)
 class AuditLogAspectTest {
 
     @Mock
-    private AuditLogRepository auditLogRepository;
+    private AuditLogChainAppender chainAppender;
 
     private AuditLogAspect aspect;
     private StubService proxyService;
 
     @BeforeEach
     void setUp() {
-        aspect = new AuditLogAspect(auditLogRepository);
+        aspect = new AuditLogAspect(chainAppender);
 
         StubService target = new StubService();
         AspectJProxyFactory factory = new AspectJProxyFactory(target);
@@ -45,17 +46,13 @@ class AuditLogAspectTest {
     // ── @AuditLog 어노테이션 메서드 호출 시 저장 검증 ────────────────────────
 
     @Test
-    @DisplayName("@AuditLog 어노테이션 메서드 호출 시 auditLogRepository.save() 호출")
-    void logAudit_whenAnnotatedMethodCalled_savesCalled() {
-        // given
-        when(auditLogRepository.save(any(AuditLogEntry.class)))
-                .thenReturn(mock(AuditLogEntry.class));
-
+    @DisplayName("@AuditLog 어노테이션 메서드 호출 시 chainAppender.append() 호출")
+    void logAudit_whenAnnotatedMethodCalled_appendCalled() {
         // when
         proxyService.doAuditedAction();
 
         // then
-        verify(auditLogRepository).save(any(AuditLogEntry.class));
+        verify(chainAppender).append(any(AuditLogEntry.class));
     }
 
     @Test
@@ -63,13 +60,12 @@ class AuditLogAspectTest {
     void logAudit_actionAndResource_savedCorrectly() {
         // given
         ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
-        when(auditLogRepository.save(captor.capture()))
-                .thenReturn(mock(AuditLogEntry.class));
 
         // when
         proxyService.doAuditedAction();
 
         // then
+        verify(chainAppender).append(captor.capture());
         AuditLogEntry saved = captor.getValue();
         assertThat(saved.getAction()).isEqualTo("TEST_ACTION");
         assertThat(saved.getResource()).isEqualTo("test-resource");
@@ -85,13 +81,12 @@ class AuditLogAspectTest {
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
-        when(auditLogRepository.save(captor.capture()))
-                .thenReturn(mock(AuditLogEntry.class));
 
         // when
         proxyService.doAuditedAction();
 
         // then
+        verify(chainAppender).append(captor.capture());
         AuditLogEntry saved = captor.getValue();
         assertThat(saved.getActorId()).isEqualTo(userId);
     }
@@ -101,13 +96,12 @@ class AuditLogAspectTest {
     void logAudit_withNoAuthentication_savesNullActorId() {
         // given (SecurityContext cleared in setUp)
         ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
-        when(auditLogRepository.save(captor.capture()))
-                .thenReturn(mock(AuditLogEntry.class));
 
         // when
         proxyService.doAuditedAction();
 
         // then
+        verify(chainAppender).append(captor.capture());
         AuditLogEntry saved = captor.getValue();
         assertThat(saved.getActorId()).isNull();
     }
@@ -118,10 +112,10 @@ class AuditLogAspectTest {
     @DisplayName("정상 반환 시 outcome=SUCCESS 로 저장")
     void logAudit_onSuccess_savesOutcomeSuccess() {
         ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
-        when(auditLogRepository.save(captor.capture())).thenReturn(mock(AuditLogEntry.class));
 
         proxyService.doAuditedAction();
 
+        verify(chainAppender).append(captor.capture());
         assertThat(captor.getValue().getOutcome()).isEqualTo("SUCCESS");
     }
 
@@ -129,18 +123,18 @@ class AuditLogAspectTest {
     @DisplayName("예외 발생 시 outcome=FAILURE 로 저장되고 예외는 그대로 전파")
     void logAudit_onException_savesOutcomeFailureAndRethrows() {
         ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
-        when(auditLogRepository.save(captor.capture())).thenReturn(mock(AuditLogEntry.class));
 
         assertThatThrownBy(() -> proxyService.doAuditedActionThatThrows())
                 .isInstanceOf(RuntimeException.class);
 
+        verify(chainAppender).append(captor.capture());
         assertThat(captor.getValue().getOutcome()).isEqualTo("FAILURE");
     }
 
     @Test
     @DisplayName("예외 발생 시 audit 저장이 실패해도 원래 예외가 전파됨")
     void logAudit_onException_auditSaveFailureDoesNotMaskOriginalException() {
-        doThrow(new RuntimeException("DB down")).when(auditLogRepository).save(any());
+        doThrow(new RuntimeException("DB down")).when(chainAppender).append(any());
 
         assertThatThrownBy(() -> proxyService.doAuditedActionThatThrows())
                 .isInstanceOf(IllegalStateException.class)
@@ -150,11 +144,11 @@ class AuditLogAspectTest {
     // ── 저장 실패 시 예외 전파 금지 ───────────────────────────────────────────
 
     @Test
-    @DisplayName("auditLogRepository.save() 예외 발생 시 원래 메서드 반환값에 영향 없음")
-    void logAudit_whenSaveFails_doesNotPropagateException() {
+    @DisplayName("chainAppender.append() 예외 발생 시 원래 메서드 반환값에 영향 없음")
+    void logAudit_whenAppendFails_doesNotPropagateException() {
         // given
         doThrow(new RuntimeException("DB connection lost"))
-                .when(auditLogRepository).save(any(AuditLogEntry.class));
+                .when(chainAppender).append(any(AuditLogEntry.class));
 
         // when / then — 예외가 전파되지 않아야 한다
         assertThatCode(() -> proxyService.doAuditedAction())
@@ -163,10 +157,10 @@ class AuditLogAspectTest {
 
     @Test
     @DisplayName("저장 실패해도 원래 메서드의 반환값은 정상적으로 반환")
-    void logAudit_whenSaveFails_returnValueIsPreserved() {
+    void logAudit_whenAppendFails_returnValueIsPreserved() {
         // given
         doThrow(new RuntimeException("DB connection lost"))
-                .when(auditLogRepository).save(any(AuditLogEntry.class));
+                .when(chainAppender).append(any(AuditLogEntry.class));
 
         // when
         String result = proxyService.doAuditedActionWithReturn();
@@ -176,13 +170,13 @@ class AuditLogAspectTest {
     }
 
     @Test
-    @DisplayName("@AuditLog 없는 메서드는 save() 호출하지 않음")
-    void logAudit_whenMethodNotAnnotated_saveNotCalled() {
+    @DisplayName("@AuditLog 없는 메서드는 append() 호출하지 않음")
+    void logAudit_whenMethodNotAnnotated_appendNotCalled() {
         // when
         proxyService.doUnannotatedAction();
 
         // then
-        verify(auditLogRepository, never()).save(any());
+        verify(chainAppender, never()).append(any());
     }
 
     // ── action 값이 비어있으면 메서드명으로 폴백 ────────────────────────────────
@@ -192,16 +186,26 @@ class AuditLogAspectTest {
     void logAudit_whenActionEmpty_usesMethodName() {
         // given
         ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
-        when(auditLogRepository.save(captor.capture()))
-                .thenReturn(mock(AuditLogEntry.class));
 
         // when
         proxyService.doActionWithNoExplicitAction();
 
         // then
+        verify(chainAppender).append(captor.capture());
         AuditLogEntry saved = captor.getValue();
         assertThat(saved.getAction()).isEqualTo("doActionWithNoExplicitAction");
         assertThat(saved.getResource()).isNull();
+    }
+
+    @Test
+    @DisplayName("draft 엔트리의 createdAt이 append 호출 전에 설정된다")
+    void logAudit_draft_createdAtIsSetBeforeAppend() {
+        ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
+
+        proxyService.doAuditedAction();
+
+        verify(chainAppender).append(captor.capture());
+        assertThat(captor.getValue().getCreatedAt()).isNotNull();
     }
 
     // ── 테스트용 스텁 서비스 ────────────────────────────────────────────────────

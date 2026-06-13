@@ -57,4 +57,29 @@ class TokenServiceTest {
         assertThat(rt1).isNotEqualTo(rt2);
         assertThat(rt1).hasSize(64);
     }
+
+    @Test
+    void generateAccessToken_containsJtiClaim() {
+        UUID userId = UUID.randomUUID();
+        String token = tokenService.generateAccessToken(userId, "jti@example.com");
+        String jti = tokenService.extractJti(token);
+        assertThat(jti).isNotNull().isNotEmpty();
+    }
+
+    @Test
+    void generateAccessTokenWithJtiResult_returnsTokenAndJti() {
+        UUID userId = UUID.randomUUID();
+        TokenService.TokenWithJti result = tokenService.generateAccessTokenWithJtiResult(userId, "jti2@example.com");
+        assertThat(result.token()).isNotNull();
+        assertThat(result.jti()).isNotNull().isNotEmpty();
+        assertThat(tokenService.extractJti(result.token())).isEqualTo(result.jti());
+    }
+
+    @Test
+    void twoTokens_haveDifferentJti() {
+        UUID userId = UUID.randomUUID();
+        String t1 = tokenService.generateAccessToken(userId, "jti@example.com");
+        String t2 = tokenService.generateAccessToken(userId, "jti@example.com");
+        assertThat(tokenService.extractJti(t1)).isNotEqualTo(tokenService.extractJti(t2));
+    }
 }

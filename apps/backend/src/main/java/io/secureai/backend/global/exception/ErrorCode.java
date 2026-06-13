@@ -36,6 +36,8 @@ public enum ErrorCode {
     PROJECT_MEMBER_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 팀 멤버입니다."),
 
     SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "분석 세션을 찾을 수 없습니다."),
+    USER_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "세션을 찾을 수 없습니다."),
+    USER_SESSION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 세션에 대한 접근 권한이 없습니다."),
     SESSION_ALREADY_RUNNING(HttpStatus.CONFLICT, "해당 프로젝트에 진행 중인 분석이 있습니다."),
     SESSION_NOT_RESUMABLE(HttpStatus.CONFLICT, "재개하거나 취소할 수 없는 상태의 세션입니다."),
 

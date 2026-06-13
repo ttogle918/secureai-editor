@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe, Github, Copy, ToggleLeft, ToggleRight, MessageSquare, Zap, Shield } from 'lucide-react';
+import { ArrowLeft, Key, Cpu, CreditCard, Eye, EyeOff, Check, Trash2, Globe, Github, Copy, ToggleLeft, ToggleRight, MessageSquare, Zap, Shield, Monitor } from 'lucide-react';
+import { ActiveDeviceSection } from '@/components/settings/ActiveDeviceSection';
 import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient, BASE_URL } from '@/lib/api/client';
 import { useSecureStore, type DisplayLanguage, type AiTone } from '@/store/useSecureStore';
@@ -122,6 +123,7 @@ export default function SettingsPage() {
   const [blockMergeOnCritical, setBlockMergeOnCritical] = useState(false);
   const [githubSettingStatus, setGithubSettingStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [webhookCopied, setWebhookCopied] = useState(false);
+
 
   // PR 이력 조회 상태
   const [prHistoryRepoOwner, setPrHistoryRepoOwner] = useState('');
@@ -713,6 +715,14 @@ export default function SettingsPage() {
               레포지토리 소유자와 이름을 입력 후 조회하세요.
             </div>
           )}
+        </Section>
+
+        {/* ── 활성 기기 관리 ── */}
+        <Section icon={<Monitor size={16} />} title="활성 기기 관리">
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 20, lineHeight: 1.6 }}>
+            현재 로그인된 세션 목록입니다. 사용하지 않는 기기를 강제 로그아웃할 수 있습니다.
+          </p>
+          <ActiveDeviceSection />
         </Section>
 
         {/* ── 스캔 모드 기본값 ── */}

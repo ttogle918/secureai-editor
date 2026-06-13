@@ -2,6 +2,7 @@ package io.secureai.backend.domain.user.controller;
 
 import io.secureai.backend.domain.user.dto.*;
 import io.secureai.backend.domain.user.service.UserService;
+import io.secureai.backend.domain.user.service.UserSessionService;
 import io.secureai.backend.global.aop.AuditLog;
 import io.secureai.backend.global.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -19,6 +21,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final UserSessionService userSessionService;
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserMeResponse>> getMe(@AuthenticationPrincipal UUID userId) {
@@ -88,6 +91,23 @@ public class UserController {
             @AuthenticationPrincipal UUID userId) {
         userService.removeApiKey(userId);
         return ResponseEntity.ok(ApiResponse.success(Map.of("hasByok", false)));
+    }
+
+    // ── 세션 관리 ─────────────────────────────────────────────────────────
+
+    @GetMapping("/me/sessions")
+    public ResponseEntity<ApiResponse<List<SessionResponse>>> getMySessions(
+            @AuthenticationPrincipal UUID userId) {
+        return ResponseEntity.ok(ApiResponse.success(userSessionService.getActiveSessions(userId)));
+    }
+
+    @DeleteMapping("/me/sessions/{sessionId}")
+    @AuditLog(action = "REVOKE_SESSION", resource = "session")
+    public ResponseEntity<Void> revokeSession(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID sessionId) {
+        userSessionService.revokeSession(sessionId, userId);
+        return ResponseEntity.noContent().build();
     }
 
     // ── GitHub 연동 설정 ───────────────────────────────────────────────────

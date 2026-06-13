@@ -200,6 +200,26 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 
 ---
 
+## Stage 3 완료 (2026-06-14) — 본진 트랙 A (브랜치 `feat/sprint12-main-1202`)
+**커밋**: `9f1a964` | TASK-1202a ∥ TASK-1202b 병렬 Dev(파일 충돌 0: audit 도메인 vs user/session+auth+frontend) → Tester → Reviewer PASS → 커밋.
+
+### TASK-1202a — 감사 로그 해시체인 불변성 (Flyway V055)
+- `audit_logs`에 `prev_hash`/`current_hash`(CHAR(64)) 추가. `current_hash = SHA-256(prev_hash + canonical(actor_id|action|resource|outcome|created_at))`, genesis prev_hash="0"×64.
+- 신설: AuditLogHashService(해시계산)·AuditLogChainAppender(직렬화 append)·AuditVerifyService·AuditLogAdminController(`GET /api/v1/admin/audit-logs/verify`, @PreAuthorize admin). AuditLogAspect는 ChainAppender로 위임.
+- **동시성 직렬화**: ReentrantLock(VThreads pinning 회피) + REPEATABLE_READ + `SELECT ... FOR UPDATE`(다중 인스턴스 방어). 저장 실패는 try-catch 격리(원 요청 무영향).
+
+### TASK-1202b — 세션 이력 관리 + 강제 로그아웃 (Flyway V056)
+- `user_sessions`(user_id, jwt_jti, device_info, ip, user_agent, created_at, revoked_at). TokenService jti 발급(login/refresh/OAuth), AuthService에서 세션 기록.
+- `GET/DELETE /api/v1/users/me/sessions[/{id}]` — 소유권 불일치 403. DELETE는 Redis 블랙리스트(`secureai:jwt:blacklist:{jti}`, TTL=토큰 잔여만료) + revoked_at.
+- JwtAuthenticationFilter가 jti 블랙리스트 적중 시 인증 미설정→401. frontend ActiveDeviceSection(활성 기기 관리).
+
+### 검증·Flyway
+- Tester: backend 745(신규 실패 0, 기존부채 6=VulnerabilityServiceTest 2+DomainVerificationRedisIT 4), frontend 74/74.
+- **Flyway 최종**: V055=1202a, V056=1202b.
+- 🔬 강제로그아웃 e2e(실 앱+Redis 401), ✅ 활성기기 UI는 수동검증. 후속(비차단, Reviewer 권고): ① AuthService.recordSession의 deviceInfo/userAgent 분리(현재 둘 다 UA 헤더) ② audit 정렬 동일타임스탬프 비결정성 → sequence/ULID 보강.
+
+---
+
 ## 핵심 결정사항 (요약)
 
 1. **백본 정본 확정**: `12D P1 → 1201 → 12D P2 → 12C S1·2 → S13 VAL → 12C S3`. 12C·12D 양 문서 합의 순서를 검증·채택.

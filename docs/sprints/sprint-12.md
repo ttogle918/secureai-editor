@@ -220,6 +220,24 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 
 ---
 
+## Stage 4 완료 (2026-06-14) — 본진 트랙 B 착수 (브랜치 `feat/sprint12-trackB-1203b`)
+**커밋**: `0101624` | TASK-1203b 단독 Dev → Tester → Reviewer PASS → 커밋.
+**스코프 결정**: 트랙 B(1203b·1203·1205·관측성)는 모두 `docker-compose.yml`을 공유 → 병렬 Dev 시 레이스. 게다가 1203b는 1203 선행 필수. 따라서 **1203b 단독 스테이지**로 분리(docker-compose 충돌 원천 차단 + 의존성 루트 우선).
+
+### TASK-1203b — OWASP ZAP DAST 스캔 하니스
+- docker-compose: `zap` 서비스(`--profile zap`, `dast-isolated-net` **단독** 연결 → data-net 미연결로 postgres/redis 직접 도달 불가) + nginx에 dast-isolated-net 추가(공개 게이트웨이 스캔 표면).
+- `make zap-scan`/`zap-gate`(perf-test 동형 옵트인), `SCAN_TYPE=full` 전환. `ZAP_TARGET_URL` 환경변수.
+- `infra/zap/gate.py`: ZAP JSON `riskcode≥3`(High/Critical) 집계 → 1건+ `exit 1`. `rules.tsv`/`zap-baseline.conf` 룰 등급, `reports/` gitignore.
+- `docs/runbooks/zap-dast.md` 사용법+게이트 해석. **Sprint 8 부채 "ZAP Critical 0건" 청산 수단 확보**.
+
+### 검증
+- Tester: `tests/zap/test_gate.py` 23 PASS(빈 리포트·riskcode 문자열/정수·다중 site·파일없음 exit2 등 경계 커버), `docker compose config` 파싱 정상.
+- Reviewer PASS: **DAST 격리 네트워크 레이어 검증**(ZAP는 HTTP 스캐너로 nginx 경유 피벗 불가, data-net 직접 TCP 차단), additive-only.
+- 🔬 실 `make zap-scan` 스캔·취약응답 주입·컨테이너 격리는 수동검증(도커 환경). 후속(비차단, Reviewer 권고): ① gate.py except fallback why주석 ② evaluate_gate 27줄 함수분리 ③ infra/zap/.gitignore `*.md` 범위 한정 ④ runbook HTTPS 타깃 권장 명시.
+- **다음**: Stage 5 = TASK-1203(CI 품질게이트, `make zap-scan`을 GitHub Actions에 연결 — 1203b 선행 충족). 이후 1205·관측성.
+
+---
+
 ## 핵심 결정사항 (요약)
 
 1. **백본 정본 확정**: `12D P1 → 1201 → 12D P2 → 12C S1·2 → S13 VAL → 12C S3`. 12C·12D 양 문서 합의 순서를 검증·채택.

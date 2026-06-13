@@ -103,18 +103,19 @@
 
 ## 4. 다음 세션에서 할 것
 
-- [ ] **TASK-1212**: MCP github 도구 체인 운영화 (github-source 분석 완성) → PR #78 재시연으로 취약점 산출 확인.
-- [ ] **데모 아티팩트 정리**:
-  - [ ] PR #78 close 시점 결정(데모용인가, 계속 쓰는가).
-  - [ ] 브랜치 `demo/webhook-sast`, `demo_vulnerable.py` 삭제 여부.
-- [ ] **feat/sprint12 → main 머지**:
-  - [ ] Reviewer 게이트(설계·보안·아키텍처).
-  - [ ] Flyway 버전 최종확정(V050=1201, V051=1211, V052 충돌).
-  - [ ] squash merge vs linear history 결정.
-- [ ] **다음 스테이지 우선순위**:
-  - [ ] 12D Phase2 (COST-3/4: 원가 계측, UI).
-  - [ ] 본진 TASK-1202a/b (보안 정밀도).
-  - [ ] 12C (분석 UX = 점진 노출).
+> ⚠️ 이 섹션은 전반부(Stage2·머지 전) 작성분. **최신 상태·다음 할 일은 §9 후반부 + 아래 갱신 참고.**
+
+전반부 항목은 이번 세션 후반에 **모두 처리됨**:
+- [x] 데모 아티팩트 정리 (PR #78 close, `demo/webhook-sast`·`demo_vulnerable.py` 삭제, ngrok 종료) — §9.3
+- [x] feat/sprint12 → main 머지 (Reviewer 게이트, `--no-ff`, Flyway V050=1201/V051=1211 확정) — §9.4
+- [x] 12D Phase2 (COST-3/4) 구현·머지 — §9.5/§9.6 (Flyway V052·V053=COST-4, V054=COST-3)
+
+**실제 다음 세션 할 일 (2026-06-13 기준):**
+- [ ] **택1 — C(추천): 본진 TASK-1202a/b** (감사로그 해시체인·세션관리, 베타 보안 필수, Flyway V055/V056)
+- [ ] **택1 — B: TASK-1212** (MCP github 도구체인 운영화 → PR #78류 재시연으로 취약점 산출 완성)
+- [ ] (선택) 12C 분석 UX, Sprint 13 EPIC-VAL
+- [ ] (정리) 누적 후속권고: GitHubWebhookService ProjectRepo→ApplicationEvent·startAnalysis @Async / resolveKeyForAnalysis 캐싱 / PricingTable @ConfigurationProperties / ConstraintViolation 400 핸들러 / TokenUsageChart 단위테스트
+- [ ] (수동검증) BYOK Settings·TokenUsageChart·월한도 403 — `docker compose build backend ai_engine && up -d --force-recreate` 후
 
 ---
 
@@ -213,8 +214,8 @@
 | **feat/sprint12** | ✅ 머지 완료(f753d13) → 삭제 |
 | **feat/sprint12-phase2** | ✅ 머지 완료(dd6d004) → 삭제 |
 | **작업트리** | clean |
-| **데모 아티팩트** | PR #78 open · demo/webhook-sast 브랜치(삭제 권고) · ngrok 종료(보안) |
-| **컨테이너** | backend/ai_engine(main 최신 빌드) + postgres/redis 실행 |
+| **데모 아티팩트** | PR #78 **closed** · demo/webhook-sast **삭제됨** · ngrok 종료 |
+| **컨테이너** | backend/ai_engine(Stage2 **이전 이미지** — 수동검증 전 `build && up -d --force-recreate` 필요) + postgres/redis 실행 |
 | **.env** | gitignore · 실 Gemini 키 + GitHub App PEM 경로 포함(로컬) |
 | **Sprint 12 진행** | Phase1(COST-1/2+1201/1211) ✅ main / Phase2(COST-4/COST-3) ✅ main / 미착수: 1212(MCP)·본진1202a/b·1203·1205·관측성 |
 
@@ -263,11 +264,11 @@
 
 ## 8. 세션 요약
 
-**이번 세션은 "계획→구현→라이브 검증→정리"의 풀 사이클이었습니다:**
+**이번 세션은 "계획→구현→라이브 검증→정리→머지"의 풀 사이클이었습니다:**
 - Sprint 12 오케스트레이션으로 3트랙 통합(dff30bc).
-- COST-1/2(Gemini) + TASK-1201(인증) + TASK-1211(웹훅) 전구간 구현(17커밋).
-- ngrok PR #78 시연으로 실 flow 증명 + 라이브 버그 5건 발견·수정.
-- 다음 세션은 TASK-1212(MCP) 또는 12D Phase2(원가 계측) 선택지 확보.
+- 12D Phase1(COST-1/2 Gemini) + TASK-1201(인증) + TASK-1211(웹훅) → ngrok PR #78 실 flow 증명 + 라이브 버그 발견·수정 → **main 머지(f753d13)**.
+- **12D Phase2(COST-4 BYOK + COST-3 토큰원가계측) 구현 → main 머지(dd6d004)**. TASK-1204는 COST-3로 완료.
+- **다음 세션: C(본진 1202a/b, 추천) 또는 B(TASK-1212 MCP).** (12D Phase2는 이번에 완료됨.)
 
-**형상**: feat/sprint12에 구현 완료 · main 계획문서 · 작업트리 clean · 머지 준비 완료.
+**형상**: main=dd6d004(origin 동기화) · feature 브랜치 모두 머지·삭제 · 작업트리 clean.
 

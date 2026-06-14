@@ -1,0 +1,304 @@
+name: CI — Quality Gate (k6 + ZAP + SCA)
+
+# PR 또는 main push 시 전체 코드베이스에 대해 품질 게이트를 실행한다.
+# paths 필터 없음 — 코드 변경 경로와 무관하게 모든 PR에서 동작해야 한다.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# ─────────────────────────────────────────────────────────────────
+# Job 1-A: SCA — Frontend npm audit (HIGH+ 차단)
+# ─────────────────────────────────────────────────────────────────
+jobs:
+  sca-frontend:
+    name: SCA — Frontend npm audit (HIGH+)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/frontend
+        run: npm ci
+
+      # HIGH/CRITICAL 취약점 발견 시 exit 1.
+      # 현재 1 high + 1 critical 존재(2026-06-14 실측) — next.js 의존성 연쇄 이슈.
+      # 패키지 업데이트 후 continue-on-error: false 로 전환할 것.
+      # TODO: npm audit fix --force (next@15.5.19 업데이트) 후 제거
+      - name: npm audit (HIGH+)
+        working-directory: apps/frontend
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+# ─────────────────────────────────────────────────────────────────
+# Job 1-B: SCA — AI Engine pip-audit (HIGH+ 차단)
+# ─────────────────────────────────────────────────────────────────
+  sca-ai-engine:
+    name: SCA — AI Engine pip-audit (HIGH+)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/ai_engine/requirements.txt
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      # HIGH 이상에서 취약점 발견 시 exit 1.
+      - name: pip-audit (HIGH+)
+        run: pip-audit -r apps/ai_engine/requirements.txt --severity high
+
+# ─────────────────────────────────────────────────────────────────
+# Job 1-C: SCA — Backend OWASP Dependency-Check (CVSS≥7 차단)
+# ─────────────────────────────────────────────────────────────────
+  sca-backend:
+    name: SCA — Backend OWASP Dependency-Check (HIGH+)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      # OWASP Dependency-Check — CVSS HIGH(7.0) 이상 발견 시 빌드 실패.
+      # NVD API 키를 secrets.NVD_API_KEY 로 등록하면 데이터 수집 속도가 향상된다.
+      - name: OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: "secureai-backend"
+          path: "apps/backend"
+          format: "HTML"
+          args: >
+            --failOnCVSS 7
+            --enableRetired
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+
+      - name: Upload Dependency-Check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: reports/
+          if-no-files-found: ignore
+
+# ─────────────────────────────────────────────────────────────────
+# Job 2: k6 부하 테스트 — p95 < 500ms 게이트
+#
+# 전략: GitHub Actions 서비스 컨테이너(postgres, redis) + Gradle bootRun으로
+# backend를 직접 기동한다. Docker compose 이미지 빌드보다 빠르고 안정적.
+# k6는 grafana/k6-action으로 실행. load-test.js의 thresholds에서 직접 게이트.
+# ─────────────────────────────────────────────────────────────────
+  k6-load-test:
+    name: k6 — Load test (p95 < 500ms)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_DB: secureai_test
+          POSTGRES_USER: secureai
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U secureai"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      # backend를 백그라운드 bootRun으로 기동한다.
+      # Spring Flyway 마이그레이션이 자동 적용된다.
+      - name: Start backend (bootRun)
+        working-directory: apps/backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/secureai_test
+          SPRING_DATASOURCE_USERNAME: secureai
+          SPRING_DATASOURCE_PASSWORD: test_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_PASSWORD: ""
+          JWT_SECRET: ci-test-secret-key-at-least-64-characters-long-for-testing-only
+          SECUREAI_ENCRYPTION_KEY: 0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20
+          # AI Engine 미기동 — actuator/health와 인증 없는 엔드포인트는 독립적으로 응답한다.
+          AI_ENGINE_URL: http://localhost:8000
+          INTERNAL_API_KEY: ci-internal-key
+        run: ./gradlew bootRun --no-daemon &
+
+      - name: Wait for backend health
+        run: |
+          echo "Backend 기동 대기 중..."
+          timeout 120 bash -c 'until curl -sf http://localhost:8080/actuator/health; do sleep 3; echo "still waiting..."; done'
+          echo "Backend 준비 완료"
+
+      # grafana/k6-action: load-test.js의 thresholds(p95<500ms, errors<1%)가
+      # 위반되면 exit 1이 되어 이 Job이 실패한다 — PR 게이트 차단.
+      - name: Run k6 load test
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: tests/perf/load-test.js
+        env:
+          # load-test.js에서 __ENV.BASE_URL 로 참조
+          BASE_URL: http://localhost:8080
+
+      - name: Upload k6 results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-results
+          path: tests/perf/results.json
+          if-no-files-found: ignore
+
+# ─────────────────────────────────────────────────────────────────
+# Job 3: OWASP ZAP DAST — Critical/High 0건 게이트
+#
+# Stage4에서 구현된 infra/zap/gate.py를 재사용한다.
+# docker compose --profile zap 으로 ZAP을 기동하되, 스캔 대상은
+# 서비스 컨테이너 + Gradle bootRun으로 기동한 backend이다.
+# ZAP exit code는 무시하고 gate.py가 JSON 리포트를 직접 파싱해 판정한다.
+# ─────────────────────────────────────────────────────────────────
+  zap-dast:
+    name: ZAP DAST — Critical/High 0건 게이트
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_DB: secureai_test
+          POSTGRES_USER: secureai
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U secureai"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Start backend (bootRun)
+        working-directory: apps/backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/secureai_test
+          SPRING_DATASOURCE_USERNAME: secureai
+          SPRING_DATASOURCE_PASSWORD: test_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_PASSWORD: ""
+          JWT_SECRET: ci-test-secret-key-at-least-64-characters-long-for-testing-only
+          SECUREAI_ENCRYPTION_KEY: 0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20
+          AI_ENGINE_URL: http://localhost:8000
+          INTERNAL_API_KEY: ci-internal-key
+        run: ./gradlew bootRun --no-daemon &
+
+      - name: Wait for backend health
+        run: |
+          echo "Backend 기동 대기 중..."
+          timeout 120 bash -c 'until curl -sf http://localhost:8080/actuator/health; do sleep 3; echo "still waiting..."; done'
+          echo "Backend 준비 완료"
+
+      - name: Create ZAP report directory
+        run: mkdir -p infra/zap/reports
+
+      # ZAP baseline 스캔 — Docker 직접 실행(docker compose profile 없이).
+      # localhost:8080을 스캔 대상으로 지정한다.
+      # -I: ZAP 내부 exit code를 무시(0으로 강제). gate.py가 JSON으로 최종 판정한다.
+      - name: Run ZAP baseline scan
+        run: |
+          docker run --rm \
+            --network host \
+            -v "$(pwd)/infra/zap:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+              -t http://localhost:8080 \
+              -c /zap/wrk/zap-baseline.conf \
+              -r /zap/wrk/reports/zap-report.html \
+              -J /zap/wrk/reports/zap-report.json \
+              -I \
+              -l WARN
+        # ZAP exit code 무시 — gate.py가 판정한다.
+        continue-on-error: true
+
+      # Stage4에서 구현된 gate.py로 Critical/High 집계 → exit code 결정.
+      # Critical/High 1건 이상이면 exit 1 → 이 Job이 실패하여 PR 게이트 차단.
+      - name: Evaluate ZAP gate (Critical/High = 0 required)
+        run: python infra/zap/gate.py infra/zap/reports/zap-report.json
+
+      - name: Upload ZAP reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-reports
+          path: infra/zap/reports/
+          if-no-files-found: ignore

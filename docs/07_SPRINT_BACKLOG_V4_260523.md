@@ -502,16 +502,17 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [x] 🔬 강제 로그아웃 시 즉시 JWT 무효화 + 다음 요청 401 반환 — JwtAuthenticationFilterBlacklistTest(필터 레벨), 🔬 실 앱+Redis e2e는 수동검증
   - [x] 🛡️ 타 사용자 세션 조회/삭제 시도 → 403 — UserSessionServiceTest(revokeSession_nonOwner_throws403)
 
-### TASK-1203 🟡 CI/CD 품질 게이트 (k6 + ZAP + SCA)
+### TASK-1203 🟡 CI/CD 품질 게이트 (k6 + ZAP + SCA) — 🟢 **완료**(`ebc4329`, Stage5)
 - **중요도**: 🟡 Medium | **순서**: 3번째 | **사이즈**: M
 - **선행**: ZAP 스캔 자체 실행 수단은 **TASK-1203b**(로컬 하니스)에서 구축 — 본 태스크는 그 하니스를 GitHub Actions에 연결만.
 - **하위 할일**
-  - [ ] k6 부하 테스트 — GitHub Actions 통합 (p95 < 500ms 게이트)
-  - [ ] OWASP ZAP 보안 스캔 이미지 CI 통합 (Critical/High 0건 게이트) — **TASK-1203b `make zap-scan` 재사용**
-  - [ ] **npm audit / pip-audit / OWASP Dependency-Check** — 의존성 SCA 자동화 (HIGH 이상 차단)
-  - [ ] **JaCoCo + Codecov** 백엔드 라인 커버리지 70% 게이트
+  - [x] k6 부하 테스트 — GitHub Actions 통합 (p95 < 500ms 게이트, `ci-quality-gate.yml` k6-load-test)
+  - [x] OWASP ZAP 보안 스캔 CI 통합 (Critical/High 0건 게이트) — **TASK-1203b `infra/zap/gate.py` 재사용**
+  - [x] **npm audit / pip-audit / OWASP Dependency-Check** — 의존성 SCA 자동화 (HIGH/CVSS≥7 차단). ⚠️ frontend npm audit은 기존부채(next.js 연쇄 1 high+1 critical)로 `continue-on-error`(경보전용) — 후속 audit-ci allowlist 전환 권고
+  - [x] **JaCoCo + Codecov** 백엔드 라인 커버리지 게이트 — 임계 **58%**(실측 59.73%) 도입, build.gradle.kts 주석에 Sprint13 65%→Sprint14 70% 점진상향 명시
 - **테스트 체크리스트**
-  - [ ] 🔬 성능 저하/보안 취약점/커버리지 미달 PR은 자동 차단 확인
+  - [ ] 🔬 성능 저하/보안 취약점/커버리지 미달 PR은 자동 차단 확인 (GH Actions 실행 — 수동검증; 로컬: yml 파싱 OK·jacocoTestCoverageVerification BUILD SUCCESSFUL)
+- **후속(비차단, Reviewer 권고)**: ① k6-action env(BASE_URL) 전달 확인/`args --env` 보강 ② frontend npm audit→`audit-ci --allowlist <CVE>` 전환(Sprint13 전) ③ 커버리지 65% 상향 태스크 Sprint13 등록
 
 ### TASK-1203b 🟠 OWASP ZAP DAST 스캔 하니스 구축 (baseline scan + Critical 게이트) (신규 — V5.6) — 🟢 **완료**(`0101624`, Stage4)
 - **중요도**: 🟠 High | **순서**: 3번째 (TASK-1203 선행) | **사이즈**: M | **출처**: TASK-1105 수동검증 갭 (2026-06-06)

@@ -123,6 +123,8 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	// test 완료(성공/실패 무관) 시 리포트를 생성한다.
+	// finalizedBy는 선행 task가 실패해도 후행 task를 실행한다.
 	finalizedBy(tasks.jacocoTestReport)
 }
 
@@ -131,9 +133,37 @@ jacoco {
 }
 
 tasks.jacocoTestReport {
-	dependsOn(tasks.test)
+	// mustRunAfter: test 이후 실행 순서만 보장하되, 직접 호출 시 test를 재실행하지 않는다.
+	// CI에서는 build 스텝(test 포함)이 먼저 실행되고, 별도 스텝에서 jacocoTestReport만 호출한다.
+	// 로컬 개발 시: ./gradlew test jacocoTestReport 순서로 함께 실행하면 된다.
+	mustRunAfter(tasks.test)
 	reports {
 		xml.required.set(true)
 		html.required.set(true)
+	}
+}
+
+// ── 커버리지 게이트 ────────────────────────────────────────────────────────
+// 실측 라인 커버리지: 59.73% (2026-06-14 기준, .exec 파일 기반 정상 측정)
+// 이전 1.1% 는 .exec 파일 없이 측정한 잘못된 값이었음.
+// 현재 실측(59.73%)에서 안전 마진 2%를 두어 임계 58%로 설정한다.
+// 목표: Sprint 13 → 65%, Sprint 14 → 70%(백로그 원래 목표)
+// CI 실행 순서:
+//   Step 1: ./gradlew build (continue-on-error) → test 실행 + .exec 파일 생성
+//   Step 2: ./gradlew jacocoTestReport          → .exec → XML/HTML 리포트 생성
+//   Step 3: ./gradlew jacocoTestCoverageVerification → 리포트 읽어 임계 검사
+tasks.jacocoTestCoverageVerification {
+	// mustRunAfter: jacocoTestReport 이후 실행 순서만 보장. test 재실행 없음.
+	mustRunAfter(tasks.jacocoTestReport)
+	violationRules {
+		rule {
+			limit {
+				counter = "LINE"
+				value = "COVEREDRATIO"
+				// 실측 59.73% 기준 — 안전 마진 2% 적용하여 0.58로 설정.
+				// TODO(sprint13): 0.65로, TODO(sprint14): 0.70으로 상향
+				minimum = "0.58".toBigDecimal()
+			}
+		}
 	}
 }

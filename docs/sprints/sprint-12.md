@@ -238,6 +238,22 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 
 ---
 
+## Stage 5 완료 (2026-06-14) — 본진 트랙 B (브랜치 `feat/sprint12-trackB-1203`)
+**커밋**: `ebc4329` | TASK-1203 단독 Dev → Tester → Reviewer PASS → 커밋. 1203b(Stage4) 선행 충족 후 CI 배선.
+
+### TASK-1203 — CI/CD 품질 게이트
+- 신규 `.github/workflows/ci-quality-gate.yml`: **k6**(p95<500ms, `tests/perf/load-test.js`) / **ZAP**(Stage4 `infra/zap/gate.py` 재사용, Critical·High 0) / **SCA**(frontend npm audit · ai_engine pip-audit --severity high · backend OWASP Dependency-Check --failOnCVSS 7).
+- `ci-backend.yml`: JaCoCo 커버리지 게이트 + Codecov 업로드. `build.gradle.kts`: `jacocoTestCoverageVerification`(라인 **58%**, 실측 59.73%) + `jacocoTestReport` dependsOn→mustRunAfter(test).
+
+### 검증·결정
+- Tester: yml 전부 파싱 OK, k6/zap 참조 경로 실존, `jacocoTestCoverageVerification` 로컬 BUILD SUCCESSFUL.
+- Reviewer PASS(필수 0): 게이트 6개 중 **5개 하드차단**, frontend npm audit만 기존부채(next.js 연쇄 1 high+1 critical)로 `continue-on-error` 경보전용 — "알면서 허용" 단계조치로 허용.
+- **트레이드오프 결정**: ① 커버리지 70%→**58%** (70%면 전 PR 즉시 차단 → 점진상향이 정직). ② npm audit 비차단 유지하되 audit-ci allowlist 전환 강력권고.
+- 🔬 k6/ZAP/SCA 실 게이트 동작은 **GH Actions 수동검증**. 후속(비차단): k6-action env 전달 보강, npm audit→audit-ci allowlist(S13 전), 커버리지 65% 백로그 등록(S13).
+- **남은 트랙 B**: TASK-1205(백업+S3), 관측성(Loki/Sentry).
+
+---
+
 ## 핵심 결정사항 (요약)
 
 1. **백본 정본 확정**: `12D P1 → 1201 → 12D P2 → 12C S1·2 → S13 VAL → 12C S3`. 12C·12D 양 문서 합의 순서를 검증·채택.

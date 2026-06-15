@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  logback-spring.xml — SecureAI Backend 로그 설정
+  목적:
+    1. Promtail이 Loki로 수집할 수 있도록 JSON 구조화 로그 출력 (컨테이너 stdout)
+    2. traceId / spanId 를 MDC에서 읽어 JSON 필드로 포함 (Trace ID 상관관계)
+  보안:
+    - 민감 데이터(토큰/패스워드/키)는 로그 출력 금지 (general.md 규칙)
+    - Sentry appender는 SENTRY_DSN 환경변수가 있을 때만 활성화
+-->
+<configuration>
+    <!-- Spring Boot 기본 설정 포함 (스프링 환경변수 참조 활성화) -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- ── JSON 구조화 로그 Appender (Promtail → Loki 수집용) ── -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <timeZone>UTC</timeZone>
+                </timestamp>
+                <logLevel/>
+                <loggerName>
+                    <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+                </loggerName>
+                <mdc>
+                    <!-- Micrometer Tracing이 MDC에 주입하는 traceId/spanId 포함 -->
+                </mdc>
+                <message/>
+                <stackTrace>
+                    <!-- 스택 트레이스는 민감 내부 경로 노출 가능 — 운영에서는 제거 검토 -->
+                    <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                        <maxDepthPerCause>10</maxDepthPerCause>
+                        <exclude>sun\.reflect\..*</exclude>
+                        <exclude>java\.lang\.reflect\..*</exclude>
+                    </throwableConverter>
+                </stackTrace>
+                <!-- 커스텀 필드: service 레이블 (Promtail relabel 보조) -->
+                <pattern>
+                    <pattern>{"service":"secureai-backend"}</pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <!-- ── 개발 환경: 가독성 높은 텍스트 포맷 ── -->
+    <springProfile name="dev,local">
+        <appender name="DEV_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <!-- %X{traceId}/%X{spanId} — MDC에서 Micrometer Tracing이 주입 -->
+                <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%X{traceId}/%X{spanId}] %cyan(%logger{36}) - %msg%n</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="DEV_CONSOLE"/>
+        </root>
+        <!-- secureai 패키지는 DEBUG 허용 (개발 편의) -->
+        <logger name="io.secureai" level="DEBUG"/>
+    </springProfile>
+
+    <!-- ── 프로덕션/도커 환경: JSON 구조화 로그 ── -->
+    <springProfile name="!dev &amp; !local">
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+        <logger name="io.secureai" level="INFO"/>
+        <!-- 외부 라이브러리 노이즈 억제 -->
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="com.zaxxer.hikari" level="WARN"/>
+        <logger name="org.hibernate" level="WARN"/>
+    </springProfile>
+</configuration>

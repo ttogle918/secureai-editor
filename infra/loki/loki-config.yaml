@@ -1,0 +1,37 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+ruler:
+  alertmanager_url: http://localhost:9093
+
+# 로컬 개발용 단순 설정 — 프로덕션에서는 S3/GCS object store 사용 권장
+limits_config:
+  # LogQL 알림 규칙: 5분 내 ERROR 100건 초과 감지
+  ingestion_rate_mb: 4
+  ingestion_burst_size_mb: 6
+  max_entries_limit_per_query: 5000

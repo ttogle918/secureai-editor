@@ -1,0 +1,62 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # ── Docker 컨테이너 로그 자동 수집 (Docker socket 방식) ──────────────────
+  # /var/run/docker.sock 마운트 필수 — Promtail이 컨테이너 stdout/stderr tail
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          # secureai- 접두어를 가진 컨테이너만 수집
+          - name: name
+            values:
+              - secureai-backend
+              - secureai-ai-engine
+    relabel_configs:
+      # container_name → service 레이블 (LogQL 쿼리용)
+      - source_labels: [__meta_docker_container_name]
+        regex: '/?(.*)'
+        target_label: container
+      - source_labels: [__meta_docker_container_name]
+        regex: '/?secureai-(.*)'
+        replacement: 'secureai-$1'
+        target_label: service
+      - source_labels: [__meta_docker_container_log_stream]
+        target_label: logstream
+    pipeline_stages:
+      # Backend: JSON 구조화 로그 (logback-spring.xml에서 출력)
+      - match:
+          selector: '{service="secureai-backend"}'
+          stages:
+            - json:
+                expressions:
+                  level: level
+                  trace_id: traceId
+                  span_id: spanId
+                  logger: logger_name
+                  message: message
+            - labels:
+                level:
+                trace_id:
+            - output:
+                source: message
+
+      # AI Engine: uvicorn/python logging (텍스트 포맷 — trace_id 포함)
+      - match:
+          selector: '{service="secureai-ai-engine"}'
+          stages:
+            - regex:
+                # 예: 2026-06-15 12:00:00 INFO  [trace_id=abc123] message
+                expression: '(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL).*\[trace_id=(?P<trace_id>[^\]]+)\]'
+            - labels:
+                level:
+                trace_id:

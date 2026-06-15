@@ -74,3 +74,9 @@ opentelemetry-exporter-otlp-proto-grpc==1.27.0
 # prometheus_client 는 prometheus-fastapi-instrumentator 의존성으로 자동 설치됨
 # ───────────────────────────────────────────────────
 prometheus-fastapi-instrumentator==7.1.0
+
+# ───────────────────────────────────────────────────
+# Sentry 에러 추적 (TASK-1804) — SENTRY_DSN 미설정 시 init 스킵 (env-gated)
+# fastapi 통합 + logging 통합 포함
+# ───────────────────────────────────────────────────
+sentry-sdk[fastapi]==2.29.1

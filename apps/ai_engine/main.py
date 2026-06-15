@@ -3,6 +3,7 @@ from infrastructure.langsmith_tracer import configure_langsmith
 configure_langsmith()  # must run before any langchain import
 
 import logging
+import logging.config
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -11,6 +12,7 @@ from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from api.middleware.internal_key_auth import InternalKeyAuthMiddleware
+from infrastructure.sentry_filter import scrub_sentry_event
 from api.routes.analyze import router as analyze_router
 from api.routes.chat import router as chat_router
 from api.routes.dast import router as dast_router
@@ -36,6 +38,52 @@ if settings.otel_enabled:
         BatchSpanProcessor(OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint))
     )
     trace.set_tracer_provider(_provider)
+
+# ── 로그 포맷 설정 — trace_id 포함 (Loki Trace ID 상관관계, TASK-1603) ──
+# Promtail pipeline_stages의 regex가 "[trace_id=<id>]" 패턴을 레이블로 추출한다.
+logging.config.dictConfig({
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "structured": {
+            "format": "%(asctime)s %(levelname)s [trace_id=%(trace_id)s] %(name)s - %(message)s",
+            "defaults": {"trace_id": "-"},
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "structured",
+        }
+    },
+    "root": {
+        "level": "INFO",
+        "handlers": ["console"],
+    },
+    "loggers": {
+        "uvicorn": {"level": "INFO", "propagate": True},
+        "uvicorn.access": {"level": "WARNING", "propagate": True},
+    },
+})
+
+# Sentry 에러 추적 — SENTRY_DSN 있을 때만 활성화 (env-gated, TASK-1804)
+if settings.sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        integrations=[
+            FastApiIntegration(transaction_style="endpoint"),
+            LoggingIntegration(level=logging.ERROR, event_level=logging.ERROR),
+        ],
+        before_send=scrub_sentry_event,
+        # PII 자동 수집 비활성화 (IP/사용자 정보 전송 금지)
+        send_default_pii=False,
+        traces_sample_rate=0.1,
+        environment="production" if not settings.debug else "development",
+    )
 
 logger = logging.getLogger(__name__)
 

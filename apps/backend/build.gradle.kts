@@ -119,6 +119,15 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-micrometer-tracing:4.0.5")
 	implementation("io.micrometer:micrometer-tracing-bridge-otel")
 	implementation("io.opentelemetry:opentelemetry-exporter-otlp")
+
+	// Loki 로그 집계 — JSON 구조화 로그 (traceId/spanId MDC 포함)
+	// Promtail이 컨테이너 stdout을 tail → Loki 전송하므로 appender 불필요
+	// logback-spring.xml에서 net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder 사용
+	implementation("net.logstash.logback:logstash-logback-encoder:7.4")
+
+	// Sentry — 에러 추적 (TASK-1804)
+	// SENTRY_DSN 환경변수 미설정 시 자동 비활성화 (env-gated)
+	implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.13.3")
 }
 
 tasks.withType<Test> {

@@ -115,6 +115,16 @@ secureai:
   slack:
     webhook-url: ${SECUREAI_SLACK_WEBHOOK_URL:}
 
+sentry:
+  # SENTRY_DSN 미설정 시 Sentry 비활성화 (env-gated) — 로컬/CI 무해
+  dsn: ${SENTRY_DSN:}
+  # before-send 훅으로 PII 스크럽 (SentryPiiScrubber 빈이 자동 등록됨)
+  # 민감 데이터: JWT/Authorization/X-Internal-Key 헤더, 비밀번호 파라미터
+  send-default-pii: false
+  traces-sample-rate: 0.1
+  # Jaeger traceId 연계: Sentry 이벤트에 traceId를 태그로 추가
+  environment: ${SPRING_PROFILES_ACTIVE:dev}
+
 firebase:
   # Firebase를 활성화하려면 true로 설정. 개발 환경에서는 false(no-op 동작).
   enabled: false

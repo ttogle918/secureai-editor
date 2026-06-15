@@ -276,6 +276,27 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 
 ---
 
+## Stage 7 완료 (2026-06-15) — 본진 트랙 B 마지막 (브랜치 `feat/sprint12-trackB-1205-backup`)
+**커밋**: `a782768`(TASK-1205) · `c1a8e47`(Sentry×Boot4 부팅 수정) | 단독 Dev → Tester → Reviewer PASS → 커밋. **트랙 B(1203b·1203·1205·관측성) 완료.**
+
+### TASK-1205 — 자동 백업 스케줄러 + S3 업로드
+- `infra/scripts/backup-postgres.sh`: pg_dump+gzip+`aws s3 cp`. `set -euo pipefail`·함수분리·PGPASSWORD env전용(명령줄/로그 미노출)·BACKUP_TMP_DIR 절대경로 검증·trap EXIT 정리.
+- `domain/backup/service/BackupJob.java`: `@Scheduled(0 0 3 * * *, Asia/Seoul)`+`@SchedulerLock`(기존 cleanup 잡 패턴). `backup.enabled` env-gated, ProcessBuilder 실행, checked 예외 catch fail-isolation(타 스케줄 잡 무영향), 민감키워드 로그필터, VThread stdout 소비.
+- `infra/scripts/s3-lifecycle-policy.json`: 30일→Glacier·365일 삭제·미완료 멀티파트 7일 정리. Block Public Access 전제.
+- `docs/runbooks/disaster-recovery.md`: RTO 4h/RPO 24h 복구 런북.
+- **단위 테스트**: 4개 통과(env-gate·fail-isolation).
+
+### (부수) Sentry × Spring Boot 4 부팅 불가 버그 수정
+- Stage 6에서 잠복(main 1d118a7~)하던 컨텍스트 로딩 실패를 Tester가 포착. `sentry-spring-boot-starter-jakarta`가 Boot4에서 제거된 구 autoconfigure FQCN 참조 → ClassNotFoundException → 백엔드 부팅 불가.
+- 해결: Sentry `8.13.3→8.43.2` + 제거된 구 FQCN 6종 compat shim(빈 클래스 3+SAM 인터페이스 3, jar javap 시그니처 일치, Boot4 부재 확인). 사용자 결정 = 'bump+최소 shim'. 상세: `docs/troubleshooting/2026-06-15_sentry-boot4-webclient-compat.md`. **제거 TODO**: Sentry가 Boot4 패키지 참조하도록 수정되면 shim 삭제.
+
+### 검증·Flyway
+- Tester: BackupJob 4 그린, **contextLoads 통과(부팅 정상화)**, 전체 763 신규실패 0(기존부채 6=Redis IT 4+VulnerabilityServiceTest 2). Flyway 변경 없음(백업은 스키마 무관).
+- Reviewer PASS(필수 0): 백업 명령 인젝션 표면 없음·시크릿 미노출·shim 셰도잉 아님 확인. 비차단 권고 2건 즉시 반영(테스트 DisplayName 정정, 버전업 시 shim 재확인 절차 문서화).
+- 🔬 실 백업→S3 업로드→복원 동일성, 🛡️ Block Public Access는 수동검증(실 AWS).
+
+---
+
 ## 핵심 결정사항 (요약)
 
 1. **백본 정본 확정**: `12D P1 → 1201 → 12D P2 → 12C S1·2 → S13 VAL → 12C S3`. 12C·12D 양 문서 합의 순서를 검증·채택.

@@ -17,8 +17,8 @@
     "tauri:icon": "tauri icon"
   },
   "dependencies": {
-    "@sentry/nextjs": "^8.55.0",
     "@monaco-editor/react": "^4.6.0",
+    "@sentry/nextjs": "^8.55.2",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-fs": "^2",

@@ -103,7 +103,7 @@ services:
       DOCKER_HOST: tcp://host.docker.internal:2375
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
       # Sentry 에러 추적 (TASK-1804) — 미설정 시 비활성화 (env-gated)
-      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_DSN: ${BACKEND_SENTRY_DSN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - reports_data:/app/reports
@@ -149,7 +149,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       OTEL_SERVICE_NAME: secureai-ai-engine
       # Sentry 에러 추적 (TASK-1804) — 미설정 시 비활성화 (env-gated)
-      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_DSN: ${AI_ENGINE_SENTRY_DSN:-}
     volumes:
       - ${WORKSPACE_PATH:-/workspace}:/workspace:ro
       - ./apps/mcp_server:/app/mcp_server:ro

@@ -56,8 +56,16 @@ function scrubHeaders(
 }
 
 function scrubCookies(request: Sentry.Request): void {
-  if (request.cookies) {
-    // 쿠키 전체 마스킹 — 세션 토큰 포함 가능
+  if (!request.cookies) {
+    return;
+  }
+  // 쿠키 전체 마스킹 — 세션 토큰 포함 가능. Sentry는 cookies를 객체 또는
+  // 원본 문자열로 전달할 수 있으므로 두 형태 모두 마스킹한다(문자열 누락 시 누출).
+  if (typeof request.cookies === "object") {
+    for (const key of Object.keys(request.cookies)) {
+      request.cookies[key] = "[REDACTED]";
+    }
+  } else {
     request.cookies = "[REDACTED]";
   }
 }

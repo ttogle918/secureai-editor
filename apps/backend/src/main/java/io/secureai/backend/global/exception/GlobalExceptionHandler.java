@@ -12,6 +12,8 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.util.stream.Collectors;
 
+import io.sentry.Sentry;
+
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -50,6 +52,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
         log.error("Unhandled exception", e);
+        Sentry.captureException(e); // DSN 미설정 시 no-op (env-gated)
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(

@@ -69,7 +69,8 @@ public class AuditLogEntry {
     @PrePersist
     public void onCreate() {
         if (this.createdAt == null) {
-            this.createdAt = OffsetDateTime.now();
+            // PostgreSQL TIMESTAMPTZ와의 해시 정합성을 위해 마이크로초 단위로 절사
+            this.createdAt = OffsetDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         }
     }
 }

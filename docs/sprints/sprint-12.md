@@ -254,6 +254,28 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 
 ---
 
+## Stage 6 완료 (2026-06-15) — 본진 트랙 B 관측성 (브랜치 `feat/sprint12-trackB-observability`)
+**커밋**: `795c1e0` | TASK-1603(Loki) + TASK-1804(Sentry) 단일 Dev(공유파일 docker-compose/main.py 레이스 회피) → Tester(Docker 라이브) → Reviewer PASS → 커밋.
+**스코프 제약 준수**: `analyze.py` 에러핸들러 미수정(12C STAGE-2 충돌 회피), docker-compose additive(기존 jaeger/prometheus/grafana 유지).
+
+### TASK-1603 — Loki 로그 집계
+- docker-compose: `loki`+`promtail`(docker_sd 수집) 서비스 + `loki_data` 볼륨. `infra/loki/{loki-config,promtail-config,loki-alerts}.yaml`.
+- Grafana: `datasources/loki.yaml`(derivedFields→Jaeger 링크) + `dashboards/loki-logs.json`.
+- **Trace ID 상관관계**: backend logback-spring.xml(`%X{traceId}` JSON) + ai_engine dictConfig(trace_id) → Promtail 추출 → LogQL로 Backend↔AI Engine 추적.
+
+### TASK-1804 — Sentry 에러 추적 (3런타임)
+- backend `sentry-spring-boot-starter-jakarta` + ai_engine `sentry-sdk[fastapi]`(main.py init) + frontend `@sentry/nextjs`(client/server config). **전부 DSN env-gated**(미설정 시 init 스킵 → 로컬/CI 무해).
+- 🛡️ **before_send PII 스크럽**(JWT/password/token/Authorization/X-Internal-Key/cookie/set-cookie), `send-default-pii=false`. SentryPiiScrubber(java)·sentry_filter(py)·beforeSend(ts).
+
+### 검증 (Docker 라이브 — 이번엔 실제 기동)
+- Tester: Sentry PII 단위 py16+java15 PASS, backend compile OK. **Loki 스택 라이브 기동**: Loki `/ready`·labels, **Grafana→Loki proxy 쿼리 success**, Promtail 소켓OK.
+- **라이브 버그 발견·수정**: grafana `GF_INSTALL_PLUGINS=grafana-loki-datasource`가 404 크래시루프(Loki는 빌트인 코어 데이터소스) → env 제거 후 정상화. (라이브 기동이 아니면 못 잡았을 버그)
+- Reviewer PASS(필수 0): set-cookie 일관성 권고 반영.
+- 🔬 실 backend 로그 LogQL 적재·Trace ID 상관관계는 풀스택 기동 수동, Sentry 실 이벤트 도달은 사용자 DSN 필요(수동).
+- **트랙 B 남은 1건**: TASK-1205(백업+S3).
+
+---
+
 ## 핵심 결정사항 (요약)
 
 1. **백본 정본 확정**: `12D P1 → 1201 → 12D P2 → 12C S1·2 → S13 VAL → 12C S3`. 12C·12D 양 문서 합의 순서를 검증·채택.

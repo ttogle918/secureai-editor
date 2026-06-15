@@ -120,6 +120,26 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - 배경 누적: MOAT(데이터 플라이휠)·시스템 오브 레코드는 전 스프린트 걸쳐 누적.
 - ⚠️ 실제 스프린트 배정·DoD 확정은 `/sprint 13`(Opus 4.8 PM)에서.
 
+### EPIC-VAL 확장 — 객관 검증 방법 보강 (2026-06-15)
+> 출처: `docs/memo/SECUREAI_BENCHMARK_GUIDE.md` + `docs/memo/SECUREAI_VALIDATION_ROADMAP.md` 정합 + 신규 방법 발굴.
+> **정합 확인**: 메모의 OWASP Benchmark = 기존 **VAL-1**, Juliet/DAST(WebGoat·Juice Shop) = VAL-1/VAL-4 확장으로 흡수, eval CI 게이트 = 기존 **VAL-2**. 아래는 **메모엔 있으나 미태스크화된 것(VAL-7·8)** + **두 문서 모두에 없던 신규 방법(VAL-9~13)**.
+
+| ID | 제목 | DoD 요약 | 사이즈 | 배치 | 선행 |
+|----|------|---------|--------|------|------|
+| **VAL-7** 🔴 | 실제 CVE 재현 벤치 | GHSA/CVEfixes·Big-Vul에서 Java/Python 취약 커밋 20~30 케이스 → real-world recall(전체·CWE별), `benchmarks/cve/` 독립 하니스, reproduction_scorecard.md | M | **S13** | VAL-1 하니스 |
+| **VAL-8** 🟠 | 기존 도구 비교(Semgrep·CodeQL) | 동일 코퍼스에 Semgrep(무료)·CodeQL → 도구별 TPR/FPR/Youden 대비표 + **차등분석**("SecureAI 단독 탐지 N건") + 막대그래프 | M | **S13말~S14** | VAL-1·VAL-7 코퍼스, VAL-13(SARIF) 권장 |
+| **VAL-9** 🔴⭐ | **패치 유효성 검증** | AI 패치 적용 → **재스캔 시 취약점 소거율** + **대상 프로젝트 테스트 그린(기능 회귀 0) 비율** + CVEfixes의 human fix 대비 의미동치. "탐지"가 아닌 "교정"을 증명 — 경쟁 SAST 미보유 수치 | M | **S14** | 패치 자동화(1401) |
+| **VAL-10** 🟠 | 결정성/안정성 하니스 | 동일 입력 N회(예 5) 반복 → finding 집합 **Jaccard 안정성·분산** 지표. LLM-SAST "매번 다르지 않나" 의심에 수치로 답 | S | **S13** | VAL-1 하니스 재사용 |
+| **VAL-11** 🟢 | CWE 커버리지 매트릭스 | **CWE Top 25 / OWASP Top 10(2021)** 대비 탐지가능 여부 매트릭스(벤치 결과 기반 자동 생성) → IR/지원서 1장 아티팩트 | S | **S13** | VAL-1 결과 |
+| **VAL-12** 🟠 | 분석기 적대적 견고성 | 스캔 대상 코드 내 **프롬프트 인젝션/오인 유도 주석**으로 탐지 우회·오탐 유발 가능한지 측정(우회 성공률). AI 보안도구 자체 신뢰성 | M | **S14+** | sast_node 안정화 |
+| **VAL-13** 🟠 | SARIF 2.1.0 표준 출력 | findings → SARIF 산출 → **GitHub code scanning 업로드** + Semgrep/CodeQL과 (file,line,CWE) 정규화 공정비교 기반. 기능이자 표준 상호운용 신뢰신호 | M | **S13말~S14** | — |
+
+**배치 원칙(메모 §단계배치와 동일 — 싸고·빠르고·혼자·IR숫자 즉효 우선)**:
+- **Sprint 13(검증 우선)**: VAL-1(벤치)·VAL-3(AST가드)·VAL-4(SAST→DAST) + **VAL-7(실CVE)·VAL-10(결정성)·VAL-11(CWE커버리지)** + MOAT-1(데이터수집). → "탐지율 X% / 오탐률 Y% / 실CVE recall Z% / CWE Top25 N개 / 안정성 S" 한 번에 확보.
+- **Sprint 14(검증된 AI=패치)**: 패치 자동화(1401) + **VAL-9(패치검증)** + VAL-5(안전장치) + **VAL-8(도구비교)·VAL-13(SARIF)**. → "패치 소거율·회귀0 / Semgrep 대비 단독 N건".
+- **S14+ 여유**: VAL-12(적대적 견고성).
+- ⚠️ 실제 배정·DoD 확정은 `/sprint 13`(Opus 4.8 PM)에서. 위는 후보·근거 정리.
+
 ---
 
 ## 태스크 인덱스 (활성 스프린트)

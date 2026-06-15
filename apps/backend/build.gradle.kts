@@ -127,7 +127,9 @@ dependencies {
 
 	// Sentry — 에러 추적 (TASK-1804)
 	// SENTRY_DSN 환경변수 미설정 시 자동 비활성화 (env-gated)
-	implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.13.3")
+	// 8.21.0+ 부터 Spring Boot 4 / Spring 7 지원 — 8.13.3은 WebClient/RestClient
+	// 트레이싱 자동설정이 Boot4에서 이전된 customizer 클래스를 참조해 컨텍스트 로딩 실패.
+	implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.43.2")
 }
 
 tasks.withType<Test> {

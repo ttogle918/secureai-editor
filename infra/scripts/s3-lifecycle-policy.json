@@ -1,0 +1,43 @@
+{
+  "_comment": "SecureAI PostgreSQL 백업 S3 버킷 라이프사이클 정책",
+  "_usage": "aws s3api put-bucket-lifecycle-configuration --bucket <BUCKET_NAME> --lifecycle-configuration file://s3-lifecycle-policy.json",
+  "_security": "이 버킷은 반드시 Block Public Access를 활성화해야 합니다 (aws s3api put-public-access-block 참고).",
+  "Rules": [
+    {
+      "ID": "TransitionToGlacierAfter30Days",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "postgres/"
+      },
+      "Transitions": [
+        {
+          "Days": 30,
+          "StorageClass": "GLACIER"
+        }
+      ],
+      "Comment": "30일 후 Glacier 이관 — 비용 절감, 장기 보존"
+    },
+    {
+      "ID": "DeleteAfter365Days",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "postgres/"
+      },
+      "Expiration": {
+        "Days": 365
+      },
+      "Comment": "1년(365일) 후 자동 삭제 — 저장소 비용 제어"
+    },
+    {
+      "ID": "AbortIncompleteMultipartUpload",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "postgres/"
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 7
+      },
+      "Comment": "7일 이상 완료되지 않은 멀티파트 업로드 자동 정리"
+    }
+  ]
+}

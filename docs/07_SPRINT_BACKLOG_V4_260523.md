@@ -161,7 +161,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | 12 | 1203 | CI/CD 품질 게이트 | ⬜ | M |
 | 12 | 1203b | OWASP ZAP DAST 스캔 하니스 | ⬜ | M |
 | 12 | 1204 | AI 토큰 비용 통제 | ⬜ | L |
-| 12 | 1205 | 자동 백업+S3 | ⬜ | M |
+| 12 | 1205 | 자동 백업+S3 | ✅ | M |
 | 12 | 1210 | 트랜잭션 이메일 인프라 | ⬜ | M |
 | 12 | 1603·1804(편입) | 관측성 (Loki·Sentry) | ✅ | M |
 | 12B | 1206 | 알림 센터 페이지 | ⬜ | L |
@@ -570,14 +570,15 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **중요도**: 🟠 High | **순서**: 5번째 | **사이즈**: M
 - **배경**: 백업/복구 스크립트 0개. 데이터 손실 시 복구 불가 — 베타 운영 위험.
 - **하위 할일**
-  - [ ] `infra/scripts/backup-postgres.sh`: pg_dump + gzip + AWS CLI 업로드
-  - [ ] `BackupJob.java`: `@Scheduled(cron="0 0 3 * * *")` + ShedLock — 매일 03:00 KST 자동 백업
-  - [ ] S3 버킷 정책 — 30일 보관 후 Glacier 이관, 1년 후 삭제
-  - [ ] `docs/runbooks/disaster-recovery.md`: 복구 시나리오 문서화 (RTO 4h / RPO 24h 명시)
-  - [ ] (선택) Monthly Full + Daily Incremental 전략 적용
+  - [x] `infra/scripts/backup-postgres.sh`: pg_dump + gzip + AWS CLI 업로드
+  - [x] `BackupJob.java`: `@Scheduled(cron="0 0 3 * * *", zone="Asia/Seoul")` + ShedLock — 매일 03:00 KST 자동 백업 (`backup.enabled` env-gated)
+  - [x] S3 버킷 정책 — 30일 보관 후 Glacier 이관, 1년 후 삭제 (`infra/scripts/s3-lifecycle-policy.json`)
+  - [x] `docs/runbooks/disaster-recovery.md`: 복구 시나리오 문서화 (RTO 4h / RPO 24h 명시)
+  - [ ] (선택) Monthly Full + Daily Incremental 전략 적용 — 미적용(낮은 우선순위)
 - **테스트 체크리스트**
-  - [ ] 🔬 백업 파일 다운로드 → 별도 DB 인스턴스 복원 → 데이터 동일성 확인
-  - [ ] 🛡️ S3 버킷 외부 접근 차단(Block Public Access) 확인
+  - [x] 🧪 BackupJob fail-isolation·env-gate 단위 테스트 4건
+  - [ ] 🔬 백업 파일 다운로드 → 별도 DB 인스턴스 복원 → 데이터 동일성 확인 (수동)
+  - [ ] 🛡️ S3 버킷 외부 접근 차단(Block Public Access) 확인 (실 S3 수동검증)
 
 ### TASK-1210 🔴 트랜잭션 이메일 발송 인프라 (신규 — V5.5)
 - **중요도**: 🔴 Critical | **순서**: 본 Sprint 핵심 | **사이즈**: M

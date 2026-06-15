@@ -117,3 +117,140 @@
 - **feature 브랜치**: 모두 머지 및 삭제
 - **Flyway 마이그레이션 최종**: V055 (1202a) / V056 (1202b)
 - **실행 중 컨테이너** (수동테스트용 유지): loki, promtail, grafana, prometheus
+
+---
+
+## 후반부 (이어서) — 검증 방법 보강 + Sentry DSN 안내
+
+### 개요
+/done 후 사용자가 "검증 방법" 추가 요청. 기존 메모 2종(`docs/memo/SECUREAI_BENCHMARK_GUIDE.md`, `SECUREAI_VALIDATION_ROADMAP.md`)과 백로그(`EPIC-VAL`)를 대조하여 빠진 검증 항목을 신규 추가하고, Sentry DSN 구성(단일 vs 다중)에 대한 의논 정리.
+
+### 1. 검증 방법 정합 & 신규 항목 추가
+
+#### 작업 범위
+- 메모의 검증 지침과 기존 백로그 정합 확인
+- 중복 제거 + 빠진 항목 식별 및 신설
+- 커밋: `4f2a761` docs(validation): EPIC-VAL 신규 항목 VAL-7~13 추가 + 메모 보강
+
+#### 결정 맥락 — "싸고·빠르고·IR숫자 즉효" 원칙
+메모에서 제시한 검증 선정 기준 도입:
+- ✓ 비용 최소(free/open bench, 공개 도구, 자동화)
+- ✓ 피드백 빠름(하루 이내 실행)
+- ✓ 혼자 가능(인력 의존도 低)
+- ✓ 수치 즉효(IR 메트릭으로 즉시 계량)
+
+#### 신규 항목 추가 (EPIC-VAL 확장)
+
+| VAL ID | 제목 | 단계 | 원칙 | 설명 |
+|--------|------|------|------|------|
+| **VAL-7** | 실CVE 재현 (S13 벤치 재점검) | Sprint 13 | 빠름 | Benchmark OWASP-2021 + CWE-20,89,78... 재현 자동화. 기존 VAL-1 범위 확장. |
+| **VAL-8** | 도구 비교: Semgrep vs CodeQL | S13말~14 | 비용 | 정량 고정SAST vs LLM-SAST 탐지율(TPR/FPR/F1) 비교표. 시장 차별화. |
+| **VAL-9** ⭐ | **패치 유효성 검증** | S14 | 즉효·차별 | 패치 적용→재스캔 소거율 + 대상 테스트 무회귀(delta). **경쟁 도구(Semgrep/CodeQL)가 구조적으로 못 내는 수치** → 최대 차별점. |
+| **VAL-10** | 결정성/안정성 측정 | S13 | 공짜 | Jaccard 계수(반복 분석 간 결과 일관성) → "LLM 매번 다르지 않나"에 정량 응답. VAL-3(AST 가드)의 효과 검증. |
+| **VAL-11** | CWE 커버리지 매트릭스 | S13 | 비용 | Top-25 CWE 탐지 범위 & 거짓음성(FN) 수치. 카테고리별 강점 시각화. |
+| **VAL-12** | 분석기 적대적 견고성 | S14+ | 비용 | 패턴 혼동(예: 의심 코드→무해로 난독화) 시 재스캔 정확성. advanced adversarial benchmark. |
+| **VAL-13** | SARIF 출력 검증 | S13말~14 | 공짜 | SBOM/IDE/SIEM 연동 표준 출력. 단위테스트만으로 다룸. |
+
+#### 정합 확인 (중복 제거)
+- **기존 VAL-1** (OWASP Benchmark): VAL-7로 확장 유지
+- **기존 VAL-2** (eval CI 게이트): 그대로 유지
+- **기존 VAL-3** (AST 가드): 별도
+- **기존 VAL-4** (Juliet/DAST): VAL-1/VAL-4 범위 확장으로 흡수 → WebGoat·Juice Shop 추가
+- 메모의 "성능 벤치마크": VAL-10(결정성)과 구분 → 별도 이슈화 대기
+- 메모의 "감시 타이핑 검증": Taint Analysis(기존 계획)에 통합
+
+#### 메모 2종 보강 사항
+1. `SECUREAI_BENCHMARK_GUIDE.md`:
+   - OWASP Benchmark 확대: Top-25 CWE 커버리지 추가 (VAL-11)
+   - 패치 검증 섹션 신규 (VAL-9: 소거율 측정, 무회귀 테스트)
+   - Semgrep/CodeQL 비교 (VAL-8): TPR/FPR/F1 명시
+
+2. `SECUREAI_VALIDATION_ROADMAP.md`:
+   - S13 ~ S14 분할 재정의
+   - VAL-9 (패치 유효성): 최우선 & 차별화 → 강조
+
+### 2. Sentry DSN 구성 — 3개 권장 (아키텍처 정정)
+
+#### 의논 내용 — "단일 DSN vs 서비스별 3개"
+
+**최종 결정: 서비스별 3개 DSN 권장**
+
+근거:
+- **이슈스트림 분리**: Backend, AI Engine, Frontend 각각 독립적 이슈 추적 (noise isolation)
+- **플랫폼별 grouping**: 프론트엔드는 소스맵/세션정보, 백엔드는 트랜잭션 추적, AI는 모델 context 필요 → DSN별 규칙 달라짐
+- **쿼터 & 알림**: Sentry 무료 플랜 = 쿼터·이벤트 한도가 계정 단위 (프로젝트 개수 무관) → 비용 증가 없음
+- **기존 코드 이미 3개 전제로 배선됨**: docker-compose 환경변수 + env-gated (단일 DSN에서 선택적 활성화 가능하지만 아키텍처상 분리가 나음)
+
+#### 구현 현황 & env 예시 확정
+
+**docker-compose.yml 환경 전달**:
+```yaml
+services:
+  backend:
+    environment:
+      BACKEND_SENTRY_DSN: https://key1@sentry.io/project1  # Backend 프로젝트
+  ai_engine:
+    environment:
+      AI_ENGINE_SENTRY_DSN: https://key2@sentry.io/project2  # AI Engine 프로젝트
+  frontend:
+    environment:
+      NEXT_PUBLIC_SENTRY_DSN: https://key3@sentry.io/project3  # Frontend Client
+      SENTRY_DSN: https://key3@sentry.io/project3  # Frontend Server (동일 프로젝트)
+```
+
+**코드 배선**:
+- Backend: `SentryConfiguration.java` → `@Value("${BACKEND_SENTRY_DSN:}")` 초기화
+- AI Engine: `sentry_filter.py` → `os.getenv("AI_ENGINE_SENTRY_DSN")`
+- Frontend: `sentry.client.config.ts` + `sentry.server.config.ts` → `process.env.NEXT_PUBLIC_SENTRY_DSN` / `process.env.SENTRY_DSN`
+
+**신규 파일**: 커밋 `6f240e8` docs(env)
+- `.env.example` (Backend/AI): `BACKEND_SENTRY_DSN=`, `AI_ENGINE_SENTRY_DSN=` 추가
+- **`apps/frontend/.env.local.example`** (新): Frontend 전용 env 예시
+  ```
+  NEXT_PUBLIC_SENTRY_DSN=https://key@sentry.io/project3
+  SENTRY_DSN=https://key@sentry.io/project3
+  ```
+
+### 3. 미커밋 WIP (의도적 보존)
+
+세션 중 사용자 수동테스트 진행 중 발생한 변경물이 워킹트리에 미커밋 상태 존재:
+
+**패키지 의존성** (커밋 가치 있음):
+- `apps/frontend/package.json`, `package-lock.json`: `@sentry/nextjs` 정식 추가
+  → **다음 세션에서 정식 커밋 권장** (테스트 완료 후)
+
+**Sentry 실 검증 코드** (일회성, 정리 권장):
+- `apps/backend/src/main/java/org/.../admin/controller/SentryTestController.java`: 테스트 이벤트 발송용
+- `apps/backend/src/main/java/org/...` (디렉토리): 관련 파일들
+  → **다음 세션에서 삭제** (테스트 완료 후)
+
+**설정/스택 파일** (검토 후 정식 반영 여부 결정):
+- `apps/ai_engine/main.py` (수정): Sentry 초기화 코드
+- `docker-compose.yml` (수정): Sentry 환경변수 추가
+  → 메인 스택에 이미 병합됨(1d118a7), 워킹트리 변경분은 추가 수정 사항 확인 필요
+
+### 4. 다음 세션에서 할 것
+
+#### WIP 정리 (우선순위 높음)
+- [ ] **정식 커밋**: `apps/frontend` @sentry/nextjs 의존성 및 설정 → `commit -m "deps(frontend): add @sentry/nextjs for error tracking"`
+- [ ] **일회성 삭제**: SentryTestController + org/ 디렉토리 정리
+- [ ] **검토**: main.py, docker-compose.yml 수정분 → 정식 반영 or 롤백
+
+#### 수동검증 (기존 이월)
+- [ ] Loki 실로그 적재 (LogQL 쿼리 검증)
+- [ ] Sentry 실 DSN 이벤트 도달 검증
+- [ ] CI 게이트 실동작 (npm audit, ZAP)
+
+#### 다음 스테이지
+- [ ] `/sprint 13` 착수: EPIC-VAL(VAL-1, 3, 4, 7, 10, 11) 편성 + DoD 확정
+- [ ] `/stage 7`: TASK-1205 (백업·S3) — 트랙 B 마지막
+- [ ] `/stage`: TASK-1210 (트랜잭션 이메일) — 트랙 A 잔여
+
+### 형상 상태 (후반부 종료)
+
+- **main HEAD**: 6f240e8 (Sentry DSN env 예시 추가)
+- **origin 동기화**: 완료
+- **워킹트리**: 미커밋 WIP 존재 (Sentry 실 검증 코드) — 다음 세션에서 정리
+- **추가 커밋**: 
+  - `4f2a761`: docs(validation) — EPIC-VAL 확장
+  - `6f240e8`: docs(env) — Sentry DSN 예시

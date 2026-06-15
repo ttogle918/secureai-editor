@@ -20,6 +20,7 @@ volumes:
   postgres_data:
   redis_data:
   reports_data:
+  loki_data:
 
     # ===== 서비스 =====
 services:
@@ -101,6 +102,8 @@ services:
       # Windows Docker Desktop: "Expose daemon on tcp://localhost:2375" 활성화 후 아래 주석 해제
       DOCKER_HOST: tcp://host.docker.internal:2375
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+      # Sentry 에러 추적 (TASK-1804) — 미설정 시 비활성화 (env-gated)
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - reports_data:/app/reports
@@ -145,6 +148,8 @@ services:
       OTEL_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       OTEL_SERVICE_NAME: secureai-ai-engine
+      # Sentry 에러 추적 (TASK-1804) — 미설정 시 비활성화 (env-gated)
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - ${WORKSPACE_PATH:-/workspace}:/workspace:ro
       - ./apps/mcp_server:/app/mcp_server:ro
@@ -271,6 +276,43 @@ services:
     networks:
       - app-net
 
+  # ── Loki — 로그 집계 백엔드 (TASK-1603) ──────────────
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: secureai-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./infra/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - app-net
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -q --spider http://localhost:3100/ready || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Promtail — 컨테이너 로그 수집 → Loki 전송 (TASK-1603) ──
+  # Docker socket 마운트로 secureai-backend / secureai-ai-engine 컨테이너 stdout tail
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: secureai-promtail
+    restart: unless-stopped
+    volumes:
+      - ./infra/loki/promtail-config.yaml:/etc/promtail/config.yaml:ro
+      # Docker socket: Promtail이 컨테이너 로그를 직접 tail (앱 코드 수정 불필요)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - app-net
+    depends_on:
+      loki:
+        condition: service_healthy
+
   # ── Grafana — 메트릭 대시보드 ─────────────────────────
   grafana:
     image: grafana/grafana:latest
@@ -280,12 +322,14 @@ services:
       - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:?GF_SECURITY_ADMIN_PASSWORD is required}
+      # Loki는 Grafana 빌트인 코어 데이터소스 — 별도 플러그인 설치 불필요(설치 시 404로 기동 실패)
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
       - app-net
     depends_on:
       - prometheus
+      - loki
 
   # ── Next.js Frontend ──────────────────────────────────
   # 개발: cd apps/frontend && npm run dev  (로컬 실행)

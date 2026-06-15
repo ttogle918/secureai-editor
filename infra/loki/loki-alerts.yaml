@@ -1,0 +1,45 @@
+# LogQL 알림 규칙 — Loki Ruler 설정
+# 수동검증 항목: Slack webhook URL 미설정 시 규칙 정의만 보관
+# 실제 알림 발송: Grafana Alerting 또는 Alertmanager + Slack webhook 연동 필요
+groups:
+  - name: secureai-log-alerts
+    interval: 1m
+    rules:
+      # 5분 내 ERROR 100건 초과 시 알림
+      - alert: HighErrorRate
+        expr: |
+          sum(count_over_time({service=~"secureai-.+"} |= "ERROR" [5m])) > 100
+        for: 0m
+        labels:
+          severity: critical
+          team: secureai
+        annotations:
+          summary: "SecureAI 서비스 ERROR 급증"
+          description: "5분 내 ERROR 로그가 {{ $value }}건 발생했습니다. 즉시 확인이 필요합니다."
+          # Slack 알림 연동: Grafana Contact Points → Slack webhook URL 설정
+          # 환경변수: SECUREAI_SLACK_WEBHOOK_URL (backend application.yaml 기존 설정 재사용)
+          runbook_url: "https://github.com/secureai/runbooks/error-spike"
+
+      # Backend 에러율 (5분 내 50건 초과)
+      - alert: BackendErrorSpike
+        expr: |
+          count_over_time({service="secureai-backend"} |= "ERROR" [5m]) > 50
+        for: 0m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: "Backend ERROR 급증"
+          description: "5분 내 Backend ERROR {{ $value }}건"
+
+      # AI Engine 에러율
+      - alert: AiEngineErrorSpike
+        expr: |
+          count_over_time({service="secureai-ai-engine"} |= "ERROR" [5m]) > 50
+        for: 0m
+        labels:
+          severity: warning
+          service: ai-engine
+        annotations:
+          summary: "AI Engine ERROR 급증"
+          description: "5분 내 AI Engine ERROR {{ $value }}건"

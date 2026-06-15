@@ -810,18 +810,18 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [ ] 🔬 30분 연기 클릭 → 30분 후 알림 재발송 확인 (WorkManager)
   - [ ] 🛡️ 비로그인 상태에서 알림 클릭 → 로그인 화면 후 딥링크 유지
 
-### TASK-1603 🟠 로그 집계 시스템 (Loki + Grafana)
-> ⏫ **V5.5: Sprint 12로 편입** — 멀티 인스턴스 베타 운영에 로그 집계가 필수. 본 항목은 명세 보관용이며 실제 실행은 Sprint 12.
+### TASK-1603 🟠 로그 집계 시스템 (Loki + Grafana) — 🟢 **완료**(`795c1e0`, Stage6)
+> ⏫ **V5.5: Sprint 12로 편입** — 멀티 인스턴스 베타 운영에 로그 집계가 필수.
 - **중요도**: 🟠 High | **순서**: 4번째
 - **배경**: 현재 Prometheus(메트릭) + Jaeger(트레이싱)만 있고 로그 집계 없음. 멀티 인스턴스 배포 시 분산 로그 추적 불가.
 - **하위 할일**
-  - [ ] `docker-compose.yml`에 Grafana Loki 서비스 추가
-  - [ ] Backend/AI Engine `logback-spring.xml` / `logging.yaml` — Loki Push API 직접 전송 또는 Promtail 사이드카
-  - [ ] Grafana 데이터소스로 Loki 등록 + 기본 대시보드 (서비스별 에러율, 응답 시간 분포)
-  - [ ] LogQL 알림 규칙 — 5분 내 ERROR 100건 초과 시 Slack 발송
+  - [x] `docker-compose.yml`에 Grafana Loki + Promtail 서비스 추가(`infra/loki/`)
+  - [x] Backend `logback-spring.xml`(`%X{traceId}`/JSON) + AI Engine `dictConfig`(trace_id) — Promtail docker_sd 수집
+  - [x] Grafana 데이터소스로 Loki 등록(`datasources/loki.yaml`, derivedFields→Jaeger) + 기본 대시보드(loki-logs.json)
+  - [ ] LogQL 알림 규칙 — 5분 내 ERROR 100건 초과 시 Slack 발송 (규칙 `infra/loki/loki-alerts.yaml` 정의 완료, Slack webhook 연결은 수동)
 - **테스트 체크리스트**
-  - [ ] 🔬 Backend 로그가 Loki에서 LogQL로 조회 가능 확인 (`{service="secureai-backend"} |= "ERROR"`)
-  - [ ] ✅ Trace ID로 Backend ↔ AI Engine 로그 상관관계 추적 가능 확인
+  - [x] 🔬 Loki 스택 라이브 기동 검증(마스터, Docker): Loki `/ready`·labels API, **Grafana→Loki proxy 쿼리 success**, Promtail 소켓OK. (실 backend 로그 LogQL 적재는 풀스택 기동 후 수동)
+  - [ ] ✅ Trace ID로 Backend ↔ AI Engine 로그 상관관계 추적 (풀스택 기동 수동검증)
 
 ---
 
@@ -938,18 +938,18 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [ ] 🧪 각 패턴별 정규식 검출 정확도 단위 테스트 (50+ 테스트 케이스)
   - [ ] 🛡️ 검출된 시크릿 원본 값은 절대 로그 출력 안 됨
 
-### TASK-1804 🟡 Sentry 에러 추적 통합 (Java + Python + Frontend)
-> ⏫ **V5.5: Sprint 12로 편입** — 베타 1일차부터 예외 수집 필요. 본 항목은 명세 보관용이며 실제 실행은 Sprint 12.
+### TASK-1804 🟡 Sentry 에러 추적 통합 (Java + Python + Frontend) — 🟢 **완료**(`795c1e0`, Stage6)
+> ⏫ **V5.5: Sprint 12로 편입** — 베타 1일차부터 예외 수집 필요.
 - **중요도**: 🟡 Medium | **순서**: 4번째
 - **하위 할일**
-  - [ ] Sentry 프로젝트 3개 생성 — secureai-backend / secureai-ai-engine / secureai-frontend
-  - [ ] Spring Boot: `sentry-spring-boot-starter-jakarta` 의존성 + DSN 환경변수
-  - [ ] Python: `sentry-sdk[fastapi]`
-  - [ ] Next.js: `@sentry/nextjs`
-  - [ ] Trace ID 연계 — Jaeger 트레이스 → Sentry 이벤트 링크
+  - [ ] Sentry 프로젝트 3개 생성 — secureai-backend / secureai-ai-engine / secureai-frontend (외부 계정 작업, 사용자 — DSN 발급 후 env 설정)
+  - [x] Spring Boot: `sentry-spring-boot-starter-jakarta` 의존성 + DSN 환경변수(env-gated)
+  - [x] Python: `sentry-sdk[fastapi]` (main.py init, DSN 미설정 시 스킵)
+  - [x] Next.js: `@sentry/nextjs` (client/server config, DSN 미설정 시 스킵)
+  - [ ] Trace ID 연계 — Jaeger 트레이스 → Sentry 이벤트 링크 (부분, 풀스택 수동검증)
 - **테스트 체크리스트**
-  - [ ] 🔬 의도적 예외 발생 → Sentry에 스택 트레이스 + 사용자 컨텍스트 도착 확인
-  - [ ] 🛡️ 민감 데이터(JWT, 비밀번호) 필터링 — `before_send` 훅 검증
+  - [ ] 🔬 의도적 예외 발생 → Sentry에 스택 트레이스 + 사용자 컨텍스트 도착 확인 (실 DSN 필요 — 수동검증)
+  - [x] 🛡️ 민감 데이터(JWT, 비밀번호, Authorization/X-Internal-Key/cookie/set-cookie) 필터링 — `before_send` 단위테스트 py16+java15 + frontend beforeSend
 
 ### TASK-1805 🟡 Swagger UI 보안 노출 (springdoc-openapi)
 - **중요도**: 🟡 Medium | **순서**: 5번째

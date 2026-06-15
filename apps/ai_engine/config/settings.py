@@ -78,5 +78,8 @@ class Settings(BaseSettings):
     otel_exporter_otlp_endpoint: str = Field("http://localhost:4317", alias="OTEL_EXPORTER_OTLP_ENDPOINT")
     otel_service_name: str = Field("secureai-ai-engine", alias="OTEL_SERVICE_NAME")
 
+    # Sentry 에러 추적 — SENTRY_DSN 미설정 시 init 스킵 (env-gated, TASK-1804)
+    sentry_dsn: str = Field("", alias="SENTRY_DSN")
+
 
 settings = Settings()

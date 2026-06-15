@@ -162,7 +162,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | 12 | 1203b | OWASP ZAP DAST 스캔 하니스 | ✅ | M |
 | 12 | 1204 | AI 토큰 비용 통제 (→12D COST-3 흡수) | ✅ | L |
 | 12 | 1205 | 자동 백업+S3 | ✅ | M |
-| 12 | 1210 | 트랜잭션 이메일 인프라 | ⬜ | M |
+| 12 | 1210 | 트랜잭션 이메일 인프라 | ✅ | M |
 | 12 | 1603·1804(편입) | 관측성 (Loki·Sentry) | ✅ | M |
 | 12B | 1206 | 알림 센터 페이지 | ⬜ | L |
 | 12B | 1207 | 관리자 온보딩 체크리스트 | ⬜ | M |
@@ -586,14 +586,16 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **중요도**: 🔴 Critical | **순서**: 본 Sprint 핵심 | **사이즈**: M
 - **배경**: 리포트·야간스캔·GDPR·토큰경고·팀초대 등 제품이 의존하는 메일이 급증했으나 발송 인프라(전용 프로바이더·도메인 인증)가 없음. SMTP 직접 발송은 베타에서 스팸 처리·미도달 위험.
 - **하위 할일**
-  - [ ] 트랜잭션 메일 프로바이더 연동 (AWS SES 또는 SendGrid) — `EmailService` 발송 채널 추상화(Strategy)로 SMTP↔프로바이더 전환
-  - [ ] 발신 도메인 SPF·DKIM·DMARC 레코드 설정 + `docs/runbooks/email-deliverability.md` 문서화
-  - [ ] 바운스·스팸 신고 웹훅 수신 → 비활성 주소 suppression 처리
-  - [ ] 공통 메일 템플릿 레이아웃 + 발송 실패 재시도(지수 백오프) + 발송 로그
+  - [x] 트랜잭션 메일 채널 추상화 — `EmailSender`(Strategy) + `SmtpEmailSender`. dev=Gmail SMTP / prod=AWS SES SMTP 전환은 `MAIL_HOST`만 변경(SES SMTP 인터페이스 재사용, 새 SDK 불요). `EmailService` 6메서드 보존.
+  - [x] `docs/runbooks/email-deliverability.md` 문서화 (SPF·DKIM·DMARC + SES 셋업) — 실 DNS 레코드 설정은 ✅ 운영 수동
+  - [x] 바운스·스팸 신고 웹훅(`POST /api/v1/webhooks/email/bounce`, 서명검증) → `email_suppression`(V058) 등록 → 발송 전 차단
+  - [x] 공통 메일 템플릿 레이아웃 + 발송 실패 재시도(지수 백오프 3회) + 발송 로그(`email_log` V057)
 - **테스트 체크리스트**
-  - [ ] 🔬 프로바이더 테스트 발송 → 도착 + DKIM 서명 통과 (mail-tester 점수 ≥ 9)
-  - [ ] 🛡️ 메일 본문·로그에 토큰/비밀번호 등 민감정보 미포함 확인
-  - [ ] 🔬 바운스 이벤트 → 해당 주소 suppression 등록 확인
+  - [x] 🧪 suppression 스킵·재시도·서명검증·기존6메일 회귀 단위 25건
+  - [x] 🛡️ 메일 본문·로그·DB에 토큰/링크/비밀번호 미포함 (email_log=to/subject/status만) — 코드리뷰 확인
+  - [x] 🛡️ 웹훅 fail-closed (prod 시크릿 미설정 시 기동 차단) — 코드리뷰+단위 확인
+  - [ ] 🔬 프로바이더 테스트 발송 → 도착 + DKIM 서명 통과 (mail-tester 점수 ≥ 9) — 실 발송 수동
+  - [ ] 🔬 바운스 이벤트(SES simulator) → 해당 주소 suppression 등록 확인 — 실 환경 수동
 
 ### TASK-1603(편입) 로그 집계 (Loki) · TASK-1804(편입) Sentry 에러 추적
 > **V5.5 이동**: 멀티 인스턴스 베타 운영에 로그 집계·에러 추적이 필수라 각각 Sprint 16/18 → **본 Sprint로 편입**. 상세 명세는 원 위치(Sprint 16 TASK-1603, Sprint 18 TASK-1804) 참조. Loki는 Trace ID 상관관계 추적, Sentry는 베타 1일차부터 예외 수집 — 운영 가시성의 기반.

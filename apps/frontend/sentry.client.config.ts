@@ -66,6 +66,8 @@ function scrubCookies(request: Sentry.Request): void {
       request.cookies[key] = "[REDACTED]";
     }
   } else {
-    request.cookies = "[REDACTED]";
+    // SDK 타입이 string | object 유니온이나, 버전에 따라 타입 정의가 object만
+    // 허용하는 경우가 있어 캐스팅 처리 (런타임 동작은 정상)
+    (request as unknown as { cookies: string }).cookies = "[REDACTED]";
   }
 }

@@ -185,6 +185,8 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | Sprint 10 | 12건(야간스캔·팀대시보드·ROI·스캔모드·FE 3종 + 이월 4건) | 🟡 진행 | TASK-1105 전담 |
 | Sprint 5/6 | GitHub Webhook→PR 자동분석·Check Run, 커밋 시크릿 스캔 | 🔴 차단 | GitHub App 인증 스텁 — **Sprint 12 TASK-1201 선행** |
 | Sprint 9 | PostgreSQL/Docker MCP 조회·권한 (904/905) | ⚪ 미구현 | 기능 자체가 Sprint 15 후보 (부채 아님) |
+| Sprint 12 | (관측성) Sentry PII 마스킹 라이브 도달(3런타임), Loki LogQL 조회+TraceID 릴레이, Grafana Slack Webhook | 🟡 부분완료·대기 | **일부 백엔드/스크립트 레벨에서 검증완료**(curl로 Sentry catch 확인됨). 실 환경의 DSN / Slack 연동은 사용자 환경 의존. |
+| Sprint 12 | (백업) TASK-1205: S3 Block Public Access, S3 실 업로드, DB 복구 후 Row 카운트 | 🟡 부분완료·대기 | **`backup-postgres.sh` pg_dump 로직 확인 완료**. LocalStack 경로 이슈로 AWS CLI S3 업로드 부분은 사용자 실 AWS 계정 환경검증으로 이관. |
 
 ---
 

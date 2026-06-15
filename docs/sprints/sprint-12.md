@@ -297,6 +297,23 @@ LLM 백본:  [12D P1: COST-1·2] → [1201] → [12D P2: COST-3·4] → [12C STA
 
 ---
 
+## TASK-1210 완료 (2026-06-15) — 본진 트랙 A 잔여 (브랜치 `feat/sprint12-trackA-1210-email`)
+**커밋**: `539f8fe` | 단독 Dev → Tester → Reviewer FAIL(fail-open)→수정→PASS → 커밋. **트랙 A 완료.**
+
+### TASK-1210 — 트랜잭션 이메일 발송 인프라
+- **Strategy 추상화**: `EmailSender` 인터페이스 + `SmtpEmailSender`(기존 JavaMailSender 재사용). **프로바이더 결정 = AWS SES**(이미 S3 백업으로 AWS 사용 → 벤더 통합·최저가). SES는 SMTP 엔드포인트 제공이라 **발송은 SMTP 그대로, dev=Gmail/prod=SES는 `MAIL_HOST` env만 전환**(새 SDK 불요·락인 최소). `EmailService` 6개 메일 시그니처·동작 보존.
+- **suppression + 재시도 + 로그**: 발송 전 `email_suppression`(V058) 조회→차단(SUPPRESSED), 지수 백오프 3회, `email_log`(V057, to/subject/status만 — 토큰·링크 미저장).
+- **바운스 웹훅**: `POST /api/v1/webhooks/email/bounce` → `X-Webhook-Secret` 상수시간 서명검증 → suppression 등록. SecurityConfig permitAll + 서명 2차보호.
+- **공통 템플릿** 레이아웃 + `docs/runbooks/email-deliverability.md`(SPF/DKIM/DMARC·SES 셋업).
+
+### 검증·결정
+- Tester: Email 단위 23+가드 2 = 25 그린, contextLoads 통과, 전체 784 신규실패 0(기존부채 6), Flyway V057/V058 충돌 0.
+- **Reviewer FAIL→수정**: 웹훅 secret env-gate가 **fail-open**(미설정 시 무서명 → 임의 suppression 등록=메일 차단 DoS). → **fail-closed 강화**: `@PostConstruct`로 prod 프로파일+시크릿 blank 시 기동 차단(IllegalStateException) + `.env.example` `EMAIL_WEBHOOK_SECRET` 안내. dev/CI는 미설정 허용. 재검토 PASS.
+- 🔬 실 발송 도달·DKIM·SES 바운스 E2E는 수동검증(실 AWS/DNS).
+- **Flyway 최종**: V057=email_log, V058=email_suppression.
+
+---
+
 ## 핵심 결정사항 (요약)
 
 1. **백본 정본 확정**: `12D P1 → 1201 → 12D P2 → 12C S1·2 → S13 VAL → 12C S3`. 12C·12D 양 문서 합의 순서를 검증·채택.

@@ -114,6 +114,11 @@ secureai:
     api-key: ${NVD_API_KEY:}
   slack:
     webhook-url: ${SECUREAI_SLACK_WEBHOOK_URL:}
+  email:
+    # 바운스/스팸 신고 웹훅 수신 시 X-Webhook-Secret 헤더 검증용 공유 시크릿.
+    # 운영 환경에서 반드시 강력한 무작위 값으로 설정할 것.
+    # 미설정 시 개발/CI 환경에서 서명 검증을 건너뜀 (경고 로그 출력).
+    webhook-secret: ${EMAIL_WEBHOOK_SECRET:}
 
 sentry:
   # SENTRY_DSN 미설정 시 Sentry 비활성화 (env-gated) — 로컬/CI 무해

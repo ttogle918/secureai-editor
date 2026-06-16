@@ -27,6 +27,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useSse, type SseStatus } from '@/hooks/useSse';
 import { useToastStore } from '@/hooks/useToast';
 import { useStartAnalysis } from '@/hooks/useStartAnalysis';
+import { useVulnerabilitiesByFiles } from '@/hooks/useVulnerabilitiesByFiles';
 import { SseIndicator } from '@/components/ui/SseIndicator';
 import { apiClient } from '@/lib/api/client';
 import type { Severity, VulnCategory, Vulnerability, PatchSuggestion } from '@/lib/mockData';
@@ -74,6 +75,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const clearStageProgress   = useSecureStore((s) => s.clearStageProgress);
   const addToast             = useToastStore((s) => s.addToast);
   const { startAnalysis, isAnalyzing } = useStartAnalysis();
+  const { fetchAndStore: fetchStageVulns } = useVulnerabilitiesByFiles();
   const { t }                = useTranslation();
 
   const [sseStatus,         setSseStatus]         = useState<SseStatus>('idle');
@@ -210,7 +212,13 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           status: 'running',
         });
       } else if (event.type === 'stage_completed') {
-        markStageCompleted(event.stage_no ?? 0);
+        const stageNo = event.stage_no ?? 0;
+        markStageCompleted(stageNo);
+        // STAGE-1: stage 파일 목록이 있으면 취약점 점진 조회
+        // files 없는 구버전 이벤트는 markStageCompleted만 수행(하위호환)
+        if (event.files && event.files.length > 0 && sseSessionId) {
+          fetchStageVulns(sseSessionId, stageNo, event.files);
+        }
       } else if (event.type === 'progress') {
         if (event.file) {
           // TASK-1106 — 파일별 분석 상태 갱신

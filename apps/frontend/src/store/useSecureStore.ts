@@ -56,6 +56,21 @@ export interface StageInfo {
   status: 'pending' | 'running' | 'completed';
 }
 
+// Stage별 발견 취약점 요약 (STAGE-1 점진 노출)
+export interface StageVulnSummary {
+  vulnType: string;
+  severity: string;
+  filePath: string;
+  lineNumber: number | null;
+  id: string;
+}
+
+export interface StageVulns {
+  stage_no: number;
+  vulns: StageVulnSummary[];
+  loaded: boolean; // API 조회 완료 여부
+}
+
 export type ScanningFileState = {
   file: string;
   current: number;
@@ -223,6 +238,11 @@ interface SecureStore {
   markStageCompleted: (stageNo: number) => void;
   setScanningFile: (state: ScanningFileState) => void;
   clearStageProgress: () => void;
+
+  // ── Stage별 취약점 누적 (STAGE-1 점진 노출) ────────────────
+  stageVulns: Record<number, StageVulns>;
+  setStageVulns: (stageNo: number, vulns: StageVulnSummary[]) => void;
+  clearStageVulns: () => void;
 
   // ── 언어 설정 ────────────────────────────────────────────
   displayLanguage: DisplayLanguage;
@@ -463,7 +483,17 @@ export const useSecureStore = create<SecureStore>()(
     ),
   })),
   setScanningFile: (state) => set({ scanningFile: state }),
-  clearStageProgress: () => set({ stageList: [], currentStageNo: null, scanningFile: null }),
+  clearStageProgress: () => set({ stageList: [], currentStageNo: null, scanningFile: null, stageVulns: {} }),
+
+  // ── Stage별 취약점 누적 (STAGE-1 점진 노출)
+  stageVulns: {},
+  setStageVulns: (stageNo, vulns) => set((s) => ({
+    stageVulns: {
+      ...s.stageVulns,
+      [stageNo]: { stage_no: stageNo, vulns, loaded: true },
+    },
+  })),
+  clearStageVulns: () => set({ stageVulns: {} }),
 
   // ── 언어
   displayLanguage: 'ko',

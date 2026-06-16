@@ -1,6 +1,7 @@
 // components/ui/ProgressPanel.tsx
 // TASK-406 진행률 패널 + TASK-1106 API 중심 분석 계획(아코디언·파일별 상태·선택 분석)
 // + 신규: stage_plan/stage_started/stage_completed/progress phase 이벤트 UI
+// + STAGE-1: stage 완료 시 취약점 점진 노출 (배지 + 펼침 목록)
 'use client';
 import { useState } from 'react';
 import { CheckSquare, ChevronRight, ChevronDown, Play } from 'lucide-react';
@@ -9,6 +10,7 @@ import {
   type ProgressStep,
   type FileAnalysisStatus,
   type StageInfo,
+  type StageVulnSummary,
 } from '@/store/useSecureStore';
 import { useStartAnalysis } from '@/hooks/useStartAnalysis';
 
@@ -44,6 +46,18 @@ function FileStatusIcon({ status }: { status: FileAnalysisStatus }) {
 
 function basename(path: string): string {
   return path.split('/').pop() ?? path;
+}
+
+// severity → 뱃지 색상 매핑 (매직 스트링 금지 → 상수화)
+const SEVERITY_COLOR: Record<string, string> = {
+  CRITICAL: '#ef4444',
+  HIGH:     '#f97316',
+  MEDIUM:   '#eab308',
+  LOW:      '#3b82f6',
+};
+
+function severityColor(sev: string): string {
+  return SEVERITY_COLOR[sev.toUpperCase()] ?? 'rgba(255,255,255,0.4)';
 }
 
 // ── API 그룹 아코디언 (TASK-1106) ─────────────────────────────
@@ -146,14 +160,67 @@ function StageStatusIcon({ status }: { status: StageInfo['status'] }) {
   return <span style={{ color: 'rgba(255,255,255,0.28)', fontSize: 12 }} aria-label="대기">○</span>;
 }
 
+// ── Stage 취약점 펼침 목록 ───────────────────────────────────
+function StageVulnList({ vulns, onOpen }: { vulns: StageVulnSummary[]; onOpen: (path: string) => void }) {
+  if (vulns.length === 0) {
+    return (
+      <div style={{ paddingLeft: 24, paddingBottom: 6, fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>
+        발견 없음
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', paddingLeft: 24, paddingBottom: 4 }}>
+      {vulns.map((v) => (
+        <button
+          key={v.id}
+          onClick={() => onOpen(v.filePath)}
+          title={`${v.filePath}${v.lineNumber != null ? `:${v.lineNumber}` : ''}`}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0',
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'rgba(255,255,255,0.7)', fontSize: 10, textAlign: 'left', width: '100%',
+          }}
+        >
+          <span
+            style={{
+              width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+              background: severityColor(v.severity),
+            }}
+            aria-label={v.severity}
+          />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {basename(v.filePath)}
+            {v.lineNumber != null && (
+              <span style={{ color: 'rgba(255,255,255,0.35)', marginLeft: 4 }}>:{v.lineNumber}</span>
+            )}
+          </span>
+          <span style={{ color: severityColor(v.severity), flexShrink: 0 }}>{v.vulnType}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ── Stage 목록 섹션 (stage_plan 수신 시) ─────────────────────
 function StagePlanSection() {
   const stageList      = useSecureStore((s) => s.stageList);
   const currentStageNo = useSecureStore((s) => s.currentStageNo);
+  const stageVulns     = useSecureStore((s) => s.stageVulns);
+  const openTab        = useSecureStore((s) => s.openTab);
+
+  const [expandedStages, setExpandedStages] = useState<Set<number>>(new Set());
 
   if (stageList.length === 0) return null;
 
   const completedCount = stageList.filter((s) => s.status === 'completed').length;
+
+  const toggleExpand = (stageNo: number) =>
+    setExpandedStages((prev) => {
+      const next = new Set(prev);
+      next.has(stageNo) ? next.delete(stageNo) : next.add(stageNo);
+      return next;
+    });
 
   return (
     <div style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -165,28 +232,60 @@ function StagePlanSection() {
       </div>
 
       {stageList.map((stage) => {
-        const isActive = stage.stage_no === currentStageNo;
+        const isActive  = stage.stage_no === currentStageNo;
+        const vulnEntry = stageVulns[stage.stage_no];
+        const vulnCount = vulnEntry?.loaded ? vulnEntry.vulns.length : null;
+        const isExpanded = expandedStages.has(stage.stage_no);
+
         return (
-          <div
-            key={stage.stage_no}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
-              borderRadius: 6, fontSize: 11,
-              background: isActive ? 'rgba(234,88,12,0.08)' : 'transparent',
-              border: `1px solid ${isActive ? 'rgba(234,88,12,0.25)' : 'rgba(255,255,255,0.04)'}`,
-              transition: 'background 0.2s, border-color 0.2s',
-            }}
-          >
-            <StageStatusIcon status={stage.status} />
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>
-              {stage.stage_no}/{stageList.length}
-            </span>
-            <span style={{ flex: 1, color: isActive ? '#ea580c' : 'rgba(255,255,255,0.7)', fontWeight: isActive ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {stage.name}
-            </span>
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
-              {stage.file_count}파일
-            </span>
+          <div key={stage.stage_no}>
+            {/* Stage 행 */}
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
+                borderRadius: 6, fontSize: 11,
+                background: isActive ? 'rgba(234,88,12,0.08)' : 'transparent',
+                border: `1px solid ${isActive ? 'rgba(234,88,12,0.25)' : 'rgba(255,255,255,0.04)'}`,
+                transition: 'background 0.2s, border-color 0.2s',
+              }}
+            >
+              <StageStatusIcon status={stage.status} />
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>
+                {stage.stage_no}/{stageList.length}
+              </span>
+              <span style={{ flex: 1, color: isActive ? '#ea580c' : 'rgba(255,255,255,0.7)', fontWeight: isActive ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {stage.name}
+              </span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
+                {stage.file_count}파일
+              </span>
+              {/* 취약점 배지 — stage 완료 후 조회 결과가 있을 때만 표시 */}
+              {vulnEntry?.loaded && (
+                <button
+                  onClick={() => toggleExpand(stage.stage_no)}
+                  aria-expanded={isExpanded}
+                  aria-label={`Stage ${stage.stage_no} 취약점 ${vulnCount}건`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 3, padding: '2px 6px',
+                    background: vulnCount! > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${vulnCount! > 0 ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: 4, cursor: 'pointer', color: vulnCount! > 0 ? '#ef4444' : 'rgba(255,255,255,0.4)',
+                    fontSize: 10, fontWeight: 600, flexShrink: 0,
+                  }}
+                >
+                  {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                  발견 {vulnCount}건
+                </button>
+              )}
+            </div>
+
+            {/* 취약점 펼침 목록 */}
+            {isExpanded && vulnEntry?.loaded && (
+              <StageVulnList
+                vulns={vulnEntry.vulns}
+                onOpen={(path) => openTab(path, basename(path))}
+              />
+            )}
           </div>
         );
       })}

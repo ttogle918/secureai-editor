@@ -40,6 +40,14 @@
 - **준수**: 입력검증 Controller 한정(filePaths 길이/공백 가드), JPQL `IN :filePaths` 파라미터바인딩, QueryService 경유, skip&log.
 - **DoD**: 🧪 findBySessionIdAndFilePathIn 정확 반환 / 🧪 filePaths 없는 기존 호출 하위호환 / 🔬 stage_completed→패널 N건(SSE mock) / 🛡️ 타 사용자 403 / ✅ 실스캔 stage 완료마다 누적·펼침·Monaco.
 
+### ✅ STAGE-1 완료 (2026-06-16) — 브랜치 `feat/sprint12C-stage1-progressive-vulns`
+**커밋**: `0ee09f2` | 단독 Dev(3서비스) → Tester → Reviewer PASS → 커밋. 12D Phase1/2 머지 후 그 위에서 작업(analyze.py 변경은 stage_completed 발행에 국한 → STAGE-2/graph_builder 충돌 0 확인).
+- **AI Engine**: `analyze.py`에 `_get_stage_files()` + `stage_completed` 이벤트에 `files` 동봉(`_run_analysis`·`_run_resume` 양쪽). files 키 추가는 하위호환.
+- **Backend**: `POST /api/v1/vulnerabilities/query`(JWT) — filePaths 단위 페이징. `VulnerabilityQueryService.listByFiles`(소유권 검증=타 사용자 세션 403 IDOR 차단)·`VulnerabilityController.validateFilePaths`(경로순회 방어·입력검증 Controller 한정)·`findBySessionIdAndFilePathIn`(JPQL IN 바인딩 + @EntityGraph N+1 방지). filePaths null/빈→전체조회(하위호환).
+- **Frontend**: `stageVulns` 스토어 누적(persist 제외), `stage_completed` 수신→`fetchVulnerabilitiesByFiles`(POST, skip&log+toast), `ProgressPanel` "발견 N건" 배지+펼침(파일·라인·severity)+Monaco `openTab`. files 없으면 스킵.
+- **검증**: 🧪 ai_engine +12·backend +9(contextLoads 그린)·frontend +14 (회귀 0, 기존부채만 잔존). Reviewer PASS(보안·설계·아키텍처·충돌회피 전체) — 비차단 권고 2건(filePaths 항목 길이 @Size(1024)·useCallback deps 주석) 즉시 반영. 🔬 SSE mock 패널표시·🛡️403 테스트화 / ✅ 실스캔 누적·펼침·Monaco는 수동검증.
+- **다음**: STAGE-2(계획 컨펌 게이트, L) — ⚠️ VAL-3보다 먼저 머지 or 후 rebase 의무(graph_builder·agent_state 충돌).
+
 ---
 
 ## STAGE-2 — 계획→사용자 컨펌 게이트 (L) ★Dev 보완 집중

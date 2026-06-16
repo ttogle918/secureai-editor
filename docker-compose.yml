@@ -88,6 +88,7 @@ services:
       # GitHub App (TASK-1201/1211): 설치 토큰 + 웹훅 서명 검증
       GITHUB_APP_ID: ${GITHUB_APP_ID:-}
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+      EMAIL_WEBHOOK_SECRET: ${EMAIL_WEBHOOK_SECRET:-}
       # PEM은 .env 인라인 대신 파일 마운트(아래 volumes) — 컨테이너 내 고정 경로 사용
       GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github-app.pem
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}

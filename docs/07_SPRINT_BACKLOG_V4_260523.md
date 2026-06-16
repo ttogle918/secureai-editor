@@ -133,12 +133,16 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | **VAL-11** 🟢 | CWE 커버리지 매트릭스 | **CWE Top 25 / OWASP Top 10(2021)** 대비 탐지가능 여부 매트릭스(벤치 결과 기반 자동 생성) → IR/지원서 1장 아티팩트 | S | **S13** | VAL-1 결과 |
 | **VAL-12** 🟠 | 분석기 적대적 견고성 | 스캔 대상 코드 내 **프롬프트 인젝션/오인 유도 주석**으로 탐지 우회·오탐 유발 가능한지 측정(우회 성공률). AI 보안도구 자체 신뢰성 | M | **S14+** | sast_node 안정화 |
 | **VAL-13** 🟠 | SARIF 2.1.0 표준 출력 | findings → SARIF 산출 → **GitHub code scanning 업로드** + Semgrep/CodeQL과 (file,line,CWE) 정규화 공정비교 기반. 기능이자 표준 상호운용 신뢰신호 | M | **S13말~S14** | — |
+| **VAL-14** 🟠 | 성능·확장성 벤치 | 소/중/대 레포 스캔 → 파일당·KLOC당 분석시간, end-to-end latency p50/p95, 동시 N세션 throughput. **기존 Jaeger 트레이스/Loki 로그 재사용**(타임스탬프 추출), `benchmarks/perf/`, perf_scorecard.md + 크기별 그래프 | M | **S13** | VAL-1 하니스(통합지점) |
+| **VAL-15** 🟠 | 단위 원가 효율 | **기존 `token_usage`(V054)·PricingTable 재사용** → $/finding, 토큰/취약점, AUDIT(Gemini) vs PIPELINE(Claude) 원가-탐지 트레이드오프 표. `benchmarks/cost/`, cost_efficiency_scorecard.md. VAL-1/VAL-8 코퍼스 재사용 | S | **S13** | VAL-1 결과·token_usage |
+| **VAL-16** 🟠 | 트리아지/심각도 보정 품질 | severity 정렬 findings ↔ **VAL-4 proven_exploitable**(또는 CVE/CVSS 라벨) 대조 → precision@k·상위 N 정확도·severity calibration. `benchmarks/triage/`, triage_scorecard.md(곡선 포함) | M | **S14** | VAL-4(proven), VAL-7 |
+| **VAL-17** 🟢 | 언어/스택 커버리지 매트릭스 | 언어별 라벨 코퍼스(OWASP=Java·Juliet·CVE Python 등) 언어 축 탐지율 집계 → VAL-11(CWE축)의 **언어축 보완**. `benchmarks/coverage/`, language_coverage_matrix.md(언어×탐지율) | S | **S13** | VAL-1 결과, VAL-7 코퍼스 |
 
 **배치 원칙(메모 §단계배치와 동일 — 싸고·빠르고·혼자·IR숫자 즉효 우선)**:
-- **Sprint 13(검증 우선)**: VAL-1(벤치)·VAL-3(AST가드)·VAL-4(SAST→DAST) + **VAL-7(실CVE)·VAL-10(결정성)·VAL-11(CWE커버리지)** + MOAT-1(데이터수집). → "탐지율 X% / 오탐률 Y% / 실CVE recall Z% / CWE Top25 N개 / 안정성 S" 한 번에 확보.
-- **Sprint 14(검증된 AI=패치)**: 패치 자동화(1401) + **VAL-9(패치검증)** + VAL-5(안전장치) + **VAL-8(도구비교)·VAL-13(SARIF)**. → "패치 소거율·회귀0 / Semgrep 대비 단독 N건".
+- **Sprint 13(검증 우선)**: VAL-1·VAL-3(AST가드)·VAL-4(SAST→DAST) + **VAL-7(실CVE)·VAL-10(결정성)·VAL-11(CWE커버리지)** + **VAL-14(성능)·VAL-15(원가)·VAL-17(언어커버리지)** + MOAT-1. → "탐지율 X% / 오탐률 Y% / 실CVE recall Z% / CWE Top25 N개 / 안정성 S / 파일당 Xs·p95 Yms / $·취약점 / N개 언어" 한 번에 확보.
+- **Sprint 14(검증된 AI=패치)**: 패치 자동화(1401) + **VAL-9(패치검증)** + VAL-5(안전장치) + **VAL-8(도구비교)·VAL-13(SARIF)·VAL-16(트리아지 품질)**. → "패치 소거율·회귀0 / Semgrep 대비 단독 N건 / precision@10 0.X".
 - **S14+ 여유**: VAL-12(적대적 견고성).
-- ⚠️ 실제 배정·DoD 확정은 `/sprint 13`(Opus 4.8 PM)에서. 위는 후보·근거 정리.
+- ⚠️ 실제 배정·DoD 확정은 `/sprint 13`(Opus 4.8 PM)에서. 위는 후보·근거 정리. (상세 편성은 아래 "EPIC-VAL 스프린트 편성" 참조.)
 
 ---
 
@@ -431,23 +435,144 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 ---
 
+> **VAL-14~17 (2026-06-16 추가)** — 기존 VAL-1~13이 정확도·품질(탐지율·오탐·소거율·안정성) 축이라면, 아래 4종은 IR에서 강한 **성능·원가·트리아지 품질·언어 폭** 축을 채운다. 대부분 **이미 구현된 인프라(Jaeger·Loki·token_usage·PricingTable·VAL-4 proven·VAL-11 코퍼스)를 재사용**해 저비용으로 숫자가 나온다. 공통 제약(프로덕션 미수정·`benchmarks/` 독립·키 커밋 금지·비용 통제·재현성)은 위 **#### 공통 제약** 블록을 그대로 따른다(재서술하지 않음).
+
+#### VAL-14 🟠 — 성능·확장성 벤치 (속도·처리량·확장성 셀링 숫자)
+- **목적(무엇을 증명)**: 분석 속도·처리량·확장성을 객관 계측 — "정확하지만 느리지 않은가"에 수치로 답.
+- **한 줄 셀링 문장**: *"SecureAI는 1만 라인 레포를 N분, 파일당 평균 Xs로 분석하며 동시 N세션에서 end-to-end p95 Yms를 유지한다."*
+- **배경**(왜 중요): 정확도(VAL-1)는 "맞는가"를, 성능(VAL-14)은 "쓸 만한 속도인가"를 증명한다 — 도입 의사결정에서 둘 다 필요하다. **관측성 스택이 이미 깔려 있어**(Jaeger 트레이싱·Loki 로그, Stage6 완료) 별도 계측 코드 없이 트레이스/로그의 타임스탬프만 추출하면 대부분 산출된다. 운영 코드를 건드리지 않고 숫자를 뽑을 수 있는 저비용 항목.
+- **변경 파일**:
+  - `apps/ai_engine/benchmarks/perf/runner.py` (신규) — 레포 크기별 스캔 실행·타이밍 수집 오케스트레이션
+  - `apps/ai_engine/benchmarks/perf/collector.py` (신규) — Jaeger 트레이스/Loki 로그에서 타임스탬프 추출(또는 하니스 자체 타이머 fallback)
+  - `apps/ai_engine/benchmarks/perf/report.py` (신규) — perf_scorecard.md·png 생성
+  - `apps/ai_engine/benchmarks/perf/repos/` (신규) — 소/중/대 벤치 레포 매니페스트(경로·KLOC 메타. 대용량 소스는 submodule/외부참조)
+  - `apps/ai_engine/benchmarks/perf/README.md` (신규)
+  - (재사용·읽기 전용) 기존 Jaeger·Loki(`infra/loki/`)·VAL-1 통합지점(엔진 호출 경로)
+- **인터페이스 시그니처**:
+  - CLI: `python -m benchmarks.perf.runner --sizes small,medium,large [--concurrency C] [--cache on|off] [--source jaeger|loki|timer]`
+  - `PerfResult{repo, kloc, files, per_file_sec_mean: float, per_kloc_sec: float, e2e_latency_p50: float, e2e_latency_p95: float, throughput_sessions_per_min: float, cache_mode: str}`
+  - `collector.extract(trace_or_log) -> list[Span]` — `Span{session_id, file, start_ts, end_ts}` (Jaeger trace ID·Loki TraceID 릴레이 재사용).
+- **핵심 로직(단계)**:
+  1. 레포 크기 그룹(소/중/대) 매니페스트 로드 → 각 레포 KLOC·파일 수 집계.
+  2. 각 레포 스캔 실행(동시성·rate limit 제한) → 세션별 Jaeger 트레이스/Loki 로그 수집(없으면 하니스 자체 타이머).
+  3. 타임스탬프에서 파일당·KLOC당 분석 시간, end-to-end latency 분포(p50/p95) 산출.
+  4. 동시 N세션 부하 → 분당 처리 세션(throughput) 측정.
+  5. 캐시 on/off **구분 보고** → 레포 크기별 스코어카드 + 그래프.
+- **예외/엣지 케이스**: 트레이스/로그 누락 세션은 자체 타이머 fallback(소스 혼용 시 표기). 개별 파일 분석 실패는 skip&log(전체 중단 금지). rate limit 도달 시 동시성 자동 하향 + 경고. 대용량 레포 OOM 방지 위해 스트리밍/배치.
+- **준수 규칙**: 공통 제약 전체. 특히 **측정만**(운영 코드 미수정) · `general.md`(개별 오류 skip&log·매직넘버 상수화) · 동시성/rate limit 통제.
+- **산출물 아티팩트**: `benchmarks/perf/results/perf_raw.csv` · `perf_scorecard.md`(KLOC당 시간·p50/p95·throughput·캐시 on/off 구분·실행일·모델/버전) · `latency_by_repo_size.png`.
+- **DoD**:
+  - 🧪 단위: 타임스탬프→지표 계산(파일당·KLOC당 시간·p50/p95·throughput) 고정 입력 검증.
+  - 🔬 통합/실행: 소/중 레포 실스캔 → Jaeger/Loki(또는 타이머)에서 타이밍 추출 → 3종 산출물 생성.
+  - ✅ 수동/산출물: `perf_scorecard.md`에 **"파일당 Xs / p95 Yms / throughput Z" 헤드라인** + 캐시 on/off 구분 명시 + README 재실행법.
+- **사이즈·배치·선행**: M · **S13** · VAL-1 하니스(통합지점) 재사용 + 기존 Jaeger/Loki.
+
+---
+
+#### VAL-15 🟠 — 단위 원가 효율 (취약점 1건당·KLOC당 원가 + provider 트레이드오프)
+- **목적(무엇을 증명)**: 탐지 1건·코드 1KLOC을 처리하는 단위 원가, provider별 원가-탐지 트레이드오프.
+- **한 줄 셀링 문장**: *"SecureAI는 취약점 1건 탐지당 $0.00X, AUDIT(Gemini) 라우팅으로 PIPELINE(Claude) 대비 원가 NN%를 절감한다."*
+- **배경**(왜 중요): 원가 효율은 "확장 가능한 비즈니스인가"의 직접 신호다. **원가 계측 인프라가 이미 있다** — `token_usage`(V054, COST-3로 구현완료)·PricingTable이 세션별 provider·model·input/output 토큰·cost_usd를 적재하고, COST-1이 AUDIT=Gemini / PIPELINE=Claude로 provider를 라우팅한다. 따라서 이 하니스는 **이미 적재된 비용 데이터를 finding 수·KLOC으로 정규화**하기만 하면 된다(신규 계측 불필요). VAL-1/VAL-8 코퍼스의 탐지 수를 분모로 재사용한다.
+- **변경 파일**:
+  - `apps/ai_engine/benchmarks/cost/analyzer.py` (신규) — token_usage·PricingTable 데이터 → $/finding·토큰/취약점 정규화
+  - `apps/ai_engine/benchmarks/cost/report.py` (신규) — cost_efficiency_scorecard.md 생성
+  - `apps/ai_engine/benchmarks/cost/README.md` (신규)
+  - (재사용·읽기 전용) `token_usage` 테이블(V054)·PricingTable + VAL-1/VAL-8 결과(finding 수·코퍼스 KLOC)
+- **인터페이스 시그니처**:
+  - CLI: `python -m benchmarks.cost.analyzer --corpus owasp,cve [--by-provider]`
+  - `CostResult{provider, model, total_cost_usd: float, total_findings: int, total_kloc: float, cost_per_finding: float, tokens_per_finding: float, cost_per_kloc: float}`
+  - provider 트레이드오프: `ProviderTradeoff{provider, findings, cost_usd, cost_per_finding, detection_rate}` — AUDIT(Gemini) vs PIPELINE(Claude) 행 대조.
+- **핵심 로직(단계)**:
+  1. 벤치 실행 세션의 `token_usage` 행 조회(provider·model·토큰·cost_usd, session_id 기준).
+  2. VAL-1/VAL-8 결과에서 해당 세션의 finding 수·코퍼스 KLOC 매핑.
+  3. $/finding = Σcost / Σfindings, 토큰/취약점 = Σtokens / Σfindings, $/KLOC 산출.
+  4. provider별(AUDIT=Gemini / PIPELINE=Claude) 원가·탐지 대비표 생성 → 절감률 = (Claude $/finding − Gemini $/finding) / Claude $/finding.
+- **예외/엣지 케이스**: finding 0 세션은 $/finding 분모 0 → "N/A"로 표기(0 나눗셈 회피). BYOK 세션은 원가 0이므로 별도 분리 집계(평균 왜곡 방지). token_usage 누락 세션은 skip&log. provider 한쪽만 실행된 경우 트레이드오프 표는 단일 행 + 경고.
+- **준수 규칙**: 공통 제약 전체. 특히 token_usage는 **읽기 전용**(SQL 파라미터 바인딩·민감값 로그 금지) · 매직넘버(가격) 상수화 대신 PricingTable 재사용.
+- **산출물 아티팩트**: `benchmarks/cost/results/cost_raw.csv` · `cost_efficiency_scorecard.md`($/finding·토큰/취약점·$/KLOC·AUDIT vs PIPELINE 트레이드오프 표·절감률·실행일·모델).
+- **DoD**:
+  - 🧪 단위: $/finding·토큰/취약점·절감률 계산 + 0-finding/BYOK 분리 로직(고정 입력 검증).
+  - 🔬 통합/실행: VAL-1 표본 세션의 token_usage 조회 → cost_efficiency_scorecard.md 생성.
+  - ✅ 수동/산출물: `cost_efficiency_scorecard.md`에 **"$/finding $0.00X / Gemini로 NN% 절감" 헤드라인** + provider 트레이드오프 표.
+- **사이즈·배치·선행**: S · **S13** · VAL-1 결과·`token_usage`(V054, 구현완료)·PricingTable.
+
+---
+
+#### VAL-16 🟠 — 트리아지/심각도 보정 품질 (진짜 위험이 노이즈에 묻히지 않는가)
+- **목적(무엇을 증명)**: 엔진의 severity 정렬이 실제 위험도(악용가능성)와 얼마나 일치하는가 — 상위 권고의 신뢰도.
+- **한 줄 셀링 문장**: *"SecureAI 상위 10개 권고 중 9개가 실제 악용가능(proven) — 진짜 위험이 노이즈에 묻히지 않는다."*
+- **배경**(왜 중요): SAST의 실효성은 탐지 수가 아니라 **"먼저 봐야 할 것을 먼저 보여주는가"**다(트리아지). 엔진 severity가 실 exploitability와 어긋나면 사용자는 노이즈에 시간을 쓴다. **VAL-4의 `proven_exploitable` 라벨**(또는 CVE/CVSS 라벨)을 ground truth로 삼아 severity 순 정렬의 precision@k·calibration을 측정한다 — VAL-4 산출을 그대로 재사용하므로 추가 비용이 작다. (BENCHMARK_GUIDE 트리아지 품질 축)
+- **변경 파일**:
+  - `apps/ai_engine/benchmarks/triage/runner.py` (신규) — severity 정렬 ↔ exploitability 라벨 대조·지표 계산
+  - `apps/ai_engine/benchmarks/triage/calibration.py` (신규) — severity 버킷별 실 exploitability 보정 곡선 계산
+  - `apps/ai_engine/benchmarks/triage/report.py` (신규) — triage_scorecard.md·곡선 png 생성
+  - `apps/ai_engine/benchmarks/triage/README.md` (신규)
+  - (재사용·읽기 전용) `benchmarks/proven_exploit/results/`(VAL-4 proven 라벨) + VAL-7 CVE/CVSS 라벨 + VAL-1 통합지점(severity)
+- **인터페이스 시그니처**:
+  - CLI: `python -m benchmarks.triage.runner --labels proven,cvss [--k 5,10,20]`
+  - `TriageResult{k: int, precision_at_k: float, top_n_accuracy: float}`
+  - `CalibrationRow{engine_severity: str, n: int, proven_rate: float, mean_cvss: float|None}` — 엔진 severity vs 실 exploitability 보정.
+- **핵심 로직(단계)**:
+  1. 엔진 findings를 severity 내림차순 정렬.
+  2. 각 finding에 VAL-4 `proven_exploitable`(또는 CVE/CVSS) 라벨 조인.
+  3. precision@k = (상위 k 중 proven 수)/k, 상위 N 정확도 산출(k=5/10/20).
+  4. severity 버킷(critical/high/medium/low)별 실 proven 비율·평균 CVSS로 calibration 곡선 생성.
+- **예외/엣지 케이스**: proven 라벨 없는 finding은 calibration에서 "미검증"으로 분리(precision@k 분모에는 보수적으로 non-proven 처리하되 별도 표기). k가 전체 finding 수보다 크면 가용 수로 클램프 + 경고. severity 동률은 안정 정렬(2차 키=신뢰도) 명시.
+- **준수 규칙**: 공통 제약 전체. VAL-4/VAL-7 산출은 **읽기 전용** 재사용 · 매직넘버(k·임계) 상수화.
+- **산출물 아티팩트**: `benchmarks/triage/results/triage_raw.csv` · `triage_scorecard.md`(precision@k 표·top-N 정확도·calibration 표) · `severity_calibration.png`(보정 곡선).
+- **DoD**:
+  - 🧪 단위: precision@k·top-N 정확도·calibration 버킷 집계(고정 라벨셋 → 기대값).
+  - 🔬 통합/실행: VAL-4 proven 라벨 입력 → severity 정렬 대조 → 지표·곡선 산출.
+  - ✅ 수동/산출물: `triage_scorecard.md`에 **"상위 10 중 proven NN개 / precision@10 0.X" 헤드라인** + calibration 곡선.
+- **사이즈·배치·선행**: M · **S14** · **VAL-4(proven_exploitable) 선행 필수** · VAL-7(CVE/CVSS 라벨) 재사용.
+
+---
+
+#### VAL-17 🟢 — 언어/스택 커버리지 매트릭스 (지원 언어 폭 · VAL-11의 언어축 보완)
+- **목적(무엇을 증명)**: 지원 언어별 탐지율 폭 — "어떤 스택까지 잡나"를 언어 축으로.
+- **한 줄 셀링 문장**: *"SecureAI는 Java·Python·JS·TS 등 N개 언어를 지원하며, 언어별 탐지율 매트릭스로 폭을 증명한다."*
+- **배경**(왜 중요): VAL-11이 **CWE 축**(어떤 취약점 유형) 커버리지라면, VAL-17은 같은 벤치 결과를 **언어 축**으로 재집계한 보완 매트릭스다 — 도입 검토 시 "우리 스택을 지원하나"가 첫 질문이다. 언어별 라벨 코퍼스(OWASP=Java, Juliet, CVE의 Python 등)가 이미 VAL-1/VAL-7로 확보되므로 **거의 공짜**로 생성되는 IR 즉효 아티팩트. (VAL-11과 같은 `coverage/` 폴더 공유 가능.)
+- **변경 파일**:
+  - `apps/ai_engine/benchmarks/coverage/language_matrix.py` (신규) — VAL-1/VAL-7 결과 → 언어별 탐지율 집계
+  - `apps/ai_engine/benchmarks/coverage/language_meta.json` (신규) — 코퍼스→언어 매핑 기준(OWASP=Java, Juliet, CVE=lang 메타)
+  - (VAL-11과 동일 폴더) `apps/ai_engine/benchmarks/coverage/README.md` (VAL-11 존재 시 수정, 없으면 신규)
+  - (재사용·읽기 전용) `benchmarks/owasp/results/raw_results.csv`(VAL-1) + `benchmarks/cve/`(VAL-7 lang 메타)
+- **인터페이스 시그니처**:
+  - CLI: `python -m benchmarks.coverage.language_matrix --from benchmarks/owasp/results/raw_results.csv,benchmarks/cve/results/cve_reproduction.csv`
+  - `LanguageRow{lang, total_cases: int, tp: int, fn: int, detection_rate: float, cwe_breadth: int}` — 언어별 탐지율 + 커버 CWE 수.
+- **핵심 로직(단계)**:
+  1. VAL-1(OWASP=Java)·VAL-7(CVE의 lang 메타)·Juliet 등 결과 로드.
+  2. 각 케이스를 `language_meta.json` 기준으로 언어 태깅.
+  3. 언어별 TP/FN 집계 → 탐지율·커버 CWE 폭 산출.
+  4. 언어×탐지율 매트릭스 표 + "N개 언어 지원" 요약 생성.
+- **예외/엣지 케이스**: 언어 메타 없는 케이스는 "미분류"로 별도 표기(매트릭스 왜곡 방지). 표본이 적은 언어(케이스 < 임계)는 "표본 부족" 플래그(과대해석 방지). VAL-11(CWE축)과 **중복 아님** 명시 — 같은 데이터의 다른 축 집계.
+- **준수 규칙**: 공통 제약 전체. 매직넘버(표본 임계) 상수화 · 공식 코퍼스→언어 매핑 사용.
+- **산출물 아티팩트**: `benchmarks/coverage/results/language_coverage_matrix.md`(언어×탐지율·커버 CWE 폭·표본 수) · `language_coverage_matrix.png`(매트릭스/히트맵).
+- **DoD**:
+  - 🧪 단위: 언어별 탐지율·커버 CWE 폭 집계 + 미분류/표본부족 분리(고정 입력 검증).
+  - 🔬 통합/실행: VAL-1(+VAL-7) 결과 입력 → 언어 매트릭스 생성.
+  - ✅ 수동/산출물: `language_coverage_matrix.md`에 **"N개 언어, 언어별 탐지율" 헤드라인** + 언어×탐지율 표.
+- **사이즈·배치·선행**: S · **S13** · VAL-1 결과(VAL-7 코퍼스 있으면 언어 폭 확장).
+
+---
+
 ### EPIC-VAL 스프린트 편성 (S13/S14 — 한 번에 확보되는 수치 묶음)
 > 기존 배치 결정(요약표·배치 원칙)과 모순 없이 구체화. 사이즈 합 L 과적 점검 포함.
 
 **Sprint 13 — "검증 우선"(탐지·실세계·신뢰 숫자 0단계 묶음)**
-- 편성: **VAL-1**(벤치, M) · **VAL-3**(AST가드, L) · **VAL-4**(SAST→DAST, L) · **VAL-7**(실CVE, M) · **VAL-10**(결정성, S) · **VAL-11**(CWE커버리지, S) + MOAT-1(데이터수집, M). VAL-13(SARIF, M)은 S13말 착수 가능(VAL-8 전제).
-- **한 번에 확보되는 수치 묶음**: *"OWASP Benchmark 탐지율 X% / 오탐률 Y% / Youden Z(VAL-1) · 실세계 CVE recall Z%(VAL-7) · finding 안정성 Jaccard 0.9x(VAL-10) · CWE Top 25 중 NN개·OWASP Top 10 전부 커버(VAL-11) · SAST→DAST proven NN%(VAL-4)"* — IR 한 장에 들어갈 5개 숫자를 한 스프린트에 확보.
-- **⚠️ 용량 경고**: L이 **2개**(VAL-3·VAL-4) — 배치 원칙 상한선. MOAT-1(M)까지 포함하면 과적 경계. VAL-3 또는 VAL-4 하나를 S14 초로 이월하는 분할을 `/sprint 13`에서 검토 권고(특히 VAL-4는 DAST 샌드박스·데모영상까지라 실무 비중이 큼).
+- 편성: **VAL-1**(벤치, M) · **VAL-3**(AST가드, L) · **VAL-4**(SAST→DAST, L) · **VAL-7**(실CVE, M) · **VAL-10**(결정성, S) · **VAL-11**(CWE커버리지, S) + **VAL-14**(성능, M) · **VAL-15**(원가, S) · **VAL-17**(언어커버리지, S) + MOAT-1(데이터수집, M). VAL-13(SARIF, M)은 S13말 착수 가능(VAL-8 전제).
+- **한 번에 확보되는 수치 묶음**: *"OWASP Benchmark 탐지율 X% / 오탐률 Y% / Youden Z(VAL-1) · 실세계 CVE recall Z%(VAL-7) · finding 안정성 Jaccard 0.9x(VAL-10) · CWE Top 25 중 NN개·OWASP Top 10 전부 커버(VAL-11) · SAST→DAST proven NN%(VAL-4) · **파일당 Xs·p95 Yms·throughput Z(VAL-14)** · **취약점 1건당 $0.00X·Gemini로 NN% 절감(VAL-15)** · **N개 언어 탐지율 매트릭스(VAL-17)**"* — IR 한 장에 들어갈 8개 숫자(정확도+성능+원가+언어 폭)를 한 스프린트에 확보.
+- **⚠️ 용량 재점검(VAL-14/15/17 추가 반영)**: L은 여전히 **2개**(VAL-3·VAL-4)로 배치 원칙 상한선 — 신규 3종은 모두 **경량**(VAL-14=M, VAL-15·VAL-17=S)이고 **기존 인프라 재사용**(VAL-14=Jaeger/Loki, VAL-15=token_usage/PricingTable, VAL-17=VAL-1/VAL-7 결과)이라 추가 부담이 작다(대부분 측정·집계·리포트). 다만 **L 2개 + M 3개(VAL-1·VAL-7·VAL-14·MOAT-1) + S 4개**로 태스크 **개수**가 누적(구 Sprint 12=11개 과적 전례) → 분할 권고를 갱신한다: **VAL-3 또는 VAL-4(L) 하나를 S14 초로 이월**(특히 VAL-4는 DAST 샌드박스·데모영상까지라 비중 큼)하고, 신규 경량 3종은 선행(VAL-1) 완료 후 후반에 묶어 처리하면 과적을 흡수할 수 있다. 최종 분할 판단은 `/sprint 13`에서.
 
 **Sprint 14 — "검증된 AI"(패치=교정 묶음)**
-- 편성: 패치 자동화(1401) + **VAL-9**(패치검증, M ⭐) + VAL-5(안전장치=1402/1403) + **VAL-8**(도구비교, M) · **VAL-13**(SARIF, M, 미이월 시).
-- **한 번에 확보되는 수치 묶음**: *"패치 소거율 NN% / 기능 회귀 0건(VAL-9) · Semgrep 대비 SecureAI 단독 탐지 N건(VAL-8) · SARIF 2.1.0 GitHub 연동(VAL-13)"* — "탐지→교정" 서사의 정점 + 경쟁 대비 우위 한 줄.
-- 의존 순서: VAL-13(SARIF 정규화) → VAL-8(공정 비교). VAL-9는 1401(패치 자동화) 선행 필수.
+- 편성: 패치 자동화(1401) + **VAL-9**(패치검증, M ⭐) + VAL-5(안전장치=1402/1403) + **VAL-8**(도구비교, M) · **VAL-13**(SARIF, M, 미이월 시) · **VAL-16**(트리아지 품질, M).
+- **한 번에 확보되는 수치 묶음**: *"패치 소거율 NN% / 기능 회귀 0건(VAL-9) · Semgrep 대비 SecureAI 단독 탐지 N건(VAL-8) · SARIF 2.1.0 GitHub 연동(VAL-13) · **상위 10 권고 중 proven NN개·precision@10 0.X(VAL-16)**"* — "탐지→교정" 서사의 정점 + 경쟁 대비 우위 + 트리아지 신뢰 한 줄.
+- 의존 순서: VAL-13(SARIF 정규화) → VAL-8(공정 비교). VAL-9는 1401(패치 자동화) 선행 필수. **VAL-16은 VAL-4(proven, S13) 산출 의존** → S13 VAL-4 완료 후 S14에서 착수.
 
 **S14+ 여유**: **VAL-12**(적대적 견고성, M) — sast_node 안정화 후. "도구 자체가 공격에 견딘다" 메타 신뢰 한 줄.
 
 **IR/지원서 통합 매핑**(검증 로드맵 표와 정합):
-- 0단계(탐지 표준) = VAL-1 · 0.5단계(탐지의 질) = VAL-10+VAL-11 · 1단계(실세계+비교) = VAL-7+VAL-8(+VAL-13 정규화) · 1.5단계(교정) = VAL-9 · 3단계(자체 보안) = VAL-12. **각 VAL의 헤드라인 수치를 로드맵 표 "상태"에 채워 IR 한 장 + 지원서 검증 항목에 삽입.**
+- 0단계(탐지 표준) = VAL-1 · 0.5단계(탐지의 질) = VAL-10+VAL-11+**VAL-17(언어 폭)** · **성능·원가 축 = VAL-14(속도·확장성)+VAL-15(단위 원가)** · 1단계(실세계+비교) = VAL-7+VAL-8(+VAL-13 정규화) · 1.5단계(교정) = VAL-9 · **트리아지 품질 = VAL-16** · 3단계(자체 보안) = VAL-12. **각 VAL의 헤드라인 수치를 로드맵 표 "상태"에 채워 IR 한 장 + 지원서 검증 항목에 삽입.**
 
 ---
 

@@ -66,6 +66,7 @@ export interface ProgressEvent {
   message?: string;
   // api_plan (TASK-1106)
   api_groups?: ApiGroupPlan[];
+  /** scan_complete: 전체 파일 목록 / stage_completed: 완료 stage의 파일 목록 */
   files?: string[];
   // completed
   vuln_count?: number;

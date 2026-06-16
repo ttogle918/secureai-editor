@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ProgressPanel } from '../ProgressPanel';
-import type { ProgressStep, StageInfo } from '@/store/useSecureStore';
+import type { ProgressStep, StageInfo, StageVulns } from '@/store/useSecureStore';
 
 // ── Zustand 스토어 mock ──────────────────────────────────────────
 type MockStore = {
@@ -10,6 +10,7 @@ type MockStore = {
   scanningFile: null;
   apiGroups: [];
   fileStatuses: Record<string, never>;
+  stageVulns: Record<number, StageVulns>;
   openTab: jest.Mock;
 };
 
@@ -20,6 +21,7 @@ const mockStore: MockStore = {
   scanningFile: null,
   apiGroups: [],
   fileStatuses: {},
+  stageVulns: {},
   openTab: jest.fn(),
 };
 
@@ -86,5 +88,75 @@ describe('ProgressPanel', () => {
     expect(global.URL.createObjectURL).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
     clickSpy.mockRestore();
+  });
+
+  // ── STAGE-1: stage 취약점 배지 ──────────────────────────────
+
+  it('stage 완료 시 stageVulns가 있으면 "발견 N건" 배지가 표시된다', () => {
+    // stageList와 stageVulns를 가진 스토어 설정
+    mockStore.stageList = [
+      { stage_no: 1, name: 'Auth Stage', file_count: 2, status: 'completed' },
+    ];
+    mockStore.stageVulns = {
+      1: {
+        stage_no: 1,
+        vulns: [
+          { id: 'v1', filePath: 'src/A.java', lineNumber: 10, vulnType: 'SQL_INJECTION', severity: 'HIGH' },
+          { id: 'v2', filePath: 'src/B.java', lineNumber: 22, vulnType: 'XSS', severity: 'MEDIUM' },
+        ],
+        loaded: true,
+      },
+    };
+
+    render(<ProgressPanel />);
+
+    expect(screen.getByLabelText('Stage 1 취약점 2건')).toBeInTheDocument();
+    expect(screen.getByText('발견 2건')).toBeInTheDocument();
+
+    // cleanup
+    mockStore.stageList = [];
+    mockStore.stageVulns = {};
+  });
+
+  it('stage 취약점이 0건이면 "발견 0건" 배지가 표시된다', () => {
+    mockStore.stageList = [
+      { stage_no: 1, name: 'Clean Stage', file_count: 1, status: 'completed' },
+    ];
+    mockStore.stageVulns = {
+      1: { stage_no: 1, vulns: [], loaded: true },
+    };
+
+    render(<ProgressPanel />);
+
+    expect(screen.getByText('발견 0건')).toBeInTheDocument();
+
+    mockStore.stageList = [];
+    mockStore.stageVulns = {};
+  });
+
+  it('배지 클릭 시 취약점 펼침 목록이 표시된다', () => {
+    mockStore.stageList = [
+      { stage_no: 1, name: 'Auth Stage', file_count: 1, status: 'completed' },
+    ];
+    mockStore.stageVulns = {
+      1: {
+        stage_no: 1,
+        vulns: [
+          { id: 'v1', filePath: 'src/UserController.java', lineNumber: 5, vulnType: 'SQL_INJECTION', severity: 'HIGH' },
+        ],
+        loaded: true,
+      },
+    };
+
+    render(<ProgressPanel />);
+
+    const badge = screen.getByLabelText('Stage 1 취약점 1건');
+    fireEvent.click(badge);
+
+    // 파일명이 펼침 목록에 표시됨
+    expect(screen.getByText('UserController.java')).toBeInTheDocument();
+
+    mockStore.stageList = [];
+    mockStore.stageVulns = {};
   });
 });

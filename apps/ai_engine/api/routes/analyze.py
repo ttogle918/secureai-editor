@@ -61,6 +61,14 @@ async def _emit_stage_events(
     return current_stage_no
 
 
+def _get_stage_files(stages: list[dict], stage_no: int) -> list[str]:
+    """stage_no에 해당하는 파일 목록을 반환한다. stage가 없으면 빈 목록."""
+    for stage in stages:
+        if stage.get("stage_no") == stage_no:
+            return list(stage.get("files", []))
+    return []
+
+
 def _is_stage_completed(
     files: list[str],
     stages: list[dict],
@@ -254,7 +262,12 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
                     if last_stage_no is not None:
                         completed = _is_stage_completed(files, stages, next_idx, last_stage_no)
                         if completed:
-                            await publish("stage_completed", stage_no=last_stage_no)
+                            stage_files = _get_stage_files(stages, last_stage_no)
+                            await publish(
+                                "stage_completed",
+                                stage_no=last_stage_no,
+                                files=stage_files,
+                            )
 
                 elif node_name == "aggregate_node":
                     results = state.get("sast_results", [])
@@ -387,7 +400,12 @@ async def _run_resume(session_id: str) -> None:
                     if last_stage_no is not None:
                         completed = _is_stage_completed(files, stages, next_idx, last_stage_no)
                         if completed:
-                            await publish("stage_completed", stage_no=last_stage_no)
+                            stage_files = _get_stage_files(stages, last_stage_no)
+                            await publish(
+                                "stage_completed",
+                                stage_no=last_stage_no,
+                                files=stage_files,
+                            )
 
                 elif node_name == "aggregate_node":
                     results = state.get("sast_results", [])

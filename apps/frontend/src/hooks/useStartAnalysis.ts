@@ -27,12 +27,24 @@ export function useStartAnalysis() {
     return (localStorage.getItem('scanModeDefault') as ScanMode) ?? 'PIPELINE';
   });
 
-  const createSession = useCallback(async (pid: string, force = false, mode: ScanMode = 'PIPELINE', fileFilter?: string[]) => {
+  /** STAGE-2: planningMode — 'DETERMINISTIC' | 'LLM'. */
+  type PlanningMode = 'DETERMINISTIC' | 'LLM';
+
+  const createSession = useCallback(async (
+    pid: string,
+    force = false,
+    mode: ScanMode = 'PIPELINE',
+    fileFilter?: string[],
+    planningMode?: PlanningMode,
+    confirmGate?: boolean,
+  ) => {
     const res = await apiClient.post<{ data: SessionData }>(
       '/analysis/sessions',
       {
         projectId: pid, workspaceRoot: workspaceId, sourceType: 'local', force, scanMode: mode,
         ...(fileFilter && fileFilter.length ? { fileFilter } : {}),
+        ...(planningMode ? { planningMode } : {}),
+        ...(confirmGate !== undefined ? { confirmGate } : {}),
       },
     );
     setSseSessionId(res.data.id);

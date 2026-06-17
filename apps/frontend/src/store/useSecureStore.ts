@@ -7,6 +7,7 @@ import {
   type Vulnerability, type ChatMessage, type DastLog, type PatchSuggestion, type FileNode,
 } from '@/lib/mockData';
 import type { SeverityLevel } from '@/types';
+import type { ConfirmStagePlanItem } from '@/hooks/useSse';
 
 export type Severity       = 'critical' | 'high' | 'medium' | 'low';
 export type SeverityFilter = 'all' | Severity;
@@ -243,6 +244,12 @@ interface SecureStore {
   stageVulns: Record<number, StageVulns>;
   setStageVulns: (stageNo: number, vulns: StageVulnSummary[]) => void;
   clearStageVulns: () => void;
+
+  // ── STAGE-2: 사용자 컨펌 게이트 ──────────────────────────
+  awaitingConfirmation: boolean;
+  confirmStages: ConfirmStagePlanItem[];
+  setAwaitingConfirmation: (stages: ConfirmStagePlanItem[]) => void;
+  clearAwaitingConfirmation: () => void;
 
   // ── 언어 설정 ────────────────────────────────────────────
   displayLanguage: DisplayLanguage;
@@ -494,6 +501,12 @@ export const useSecureStore = create<SecureStore>()(
     },
   })),
   clearStageVulns: () => set({ stageVulns: {} }),
+
+  // ── STAGE-2: 사용자 컨펌 게이트
+  awaitingConfirmation: false,
+  confirmStages: [],
+  setAwaitingConfirmation: (stages) => set({ awaitingConfirmation: true, confirmStages: stages }),
+  clearAwaitingConfirmation: () => set({ awaitingConfirmation: false, confirmStages: [] }),
 
   // ── 언어
   displayLanguage: 'ko',

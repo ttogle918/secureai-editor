@@ -36,8 +36,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class RedisSubscriber implements MessageListener {
 
-    private static final String TYPE_COMPLETED = "completed";
-    private static final String TYPE_ERROR      = "error";
+    private static final String TYPE_COMPLETED              = "completed";
+    private static final String TYPE_ERROR                  = "error";
+    /** STAGE-2: planning_node interrupt 후 사용자 컨펌 대기 이벤트. */
+    private static final String TYPE_AWAITING_CONFIRMATION  = "awaiting_confirmation";
 
     private final SseEmitterService sseEmitterService;
     private final AnalysisSessionRepository sessionRepository;
@@ -73,6 +75,9 @@ public class RedisSubscriber implements MessageListener {
             } else if (TYPE_ERROR.equals(type)) {
                 handleError(sessionId);
                 sseEmitterService.complete(sessionId);
+            } else if (TYPE_AWAITING_CONFIRMATION.equals(type)) {
+                // STAGE-2: planning_node interrupt → 세션 status AWAITING_CONFIRMATION 전환
+                handleAwaitingConfirmation(sessionId);
             }
         } catch (Exception e) {
             log.warn("[redis-sub] failed to process message", e);
@@ -94,6 +99,18 @@ public class RedisSubscriber implements MessageListener {
         // PR 웹훅 트리거 세션이면 Check Run 완료 + PR 코멘트 처리
         Optional<PrReviewHistory> prHistory = prReviewHistoryRepository.findBySessionId(sessionId);
         prHistory.ifPresent(history -> finalizePrCompleted(history, vulnCount));
+    }
+
+    /**
+     * STAGE-2: planning_node interrupt 후 사용자 컨펌 대기 상태로 전환한다.
+     * SSE 연결은 유지(complete 호출 없음) — 프론트엔드가 컨펌 후 이벤트를 계속 수신해야 함.
+     */
+    private void handleAwaitingConfirmation(UUID sessionId) {
+        sessionRepository.findById(sessionId).ifPresent(session -> {
+            session.markAwaitingConfirmation();
+            sessionRepository.save(session);
+            log.info("[redis-sub] session awaiting confirmation sessionId={}", sessionId);
+        });
     }
 
     private void handleError(UUID sessionId) {

@@ -1,6 +1,7 @@
 package io.secureai.backend.domain.analysis.controller;
 
 import io.secureai.backend.domain.analysis.dto.AnalysisSessionResponse;
+import io.secureai.backend.domain.analysis.dto.ConfirmPlanRequest;
 import io.secureai.backend.domain.analysis.dto.StartAnalysisRequest;
 import io.secureai.backend.domain.analysis.service.AnalysisService;
 import io.secureai.backend.domain.analysis.service.SseEmitterService;
@@ -97,6 +98,21 @@ public class AnalysisController {
         }
 
         return sseEmitterService.subscribe(sessionId);
+    }
+
+    /**
+     * STAGE-2: 계획 컨펌 — planning_node interrupt 후 사용자가 stage/파일 선택을 확정한다.
+     *
+     * 소유권 검증(session 소유자) + AWAITING_CONFIRMATION 상태 가드는 Service에서 수행.
+     * 입력 검증(body 크기 등)은 @Valid + ConfirmPlanRequest @Size로 Controller에서 수행.
+     */
+    @PostMapping("/sessions/{sessionId}/confirm")
+    public ResponseEntity<ApiResponse<AnalysisSessionResponse>> confirmPlan(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID sessionId,
+            @Valid @RequestBody ConfirmPlanRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                analysisService.confirmPlan(userId, sessionId, request)));
     }
 
     @PostMapping("/sessions/{sessionId}/resume")

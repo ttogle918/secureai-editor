@@ -58,6 +58,11 @@ class AgentState(TypedDict):
     # 토큰 사용량 누적 (input, output, cache_creation_input, cache_read_input)
     token_usage: dict
 
+    # STAGE-2: 사용자 컨펌 게이트
+    # True = 사용자가 계획을 확인하고 분석 재개를 승인함
+    # planning_node interrupt 후 /agent/confirm 으로 설정
+    confirmed: bool
+
     # 세션 상태
     status: str          # running / completed / error
     error_message: str | None

@@ -73,4 +73,9 @@ public class AnalysisSession extends BaseTimeEntity {
     public void markInterrupted() {
         this.status = SessionStatus.INTERRUPTED;
     }
+
+    /** STAGE-2: planning_node interrupt 후 사용자 컨펌 대기 상태로 전환. */
+    public void markAwaitingConfirmation() {
+        this.status = SessionStatus.AWAITING_CONFIRMATION;
+    }
 }

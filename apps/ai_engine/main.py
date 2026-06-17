@@ -15,6 +15,7 @@ from api.middleware.internal_key_auth import InternalKeyAuthMiddleware
 from infrastructure.sentry_filter import scrub_sentry_event
 from api.routes.analyze import router as analyze_router
 from api.routes.chat import router as chat_router
+from api.routes.confirm import router as confirm_router
 from api.routes.dast import router as dast_router
 from api.routes.sbom import router as sbom_router
 from api.routes.translate import router as translate_router
@@ -146,6 +147,7 @@ Instrumentator().instrument(app).expose(app)
 
 app.include_router(analyze_router)
 app.include_router(chat_router)
+app.include_router(confirm_router)
 app.include_router(dast_router)
 app.include_router(sbom_router)
 app.include_router(translate_router)

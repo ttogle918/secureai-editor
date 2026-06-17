@@ -2,6 +2,8 @@
 LangGraph 보안 감사 그래프 컴파일 & 싱글턴 캐싱.
 
 TASK-206에서 checkpointer 인자를 추가하면 중단·재개가 활성화된다.
+STAGE-2: interrupt=True 컴파일본은 planning_node 실행 후 GraphInterrupt를 발생시켜
+사용자 컨펌 게이트를 구현한다. 캐시 키에 interrupt 모드를 포함하여 두 컴파일본을 분리한다.
 """
 import logging
 from typing import Any
@@ -24,7 +26,7 @@ logger = logging.getLogger(__name__)
 _graph_cache: dict[str, Any] = {}
 
 
-def _build_graph(checkpointer=None):
+def _build_graph(checkpointer=None, interrupt: bool = False):
     builder = StateGraph(AgentState)
 
     builder.add_node("scan_files_node", scan_files_node)
@@ -60,13 +62,29 @@ def _build_graph(checkpointer=None):
     builder.add_edge("aggregate_node", "patch_node")
     builder.add_edge("patch_node", END)
 
-    return builder.compile(checkpointer=checkpointer)
+    # STAGE-2: interrupt=True 시 planning_node 실행 후 자동 중단.
+    # LangGraph가 planning_node 완료 직후 GraphInterrupt를 발생시킨다.
+    # 사용자 컨펌 후 /agent/confirm 이 graph.aupdate_state + astream(None) 으로 재개한다.
+    interrupt_after = ["planning_node"] if interrupt else []
+    return builder.compile(checkpointer=checkpointer, interrupt_after=interrupt_after)
 
 
-def get_graph(checkpointer=None):
-    """컴파일된 그래프를 반환한다. checkpointer 없이 호출하면 싱글턴을 재사용한다."""
-    cache_key = "default" if checkpointer is None else id(checkpointer)
+def get_graph(checkpointer=None, interrupt: bool = False):
+    """컴파일된 그래프를 반환한다.
+
+    캐시 키에 checkpointer identity와 interrupt 모드를 모두 포함하여
+    일반 그래프와 interrupt 컴파일본이 섞이지 않도록 한다(STAGE-2 Dev 보완 #3).
+    """
+    if checkpointer is None:
+        cache_key = f"default_interrupt={interrupt}"
+    else:
+        cache_key = f"{id(checkpointer)}_interrupt={interrupt}"
+
     if cache_key not in _graph_cache:
-        logger.info("LangGraph 컴파일 중 (checkpointer=%s)", type(checkpointer).__name__ if checkpointer else "None")
-        _graph_cache[cache_key] = _build_graph(checkpointer)
+        logger.info(
+            "LangGraph 컴파일 중 (checkpointer=%s interrupt=%s)",
+            type(checkpointer).__name__ if checkpointer else "None",
+            interrupt,
+        )
+        _graph_cache[cache_key] = _build_graph(checkpointer, interrupt=interrupt)
     return _graph_cache[cache_key]

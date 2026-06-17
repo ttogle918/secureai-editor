@@ -19,7 +19,7 @@ set -euo pipefail
 # ── 상수 ─────────────────────────────────────────────────────────────────────
 
 # BenchmarkJava 고정 태그 (runner.py BENCHMARK_TAG 와 동기화)
-readonly BENCHMARK_TAG="v1.2beta"
+readonly BENCHMARK_TAG="1.2beta"
 readonly BENCHMARK_REPO="https://github.com/OWASP-Benchmark/BenchmarkJava.git"
 
 # 스크립트 위치 기준 절대 경로 (심볼릭 링크 없이)

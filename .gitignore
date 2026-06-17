@@ -156,6 +156,12 @@ tests/perf/results.json
 apps/ai_engine/eval/provider_compare/results/
 # OWASP ZAP DAST 스캔 산출물 (make zap-scan) — 커밋 금지
 infra/zap/reports/
+# VAL-1 OWASP Benchmark 평가 하니스 (make eval) — 커밋 금지
+apps/ai_engine/eval/owasp_benchmark/BenchmarkJava/
+apps/ai_engine/eval/results/
+# E2E 수동검증 스크래치 워크스페이스
+workspace-e2e/
+
 # 로컬 로그 덤프
 backend_logs.txt
 *_logs.txt

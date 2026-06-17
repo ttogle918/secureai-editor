@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 # ── 상수 ─────────────────────────────────────────────────────────────────────
 
 # BenchmarkJava 고정 태그 (fetch.sh 와 동기화 필요)
-BENCHMARK_TAG = "v1.2beta"
+BENCHMARK_TAG = "1.2beta"
 
 # CSV 컬럼명 (expectedresults-*.csv 스키마)
 _CSV_COL_TEST_NAME    = "# test name"  # 또는 "test name"
@@ -60,6 +60,12 @@ _BACKOFF_BASE_SEC = 2.0
 
 # SAST 결과에서 CWE 매핑 시 사용하는 필드명
 _FINDING_CWE_FIELD = "cwe"
+
+# eval 대상 provider/model 선택 env 키 (미설정 시 플랫폼 기본)
+_ENV_PROVIDER     = "EVAL_PROVIDER"
+_ENV_MODEL        = "EVAL_MODEL"
+_DEFAULT_PROVIDER = "anthropic"
+_DEFAULT_MODEL    = "claude-sonnet-4-5"
 
 # 기본 경로
 _PACKAGE_DIR = Path(__file__).parent
@@ -104,7 +110,8 @@ async def run_eval(
     metrics = compute(rows)
     _print_headline(metrics)
 
-    model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5")
+    # latest.json에는 실제 eval에 사용된 모델을 기록 (EVAL_MODEL 우선)
+    model = os.environ.get(_ENV_MODEL) or os.environ.get("ANTHROPIC_MODEL", _DEFAULT_MODEL)
     cost_est = _estimate_cost_usd(rows)
 
     payload = _build_payload(metrics, model, elapsed_s, cost_est, rows)
@@ -150,7 +157,7 @@ def _load_expected_results(csv_path: Path) -> list[dict]:
         with open(csv_path, encoding="utf-8", newline="") as fh:
             # BOM 제거 (UTF-8 BOM 있는 경우 대비)
             content = fh.read().lstrip("﻿")
-            reader = csv.DictReader(content.splitlines())
+            reader = csv.DictReader(content.splitlines(), skipinitialspace=True)
             for i, row in enumerate(reader, start=2):  # 2행부터 (1행=헤더)
                 try:
                     case = _parse_csv_row(row)
@@ -321,9 +328,11 @@ async def _analyze_with_retry(
     rate limit 시 지수 백오프 재시도.
     최대 재시도 초과 시 빈 목록 반환 (FN 계상).
     """
+    provider = os.environ.get(_ENV_PROVIDER, _DEFAULT_PROVIDER)
+    model = os.environ.get(_ENV_MODEL, None)
     for attempt in range(_MAX_RETRIES):
         try:
-            raw, _usage = await analyze_for_sast(file_path, content)
+            raw, _usage = await analyze_for_sast(file_path, content, provider=provider, model=model)
             findings = parse_sast_response(raw, file_path)
             enriched = classify_and_enrich(findings, file_path)
             return [

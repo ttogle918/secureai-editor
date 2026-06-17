@@ -1,5 +1,6 @@
 package io.secureai.backend.domain.analysis.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.secureai.backend.domain.analysis.dto.CommitScanRequest;
@@ -25,6 +26,7 @@ import java.util.UUID;
 public class DefaultAiAgentClient implements AiAgentClient {
 
     private static final String CB_NAME = "aiAgent";
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final RestClient restClient;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
@@ -293,6 +295,19 @@ public class DefaultAiAgentClient implements AiAgentClient {
     private void confirmPlanFallback(UUID sessionId, java.util.List<Integer> selectedStageNos,
                                      java.util.List<String> excludedFilePaths, Throwable t) {
         log.warn("[circuit] confirmPlan fallback triggered sessionId={} cause={}", sessionId, t.getMessage());
+        if (t instanceof org.springframework.web.client.HttpClientErrorException hcee) {
+            // AI Engine의 detail 필드만 추출해 전파 — raw 본문(내부 경로/스택) 노출 방지
+            throw new BusinessException(ErrorCode.INVALID_INPUT, extractDetail(hcee.getResponseBodyAsString()));
+        }
         throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);
+    }
+
+    private String extractDetail(String responseBody) {
+        try {
+            String detail = OBJECT_MAPPER.readTree(responseBody).path("detail").asText(null);
+            return (detail != null && !detail.isBlank()) ? detail : null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 }

@@ -153,10 +153,14 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
                                              session_id, _cancel_flags)
                     last_stage_no = _update_last_stage_no(node_name, state, last_stage_no)
 
+                # STAGE-2: astream 루프 정상 종료 시에도 interrupt 상태일 수 있으므로 next 노드가 있는지 조회
+                graph_state = await graph.aget_state(config)
+                if graph_state.next:
+                    logger.info("[analyze] session=%s GraphInterrupt (detected via state.next=%s) — awaiting confirmation", session_id, graph_state.next)
+                    await _publish_confirmation_events(publish, full_state)
+                    return
+
             except GraphInterrupt:
-                # STAGE-2 Dev 보완 #1: GraphInterrupt는 정상 종료(error 아님)
-                # planning_node 완료 후 interrupt_after=["planning_node"] 에 의해 발생
-                # stage_plan(진행바용) + awaiting_confirmation(컨펌모달용) 두 이벤트 발행
                 logger.info("[analyze] session=%s GraphInterrupt — awaiting confirmation", session_id)
                 await _publish_confirmation_events(publish, full_state)
                 return  # 정상 종료 — finally에서 cleanup 수행
@@ -233,6 +237,13 @@ async def _run_resume(session_id: str) -> None:
                     await _handle_node_event(publish, node_name, state, last_stage_no,
                                              session_id, _cancel_flags)
                     last_stage_no = _update_last_stage_no(node_name, state, last_stage_no)
+
+                # STAGE-2: astream 루프 정상 종료 시에도 interrupt 상태일 수 있으므로 next 노드가 있는지 조회
+                graph_state = await graph.aget_state(config)
+                if graph_state.next:
+                    logger.info("[resume] session=%s GraphInterrupt (detected via state.next=%s) — awaiting confirmation", session_id, graph_state.next)
+                    await _publish_confirmation_events(publish, full_state)
+                    return
 
             except GraphInterrupt:
                 # STAGE-2 Dev 보완 #1: GraphInterrupt는 정상 종료(error 아님)

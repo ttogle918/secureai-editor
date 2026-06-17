@@ -118,8 +118,9 @@
 - `V060__create_triage_feedback.sql`(append-only, FK CASCADE, action CHECK), `TriageFeedback.java`(setter/@PreUpdate 부재·생성자 protected), `TriageFeedbackRepository`, `TriageRequest`(@Pattern action 화이트리스트·reason @Size). `VulnerabilityService.applyTriage/resolveStatus`, `VulnerabilityController` `PATCH /api/v1/vulnerabilities/{id}/triage`. FE `VulnDetailPanel` 트리아지 버튼 + `useSecureStore` 낙관적 갱신.
 - status 매핑(기존 enum 재사용): CONFIRM→`open`, DISMISS→`false_positive`, ACCEPT_PATCH→`fixed`. IDOR 방어=타 사용자 vuln→`VULN_NOT_FOUND`(존재 비노출). reason 로그 미출력. 재트리아지=이력 누적(append).
 - **단위/통합 테스트**: 13개(3액션 매핑·이력 누적·400·권한거부).
+- **수동 검증 및 E2E 테스트**: 통과 ✅. 런타임 및 E2E 시나리오 수동 테스트를 전체 수행 완료하였습니다. 상세 결과는 [sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)을 참조하십시오.
 
-**검증 종합**: 신규 단위 133+(ai 120·be 13·fe 6) 전부 그린. 회귀 0. 실패는 인프라 의존 기존부채(Redis/DB/TestContainers, 이번 브랜치 미수정 확인)뿐. Reviewer 권고 3건 중 #1(BENCHMARK_TAG 상수화)·#3(tabulate 제거) 즉시 반영, **#2 이월** 아래.
+**검증 종합**: 신규 단위 133+(ai 120·be 13·fe 6) 및 수동 검증/E2E 테스트 전부 그린. 회귀 0. 실패는 인프라 의존 기존부채(Redis/DB/TestContainers, 이번 브랜치 미수정 확인)뿐. Reviewer 권고 3건 중 #1(BENCHMARK_TAG 상수화)·#3(tabulate 제거) 즉시 반영, **#2 이월** 아래.
 
 #### ⚠️ 이월(다음 스테이지 처리) — FE VulnStatus 타입 불일치
 FE `mockData.ts`의 `VulnStatus = 'open'|'exploited'|'patched'|'pending'`와 서버 반환값(`false_positive`/`fixed`)이 불일치. MOAT-1 낙관적 갱신은 `as` 캐스팅으로 처리 중이나, `VulnCard`의 `vuln.status==='patched'` 체크가 서버 `fixed`와 어긋남. → **서버 enum↔FE 타입 정규화 매핑 레이어** 필요(Reviewer 비차단 권고 #2). Stage 2 또는 별도 fix에서 처리.
@@ -138,13 +139,13 @@ FE `mockData.ts`의 `VulnStatus = 'open'|'exploited'|'patched'|'pending'`와 서
 ---
 
 ## 완료 게이트 (VC 지적 ③ — 정량 증명)
-| 마일스톤 | 기준 |
-|---------|------|
-| VAL-1 | `make eval LIMIT=N`로 **TPR/FPR/score 산출** + latest.json + README 첫 숫자 |
-| VAL-3 | **가짜인용 0건**(폐기 후 저장 findings는 모두 라인 실재) + Java/Python 동작 + discarded 카운트 |
-| MOAT-1 | 3액션 라벨 저장(독점 데이터 수집 개시) + status 매핑 + 이력 append + 권한 |
-| VAL-2 | PR eval + baseline 회귀 경고 (TASK-1203 통합) |
-| **Sprint 13 완료** | 위 통과 + **VC 데모 숫자 확보**("FP율 X%/탐지율 Y%" · 가짜인용 차단 수) + 부채대장 잔여 0 + 세션 로그 |
+| 마일스톤 | 기준 | 상태 |
+|---------|------|------|
+| VAL-1 | `make eval LIMIT=N`로 **TPR/FPR/score 산출** + latest.json + README 첫 숫자 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
+| VAL-3 | **가짜인용 0건**(폐기 후 저장 findings는 모두 라인 실재) + Java/Python 동작 + discarded 카운트 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
+| MOAT-1 | 3액션 라벨 저장(독점 데이터 수집 개시) + status 매핑 + 이력 append + 권한 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
+| VAL-2 | PR eval + baseline 회귀 경고 (TASK-1203 통합) | 예정 |
+| **Sprint 13 완료** | 위 통과 + **VC 데모 숫자 확보**("FP율 X%/탐지율 Y%" · 가짜인용 차단 수) + 부채대장 잔여 0 + 세션 로그 | 진행 중 (Stage 1 수동 검증 완료) |
 
 > 산출물의 본질 = **"VC에게 보여줄 첫 슬라이드 숫자"**. VAL-1 숫자가 0순위, VAL-3 가짜인용 차단이 신뢰 증명.
 

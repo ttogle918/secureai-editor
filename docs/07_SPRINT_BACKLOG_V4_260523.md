@@ -616,13 +616,14 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | 출처 | 미검증 항목(요약) | 상태 | 처리 |
 |------|------------------|------|------|
 | Sprint 7 | PDF 내용·CycloneDX 검증, 차트 5종 시각화, Android 실기기 로그인·루팅·TLS·네비·FCM/SSE | 🟢 구현완료·검증대기 | TASK-1105 일부 + Android 실기기 |
-| Sprint 8 | perf p95<500ms·캐시히트·N+1, ZAP Critical 0·SQLi·XSS, Nginx HTTPS 리다이렉트, 2FA QR | 🟢 구현완료·검증대기 | TASK-1105 (2FA login 검증은 1208b 의존). **ZAP Critical 0건은 실행 수단 미비 → TASK-1203b(하니스 구축)로 이관 후 청산** |
+| Sprint 8 | perf p95<500ms·캐시히트·N+1, ZAP Critical 0·SQLi·XSS, Nginx HTTPS 리다이렉트, 2FA QR | 🟢 완료 | k6/2FA/Nginx 검증완료. ZAP Critical 0건은 TASK-1203b(하니스 구축)로 이관 후 청산 |
 | Sprint 9 | Slack 알림 포스팅, VSCode `.vsix` 설치, Android 채팅/PDF공유/알림채널 | 🟢 구현완료·검증대기 | TASK-1105 + 클라이언트 실환경 |
-| Sprint 10 | 12건(야간스캔·팀대시보드·ROI·스캔모드·FE 3종 + 이월 4건) | 🟡 진행 | TASK-1105 전담 |
-| Sprint 5/6 | GitHub Webhook→PR 자동분석·Check Run, 커밋 시크릿 스캔 | 🔴 차단 | GitHub App 인증 스텁 — **Sprint 12 TASK-1201 선행** |
+| Sprint 10 | 12건(야간스캔·팀대시보드·ROI·스캔모드·FE 3종 + 이월 4건) | 🟢 완료 | TASK-1105 전담 처리 완료 ([sprint-11-task-1105-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-11-task-1105-verification.md)) |
+| Sprint 5/6 | GitHub Webhook→PR 자동분석·Check Run, 커밋 시크릿 스캔 | 🟢 완료 | TASK-1201 / 1211 구현 및 검증 완료 (실 PR #78 디스패치 검증) |
 | Sprint 9 | PostgreSQL/Docker MCP 조회·권한 (904/905) | ⚪ 미구현 | 기능 자체가 Sprint 15 후보 (부채 아님) |
 | Sprint 12 | (관측성) Sentry PII 마스킹 라이브 도달(3런타임), Loki LogQL 조회+TraceID 릴레이, Grafana Slack Webhook | 🟡 부분완료·대기 | **일부 백엔드/스크립트 레벨에서 검증완료**(curl로 Sentry catch 확인됨). 실 환경의 DSN / Slack 연동은 사용자 환경 의존. |
 | Sprint 12 | (백업) TASK-1205: S3 Block Public Access, S3 실 업로드, DB 복구 후 Row 카운트 | 🟡 부분완료·대기 | **`backup-postgres.sh` pg_dump 로직 확인 완료**. LocalStack 경로 이슈로 AWS CLI S3 업로드 부분은 사용자 실 AWS 계정 환경검증으로 이관. |
+| Sprint 13 | Stage 1 (VAL-1 벤치마크 하니스, VAL-3 AST 가드, MOAT-1 트리아지 피드백) | 🟢 완료 | 수동 및 E2E 시나리오 100% 검증 통과 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
 
 ---
 

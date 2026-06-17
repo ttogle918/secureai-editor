@@ -16,6 +16,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # 시크릿은 if: 표현식에서 직접 비교가 불가 — job env로 승격 후 step에서 env 비교
+      HAS_API_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -53,3 +56,42 @@ jobs:
       - name: Type check
         working-directory: apps/ai_engine
         run: python -m py_compile main.py config/settings.py api/middleware/internal_key_auth.py
+
+      # VAL-2 eval 회귀 게이트 (TASK-1203 통합 — 별도 job 없음)
+      #
+      # 설계 선택: CI에서 매 PR LLM 풀 eval 호출은 비용·API 시크릿·rate limit 이유로 금지.
+      # latest.json은 생성물이라 커밋하지 않는다(eval/results/ 는 .gitignore).
+      # 따라서 게이트는 "Step 1이 latest.json을 새로 생성한 경우에만" 실질 효력을 가진다.
+      #
+      # Step 1 (조건부): ANTHROPIC_API_KEY 시크릿이 있을 때만 make eval LIMIT=5 실행
+      #   (소규모 샘플, 비용 ~$0.3) → eval/results/latest.json 생성.
+      #   키가 없는 일반 PR에서는 스킵 → latest.json 부재 → Step 2는 graceful no-op.
+      #
+      # Step 2 (항상): check_regression.py로 baseline 대비 비교.
+      #   latest.json 부재 시 graceful 안내 후 exit 0(게이트 미적용).
+      #   임계(-2%p) 초과 하락 → GitHub Actions ::warning:: 출력 (비차단).
+      #   추후 blocking 전환 시: check_regression.py 내 주석 참조.
+      - name: Run eval sample (API key available only)
+        if: env.HAS_API_KEY == 'true'
+        working-directory: apps/ai_engine
+        env:
+          # API 키는 env로만 주입 — 값 echo 금지 (general.md 보안 규칙)
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EVAL_MODEL: ${{ vars.EVAL_MODEL || 'claude-sonnet-4-5' }}
+        # LIMIT=5: 소규모 샘플 (카테고리별 5건 = ~55케이스, ~$0.3)
+        # BenchmarkJava 데이터셋 없으면 runner가 안내 후 비0 종료 → continue-on-error
+        run: |
+          if [ -d "eval/owasp_benchmark/BenchmarkJava" ]; then
+            python -m eval.owasp_benchmark.runner --limit 5 --output eval/results/latest.json
+          else
+            echo "[eval-gate] BenchmarkJava 데이터셋 없음 — eval 스킵 (latest.json 미생성 → 게이트 no-op)"
+          fi
+        continue-on-error: true
+
+      - name: Eval regression gate (non-blocking)
+        working-directory: apps/ai_engine
+        # latest.json(Step 1 생성) 또는 baseline 없으면 check_regression이 graceful 안내 후 exit 0
+        # 항상 exit 0 (비차단 — LLM 변동성, 초기 정책)
+        # 추후 blocking 전환: check_regression.py 상단 주석 + 위/아래 continue-on-error 제거
+        run: python -m eval.check_regression
+        continue-on-error: true

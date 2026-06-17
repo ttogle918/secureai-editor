@@ -1,0 +1,117 @@
+{
+  "_note": "초기 시드: VAL-1 수동 런 (LIMIT=5, total=55, 2026-06-18). 대표 기준점으로 사용하려면 LIMIT>=100 또는 풀런(2740 케이스) 후 갱신 필요. 갱신 절차: eval/README.md #baseline-갱신-절차 참조.",
+  "total": 55,
+  "tp": 20,
+  "fp": 3,
+  "tn": 12,
+  "fn": 20,
+  "recall": 0.5,
+  "fpr": 0.2,
+  "score": 0.3,
+  "precision": 0.869565,
+  "f1": 0.634921,
+  "fpr_at_recall80": null,
+  "model": "claude-sonnet-4-5",
+  "benchmark_tag": "1.2beta",
+  "by_category": {
+    "cmdi": {
+      "tp": 3,
+      "fp": 1,
+      "tn": 0,
+      "fn": 1,
+      "recall": 0.75,
+      "fpr": 1.0,
+      "score": -0.25
+    },
+    "crypto": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 0,
+      "fn": 5,
+      "recall": 0.0,
+      "fpr": 0.0,
+      "score": 0.0
+    },
+    "hash": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 2,
+      "fn": 3,
+      "recall": 0.0,
+      "fpr": 0.0,
+      "score": 0.0
+    },
+    "ldapi": {
+      "tp": 2,
+      "fp": 0,
+      "tn": 2,
+      "fn": 1,
+      "recall": 0.666667,
+      "fpr": 0.0,
+      "score": 0.666667
+    },
+    "pathtraver": {
+      "tp": 5,
+      "fp": 0,
+      "tn": 0,
+      "fn": 0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "score": 1.0
+    },
+    "securecookie": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 3,
+      "fn": 2,
+      "recall": 0.0,
+      "fpr": 0.0,
+      "score": 0.0
+    },
+    "sqli": {
+      "tp": 5,
+      "fp": 0,
+      "tn": 0,
+      "fn": 0,
+      "recall": 1.0,
+      "fpr": 0.0,
+      "score": 1.0
+    },
+    "trustbound": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 2,
+      "fn": 3,
+      "recall": 0.0,
+      "fpr": 0.0,
+      "score": 0.0
+    },
+    "weakrand": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 2,
+      "fn": 3,
+      "recall": 0.0,
+      "fpr": 0.0,
+      "score": 0.0
+    },
+    "xpathi": {
+      "tp": 2,
+      "fp": 2,
+      "tn": 1,
+      "fn": 0,
+      "recall": 1.0,
+      "fpr": 0.666667,
+      "score": 0.333333
+    },
+    "xss": {
+      "tp": 3,
+      "fp": 0,
+      "tn": 0,
+      "fn": 2,
+      "recall": 0.6,
+      "fpr": 0.0,
+      "score": 0.6
+    }
+  }
+}

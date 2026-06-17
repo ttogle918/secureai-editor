@@ -1,4 +1,4 @@
-.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner perf-test zap-scan zap-gate ssl-cert eval-providers eval eval-fetch help
+.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner perf-test zap-scan zap-gate ssl-cert eval-providers eval eval-fetch eval-check help
 
 # ──────────────────────────────────────────────────────────────────
 # make dev              전체 서비스 (postgres, redis, backend, ai_engine, frontend)
@@ -22,6 +22,7 @@
 # make eval             OWASP Benchmark 평가 하니스 (VAL-1)
 #   LIMIT=N             vulnType별 최대 케이스 수 (기본: 풀런 2,740)
 # make eval-fetch       BenchmarkJava 데이터셋 클론 (최초 1회)
+# make eval-check       baseline.json 대비 latest.json 회귀 감시 (LLM 없음, VAL-2)
 # ──────────────────────────────────────────────────────────────────
 
 dev:
@@ -143,6 +144,11 @@ eval-fetch: ## BenchmarkJava 데이터셋 클론 (최초 1회 실행)
 	@echo "▶ BenchmarkJava 데이터셋 fetch..."
 	bash apps/ai_engine/eval/owasp_benchmark/fetch.sh
 	@echo "✓ fetch 완료. 이제 'make eval LIMIT=100' 실행 가능"
+
+eval-check: ## baseline.json 대비 latest.json 회귀 감시 (LLM 없음, VAL-2 게이트)
+	@echo "▶ eval 회귀 게이트 실행..."
+	cd apps/ai_engine && python -m eval.check_regression
+	@echo "✓ eval-check 완료 (비차단 — 경고 메시지 위 참조)"
 
 eval-providers: ## Gemini vs Claude SAST 품질 비교 (TARGET=<dir> PROVIDERS=gemini,anthropic [LIMIT=N])
 	@if [ -z "$(TARGET)" ]; then \

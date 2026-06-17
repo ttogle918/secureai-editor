@@ -174,6 +174,76 @@ pytest tests/eval/test_owasp_runner.py -v
 
 ---
 
+## VAL-2 — CI 회귀 게이트 (eval-check)
+
+### 개요
+
+`check_regression.py`는 `baseline.json` 대비 `latest.json`의 score/recall/fpr 하락폭을 감시합니다.
+LLM 미사용(순수 JSON 비교, 비용 0, 결정론적). CI에서 매 PR마다 실행되지만, **`latest.json`은 생성물이라 커밋하지 않으므로**(`eval/results/` 는 `.gitignore`) 게이트는 **그 실행에서 `latest.json`이 새로 생성된 경우에만 실효**합니다. 일반 PR(API 키 없음)에서는 `latest.json` 부재로 graceful no-op.
+
+### 동작 방식
+
+- 하락폭 임계: **−2%p (0.02)** (score·recall·fpr 각각 적용)
+- 임계 초과 하락 → GitHub Actions `::warning::` 어노테이션 출력 (비차단, 초기 정책)
+- baseline 또는 latest 없으면 graceful 안내 후 exit 0 (게이트 미적용)
+- 추후 blocking 전환: `check_regression.py` 상단 주석 참조
+
+### 로컬 실행
+
+```bash
+# baseline 대비 latest.json 회귀 확인
+make eval-check
+
+# 경로/임계 커스텀
+cd apps/ai_engine && python -m eval.check_regression \
+  --baseline eval/baseline.json \
+  --latest eval/results/latest.json \
+  --threshold 0.02
+```
+
+### CI 통합
+
+`.github/workflows/ci-ai-agent.yml`에 두 step으로 통합되어 있습니다:
+1. `Run eval sample (API key available only)` — `ANTHROPIC_API_KEY` 시크릿이 있을 때만 소규모 샘플 실행 (LIMIT=5) → `latest.json` 생성. 시크릿은 job env `HAS_API_KEY`로 승격 후 `if: env.HAS_API_KEY == 'true'`로 게이팅.
+2. `Eval regression gate (non-blocking)` — 항상 실행. `latest.json`(Step 1 생성)이 있을 때만 baseline 대비 비교, 없으면 no-op.
+
+---
+
+## baseline 갱신 절차 {#baseline-갱신-절차}
+
+> **현재 baseline.json**: 초기 시드 (VAL-1 수동 런, LIMIT=5, total=55)
+> **갱신 권장 시점**: LIMIT≥100 또는 풀런(2,740 케이스) 완료 후
+
+### 갱신 방법
+
+```bash
+# 1. 대규모 eval 실행 (예: LIMIT=100 또는 풀런)
+make eval LIMIT=100
+# 또는 풀런 (야간 권장)
+make eval
+
+# 2. latest.json 값 확인
+cat apps/ai_engine/eval/results/latest.json
+
+# 3. baseline 갱신 (latest.json을 baseline.json으로 복사)
+cp apps/ai_engine/eval/results/latest.json apps/ai_engine/eval/baseline.json
+
+# 4. baseline.json에 _note 필드 추가 (갱신 사유 기록 권장)
+# 예: "풀런 2026-07-01, total=2740, model=claude-sonnet-4-5"
+
+# 5. 커밋
+git add apps/ai_engine/eval/baseline.json
+git commit -m "chore(eval): baseline 갱신 — 풀런 YYYY-MM-DD"
+```
+
+### 갱신 시 주의사항
+
+- baseline은 **대표 런** 결과여야 합니다. 소규모 샘플(LIMIT=5)은 통계적으로 불안정하므로 참고용으로만 사용하세요.
+- 의도적인 모델 변경(업그레이드) 후에도 baseline을 갱신해야 합니다.
+- baseline 갱신 커밋에는 실행 조건(모델, LIMIT, 날짜)을 명시하세요.
+
+---
+
 ## 보안·윤리
 
 - `ANTHROPIC_API_KEY`는 환경변수에서만 읽습니다. 코드·로그에 출력하지 않습니다.

@@ -102,11 +102,11 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 | ID | 제목 | DoD 요약 | 사이즈 |
 |----|------|---------|--------|
-| **VAL-1** 🔴 | OWASP Benchmark 평가 하니스 | 2,740 케이스 → TPR/FPR/score, `make eval` 한 방. README에 FP율/탐지율 첫 숫자 | M |
-| **VAL-3** 🔴 | 결정론적 검증 레이어(AST 할루시네이션 가드) | 모델 보고 file:line·source→sink를 AST로 실재 검증, 불일치 findings 자동 폐기 | L |
+| **VAL-1** 🔴 ✅ | OWASP Benchmark 평가 하니스 | 2,740 케이스 → TPR/FPR/score, `make eval` 한 방. README에 FP율/탐지율 첫 숫자 | M |
+| **VAL-3** 🔴 ✅ | 결정론적 검증 레이어(AST 할루시네이션 가드) | 모델 보고 file:line·source→sink를 AST로 실재 검증, 불일치 findings 자동 폐기 | L |
 | **VAL-4** 🔴 | SAST→DAST `proven_exploitable` 연결 | SAST 의심 → DAST 샌드박스 익스플로잇 성공 시 라벨. "증명" 데모 영상 1편. (인접: ZAP 스캔 하니스 **TASK-1203b** — 단, VAL-4는 AI 라벨링이고 1203b는 회귀 스캔 게이트로 별개 트랙. 묶지 않음) | L |
 | **ECON-1** 🔴 | 프롬프트 캐싱 | 가이드라인 컨텍스트 Anthropic prompt caching. 캐시 적중률+토큰 절감률 계측 (claude-api 스킬) | S |
-| **MOAT-1** 🟠 | 트리아지 피드백 UI(확인/기각/채택) | findings 라벨 저장 → 독점 학습 데이터. FEAT-AI-003 리랭커 입력 | M |
+| **MOAT-1** 🟠 ✅ | 트리아지 피드백 UI(확인/기각/채택) | findings 라벨 저장 → 독점 학습 데이터. FEAT-AI-003 리랭커 입력 | M |
 | **WEDGE-3** 🟠 | 컴플라이언스 준비도 대시보드 | "ISMS-P 준비도 73%, 미충족 12개" (ComplianceMappingService 위) | M |
 | **WEDGE-4** 🟢 | 피치/문서 재포지셔닝(문서) | README·랜딩·피치덱 "컴플라이언스 증적 자동화" 중심 | S |
 | **WEDGE-5** 🟠 | 파일럿 고객 PoC(GTM) | ISMS-P 준비 기업과 "3주→3일" 사례 1건 | L |
@@ -162,6 +162,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ---
 
 #### VAL-1 🔴 — OWASP Benchmark 평가 하니스 (탐지 정확도 0단계 · 모든 하니스의 기반)
+> ✅ **완료 2026-06-18 (커밋 `15cd49a`, Sprint13 Stage 1)**. 🧪 scorer/runner 단위 76 통과. 구현 경로는 본 명세의 `benchmarks/owasp/`가 아니라 `/sprint 13` 확정안의 **`apps/ai_engine/eval/owasp_benchmark/`**(runner·scorer·fetch.sh) + `make eval`. 🔬 실호출/scorecard·png 산출물은 ✅ 수동검증(BenchmarkJava fetch 필요)으로 이월. 상세: `docs/sprints/sprint-13.md`.
 - **목적(무엇을 증명)**: 제3자 표준 데이터셋(OWASP BenchmarkJava ~2,740 케이스)으로 SAST 탐지 정확도를 객관 측정.
 - **한 줄 셀링 문장**: *"SecureAI는 OWASP Benchmark(Java)에서 탐지율 XX%, 오탐률 YY%, Youden 정확도 점수 ZZ를 기록했다."*
 - **배경**: 이전 심사 피드백("보안 유효성 외부 검증/레퍼런스 필요")에 대한 직접적 답. BenchmarkJava 정답 CSV에 **expected CWE**가 들어 있어 엔진 신고 CWE와 바로 대조 가능 — 수동 매핑 불필요. 이 하니스가 VAL-7/8/9/10/11/13의 채점기·코퍼스·통합지점을 공유하는 **공통 기반**이다.
@@ -195,6 +196,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ---
 
 #### VAL-3 🔴 — 결정론적 검증 레이어(AST 할루시네이션 가드) *(메모 범위 밖 — 기존 한 줄 유지)*
+> ✅ **완료 2026-06-18 (커밋 `15cd49a`, Sprint13 Stage 1)**. MVP = file:line 라인 실재(비주석/비공백) 검증(source→sink 심층은 Sprint 14 이월). sast_node save 이관→`validate_findings_node`. python(ast)/java(javalang)/ts(regex), 미지원·불확실 시 통과(recall 보호). 🧪 단위 44 통과. 상세: `docs/sprints/sprint-13.md`.
 - 모델이 보고한 file:line·source→sink를 AST로 실재 검증해 불일치 findings를 자동 폐기. **두 메모(BENCHMARK_GUIDE/VALIDATION_ROADMAP)의 직접 대상이 아니므로** 본 상세화에서는 기존 요약표 한 줄을 그대로 유지한다(별도 설계 필요 시 `/sprint 13`에서 다룬다). 단 VAL-10(결정성)이 이 가드의 *효과를 측정하는 숫자*라는 관계만 명시(BENCHMARK_GUIDE §8.2).
 - 사이즈·배치: L · S13.
 

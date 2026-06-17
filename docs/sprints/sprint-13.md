@@ -101,6 +101,31 @@
 
 ---
 
+## ✅ Stage 1 완료 (2026-06-18) — 브랜치 `feat/sprint13-val`
+**커밋**: `15cd49a` — `feat(sprint13-stage1): EPIC-VAL 검증하니스·결정론적 가드·트리아지 라벨`
+3-way 병렬 Dev(VAL-1·VAL-3·MOAT-1) → Tester PASS → Reviewer PASS(권고 3건, 블로커 0) → 커밋. STAGE-2 머지된 main에서 분기(충돌 0). **Flyway 번호 정정: 계획서 V052 → 실제 최고 V059이므로 V060 사용.**
+
+#### VAL-1 — OWASP Benchmark 평가 하니스 (M)
+- `eval/owasp_benchmark/{fetch.sh,runner.py,scorer.py}` + `eval/README.md`, `Makefile`(eval 타겟). `make eval LIMIT=N`→`recall/fpr/score` + `eval/results/latest.json`. 채점 `score=TPR−FPR` + 고정 recall 80% FPR. vulnType↔CWE 매핑. 매직넘버 상수화(`FIXED_RECALL_THRESHOLD=0.8`, `BENCHMARK_TAG`). 케이스 실패 skip&log(FN). `requirements.txt`는 stdlib만 사용(Reviewer 권고로 미사용 `tabulate` 제거).
+- **단위 테스트**: 76개(scorer 매핑·집계·지표 + runner CSV파싱·샘플링·rate limit).
+
+#### VAL-3 — 결정론적 검증 레이어 / AST 할루시네이션 가드 (L)
+- `agent/validation/{ast_verifier.py, parsers/{python,java,ts}.py}` + `nodes/validate_findings_node.py`. `agent_state.py`(`validated_findings`/`discarded_findings`), `graph_builder.py`·`security_audit_graph.py` 재배선, `sast_node.py` **save 호출 제거**→검증 후 persist. `requirements.txt` `javalang>=0.13.0`.
+- MVP 검증 = file:line 파일범위 내 + 비주석/비공백 실재. python=`ast`/java=`javalang`/ts=정규식. **미지원언어·파서에러·line없음·불확실 시 통과(recall 보호)**. 완전 결정론적(LLM 미사용). 폐기 건수 metric. **캐시히트 경로(`route_after_cache→validate_findings_node`)도 검증 경유** — next_file 루프 영향 없음 확인.
+- **단위 테스트**: 44개(가짜 line/주석 폐기·실재 통과·언어별·미지원 보류·discarded 카운트). 회귀 0(기존 sast/graph/planning 테스트 save patch 제거 반영).
+
+#### MOAT-1 — 트리아지 피드백 API+UI (M)
+- `V060__create_triage_feedback.sql`(append-only, FK CASCADE, action CHECK), `TriageFeedback.java`(setter/@PreUpdate 부재·생성자 protected), `TriageFeedbackRepository`, `TriageRequest`(@Pattern action 화이트리스트·reason @Size). `VulnerabilityService.applyTriage/resolveStatus`, `VulnerabilityController` `PATCH /api/v1/vulnerabilities/{id}/triage`. FE `VulnDetailPanel` 트리아지 버튼 + `useSecureStore` 낙관적 갱신.
+- status 매핑(기존 enum 재사용): CONFIRM→`open`, DISMISS→`false_positive`, ACCEPT_PATCH→`fixed`. IDOR 방어=타 사용자 vuln→`VULN_NOT_FOUND`(존재 비노출). reason 로그 미출력. 재트리아지=이력 누적(append).
+- **단위/통합 테스트**: 13개(3액션 매핑·이력 누적·400·권한거부).
+
+**검증 종합**: 신규 단위 133+(ai 120·be 13·fe 6) 전부 그린. 회귀 0. 실패는 인프라 의존 기존부채(Redis/DB/TestContainers, 이번 브랜치 미수정 확인)뿐. Reviewer 권고 3건 중 #1(BENCHMARK_TAG 상수화)·#3(tabulate 제거) 즉시 반영, **#2 이월** 아래.
+
+#### ⚠️ 이월(다음 스테이지 처리) — FE VulnStatus 타입 불일치
+FE `mockData.ts`의 `VulnStatus = 'open'|'exploited'|'patched'|'pending'`와 서버 반환값(`false_positive`/`fixed`)이 불일치. MOAT-1 낙관적 갱신은 `as` 캐스팅으로 처리 중이나, `VulnCard`의 `vuln.status==='patched'` 체크가 서버 `fixed`와 어긋남. → **서버 enum↔FE 타입 정규화 매핑 레이어** 필요(Reviewer 비차단 권고 #2). Stage 2 또는 별도 fix에서 처리.
+
+---
+
 ## 리스크
 1. **VAL-3 save 이관(높음)**: sast_node 반환 계약 변경 → cache_check 캐시 히트 경로·next_file 상태 처리 회귀 주의. cache된 결과도 검증 경유할지 결정.
 2. **VAL-1 벤치 비용(높음)**: 2,740 LLM 호출 = 비용·시간·rate limit. `LIMIT` 샘플 필수, 풀런 야간.

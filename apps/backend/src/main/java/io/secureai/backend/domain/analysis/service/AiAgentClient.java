@@ -39,4 +39,13 @@ public interface AiAgentClient {
 
     /** 커밋 시크릿 스캔을 AI Engine에 위임한다. githubToken은 로그 출력 금지. */
     void startCommitScan(UUID sessionId, UUID projectId, CommitScanRequest req, String githubToken);
+
+    /**
+     * STAGE-2: 사용자 컨펌 후 AI Engine에 계획 확정을 전달하고 재개를 요청한다.
+     *
+     * @param sessionId          분석 세션 ID
+     * @param selectedStageNos   포함할 stage 번호 목록 (null = 전체)
+     * @param excludedFilePaths  제외할 파일 경로 목록
+     */
+    void confirmPlan(UUID sessionId, List<Integer> selectedStageNos, List<String> excludedFilePaths);
 }

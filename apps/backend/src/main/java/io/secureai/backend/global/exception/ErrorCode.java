@@ -40,6 +40,10 @@ public enum ErrorCode {
     USER_SESSION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 세션에 대한 접근 권한이 없습니다."),
     SESSION_ALREADY_RUNNING(HttpStatus.CONFLICT, "해당 프로젝트에 진행 중인 분석이 있습니다."),
     SESSION_NOT_RESUMABLE(HttpStatus.CONFLICT, "재개하거나 취소할 수 없는 상태의 세션입니다."),
+    /** STAGE-2: 이미 실행 중이거나 완료된 세션에 재컨펌 시도. */
+    SESSION_ALREADY_CONFIRMED(HttpStatus.CONFLICT, "이미 컨펌되거나 실행 중인 세션입니다."),
+    /** STAGE-2: 컨펌 대기 상태가 아닌 세션에 컨펌 시도. */
+    SESSION_NOT_AWAITING_CONFIRMATION(HttpStatus.CONFLICT, "컨펌 대기 중인 세션이 아닙니다."),
 
     AI_AGENT_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI 분석 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."),
 

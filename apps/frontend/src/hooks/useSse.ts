@@ -38,11 +38,19 @@ export interface ApiGroupPlan {
   files: { path: string; line: number }[];
 }
 
-// Stage 계획 항목 (stage_plan 이벤트)
+// Stage 계획 항목 (stage_plan 이벤트 — 진행바용 요약)
 export interface StagePlanItem {
   stage_no: number;
   name: string;
   file_count: number;
+}
+
+// Awaiting confirmation 이벤트 항목 (컨펌모달용 — files 상세 포함)
+export interface ConfirmStagePlanItem {
+  stage_no: number;
+  name: string;
+  file_count: number;
+  files: string[];
 }
 
 export interface ProgressEvent {
@@ -58,7 +66,9 @@ export interface ProgressEvent {
     | 'api_plan'
     | 'stage_plan'
     | 'stage_started'
-    | 'stage_completed';
+    | 'stage_completed'
+    /** STAGE-2: planning_node interrupt 후 컨펌 대기 — 컨펌모달 렌더용 파일목록 포함 */
+    | 'awaiting_confirmation';
   node?: string;
   file?: string;
   current?: number;
@@ -84,7 +94,13 @@ export interface ProgressEvent {
   stage_no?: number;
   name?: string;
   total_in_stage?: number;
-  stages?: StagePlanItem[];
+  /**
+   * stage_plan 이벤트: StagePlanItem[] (파일목록 없는 요약)
+   * awaiting_confirmation 이벤트: ConfirmStagePlanItem[] (파일목록 포함 상세)
+   * 두 이벤트 모두 페이로드 키 이름이 "stages"이므로 union으로 선언한다.
+   * 컨슈머에서 event.type으로 narrowing 후 캐스트 없이 안전하게 접근 가능.
+   */
+  stages?: StagePlanItem[] | ConfirmStagePlanItem[];
 }
 
 export interface SseOptions {

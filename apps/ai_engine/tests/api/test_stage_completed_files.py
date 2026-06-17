@@ -7,7 +7,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from api.routes.analyze import _get_stage_files, _find_stage_for_file, _is_stage_completed
+from api.routes.streaming_helpers import _get_stage_files, _find_stage_for_file, _is_stage_completed
 
 
 # ── _get_stage_files 단위 테스트 ─────────────────────────────────────────────
@@ -120,7 +120,7 @@ async def test_stage_completed_payload_includes_files():
     last_stage_no = 1
     next_idx = 2  # src/C.java → stage 2 → stage 1 완료
 
-    from api.routes.analyze import _is_stage_completed, _get_stage_files
+    from api.routes.streaming_helpers import _is_stage_completed, _get_stage_files
 
     completed = _is_stage_completed(files, stages, next_idx, last_stage_no)
     assert completed is True

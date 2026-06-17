@@ -81,6 +81,14 @@
 - **준수**: 입력검증 Controller 한정(경로는 체크포인트 stages 실재분만 — `_filter_to_whitelist` 재사용), X-Internal-Key는 confirm 호출만, 토큰/키 로그 금지.
 - **DoD**: 🧪 confirm 제외 반영(체크포인트 mock) / 🧪 idempotent+confirm 갱신 양립(재계획 없이 보존) / 🔬 analyze→interrupt→awaiting→confirm→resume 전구간 / 🛡️ 타 사용자 403·running 재confirm 409·외부경로 무시 / ✅ stage 2개 해제 후 미분석 확인·전체승인 정상.
 
+### ✅ STAGE-2 완료 (2026-06-17) — 브랜치 `feat/sprint12C-stage2-plan-confirm-gate`
+**커밋**: `0c32e8e` | 단독 Dev(3서비스) → Tester → Reviewer(FAIL→수정→PASS) → 커밋. VAL-3 미생성 상태에서 진행 → "STAGE-2 먼저 머지" 충돌조건 충족(미머지 브랜치 0 확인).
+- **AI Engine**: `planning_node` 후 `interrupt_after`로 `GraphInterrupt` 발생 → `stage_plan`+`awaiting_confirmation` 발행. `POST /agent/confirm/{id}`가 체크포인트 stages/files_to_scan 로드→제외 반영→`graph.aupdate_state(config, {...}, as_node="planning_node")`→`astream(None)` 재개. Dev 보완: ①GraphInterrupt 별도 catch(_run_analysis·_run_resume, error 미발행) ②graph.aupdate_state(as_node) ③get_graph 캐시키 interrupt 분리 ⑤excluded ∩ files_to_scan 화이트리스트(경로순회 방어) + `streaming_helpers.py` 추출로 analyze↔confirm 순환 임포트 제거(Reviewer 지적).
+- **Backend**: `SessionStatus.AWAITING_CONFIRMATION` 추가, `RedisSubscriber`가 `awaiting_confirmation` 수신→상태 전환(SSE complete 미호출=연결 유지). `POST /api/v1/analysis/sessions/{id}/confirm`(JWT·소유권 검증 먼저=IDOR). RUNNING/COMPLETED 재컨펌→`SESSION_ALREADY_CONFIRMED`(409), 그 외→`SESSION_NOT_AWAITING_CONFIRMATION`. `confirm_gate` 플래그로 일반 분석 resume이 interrupt 모드로 새지 않게 격리(Reviewer FAIL-1 수정).
+- **Frontend**: `PlanConfirmModal`+`useConfirmPlan` 훅(SRP 분리), `awaiting_confirmation` SSE 핸들링→모달, `useStartAnalysis`에 planningMode/confirmGate 경로. confirm→resume 후 STAGE-1 점진노출(stage_completed) 합류 확인.
+- **검증**: 🧪 신규 단위 25 + FAIL-1 회귀 1 = ai 26·be 5·fe 6, 전부 그린(STAGE-2 회귀 0; 기존 VulnerabilityServiceTest 2·Redis IT는 STAGE-2 이전·인프라 의존). Reviewer 2라운드(FAIL 3건: was_confirm_gate 오판정·409 ErrorCode 미사용·순환임포트 → 전부 수정 후 PASS). 🔬 전구간 통합·✅ stage 해제/전체승인은 수동검증 대기.
+- **다음**: 수동검증 통과 시 main 머지(VAL-3보다 먼저) → STAGE-3(API-허브 우선 읽기, M)은 Sprint 13 EPIC-VAL 이후.
+
 ---
 
 ## STAGE-3 — API-허브 우선 읽기 + lazy 로드 (M) ★Dev 보완

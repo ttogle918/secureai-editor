@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import { PagoriMark, ModeIndicator } from '@/components/brand/PagoriBrand';
 import { CommitSecretScanModal } from '@/components/analysis/CommitSecretScanModal';
 import { AnalysisHistoryModal } from '@/components/analysis/AnalysisHistoryModal';
+import { PlanConfirmModal } from '@/components/analysis/PlanConfirmModal';
 import { useSecureStore, type SeverityFilter, type ViewMode } from '@/store/useSecureStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -68,11 +69,15 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const setApiGroups         = useSecureStore((s) => s.setApiGroups);
   const setFileStatus        = useSecureStore((s) => s.setFileStatus);
   const clearApiAnalysis     = useSecureStore((s) => s.clearApiAnalysis);
-  const setStageList         = useSecureStore((s) => s.setStageList);
-  const setCurrentStageNo    = useSecureStore((s) => s.setCurrentStageNo);
-  const markStageCompleted   = useSecureStore((s) => s.markStageCompleted);
-  const setScanningFile      = useSecureStore((s) => s.setScanningFile);
-  const clearStageProgress   = useSecureStore((s) => s.clearStageProgress);
+  const setStageList            = useSecureStore((s) => s.setStageList);
+  const setCurrentStageNo       = useSecureStore((s) => s.setCurrentStageNo);
+  const markStageCompleted      = useSecureStore((s) => s.markStageCompleted);
+  const setScanningFile         = useSecureStore((s) => s.setScanningFile);
+  const clearStageProgress      = useSecureStore((s) => s.clearStageProgress);
+  const setAwaitingConfirmation = useSecureStore((s) => s.setAwaitingConfirmation);
+  const clearAwaitingConfirmation = useSecureStore((s) => s.clearAwaitingConfirmation);
+  const awaitingConfirmation    = useSecureStore((s) => s.awaitingConfirmation);
+  const confirmStages           = useSecureStore((s) => s.confirmStages);
   const addToast             = useToastStore((s) => s.addToast);
   const { startAnalysis, isAnalyzing } = useStartAnalysis();
   const { fetchAndStore: fetchStageVulns } = useVulnerabilitiesByFiles();
@@ -180,9 +185,18 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
 
         setRightTab('vulns');
         setIsAnalyzing(false);
+      } else if (event.type === 'awaiting_confirmation') {
+        // STAGE-2: planning_node interrupt → 컨펌 모달 표시
+        // awaiting_confirmation 이벤트의 stages 필드는 ConfirmStagePlanItem[] (files 포함).
+        // ProgressEvent.stages가 union 타입이므로 as any 없이 안전하게 캐스트한다.
+        const rawStages = (event.stages ?? []) as import('@/hooks/useSse').ConfirmStagePlanItem[];
+        setAwaitingConfirmation(rawStages);
+        setIsAnalyzing(false); // 컨펌 대기 중에는 analyzing 중단
+        addToast('분석 계획이 준비되었습니다. 계획을 확인하고 승인해주세요.', 'info');
       } else if (event.type === 'started') {
         clearApiAnalysis();
         clearStageProgress();
+        clearAwaitingConfirmation();
         addProgressStep({ stepName: '분석 시작', stepOrder: Date.now(), target: '초기화 중...', status: 'completed' });
       } else if (event.type === 'api_plan') {
         // TASK-1106 — API 그룹 계획 수신 → 파일 전부 pending 초기화
@@ -576,6 +590,14 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
 
         {showHistory && <AnalysisHistoryModal onClose={() => setShowHistory(false)} />}
         {showCommitScan && <CommitSecretScanModal onClose={() => setShowCommitScan(false)} />}
+        {/* STAGE-2: 계획 컨펌 모달 */}
+        {awaitingConfirmation && sseSessionId && (
+          <PlanConfirmModal
+            sessionId={sseSessionId}
+            stages={confirmStages}
+            onClose={clearAwaitingConfirmation}
+          />
+        )}
 
         {onExportJSON && (
           <button

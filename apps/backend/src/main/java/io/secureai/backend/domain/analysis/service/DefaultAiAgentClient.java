@@ -1,5 +1,6 @@
 package io.secureai.backend.domain.analysis.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.secureai.backend.domain.analysis.dto.CommitScanRequest;
@@ -25,6 +26,7 @@ import java.util.UUID;
 public class DefaultAiAgentClient implements AiAgentClient {
 
     private static final String CB_NAME = "aiAgent";
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final RestClient restClient;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
@@ -52,7 +54,7 @@ public class DefaultAiAgentClient implements AiAgentClient {
     @CircuitBreaker(name = CB_NAME, fallbackMethod = "startAnalysisLocalFallback")
     public void startAnalysis(UUID sessionId, UUID projectId, String workspaceRoot) {
         doStartAnalysis(sessionId, projectId, workspaceRoot, "local", null, null, null, null,
-                null, null, "PIPELINE", null, null, null);
+                null, null, "PIPELINE", null, null, null, "DETERMINISTIC", false);
     }
 
     @SuppressWarnings("unused")
@@ -71,13 +73,25 @@ public class DefaultAiAgentClient implements AiAgentClient {
     ) {
         doStartAnalysis(sessionId, projectId, workspaceRoot, sourceType,
                 githubOwner, githubRepo, githubRef, githubToken, preferredModel, userApiKey,
-                scanMode, fileFilter, preferredProvider, null);
+                scanMode, fileFilter, preferredProvider, null, "DETERMINISTIC", false);
     }
 
     /**
+     * STAGE-2: planningMode/confirmGate 포함 오버로드.
      * COST-3: userId 포함 오버로드 — AnalysisService가 직접 호출한다.
-     * 인터페이스 시그니처 변경 없이 userId를 body에 추가 전달한다.
      */
+    void startAnalysisWithUser(
+            UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
+            String githubOwner, String githubRepo, String githubRef, String githubToken,
+            String preferredModel, String userApiKey, String scanMode, List<String> fileFilter,
+            String preferredProvider, UUID userId, String planningMode, boolean confirmGate
+    ) {
+        doStartAnalysis(sessionId, projectId, workspaceRoot, sourceType,
+                githubOwner, githubRepo, githubRef, githubToken, preferredModel, userApiKey,
+                scanMode, fileFilter, preferredProvider, userId, planningMode, confirmGate);
+    }
+
+    /** 하위 호환 오버로드 — planningMode/confirmGate 없이 호출하는 기존 코드 지원. */
     void startAnalysisWithUser(
             UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
             String githubOwner, String githubRepo, String githubRef, String githubToken,
@@ -86,14 +100,14 @@ public class DefaultAiAgentClient implements AiAgentClient {
     ) {
         doStartAnalysis(sessionId, projectId, workspaceRoot, sourceType,
                 githubOwner, githubRepo, githubRef, githubToken, preferredModel, userApiKey,
-                scanMode, fileFilter, preferredProvider, userId);
+                scanMode, fileFilter, preferredProvider, userId, "DETERMINISTIC", false);
     }
 
     private void doStartAnalysis(
             UUID sessionId, UUID projectId, String workspaceRoot, String sourceType,
             String githubOwner, String githubRepo, String githubRef, String githubToken,
             String preferredModel, String userApiKey, String scanMode, List<String> fileFilter,
-            String preferredProvider, UUID userId
+            String preferredProvider, UUID userId, String planningMode, boolean confirmGate
     ) {
         Map<String, Object> body = new HashMap<>();
         body.put("session_id", sessionId.toString());
@@ -101,6 +115,9 @@ public class DefaultAiAgentClient implements AiAgentClient {
         body.put("workspace_root", workspaceRoot != null ? workspaceRoot : "");
         body.put("source_type", sourceType != null ? sourceType : "local");
         body.put("scan_mode", scanMode != null ? scanMode : "PIPELINE");
+        // STAGE-2: planningMode/confirmGate 전달
+        body.put("planning_mode", planningMode != null ? planningMode : "DETERMINISTIC");
+        body.put("confirm_gate", confirmGate);
         if (githubOwner != null) body.put("github_owner", githubOwner);
         if (githubRepo != null) body.put("github_repo", githubRepo);
         if (githubRef != null) body.put("github_ref", githubRef);
@@ -252,5 +269,45 @@ public class DefaultAiAgentClient implements AiAgentClient {
                                          CommitScanRequest req, String githubToken, Throwable t) {
         log.warn("[circuit] startCommitScan fallback triggered sessionId={} cause={}", sessionId, t.getMessage());
         throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);
+    }
+
+    @Override
+    @CircuitBreaker(name = CB_NAME, fallbackMethod = "confirmPlanFallback")
+    public void confirmPlan(UUID sessionId, java.util.List<Integer> selectedStageNos,
+                            java.util.List<String> excludedFilePaths) {
+        Map<String, Object> body = new HashMap<>();
+        if (selectedStageNos != null) body.put("selected_stage_nos", selectedStageNos);
+        if (excludedFilePaths != null && !excludedFilePaths.isEmpty()) {
+            body.put("excluded_file_paths", excludedFilePaths);
+        }
+
+        restClient.post()
+                .uri("/agent/confirm/{sessionId}", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
+
+        log.info("[agent-client] confirmPlan sessionId={}", sessionId);
+    }
+
+    @SuppressWarnings("unused")
+    private void confirmPlanFallback(UUID sessionId, java.util.List<Integer> selectedStageNos,
+                                     java.util.List<String> excludedFilePaths, Throwable t) {
+        log.warn("[circuit] confirmPlan fallback triggered sessionId={} cause={}", sessionId, t.getMessage());
+        if (t instanceof org.springframework.web.client.HttpClientErrorException hcee) {
+            // AI Engine의 detail 필드만 추출해 전파 — raw 본문(내부 경로/스택) 노출 방지
+            throw new BusinessException(ErrorCode.INVALID_INPUT, extractDetail(hcee.getResponseBodyAsString()));
+        }
+        throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);
+    }
+
+    private String extractDetail(String responseBody) {
+        try {
+            String detail = OBJECT_MAPPER.readTree(responseBody).path("detail").asText(null);
+            return (detail != null && !detail.isBlank()) ? detail : null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 }

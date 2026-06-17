@@ -8,6 +8,7 @@ import logging
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from langgraph.errors import GraphInterrupt
 from pydantic import BaseModel
 
 from agent.graph_builder import get_graph
@@ -17,78 +18,19 @@ from infrastructure.checkpointer import get_checkpointer
 from infrastructure.redis_client import get_redis
 from infrastructure.workspace_staging import cleanup_staged_workspace, is_workspace_id, stage_workspace
 
+# STAGE-2 FAIL-3: 순환 임포트 방지 — 공유 헬퍼는 streaming_helpers에서 임포트.
+# confirm.py가 함수 본문에서 analyze를 런타임 임포트하는 패턴을 제거하기 위해
+# analyze.py도 동일 모듈에서 임포트한다.
+from api.routes.streaming_helpers import (  # noqa: E402
+    _cancel_flags,
+    _handle_node_event,
+    _publish_confirmation_events,
+    _update_last_stage_no,
+)
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agent", tags=["agent"])
-
-
-# ── stage 이벤트 헬퍼 ─────────────────────────────────────────────────────────
-
-def _find_stage_for_file(file_path: str, stages: list[dict]) -> dict | None:
-    """파일이 속한 stage를 반환한다. 없으면 None."""
-    for stage in stages:
-        if file_path in stage.get("files", []):
-            return stage
-    return None
-
-
-async def _emit_stage_events(
-    publish,
-    file_path: str,
-    stages: list[dict],
-    last_stage_no: int | None,
-) -> int | None:
-    """파일의 stage가 직전과 달라지면 stage_started 이벤트를 발행한다.
-
-    Returns:
-        현재 stage_no (이벤트 발행 여부와 무관하게 최신값 반환)
-    """
-    if not stages:
-        return last_stage_no
-
-    stage = _find_stage_for_file(file_path, stages)
-    if stage is None:
-        return last_stage_no
-
-    current_stage_no = stage.get("stage_no")
-    if current_stage_no != last_stage_no:
-        await publish(
-            "stage_started",
-            stage_no=current_stage_no,
-            name=stage.get("name"),
-            total_in_stage=len(stage.get("files", [])),
-        )
-    return current_stage_no
-
-
-def _get_stage_files(stages: list[dict], stage_no: int) -> list[str]:
-    """stage_no에 해당하는 파일 목록을 반환한다. stage가 없으면 빈 목록."""
-    for stage in stages:
-        if stage.get("stage_no") == stage_no:
-            return list(stage.get("files", []))
-    return []
-
-
-def _is_stage_completed(
-    files: list[str],
-    stages: list[dict],
-    next_idx: int,
-    last_stage_no: int,
-) -> bool:
-    """next_file_node 이후 stage 완료 여부를 판정한다.
-
-    다음 처리 파일(next_idx)의 stage가 last_stage_no와 다르거나
-    파일이 소진됐으면 stage 완료로 간주한다.
-    """
-    if next_idx >= len(files):
-        return True
-    next_file = files[next_idx]
-    next_stage = _find_stage_for_file(next_file, stages)
-    if next_stage is None:
-        return False
-    return next_stage.get("stage_no") != last_stage_no
-
-_cancel_flags: dict[str, bool] = {}
 
 
 class AnalyzeRequest(BaseModel):
@@ -98,6 +40,8 @@ class AnalyzeRequest(BaseModel):
     source_type: str = "local"
     scan_mode: str = "PIPELINE"          # "AUDIT" | "PIPELINE"
     planning_mode: Literal["DETERMINISTIC", "LLM"] = "DETERMINISTIC"
+    # STAGE-2: confirm_gate=True 시 planning_node 후 GraphInterrupt 발생
+    confirm_gate: bool = False
     github_owner: str | None = None
     github_repo: str | None = None
     github_ref: str | None = None
@@ -153,7 +97,8 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
             staged_path = workspace_root
 
         checkpointer = get_checkpointer()
-        graph = get_graph(checkpointer=checkpointer)
+        # STAGE-2: confirm_gate=True 이면 interrupt 모드 그래프 사용
+        graph = get_graph(checkpointer=checkpointer, interrupt=req.confirm_gate)
         config = {"configurable": {"thread_id": session_id}}
         initial_state = {
             "session_id": session_id,
@@ -174,6 +119,8 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
             "api_groups": [],
             "planning_mode": req.planning_mode,
             "stages": [],
+            "confirmed": False,
+            "confirm_gate": req.confirm_gate,  # STAGE-2 FAIL-1: resume 판정용 명시 저장
             "current_file_index": 0,
             "current_file_sha256": None,
             "cache_hit": False,
@@ -191,94 +138,36 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
             # 누적 state를 유지해야 다른 노드가 채운 값(files_to_scan·
             # current_file_index·stages·sast_results·token_usage)을 정확히 읽는다.
             full_state: dict = dict(initial_state)
-            async for event in graph.astream(initial_state, config):
-                if _cancel_flags.get(session_id):
-                    logger.info("[analyze] session=%s cancelled by flag", session_id)
-                    await publish("cancelled")
+            try:
+                async for event in graph.astream(initial_state, config):
+                    if _cancel_flags.get(session_id):
+                        logger.info("[analyze] session=%s cancelled by flag", session_id)
+                        await publish("cancelled")
+                        return
+
+                    node_name, update = next(iter(event.items()))
+                    full_state.update(update)
+                    state = full_state
+
+                    await _handle_node_event(publish, node_name, state, last_stage_no,
+                                             session_id, _cancel_flags)
+                    last_stage_no = _update_last_stage_no(node_name, state, last_stage_no)
+
+                # STAGE-2: astream 루프 정상 종료 시에도 interrupt 상태일 수 있으므로 next 노드가 있는지 조회
+                graph_state = await graph.aget_state(config)
+                if graph_state.next:
+                    logger.info("[analyze] session=%s GraphInterrupt (detected via state.next=%s) — awaiting confirmation", session_id, graph_state.next)
+                    await _publish_confirmation_events(publish, full_state)
                     return
 
-                node_name, update = next(iter(event.items()))
-                full_state.update(update)
-                state = full_state
+            except GraphInterrupt:
+                logger.info("[analyze] session=%s GraphInterrupt — awaiting confirmation", session_id)
+                await _publish_confirmation_events(publish, full_state)
+                return  # 정상 종료 — finally에서 cleanup 수행
 
-                if node_name == "scan_files_node":
-                    files = state.get("files_to_scan", [])
-                    await publish("scan_complete", total=len(files), files=files)
-
-                elif node_name == "api_discovery_node":
-                    await publish("api_plan", api_groups=state.get("api_groups", []))
-
-                elif node_name == "planning_node":
-                    stages = state.get("stages", [])
-                    await publish(
-                        "stage_plan",
-                        stages=[
-                            {
-                                "stage_no": s.get("stage_no"),
-                                "name": s.get("name"),
-                                "file_count": len(s.get("files", [])),
-                            }
-                            for s in stages
-                        ],
-                    )
-
-                elif node_name == "cache_check_node":
-                    idx = state.get("current_file_index", 0)
-                    files = state.get("files_to_scan", [])
-                    stages = state.get("stages", [])
-                    file_path = files[idx] if idx < len(files) else ""
-                    hit = state.get("cache_hit", False)
-                    last_stage_no = await _emit_stage_events(
-                        publish, file_path, stages, last_stage_no
-                    )
-                    await publish(
-                        "progress",
-                        node="cache_check",
-                        phase="checking",
-                        file=file_path,
-                        current=idx + 1,
-                        total=len(files),
-                        cache_hit=hit,
-                    )
-
-                elif node_name == "sast_node":
-                    idx = state.get("current_file_index", 0)
-                    files = state.get("files_to_scan", [])
-                    file_path = files[idx] if idx < len(files) else ""
-                    await publish(
-                        "progress",
-                        node="sast",
-                        phase="done",
-                        file=file_path,
-                        current=idx + 1,
-                        total=len(files),
-                    )
-
-                elif node_name == "next_file_node":
-                    # stage 완료 감지: 다음 파일의 stage가 바뀌거나 파일이 소진됐을 때
-                    files = state.get("files_to_scan", [])
-                    stages = state.get("stages", [])
-                    next_idx = state.get("current_file_index", 0)
-                    if last_stage_no is not None:
-                        completed = _is_stage_completed(files, stages, next_idx, last_stage_no)
-                        if completed:
-                            stage_files = _get_stage_files(stages, last_stage_no)
-                            await publish(
-                                "stage_completed",
-                                stage_no=last_stage_no,
-                                files=stage_files,
-                            )
-
-                elif node_name == "aggregate_node":
-                    results = state.get("sast_results", [])
-                    vuln_count = sum(len(r.get("vulnerabilities", [])) for r in results)
-                    await publish("progress", node="aggregate", vuln_count=vuln_count)
-
-                elif node_name == "patch_node":
-                    results = state.get("sast_results", [])
-                    vuln_count = sum(len(r.get("vulnerabilities", [])) for r in results)
-                    token_usage = state.get("token_usage", {})
-                    await publish("completed", vuln_count=vuln_count, results=results, token_usage=token_usage)
+            except Exception as exc:
+                logger.exception("[analyze] session=%s error", session_id)
+                await publish("error", message=str(exc))
 
     except Exception as exc:
         logger.exception("[analyze] session=%s error", session_id)
@@ -318,7 +207,11 @@ async def _run_resume(session_id: str) -> None:
     except Exception as exc:
         logger.warning("[resume] session=%s checkpoint read failed: %s", session_id, exc)
 
-    graph = get_graph(checkpointer=checkpointer)
+    # STAGE-2 FAIL-1: confirm gate 세션만 interrupt 모드 그래프로 재개.
+    # confirmed(bool)는 TypedDict 필수 키라 항상 존재하므로 is not None 판정 금지.
+    # initial_state에 명시 저장된 confirm_gate 플래그로 판정한다.
+    was_confirm_gate = bool(resumed_values.get("confirm_gate", False))
+    graph = get_graph(checkpointer=checkpointer, interrupt=was_confirm_gate)
 
     try:
         # github_token은 로그에 절대 출력 금지
@@ -330,93 +223,38 @@ async def _run_resume(session_id: str) -> None:
             last_stage_no: int | None = None
             # 누적 state 유지 (resume은 체크포인트 channel_values에서 시작)
             full_state: dict = dict(resumed_values)
-            async for event in graph.astream(None, config):  # None = 체크포인트에서 재개
-                if _cancel_flags.get(session_id):
-                    logger.info("[resume] session=%s cancelled by flag", session_id)
-                    await publish("cancelled")
+            try:
+                async for event in graph.astream(None, config):  # None = 체크포인트에서 재개
+                    if _cancel_flags.get(session_id):
+                        logger.info("[resume] session=%s cancelled by flag", session_id)
+                        await publish("cancelled")
+                        return
+
+                    node_name, update = next(iter(event.items()))
+                    full_state.update(update)
+                    state = full_state
+
+                    await _handle_node_event(publish, node_name, state, last_stage_no,
+                                             session_id, _cancel_flags)
+                    last_stage_no = _update_last_stage_no(node_name, state, last_stage_no)
+
+                # STAGE-2: astream 루프 정상 종료 시에도 interrupt 상태일 수 있으므로 next 노드가 있는지 조회
+                graph_state = await graph.aget_state(config)
+                if graph_state.next:
+                    logger.info("[resume] session=%s GraphInterrupt (detected via state.next=%s) — awaiting confirmation", session_id, graph_state.next)
+                    await _publish_confirmation_events(publish, full_state)
                     return
 
-                node_name, update = next(iter(event.items()))
-                full_state.update(update)
-                state = full_state
+            except GraphInterrupt:
+                # STAGE-2 Dev 보완 #1: GraphInterrupt는 정상 종료(error 아님)
+                # resume 중에도 interrupt가 발생할 수 있음(재확인 케이스)
+                logger.info("[resume] session=%s GraphInterrupt — awaiting confirmation", session_id)
+                await _publish_confirmation_events(publish, full_state)
+                return  # 정상 종료
 
-                if node_name == "scan_files_node":
-                    files = state.get("files_to_scan", [])
-                    await publish("scan_complete", total=len(files), files=files)
-
-                elif node_name == "api_discovery_node":
-                    await publish("api_plan", api_groups=state.get("api_groups", []))
-
-                elif node_name == "planning_node":
-                    stages = state.get("stages", [])
-                    await publish(
-                        "stage_plan",
-                        stages=[
-                            {
-                                "stage_no": s.get("stage_no"),
-                                "name": s.get("name"),
-                                "file_count": len(s.get("files", [])),
-                            }
-                            for s in stages
-                        ],
-                    )
-
-                elif node_name == "cache_check_node":
-                    idx = state.get("current_file_index", 0)
-                    files = state.get("files_to_scan", [])
-                    stages = state.get("stages", [])
-                    file_path = files[idx] if idx < len(files) else ""
-                    hit = state.get("cache_hit", False)
-                    last_stage_no = await _emit_stage_events(
-                        publish, file_path, stages, last_stage_no
-                    )
-                    await publish(
-                        "progress",
-                        node="cache_check",
-                        phase="checking",
-                        file=file_path,
-                        current=idx + 1,
-                        total=len(files),
-                        cache_hit=hit,
-                    )
-
-                elif node_name == "sast_node":
-                    idx = state.get("current_file_index", 0)
-                    files = state.get("files_to_scan", [])
-                    file_path = files[idx] if idx < len(files) else ""
-                    await publish(
-                        "progress",
-                        node="sast",
-                        phase="done",
-                        file=file_path,
-                        current=idx + 1,
-                        total=len(files),
-                    )
-
-                elif node_name == "next_file_node":
-                    files = state.get("files_to_scan", [])
-                    stages = state.get("stages", [])
-                    next_idx = state.get("current_file_index", 0)
-                    if last_stage_no is not None:
-                        completed = _is_stage_completed(files, stages, next_idx, last_stage_no)
-                        if completed:
-                            stage_files = _get_stage_files(stages, last_stage_no)
-                            await publish(
-                                "stage_completed",
-                                stage_no=last_stage_no,
-                                files=stage_files,
-                            )
-
-                elif node_name == "aggregate_node":
-                    results = state.get("sast_results", [])
-                    vuln_count = sum(len(r.get("vulnerabilities", [])) for r in results)
-                    await publish("progress", node="aggregate", vuln_count=vuln_count)
-
-                elif node_name == "patch_node":
-                    results = state.get("sast_results", [])
-                    vuln_count = sum(len(r.get("vulnerabilities", [])) for r in results)
-                    token_usage = state.get("token_usage", {})
-                    await publish("completed", vuln_count=vuln_count, results=results, token_usage=token_usage)
+            except Exception as exc:
+                logger.exception("[resume] session=%s error", session_id)
+                await publish("error", message=str(exc))
 
     except Exception as exc:
         logger.exception("[resume] session=%s error", session_id)

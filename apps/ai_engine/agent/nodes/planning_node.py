@@ -275,11 +275,15 @@ async def planning_node(state: AgentState) -> dict:
     # stages가 이미 설정된 상태이면 재계획과 current_file_index 리셋을 건너뛴다.
     # 이 분기는 LangGraph가 체크포인트에서 재개할 때 planning_node가 다시
     # 실행되더라도 이미 처리한 파일 인덱스가 0으로 되돌아가는 것을 방지한다.
+    #
+    # STAGE-2: confirmed=True 인 경우도 no-op을 반환한다.
+    # /agent/confirm 이 이미 graph.aupdate_state로 stages/files_to_scan/current_file_index=0
+    # 을 갱신했으므로, planning_node가 resume 시 재실행돼도 그 값을 덮어쓰지 않는다.
     existing_stages: list[dict] = state.get("stages") or []
     if existing_stages:
         logger.info(
-            "[planning] session=%s no-op (stages already set, count=%d) — resume safe",
-            session_id, len(existing_stages),
+            "[planning] session=%s no-op (stages already set, count=%d, confirmed=%s) — resume safe",
+            session_id, len(existing_stages), state.get("confirmed", False),
         )
         return {}
 

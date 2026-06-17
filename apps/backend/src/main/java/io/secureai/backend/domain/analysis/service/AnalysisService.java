@@ -108,7 +108,8 @@ public class AnalysisService {
                         session.getId(), project.getId(), null,
                         "github", info.owner(), info.repo(), info.ref(), info.token(),
                         settings.preferredModel(), resolvedApiKey, request.effectiveScanMode(),
-                        request.fileFilter(), resolvedProvider, userId);
+                        request.fileFilter(), resolvedProvider, userId,
+                        request.effectivePlanningMode(), request.isConfirmGate());
             } else {
                 String workspaceRoot = request.workspaceRoot() != null
                         ? request.workspaceRoot() : "/workspace/" + project.getId();
@@ -116,7 +117,8 @@ public class AnalysisService {
                         session.getId(), project.getId(), workspaceRoot,
                         "local", null, null, null, null,
                         settings.preferredModel(), resolvedApiKey, request.effectiveScanMode(),
-                        request.fileFilter(), resolvedProvider, userId);
+                        request.fileFilter(), resolvedProvider, userId,
+                        request.effectivePlanningMode(), request.isConfirmGate());
             }
         } else {
             // 테스트 mock 등 비DefaultAiAgentClient 구현: userId 없이 기존 인터페이스 사용
@@ -169,6 +171,41 @@ public class AnalysisService {
         sessionRepository.save(session);
         aiAgentClient.resumeAnalysis(sessionId);
         log.info("[analysis] resumed sessionId={}", sessionId);
+        return AnalysisSessionResponse.from(session);
+    }
+
+    /**
+     * STAGE-2: 사용자 계획 컨펌 처리.
+     *
+     * 소유권 검증 → AWAITING_CONFIRMATION 상태 확인(재컨펌 방지) → AI Engine confirm →
+     * 세션 status RUNNING 전환.
+     *
+     * 엣지: RUNNING/COMPLETED → 409. 다른 사용자 → 403/NOT_FOUND.
+     */
+    @Transactional
+    public AnalysisSessionResponse confirmPlan(UUID userId, UUID sessionId,
+                                               io.secureai.backend.domain.analysis.dto.ConfirmPlanRequest request) {
+        AnalysisSession session = sessionRepository.findByIdAndUserId(sessionId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        // STAGE-2 FAIL-2: 이미 실행 중이거나 완료된 세션 재컨펌은 의미가 다르므로 별도 에러코드 사용.
+        if (SessionStatus.RUNNING == session.getStatus()
+                || SessionStatus.COMPLETED == session.getStatus()) {
+            throw new BusinessException(ErrorCode.SESSION_ALREADY_CONFIRMED);
+        }
+        if (SessionStatus.AWAITING_CONFIRMATION != session.getStatus()) {
+            throw new BusinessException(ErrorCode.SESSION_NOT_AWAITING_CONFIRMATION);
+        }
+
+        // AI Engine에 confirm 전달 (X-Internal-Key 헤더는 DefaultAiAgentClient에서 자동 설정)
+        aiAgentClient.confirmPlan(sessionId,
+                request.selectedStageNos(),
+                request.effectiveExcludedFilePaths());
+
+        session.markRunning();
+        sessionRepository.save(session);
+
+        log.info("[analysis] confirmed sessionId={}", sessionId);
         return AnalysisSessionResponse.from(session);
     }
 

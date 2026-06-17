@@ -8,7 +8,8 @@ import pytest
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from api.routes.analyze import AnalyzeRequest, _cancel_flags, _run_analysis, _run_resume
+from api.routes.analyze import AnalyzeRequest, _run_analysis, _run_resume
+from api.routes.streaming_helpers import _cancel_flags
 
 
 # ---------------------------------------------------------------------------
@@ -294,3 +295,68 @@ async def test_run_resume_cancel_flag_emits_cancelled():
         assert "completed" not in types
     finally:
         _cancel_flags.pop("sess-resume-cancel", None)
+
+
+# ---------------------------------------------------------------------------
+# STAGE-2 FAIL-1 회귀: confirm_gate=False 세션 resume은 interrupt 모드를 사용하지 않는다
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_run_resume_non_confirm_gate_uses_non_interrupt_graph():
+    """
+    FAIL-1 회귀 테스트: confirm_gate=False 세션 resume 시
+    get_graph(interrupt=False)가 호출되어야 한다.
+
+    체크포인트 channel_values에 confirm_gate 키가 없거나 False인 경우
+    (일반 분석 세션) interrupt=False 그래프로 재개해야 한다.
+    awaiting_confirmation 이벤트가 발행되면 안 된다.
+    """
+    published: list[str] = []
+    mock_redis = _make_redis(published)
+
+    # confirm_gate=False 인 일반 세션의 체크포인트
+    mock_checkpoint = MagicMock()
+    mock_checkpoint.checkpoint = {
+        "channel_values": {
+            "confirmed": False,   # TypedDict 필수키 — 항상 존재
+            "confirm_gate": False,  # FAIL-1 수정 후 명시 저장되는 키
+            "workspace_root": "/workspace",
+            "source_type": "local",
+        }
+    }
+
+    mock_cp = AsyncMock()
+    mock_cp.aget_tuple = AsyncMock(return_value=mock_checkpoint)
+
+    async def _fake_astream(state, config=None):
+        yield {"patch_node": {"sast_results": [], "token_usage": {}}}
+
+    mock_graph = MagicMock()
+    mock_graph.astream = _fake_astream
+
+    get_graph_calls: list[dict] = []
+
+    def _capturing_get_graph(**kwargs):
+        get_graph_calls.append(kwargs)
+        return mock_graph
+
+    with (
+        patch("api.routes.analyze.get_redis", AsyncMock(return_value=mock_redis)),
+        patch("api.routes.analyze.get_checkpointer", return_value=mock_cp),
+        patch("api.routes.analyze.get_graph", side_effect=_capturing_get_graph),
+        patch("api.routes.analyze.mcp_session", _noop_mcp),
+    ):
+        await _run_resume("sess-normal-resume")
+
+    # interrupt=False 로 호출됐는지 검증
+    assert len(get_graph_calls) == 1, "get_graph는 정확히 1회 호출돼야 한다"
+    assert get_graph_calls[0].get("interrupt") is False, (
+        "confirm_gate=False 세션 resume은 interrupt=False 그래프를 사용해야 한다"
+    )
+
+    # awaiting_confirmation 이벤트가 발행되면 안 된다
+    types = _event_types(published)
+    assert "awaiting_confirmation" not in types, (
+        "일반 세션 resume에서 awaiting_confirmation 이벤트가 발행됐다 — FAIL-1 회귀"
+    )
+    assert "error" not in types

@@ -15,12 +15,23 @@ public record StartAnalysisRequest(
         Boolean force,                  // true 시 진행 중 세션을 중단하고 새 세션 시작
         @Pattern(regexp = "^(AUDIT|PIPELINE)$", message = "scanMode는 AUDIT 또는 PIPELINE 이어야 합니다.")
         String scanMode,                // "AUDIT" | "PIPELINE" (nullable, default: "PIPELINE")
-        List<String> fileFilter         // 선택 분석 — null/빈 값 = 전체 (TASK-1106, 하위 호환)
+        List<String> fileFilter,        // 선택 분석 — null/빈 값 = 전체 (TASK-1106, 하위 호환)
+        /** STAGE-2: 계획 확정 게이트 활성화 여부. "DETERMINISTIC"|"LLM", default "DETERMINISTIC". */
+        String planningMode,
+        /** STAGE-2: true 시 planning_node 후 사용자 컨펌 게이트 활성화. */
+        Boolean confirmGate
 ) {
-    /** 하위 호환 생성자 — fileFilter 미지정(전체 분석). 기존 7-인자 호출부 호환. */
+    /** 하위 호환 생성자 — fileFilter/planningMode/confirmGate 미지정(전체 분석). 기존 7-인자 호출부 호환. */
     public StartAnalysisRequest(UUID projectId, String workspaceRoot, String sourceType,
                                 String githubRepoUrl, String githubRef, Boolean force, String scanMode) {
-        this(projectId, workspaceRoot, sourceType, githubRepoUrl, githubRef, force, scanMode, null);
+        this(projectId, workspaceRoot, sourceType, githubRepoUrl, githubRef, force, scanMode, null, null, null);
+    }
+
+    /** 하위 호환 생성자 — planningMode/confirmGate 미지정. 기존 8-인자 호출부 호환. */
+    public StartAnalysisRequest(UUID projectId, String workspaceRoot, String sourceType,
+                                String githubRepoUrl, String githubRef, Boolean force, String scanMode,
+                                List<String> fileFilter) {
+        this(projectId, workspaceRoot, sourceType, githubRepoUrl, githubRef, force, scanMode, fileFilter, null, null);
     }
 
     public String effectiveSourceType() {
@@ -33,5 +44,15 @@ public record StartAnalysisRequest(
 
     public String effectiveScanMode() {
         return scanMode != null ? scanMode : "PIPELINE";
+    }
+
+    /** STAGE-2: 플래닝 모드. null 이면 "DETERMINISTIC". */
+    public String effectivePlanningMode() {
+        return planningMode != null ? planningMode : "DETERMINISTIC";
+    }
+
+    /** STAGE-2: 사용자 컨펌 게이트 활성화 여부. */
+    public boolean isConfirmGate() {
+        return Boolean.TRUE.equals(confirmGate);
     }
 }

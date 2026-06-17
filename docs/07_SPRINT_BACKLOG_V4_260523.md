@@ -74,7 +74,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | VC 항목 | 기존 백로그 관계 | 처리 |
 |---|---|---|
 | VAL-1 OWASP Benchmark 하니스 / VAL-3 AST 할루시네이션 가드 / VAL-4 SAST→DAST proven_exploitable | **신규** | 신규 — 핵심 차별점·최우선 |
-| VAL-2 평가 CI 게이트 | TASK-1203 확장 | 1203에 eval-score 게이트 추가 |
+| VAL-2 평가 CI 게이트 ✅ | TASK-1203 확장 | ci-ai-agent.yml에 eval-check 게이트 통합 완료(`908c7eb`, Sprint13 Stage2) — baseline 대표런 갱신은 후속 |
 | VAL-5 패치 안전장치 | **TASK-1402·1403 중복** | 1402/1403로 흡수(auto-merge 금지 원칙) |
 | VAL-6 신뢰 지표 대시보드 | **TASK-1303(모델벤치) 중복** | 1303을 "신뢰 지표 대시보드"로 재정의 |
 | WEDGE-1 취약점→규제 매핑 | ComplianceMappingService+FEAT-COMP-002 확장 | 기존 확장(ISMS-P/행안부 심화) |

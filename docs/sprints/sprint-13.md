@@ -123,7 +123,25 @@
 **검증 종합**: 신규 단위 133+(ai 120·be 13·fe 6) 및 수동 검증/E2E 테스트 전부 그린. 회귀 0. 실패는 인프라 의존 기존부채(Redis/DB/TestContainers, 이번 브랜치 미수정 확인)뿐. Reviewer 권고 3건 중 #1(BENCHMARK_TAG 상수화)·#3(tabulate 제거) 즉시 반영, **#2 이월** 아래.
 
 #### ⚠️ 이월(다음 스테이지 처리) — FE VulnStatus 타입 불일치
-FE `mockData.ts`의 `VulnStatus = 'open'|'exploited'|'patched'|'pending'`와 서버 반환값(`false_positive`/`fixed`)이 불일치. MOAT-1 낙관적 갱신은 `as` 캐스팅으로 처리 중이나, `VulnCard`의 `vuln.status==='patched'` 체크가 서버 `fixed`와 어긋남. → **서버 enum↔FE 타입 정규화 매핑 레이어** 필요(Reviewer 비차단 권고 #2). Stage 2 또는 별도 fix에서 처리.
+FE `mockData.ts`의 `VulnStatus = 'open'|'exploited'|'patched'|'pending'`와 서버 반환값(`false_positive`/`fixed`)이 불일치. MOAT-1 낙관적 갱신은 `as` 캐스팅으로 처리 중이나, `VulnCard`의 `vuln.status==='patched'` 체크가 서버 `fixed`와 어긋남. → **서버 enum↔FE 타입 정규화 매핑 레이어** 필요(Reviewer 비차단 권고 #2). Stage 2 또는 별도 fix에서 처리. (Stage 2 시점 미처리 — 별도 fix로 잔존.)
+
+---
+
+## ✅ Stage 2 완료 (2026-06-18) — 브랜치 `feat/sprint13-val`
+**커밋**: `908c7eb` — `feat(sprint13-stage2): VAL-2 평가 CI 회귀 게이트 (eval-check)`
+단독 Dev → Tester PASS → Reviewer(FAIL→수정→PASS) → 커밋. Stage 1 위에서 연속 진행(동일 브랜치).
+
+#### VAL-2 — 평가 CI 회귀 게이트 (M)
+- `eval/check_regression.py`: `baseline.json` vs `latest.json` 의 score/recall/fpr 하락폭을 임계(−2%p) 비교 → 초과 시 GitHub Actions `::warning::`(비차단, 항상 exit 0). baseline/latest 누락 시 graceful no-op. by_category 회귀도 표기. LLM 미사용(순수 JSON 비교).
+- `eval/baseline.json`: 초기 시드(VAL-1 수동런 LIMIT=5, total=55, score=0.3). `_note`에 "대표런(LIMIT≥100/풀런) 후 갱신" 명시.
+- `.github/workflows/ci-ai-agent.yml`: eval 게이트 2 step 통합(별도 job 없음 — TASK-1203 취지). 시크릿→job env `HAS_API_KEY` 승격 후 `if: env.HAS_API_KEY=='true'`(키 있을 때만 LIMIT=5 샘플 eval). **latest.json은 생성물이라 미커밋** → 키 없는 일반 PR은 latest.json 부재로 게이트 no-op. 둘 다 `continue-on-error`.
+- `Makefile` `eval-check` 타겟 + `eval/README.md` VAL-2 섹션.
+- **단위 테스트**: 20개(임계 초과/이내·파일누락 graceful·malformed json·by_category·커스텀 임계·비차단 exit0). eval 전체 96 그린.
+
+**Reviewer**: 1차 FAIL(블로커 2 — 시크릿 `if` 직접비교·README↔gitignore 불일치) → env 승격 비교 + 문서를 "생성물 미커밋·키 있을 때만 실효" 동작에 맞게 정정 → PASS. Tester가 argparse `%p`→`%%p` 이스케이프 버그 1건 수정.
+
+#### ⚠️ baseline 한계(문서화된 비차단)
+현재 baseline은 LIMIT=5 소규모 시드라 통계적으로 불안정(cmdi fpr=1.0 등). 회귀 감지 노이즈 가능 — **대표 런 후 `baseline.json` 갱신** 필요(README #baseline-갱신-절차). VAL-2 게이트의 실효는 baseline 갱신 + 실제 eval 실행(키 존재) 전제.
 
 ---
 
@@ -144,8 +162,8 @@ FE `mockData.ts`의 `VulnStatus = 'open'|'exploited'|'patched'|'pending'`와 서
 | VAL-1 | `make eval LIMIT=N`로 **TPR/FPR/score 산출** + latest.json + README 첫 숫자 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
 | VAL-3 | **가짜인용 0건**(폐기 후 저장 findings는 모두 라인 실재) + Java/Python 동작 + discarded 카운트 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
 | MOAT-1 | 3액션 라벨 저장(독점 데이터 수집 개시) + status 매핑 + 이력 append + 권한 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
-| VAL-2 | PR eval + baseline 회귀 경고 (TASK-1203 통합) | 예정 |
-| **Sprint 13 완료** | 위 통과 + **VC 데모 숫자 확보**("FP율 X%/탐지율 Y%" · 가짜인용 차단 수) + 부채대장 잔여 0 + 세션 로그 | 진행 중 (Stage 1 수동 검증 완료) |
+| VAL-2 | PR eval + baseline 회귀 경고 (TASK-1203 통합) | ✅ 구현·테스트·Reviewer PASS (`908c7eb`). baseline 대표런 갱신은 후속 |
+| **Sprint 13 완료** | 위 통과 + **VC 데모 숫자 확보**("FP율 X%/탐지율 Y%" · 가짜인용 차단 수) + 부채대장 잔여 0 + 세션 로그 | 진행 중 (Stage 1·2 완료, baseline 대표런·FE 타입 fix 후속) |
 
 > 산출물의 본질 = **"VC에게 보여줄 첫 슬라이드 숫자"**. VAL-1 숫자가 0순위, VAL-3 가짜인용 차단이 신뢰 증명.
 

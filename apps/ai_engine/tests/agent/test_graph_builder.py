@@ -41,7 +41,8 @@ def test_route_after_scan_has_files():
 
 
 def test_route_after_cache_hit():
-    assert route_after_cache(_base_state(cache_hit=True)) == "next_file_node"
+    # VAL-3: 캐시 히트 시 validate_findings_node 경유 (저장 경로 일원화)
+    assert route_after_cache(_base_state(cache_hit=True)) == "validate_findings_node"
 
 
 def test_route_after_cache_miss():
@@ -138,6 +139,10 @@ async def test_graph_single_file_visits_all_nodes():
     async def _analyze(_path, _content):
         return '{"vulnerabilities": []}'
 
+    async def _validate_noop(state):
+        """validate_findings_node mock — 외부 I/O 없이 빈 결과 반환."""
+        return {}
+
     with (
         patch("agent.nodes.scan_files_node.list_scannable_files", side_effect=_one_file),
         patch("agent.nodes.cache_check_node.read_file", side_effect=_read_file),
@@ -145,6 +150,9 @@ async def test_graph_single_file_visits_all_nodes():
         patch("agent.nodes.sast_node.read_file", side_effect=_read_file),
         patch("agent.nodes.sast_node.analyze_for_sast", side_effect=_analyze),
         patch("agent.nodes.sast_node._get_redis", return_value=_fake_redis_no_cache()),
+        # VAL-3: validate_findings_node 외부 의존성(MCP read_file, backend save) mock
+        patch("agent.nodes.validate_findings_node.read_file", side_effect=_read_file),
+        patch("agent.nodes.validate_findings_node.save_vulnerabilities", new_callable=AsyncMock),
     ):
         graph = get_graph()
         events = [e async for e in graph.astream(_base_state())]
@@ -153,5 +161,7 @@ async def test_graph_single_file_visits_all_nodes():
         assert "scan_files_node" in node_names
         assert "cache_check_node" in node_names
         assert "sast_node" in node_names
+        # VAL-3: validate_findings_node가 sast와 next_file 사이에 삽입됨
+        assert "validate_findings_node" in node_names
         assert "next_file_node" in node_names
         assert "aggregate_node" in node_names

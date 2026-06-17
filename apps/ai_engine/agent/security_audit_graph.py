@@ -15,10 +15,14 @@ def route_after_scan(state: AgentState) -> Literal["cache_check_node", "__end__"
     return "cache_check_node"
 
 
-def route_after_cache(state: AgentState) -> Literal["next_file_node", "sast_node"]:
-    """캐시 히트 시 SAST 를 건너뛴다."""
+def route_after_cache(state: AgentState) -> Literal["validate_findings_node", "sast_node"]:
+    """캐시 히트 시 SAST 를 건너뛰고 검증 노드로 바로 이동한다.
+
+    VAL-3: 캐시 히트 결과도 validate_findings_node를 경유해 할루시네이션 가드를 통과한다.
+    일관성 보장: 저장 경로가 항상 validate_findings_node → save_vulnerabilities.
+    """
     if state.get("cache_hit"):
-        return "next_file_node"
+        return "validate_findings_node"
     return "sast_node"
 
 

@@ -34,6 +34,12 @@ class AgentState(TypedDict):
     sast_results: list[dict]
     patch_results: list[dict]
 
+    # VAL-3: 결정론적 검증 레이어 결과
+    # validated_findings: 검증 통과 finding 목록 (save_vulnerabilities 대상)
+    # discarded_findings: 검증 실패 finding 목록 (미저장, 할루시네이션 차단)
+    validated_findings: list[dict]
+    discarded_findings: list[dict]
+
     # secret_scan_node 입출력
     commits: list[dict]          # GitHub 커밋 목록 (secret_scan_node 입력)
     secrets_found: list[dict]    # 시크릿 탐지 결과 (secret_scan_node 출력)

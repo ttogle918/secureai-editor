@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle,
-  Zap, Info, Layers, RefreshCw, Play, Server,
+  Zap, Info, Layers, RefreshCw, Play, Server, Shield, XCircle, Check,
 } from 'lucide-react';
 import { useSecureStore } from '@/store/useSecureStore';
 import type { DastExploitResult } from '@/store/useSecureStore';
@@ -15,7 +15,133 @@ import { CallChainView } from '@/components/analysis/CallChainView';
 import FilterBar from '@/components/ui/FilterBar';
 import type { Vulnerability } from '@/lib/mockData';
 import { deriveEndpoint } from '@/lib/vulnUtils';
-import { BASE_URL, getAccessToken } from '@/lib/api/client';
+import { BASE_URL, getAccessToken, apiClient } from '@/lib/api/client';
+
+// ── 트리아지 액션 타입 ─────────────────────────────────────────
+type TriageAction = 'CONFIRM' | 'DISMISS' | 'ACCEPT_PATCH';
+
+// ── 트리아지 섹션 컴포넌트 ────────────────────────────────────
+function TriageSection({ vuln }: { vuln: Vulnerability }) {
+  const addToast                 = useToastStore((s) => s.addToast);
+  const optimisticUpdateVulnStatus = useSecureStore((s) => s.optimisticUpdateVulnStatus);
+  const rollbackVulnStatus       = useSecureStore((s) => s.rollbackVulnStatus);
+
+  const [reason,  setReason]  = useState('');
+  const [loading, setLoading] = useState<TriageAction | null>(null);
+
+  /** action → 한국어 레이블 */
+  const actionLabel: Record<TriageAction, string> = {
+    CONFIRM:      '확인',
+    DISMISS:      '기각',
+    ACCEPT_PATCH: '패치 채택',
+  };
+
+  /** action → vuln status 낙관적 매핑 */
+  const actionToStatus: Record<TriageAction, string> = {
+    CONFIRM:      'open',
+    DISMISS:      'false_positive',
+    ACCEPT_PATCH: 'fixed',
+  };
+
+  const handleTriage = async (action: TriageAction) => {
+    if (loading) return;
+    const prevStatus = vuln.status;
+
+    // 낙관적 갱신 — API 응답 전에 UI를 먼저 업데이트
+    optimisticUpdateVulnStatus(vuln.id, actionToStatus[action]);
+    setLoading(action);
+
+    try {
+      await apiClient.patch(
+        `/vulnerabilities/${vuln.id}/triage`,
+        { action, reason: reason.trim() || undefined },
+      );
+      addToast(`트리아지 완료: ${actionLabel[action]}`, 'info');
+      setReason('');
+    } catch (err) {
+      // API 실패 시 낙관적 갱신 롤백
+      rollbackVulnStatus(vuln.id, prevStatus);
+      const msg = err instanceof Error ? err.message : '트리아지 처리 중 오류가 발생했습니다.';
+      addToast(msg, 'error');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const buttonConfigs: Array<{ action: TriageAction; icon: React.ReactNode; color: string; bg: string; border: string }> = [
+    {
+      action: 'CONFIRM',
+      icon:   <Shield size={10} />,
+      color:  '#f59e0b',
+      bg:     'rgba(245,158,11,0.12)',
+      border: 'rgba(245,158,11,0.35)',
+    },
+    {
+      action: 'DISMISS',
+      icon:   <XCircle size={10} />,
+      color:  'rgba(255,255,255,0.4)',
+      bg:     'rgba(255,255,255,0.05)',
+      border: 'rgba(255,255,255,0.12)',
+    },
+    {
+      action: 'ACCEPT_PATCH',
+      icon:   <Check size={10} />,
+      color:  '#4ade80',
+      bg:     'rgba(74,222,128,0.12)',
+      border: 'rgba(74,222,128,0.35)',
+    },
+  ];
+
+  return (
+    <div>
+      <SectionLabel icon={<Shield size={10} color="#818cf8" />} text="트리아지" />
+
+      {/* 사유 입력 */}
+      <textarea
+        placeholder="사유 (선택, 최대 1000자)"
+        value={reason}
+        onChange={(e) => setReason(e.target.value.slice(0, 1000))}
+        rows={2}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 6, padding: '6px 10px',
+          fontSize: 11, color: '#e8e8ee', fontFamily: 'inherit',
+          outline: 'none', resize: 'none', marginBottom: 8,
+        }}
+      />
+
+      {/* 액션 버튼 3개 */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        {buttonConfigs.map(({ action, icon, color, bg, border }) => {
+          const isLoading = loading === action;
+          const disabled  = loading !== null;
+          return (
+            <button
+              key={action}
+              onClick={() => handleTriage(action)}
+              disabled={disabled}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                padding: '5px 8px', fontSize: 10, fontWeight: 700, borderRadius: 5,
+                background: disabled ? 'rgba(255,255,255,0.04)' : bg,
+                border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : border}`,
+                color: disabled ? 'rgba(255,255,255,0.2)' : color,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {isLoading
+                ? <RefreshCw size={10} style={{ animation: 'spin 0.85s linear infinite' }} />
+                : icon}
+              {actionLabel[action]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ── DAST 실행 섹션 ────────────────────────────────────────────
 function DastRunSection({ vuln }: { vuln: Vulnerability }) {
@@ -495,6 +621,9 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
               ))}
             </div>
           </div>
+
+          {/* 트리아지 */}
+          <TriageSection vuln={vuln} />
 
           {/* DAST 실행 */}
           <DastRunSection vuln={vuln} />

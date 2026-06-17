@@ -297,7 +297,7 @@ async def test_sast_node_publishes_scanning_event_on_start():
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
         patch("agent.nodes.sast_node._analyze_chunks", new=AsyncMock(return_value=([], fake_usage))),
-        patch("agent.nodes.sast_node.save_vulnerabilities", new=AsyncMock()),
+        # VAL-3: save_vulnerabilities는 validate_findings_node로 이관 — sast_node에 없음
         patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
         patch("agent.nodes.sast_node.log_completed", new=AsyncMock()),
         patch("agent.nodes.sast_node.classify_and_enrich", return_value=[]),
@@ -351,7 +351,7 @@ async def test_sast_node_scanning_publish_failure_does_not_break_analysis():
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
         patch("agent.nodes.sast_node._analyze_chunks", new=AsyncMock(return_value=([], fake_usage))),
-        patch("agent.nodes.sast_node.save_vulnerabilities", new=AsyncMock()),
+        # VAL-3: save_vulnerabilities는 validate_findings_node로 이관 — sast_node에 없음
         patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
         patch("agent.nodes.sast_node.log_completed", new=AsyncMock()),
         patch("agent.nodes.sast_node.classify_and_enrich", return_value=[]),

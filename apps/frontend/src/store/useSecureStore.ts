@@ -170,6 +170,15 @@ interface SecureStore {
   revealLine: number | null;
   setRevealLine: (line: number | null) => void;
 
+  // ── 트리아지 낙관적 갱신 (MOAT-1) ──────────────────────
+  /**
+   * 낙관적 갱신: vulns 배열의 대상 항목 status를 즉시 변경한다.
+   * API 실패 시 rollbackVulnStatus 로 이전 값을 복원한다.
+   */
+  optimisticUpdateVulnStatus: (vulnId: string, newStatus: string) => void;
+  /** 낙관적 갱신 롤백 — API 실패 시 이전 status로 복원한다 */
+  rollbackVulnStatus: (vulnId: string, prevStatus: string) => void;
+
   // ── SSE 세션 ─────────────────────────────────────────────
   sseSessionId: string | null;
   setSseSessionId: (id: string | null) => void;
@@ -382,6 +391,20 @@ export const useSecureStore = create<SecureStore>()(
     set((s) => ({ expandedVulnId: s.expandedVulnId === id ? null : id })),
   revealLine: null,
   setRevealLine: (line) => set({ revealLine: line }),
+
+  // ── 트리아지 낙관적 갱신 (MOAT-1)
+  optimisticUpdateVulnStatus: (vulnId, newStatus) =>
+    set((s) => ({
+      vulns: s.vulns.map((v) =>
+        v.id === vulnId ? { ...v, status: newStatus as Vulnerability['status'] } : v
+      ),
+    })),
+  rollbackVulnStatus: (vulnId, prevStatus) =>
+    set((s) => ({
+      vulns: s.vulns.map((v) =>
+        v.id === vulnId ? { ...v, status: prevStatus as Vulnerability['status'] } : v
+      ),
+    })),
 
   // ── SSE 세션
   sseSessionId: null,

@@ -162,7 +162,7 @@ FE `mockData.ts`의 `VulnStatus = 'open'|'exploited'|'patched'|'pending'`와 서
 | VAL-1 | `make eval LIMIT=N`로 **TPR/FPR/score 산출** + latest.json + README 첫 숫자 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
 | VAL-3 | **가짜인용 0건**(폐기 후 저장 findings는 모두 라인 실재) + Java/Python 동작 + discarded 카운트 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
 | MOAT-1 | 3액션 라벨 저장(독점 데이터 수집 개시) + status 매핑 + 이력 append + 권한 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
-| VAL-2 | PR eval + baseline 회귀 경고 (TASK-1203 통합) | ✅ 구현·테스트·Reviewer PASS (`908c7eb`). baseline 대표런 갱신은 후속 |
+| VAL-2 | PR eval + baseline 회귀 경고 (TASK-1203 통합) | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
 | **Sprint 13 완료** | 위 통과 + **VC 데모 숫자 확보**("FP율 X%/탐지율 Y%" · 가짜인용 차단 수) + 부채대장 잔여 0 + 세션 로그 | 진행 중 (Stage 1·2 완료, baseline 대표런·FE 타입 fix 후속) |
 
 > 산출물의 본질 = **"VC에게 보여줄 첫 슬라이드 숫자"**. VAL-1 숫자가 0순위, VAL-3 가짜인용 차단이 신뢰 증명.

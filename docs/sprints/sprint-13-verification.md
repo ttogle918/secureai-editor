@@ -86,3 +86,22 @@
 ### [트랙 E] 회귀 분석 경로 테스트
 - **[✅ PASS-TEST] E2E 자동화 검증**:
   - `confirmGate=false` 기동 상태 및 `interrupted` ➔ `resume`로 연결되는 E2E 시나리오 스크립트가 25개 테스트 전원 통과(`25/25 PASS`)하여 기존 기능에 회귀 현상이 없음을 최종 입증.
+
+---
+
+### [트랙 F] VAL-2 — 평가 CI 회귀 게이트
+*baseline 대비 최신 벤치마크 결과(latest.json)의 하락폭 회귀 감지 및 GitHub Actions 경고 어노테이션 확인*
+
+- **[✅ PASS-RT] `make eval-check` 및 비교 출력**:
+  - `python -m eval.check_regression` 실행 시 baseline 대비 변화량이 정상적으로 한글/기호 깨짐 없이 출력됨 확인 (`PYTHONIOENCODING=utf-8` 적용).
+- **[✅ PASS-RT] 하락폭 임계 초과 시 경고 및 exit 0(비차단)**:
+  - 의도적으로 하락폭이 임계를 넘도록 `--threshold -0.01` 옵션을 부여하여 검사했을 때, `::warning::eval 회귀 감지` 형태의 GitHub Actions 어노테이션 메시지와 `[WARN] ...` 요약이 잘 출력되는 것 확인.
+  - 동시에, 비차단 규칙에 맞게 빌드 쉘의 최종 리턴코드는 성공(`exit 0`)을 반환하는 것 확인.
+- **[✅ PASS-RT] `latest.json` 부재 시 graceful no-op**:
+  - 존재하지 않는 파일 경로를 `--latest`로 전달했을 때, `[check_regression] latest.json 없음 — 게이트 미적용` 로그를 안전하게 남기며 `exit 0`으로 graceful하게 종료되는 것 확인.
+- **[✅ PASS-TEST] CI 동작 설계 분석**:
+  - `.github/workflows/ci-ai-agent.yml`에 `HAS_API_KEY` 환경 변수를 사용한 조건부 스텝 구성 검증 완료.
+  - API 키가 없는 일반 PR은 `Run eval sample`을 안전하게 스킵하고 `latest.json`이 미생성되어 `Eval regression gate` 스텝에서 게이트 미적용(exit 0) 처리됨.
+  - API 키가 있는 PR에서는 `LIMIT=5`로 벤치마크 샘플을 돌려 `latest.json`을 새로 생성한 뒤 경고가 동작하게 배선됨.
+  - API 키는 GitHub Action Secrets를 통해 마스킹 처리되어 로그 노출 위험성이 없도록 설계 완료.
+

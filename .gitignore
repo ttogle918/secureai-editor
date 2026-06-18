@@ -165,3 +165,6 @@ workspace-e2e/
 # 로컬 로그 덤프
 backend_logs.txt
 *_logs.txt
+
+# 공개 포트폴리오 repo (별도 git → github.com/ttogle918/kkebi). 사설 repo에서 분리.
+/kkebi/

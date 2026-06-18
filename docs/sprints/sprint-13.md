@@ -101,6 +101,50 @@
 
 ---
 
+## ✅ Stage 1 완료 (2026-06-18) — 브랜치 `feat/sprint13-val`
+**커밋**: `15cd49a` — `feat(sprint13-stage1): EPIC-VAL 검증하니스·결정론적 가드·트리아지 라벨`
+3-way 병렬 Dev(VAL-1·VAL-3·MOAT-1) → Tester PASS → Reviewer PASS(권고 3건, 블로커 0) → 커밋. STAGE-2 머지된 main에서 분기(충돌 0). **Flyway 번호 정정: 계획서 V052 → 실제 최고 V059이므로 V060 사용.**
+
+#### VAL-1 — OWASP Benchmark 평가 하니스 (M)
+- `eval/owasp_benchmark/{fetch.sh,runner.py,scorer.py}` + `eval/README.md`, `Makefile`(eval 타겟). `make eval LIMIT=N`→`recall/fpr/score` + `eval/results/latest.json`. 채점 `score=TPR−FPR` + 고정 recall 80% FPR. vulnType↔CWE 매핑. 매직넘버 상수화(`FIXED_RECALL_THRESHOLD=0.8`, `BENCHMARK_TAG`). 케이스 실패 skip&log(FN). `requirements.txt`는 stdlib만 사용(Reviewer 권고로 미사용 `tabulate` 제거).
+- **단위 테스트**: 76개(scorer 매핑·집계·지표 + runner CSV파싱·샘플링·rate limit).
+
+#### VAL-3 — 결정론적 검증 레이어 / AST 할루시네이션 가드 (L)
+- `agent/validation/{ast_verifier.py, parsers/{python,java,ts}.py}` + `nodes/validate_findings_node.py`. `agent_state.py`(`validated_findings`/`discarded_findings`), `graph_builder.py`·`security_audit_graph.py` 재배선, `sast_node.py` **save 호출 제거**→검증 후 persist. `requirements.txt` `javalang>=0.13.0`.
+- MVP 검증 = file:line 파일범위 내 + 비주석/비공백 실재. python=`ast`/java=`javalang`/ts=정규식. **미지원언어·파서에러·line없음·불확실 시 통과(recall 보호)**. 완전 결정론적(LLM 미사용). 폐기 건수 metric. **캐시히트 경로(`route_after_cache→validate_findings_node`)도 검증 경유** — next_file 루프 영향 없음 확인.
+- **단위 테스트**: 44개(가짜 line/주석 폐기·실재 통과·언어별·미지원 보류·discarded 카운트). 회귀 0(기존 sast/graph/planning 테스트 save patch 제거 반영).
+
+#### MOAT-1 — 트리아지 피드백 API+UI (M)
+- `V060__create_triage_feedback.sql`(append-only, FK CASCADE, action CHECK), `TriageFeedback.java`(setter/@PreUpdate 부재·생성자 protected), `TriageFeedbackRepository`, `TriageRequest`(@Pattern action 화이트리스트·reason @Size). `VulnerabilityService.applyTriage/resolveStatus`, `VulnerabilityController` `PATCH /api/v1/vulnerabilities/{id}/triage`. FE `VulnDetailPanel` 트리아지 버튼 + `useSecureStore` 낙관적 갱신.
+- status 매핑(기존 enum 재사용): CONFIRM→`open`, DISMISS→`false_positive`, ACCEPT_PATCH→`fixed`. IDOR 방어=타 사용자 vuln→`VULN_NOT_FOUND`(존재 비노출). reason 로그 미출력. 재트리아지=이력 누적(append).
+- **단위/통합 테스트**: 13개(3액션 매핑·이력 누적·400·권한거부).
+- **수동 검증 및 E2E 테스트**: 통과 ✅. 런타임 및 E2E 시나리오 수동 테스트를 전체 수행 완료하였습니다. 상세 결과는 [sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)을 참조하십시오.
+
+**검증 종합**: 신규 단위 133+(ai 120·be 13·fe 6) 및 수동 검증/E2E 테스트 전부 그린. 회귀 0. 실패는 인프라 의존 기존부채(Redis/DB/TestContainers, 이번 브랜치 미수정 확인)뿐. Reviewer 권고 3건 중 #1(BENCHMARK_TAG 상수화)·#3(tabulate 제거) 즉시 반영, **#2 이월** 아래.
+
+#### ⚠️ 이월(다음 스테이지 처리) — FE VulnStatus 타입 불일치
+FE `mockData.ts`의 `VulnStatus = 'open'|'exploited'|'patched'|'pending'`와 서버 반환값(`false_positive`/`fixed`)이 불일치. MOAT-1 낙관적 갱신은 `as` 캐스팅으로 처리 중이나, `VulnCard`의 `vuln.status==='patched'` 체크가 서버 `fixed`와 어긋남. → **서버 enum↔FE 타입 정규화 매핑 레이어** 필요(Reviewer 비차단 권고 #2). Stage 2 또는 별도 fix에서 처리. (Stage 2 시점 미처리 — 별도 fix로 잔존.)
+
+---
+
+## ✅ Stage 2 완료 (2026-06-18) — 브랜치 `feat/sprint13-val`
+**커밋**: `908c7eb` — `feat(sprint13-stage2): VAL-2 평가 CI 회귀 게이트 (eval-check)`
+단독 Dev → Tester PASS → Reviewer(FAIL→수정→PASS) → 커밋. Stage 1 위에서 연속 진행(동일 브랜치).
+
+#### VAL-2 — 평가 CI 회귀 게이트 (M)
+- `eval/check_regression.py`: `baseline.json` vs `latest.json` 의 score/recall/fpr 하락폭을 임계(−2%p) 비교 → 초과 시 GitHub Actions `::warning::`(비차단, 항상 exit 0). baseline/latest 누락 시 graceful no-op. by_category 회귀도 표기. LLM 미사용(순수 JSON 비교).
+- `eval/baseline.json`: 초기 시드(VAL-1 수동런 LIMIT=5, total=55, score=0.3). `_note`에 "대표런(LIMIT≥100/풀런) 후 갱신" 명시.
+- `.github/workflows/ci-ai-agent.yml`: eval 게이트 2 step 통합(별도 job 없음 — TASK-1203 취지). 시크릿→job env `HAS_API_KEY` 승격 후 `if: env.HAS_API_KEY=='true'`(키 있을 때만 LIMIT=5 샘플 eval). **latest.json은 생성물이라 미커밋** → 키 없는 일반 PR은 latest.json 부재로 게이트 no-op. 둘 다 `continue-on-error`.
+- `Makefile` `eval-check` 타겟 + `eval/README.md` VAL-2 섹션.
+- **단위 테스트**: 20개(임계 초과/이내·파일누락 graceful·malformed json·by_category·커스텀 임계·비차단 exit0). eval 전체 96 그린.
+
+**Reviewer**: 1차 FAIL(블로커 2 — 시크릿 `if` 직접비교·README↔gitignore 불일치) → env 승격 비교 + 문서를 "생성물 미커밋·키 있을 때만 실효" 동작에 맞게 정정 → PASS. Tester가 argparse `%p`→`%%p` 이스케이프 버그 1건 수정.
+
+#### ⚠️ baseline 한계(문서화된 비차단)
+현재 baseline은 LIMIT=5 소규모 시드라 통계적으로 불안정(cmdi fpr=1.0 등). 회귀 감지 노이즈 가능 — **대표 런 후 `baseline.json` 갱신** 필요(README #baseline-갱신-절차). VAL-2 게이트의 실효는 baseline 갱신 + 실제 eval 실행(키 존재) 전제.
+
+---
+
 ## 리스크
 1. **VAL-3 save 이관(높음)**: sast_node 반환 계약 변경 → cache_check 캐시 히트 경로·next_file 상태 처리 회귀 주의. cache된 결과도 검증 경유할지 결정.
 2. **VAL-1 벤치 비용(높음)**: 2,740 LLM 호출 = 비용·시간·rate limit. `LIMIT` 샘플 필수, 풀런 야간.
@@ -113,13 +157,13 @@
 ---
 
 ## 완료 게이트 (VC 지적 ③ — 정량 증명)
-| 마일스톤 | 기준 |
-|---------|------|
-| VAL-1 | `make eval LIMIT=N`로 **TPR/FPR/score 산출** + latest.json + README 첫 숫자 |
-| VAL-3 | **가짜인용 0건**(폐기 후 저장 findings는 모두 라인 실재) + Java/Python 동작 + discarded 카운트 |
-| MOAT-1 | 3액션 라벨 저장(독점 데이터 수집 개시) + status 매핑 + 이력 append + 권한 |
-| VAL-2 | PR eval + baseline 회귀 경고 (TASK-1203 통합) |
-| **Sprint 13 완료** | 위 통과 + **VC 데모 숫자 확보**("FP율 X%/탐지율 Y%" · 가짜인용 차단 수) + 부채대장 잔여 0 + 세션 로그 |
+| 마일스톤 | 기준 | 상태 |
+|---------|------|------|
+| VAL-1 | `make eval LIMIT=N`로 **TPR/FPR/score 산출** + latest.json + README 첫 숫자 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
+| VAL-3 | **가짜인용 0건**(폐기 후 저장 findings는 모두 라인 실재) + Java/Python 동작 + discarded 카운트 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
+| MOAT-1 | 3액션 라벨 저장(독점 데이터 수집 개시) + status 매핑 + 이력 append + 권한 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
+| VAL-2 | PR eval + baseline 회귀 경고 (TASK-1203 통합) | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
+| **Sprint 13 완료** | 위 통과 + **VC 데모 숫자 확보**("FP율 X%/탐지율 Y%" · 가짜인용 차단 수) + 부채대장 잔여 0 + 세션 로그 | 진행 중 (Stage 1·2 완료, baseline 대표런·FE 타입 fix 후속) |
 
 > 산출물의 본질 = **"VC에게 보여줄 첫 슬라이드 숫자"**. VAL-1 숫자가 0순위, VAL-3 가짜인용 차단이 신뢰 증명.
 

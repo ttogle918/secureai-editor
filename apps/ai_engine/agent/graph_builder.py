@@ -19,6 +19,7 @@ from agent.nodes.patch_node import patch_node
 from agent.nodes.planning_node import planning_node
 from agent.nodes.sast_node import sast_node
 from agent.nodes.scan_files_node import scan_files_node
+from agent.nodes.validate_findings_node import validate_findings_node
 from agent.security_audit_graph import route_after_cache, route_after_next, route_after_scan
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,8 @@ def _build_graph(checkpointer=None, interrupt: bool = False):
     builder.add_node("planning_node", planning_node)
     builder.add_node("cache_check_node", cache_check_node)
     builder.add_node("sast_node", sast_node)
+    # VAL-3: 결정론적 AST 할루시네이션 가드 — sast_node와 next_file_node 사이에 삽입
+    builder.add_node("validate_findings_node", validate_findings_node)
     builder.add_node("next_file_node", next_file_node)
     builder.add_node("aggregate_node", aggregate_node)
     builder.add_node("patch_node", patch_node)
@@ -48,12 +51,15 @@ def _build_graph(checkpointer=None, interrupt: bool = False):
     )
     builder.add_edge("api_discovery_node", "planning_node")
     builder.add_edge("planning_node", "cache_check_node")
+    # VAL-3: 캐시 히트 시도 validate_findings_node 경유 (저장 경로 일원화)
     builder.add_conditional_edges(
         "cache_check_node",
         route_after_cache,
-        {"sast_node": "sast_node", "next_file_node": "next_file_node"},
+        {"sast_node": "sast_node", "validate_findings_node": "validate_findings_node"},
     )
-    builder.add_edge("sast_node", "next_file_node")
+    # VAL-3: sast_node 완료 후 validate_findings_node 경유
+    builder.add_edge("sast_node", "validate_findings_node")
+    builder.add_edge("validate_findings_node", "next_file_node")
     builder.add_conditional_edges(
         "next_file_node",
         route_after_next,

@@ -13,7 +13,7 @@ from agent.claude_client import analyze_for_sast
 from agent.llm.factory import PROVIDER_ANTHROPIC, PROVIDER_GEMINI, PROVIDER_OPENAI
 from agent.nodes.code_chunker import chunk_file
 from agent.nodes.vuln_classifier import classify_and_enrich
-from infrastructure.backend_api_client import get_vuln_context, save_vulnerabilities
+from infrastructure.backend_api_client import get_vuln_context  # save_vulnerabilities → VAL-3 validate_findings_node로 이관
 from agent.response_parser import parse_sast_response
 from agent.tools.mcp_filesystem_tools import read_file
 from agent.tools.mcp_github_tools import get_github_file_content
@@ -323,7 +323,9 @@ async def sast_node(state: AgentState) -> dict:
             r = _get_redis()
             await r.setex(f"{_CACHE_PREFIX}{sha256}", _CACHE_TTL, json.dumps(vulns))
 
-        await save_vulnerabilities(session_id, state["project_id"], file_path, vulns)
+        # VAL-3: save_vulnerabilities 호출은 validate_findings_node로 이관됨.
+        # sast_node는 findings 생성 후 반환만 하고 저장하지 않는다.
+        # 저장은 AST 할루시네이션 가드 검증 통과 후 validate_findings_node에서 수행.
         await log_completed(
             session_id, "sast", _STEP_ORDER,
             target=file_path,

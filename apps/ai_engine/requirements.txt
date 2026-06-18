@@ -80,3 +80,10 @@ prometheus-fastapi-instrumentator==7.1.0
 # fastapi 통합 + logging 통합 포함
 # ───────────────────────────────────────────────────
 sentry-sdk[fastapi]==2.29.1
+
+# ───────────────────────────────────────────────────
+# AST 파서 — VAL-3 결정론적 검증 레이어
+# javalang: 순수 Python Java AST 파서 (네이티브 빌드 불필요)
+# Python ast는 stdlib — 별도 설치 불필요
+# ───────────────────────────────────────────────────
+javalang>=0.13.0

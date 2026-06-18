@@ -48,7 +48,7 @@ async def test_sast_node_increments_token_counter():
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
         # _analyze_chunks 전체를 mock — (vulns_list, usage_dict) 반환
         patch("agent.nodes.sast_node._analyze_chunks", new=AsyncMock(return_value=([], fake_usage))),
-        patch("agent.nodes.sast_node.save_vulnerabilities", new=AsyncMock()),
+        # VAL-3: save_vulnerabilities는 validate_findings_node로 이관 — sast_node에서 제거됨
         patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
         patch("agent.nodes.sast_node.log_completed", new=AsyncMock()),
         patch("agent.nodes.sast_node.classify_and_enrich", return_value=[]),
@@ -79,7 +79,7 @@ async def test_sast_node_does_not_increment_counter_when_zero_tokens():
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
         patch("agent.nodes.sast_node._analyze_chunks", new=AsyncMock(return_value=([], fake_usage))),
-        patch("agent.nodes.sast_node.save_vulnerabilities", new=AsyncMock()),
+        # VAL-3: save_vulnerabilities는 validate_findings_node로 이관
         patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
         patch("agent.nodes.sast_node.log_completed", new=AsyncMock()),
         patch("agent.nodes.sast_node.classify_and_enrich", return_value=[]),
@@ -128,7 +128,7 @@ async def test_sast_node_audit_mode_uses_haiku_model():
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
         patch("agent.nodes.sast_node._analyze_chunks", side_effect=fake_analyze_chunks),
-        patch("agent.nodes.sast_node.save_vulnerabilities", new=AsyncMock()),
+        # VAL-3: save_vulnerabilities는 validate_findings_node로 이관 — sast_node에 없음
         patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
         patch("agent.nodes.sast_node.log_completed", new=AsyncMock()),
         patch("agent.nodes.sast_node.classify_and_enrich", return_value=[]),
@@ -179,7 +179,7 @@ async def test_sast_node_pipeline_mode_uses_sonnet_model():
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
         patch("agent.nodes.sast_node._analyze_chunks", side_effect=fake_analyze_chunks),
-        patch("agent.nodes.sast_node.save_vulnerabilities", new=AsyncMock()),
+        # VAL-3: save_vulnerabilities는 validate_findings_node로 이관 — sast_node에 없음
         patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
         patch("agent.nodes.sast_node.log_completed", new=AsyncMock()),
         patch("agent.nodes.sast_node.classify_and_enrich", return_value=[]),
@@ -230,7 +230,7 @@ async def test_sast_node_preferred_model_overrides_scan_mode():
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
         patch("agent.nodes.sast_node._analyze_chunks", side_effect=fake_analyze_chunks),
-        patch("agent.nodes.sast_node.save_vulnerabilities", new=AsyncMock()),
+        # VAL-3: save_vulnerabilities는 validate_findings_node로 이관 — sast_node에 없음
         patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
         patch("agent.nodes.sast_node.log_completed", new=AsyncMock()),
         patch("agent.nodes.sast_node.classify_and_enrich", return_value=[]),

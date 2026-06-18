@@ -74,7 +74,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | VC 항목 | 기존 백로그 관계 | 처리 |
 |---|---|---|
 | VAL-1 OWASP Benchmark 하니스 / VAL-3 AST 할루시네이션 가드 / VAL-4 SAST→DAST proven_exploitable | **신규** | 신규 — 핵심 차별점·최우선 |
-| VAL-2 평가 CI 게이트 | TASK-1203 확장 | 1203에 eval-score 게이트 추가 |
+| VAL-2 평가 CI 게이트 ✅ | TASK-1203 확장 | ci-ai-agent.yml에 eval-check 게이트 통합 완료(`908c7eb`, Sprint13 Stage2) — baseline 대표런 갱신은 후속 |
 | VAL-5 패치 안전장치 | **TASK-1402·1403 중복** | 1402/1403로 흡수(auto-merge 금지 원칙) |
 | VAL-6 신뢰 지표 대시보드 | **TASK-1303(모델벤치) 중복** | 1303을 "신뢰 지표 대시보드"로 재정의 |
 | WEDGE-1 취약점→규제 매핑 | ComplianceMappingService+FEAT-COMP-002 확장 | 기존 확장(ISMS-P/행안부 심화) |
@@ -102,11 +102,11 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 | ID | 제목 | DoD 요약 | 사이즈 |
 |----|------|---------|--------|
-| **VAL-1** 🔴 | OWASP Benchmark 평가 하니스 | 2,740 케이스 → TPR/FPR/score, `make eval` 한 방. README에 FP율/탐지율 첫 숫자 | M |
-| **VAL-3** 🔴 | 결정론적 검증 레이어(AST 할루시네이션 가드) | 모델 보고 file:line·source→sink를 AST로 실재 검증, 불일치 findings 자동 폐기 | L |
+| **VAL-1** 🔴 ✅ | OWASP Benchmark 평가 하니스 | 2,740 케이스 → TPR/FPR/score, `make eval` 한 방. README에 FP율/탐지율 첫 숫자 | M |
+| **VAL-3** 🔴 ✅ | 결정론적 검증 레이어(AST 할루시네이션 가드) | 모델 보고 file:line·source→sink를 AST로 실재 검증, 불일치 findings 자동 폐기 | L |
 | **VAL-4** 🔴 | SAST→DAST `proven_exploitable` 연결 | SAST 의심 → DAST 샌드박스 익스플로잇 성공 시 라벨. "증명" 데모 영상 1편. (인접: ZAP 스캔 하니스 **TASK-1203b** — 단, VAL-4는 AI 라벨링이고 1203b는 회귀 스캔 게이트로 별개 트랙. 묶지 않음) | L |
 | **ECON-1** 🔴 | 프롬프트 캐싱 | 가이드라인 컨텍스트 Anthropic prompt caching. 캐시 적중률+토큰 절감률 계측 (claude-api 스킬) | S |
-| **MOAT-1** 🟠 | 트리아지 피드백 UI(확인/기각/채택) | findings 라벨 저장 → 독점 학습 데이터. FEAT-AI-003 리랭커 입력 | M |
+| **MOAT-1** 🟠 ✅ | 트리아지 피드백 UI(확인/기각/채택) | findings 라벨 저장 → 독점 학습 데이터. FEAT-AI-003 리랭커 입력 | M |
 | **WEDGE-3** 🟠 | 컴플라이언스 준비도 대시보드 | "ISMS-P 준비도 73%, 미충족 12개" (ComplianceMappingService 위) | M |
 | **WEDGE-4** 🟢 | 피치/문서 재포지셔닝(문서) | README·랜딩·피치덱 "컴플라이언스 증적 자동화" 중심 | S |
 | **WEDGE-5** 🟠 | 파일럿 고객 PoC(GTM) | ISMS-P 준비 기업과 "3주→3일" 사례 1건 | L |
@@ -162,6 +162,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ---
 
 #### VAL-1 🔴 — OWASP Benchmark 평가 하니스 (탐지 정확도 0단계 · 모든 하니스의 기반)
+> ✅ **완료 2026-06-18 (커밋 `15cd49a`, Sprint13 Stage 1)**. 🧪 scorer/runner 단위 76 통과. 구현 경로는 본 명세의 `benchmarks/owasp/`가 아니라 `/sprint 13` 확정안의 **`apps/ai_engine/eval/owasp_benchmark/`**(runner·scorer·fetch.sh) + `make eval`. 🔬 실호출/scorecard·png 산출물은 ✅ 수동검증(BenchmarkJava fetch 필요)으로 이월. 상세: `docs/sprints/sprint-13.md`.
 - **목적(무엇을 증명)**: 제3자 표준 데이터셋(OWASP BenchmarkJava ~2,740 케이스)으로 SAST 탐지 정확도를 객관 측정.
 - **한 줄 셀링 문장**: *"SecureAI는 OWASP Benchmark(Java)에서 탐지율 XX%, 오탐률 YY%, Youden 정확도 점수 ZZ를 기록했다."*
 - **배경**: 이전 심사 피드백("보안 유효성 외부 검증/레퍼런스 필요")에 대한 직접적 답. BenchmarkJava 정답 CSV에 **expected CWE**가 들어 있어 엔진 신고 CWE와 바로 대조 가능 — 수동 매핑 불필요. 이 하니스가 VAL-7/8/9/10/11/13의 채점기·코퍼스·통합지점을 공유하는 **공통 기반**이다.
@@ -195,6 +196,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ---
 
 #### VAL-3 🔴 — 결정론적 검증 레이어(AST 할루시네이션 가드) *(메모 범위 밖 — 기존 한 줄 유지)*
+> ✅ **완료 2026-06-18 (커밋 `15cd49a`, Sprint13 Stage 1)**. MVP = file:line 라인 실재(비주석/비공백) 검증(source→sink 심층은 Sprint 14 이월). sast_node save 이관→`validate_findings_node`. python(ast)/java(javalang)/ts(regex), 미지원·불확실 시 통과(recall 보호). 🧪 단위 44 통과. 상세: `docs/sprints/sprint-13.md`.
 - 모델이 보고한 file:line·source→sink를 AST로 실재 검증해 불일치 findings를 자동 폐기. **두 메모(BENCHMARK_GUIDE/VALIDATION_ROADMAP)의 직접 대상이 아니므로** 본 상세화에서는 기존 요약표 한 줄을 그대로 유지한다(별도 설계 필요 시 `/sprint 13`에서 다룬다). 단 VAL-10(결정성)이 이 가드의 *효과를 측정하는 숫자*라는 관계만 명시(BENCHMARK_GUIDE §8.2).
 - 사이즈·배치: L · S13.
 
@@ -614,13 +616,14 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | 출처 | 미검증 항목(요약) | 상태 | 처리 |
 |------|------------------|------|------|
 | Sprint 7 | PDF 내용·CycloneDX 검증, 차트 5종 시각화, Android 실기기 로그인·루팅·TLS·네비·FCM/SSE | 🟢 구현완료·검증대기 | TASK-1105 일부 + Android 실기기 |
-| Sprint 8 | perf p95<500ms·캐시히트·N+1, ZAP Critical 0·SQLi·XSS, Nginx HTTPS 리다이렉트, 2FA QR | 🟢 구현완료·검증대기 | TASK-1105 (2FA login 검증은 1208b 의존). **ZAP Critical 0건은 실행 수단 미비 → TASK-1203b(하니스 구축)로 이관 후 청산** |
+| Sprint 8 | perf p95<500ms·캐시히트·N+1, ZAP Critical 0·SQLi·XSS, Nginx HTTPS 리다이렉트, 2FA QR | 🟢 완료 | k6/2FA/Nginx 검증완료. ZAP Critical 0건은 TASK-1203b(하니스 구축)로 이관 후 청산 |
 | Sprint 9 | Slack 알림 포스팅, VSCode `.vsix` 설치, Android 채팅/PDF공유/알림채널 | 🟢 구현완료·검증대기 | TASK-1105 + 클라이언트 실환경 |
-| Sprint 10 | 12건(야간스캔·팀대시보드·ROI·스캔모드·FE 3종 + 이월 4건) | 🟡 진행 | TASK-1105 전담 |
-| Sprint 5/6 | GitHub Webhook→PR 자동분석·Check Run, 커밋 시크릿 스캔 | 🔴 차단 | GitHub App 인증 스텁 — **Sprint 12 TASK-1201 선행** |
+| Sprint 10 | 12건(야간스캔·팀대시보드·ROI·스캔모드·FE 3종 + 이월 4건) | 🟢 완료 | TASK-1105 전담 처리 완료 ([sprint-11-task-1105-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-11-task-1105-verification.md)) |
+| Sprint 5/6 | GitHub Webhook→PR 자동분석·Check Run, 커밋 시크릿 스캔 | 🟢 완료 | TASK-1201 / 1211 구현 및 검증 완료 (실 PR #78 디스패치 검증) |
 | Sprint 9 | PostgreSQL/Docker MCP 조회·권한 (904/905) | ⚪ 미구현 | 기능 자체가 Sprint 15 후보 (부채 아님) |
 | Sprint 12 | (관측성) Sentry PII 마스킹 라이브 도달(3런타임), Loki LogQL 조회+TraceID 릴레이, Grafana Slack Webhook | 🟡 부분완료·대기 | **일부 백엔드/스크립트 레벨에서 검증완료**(curl로 Sentry catch 확인됨). 실 환경의 DSN / Slack 연동은 사용자 환경 의존. |
 | Sprint 12 | (백업) TASK-1205: S3 Block Public Access, S3 실 업로드, DB 복구 후 Row 카운트 | 🟡 부분완료·대기 | **`backup-postgres.sh` pg_dump 로직 확인 완료**. LocalStack 경로 이슈로 AWS CLI S3 업로드 부분은 사용자 실 AWS 계정 환경검증으로 이관. |
+| Sprint 13 | Stage 1 (VAL-1 벤치마크 하니스, VAL-3 AST 가드, MOAT-1 트리아지 피드백) | 🟢 완료 | 수동 및 E2E 시나리오 100% 검증 통과 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
 
 ---
 

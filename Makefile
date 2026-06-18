@@ -1,4 +1,4 @@
-.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner perf-test zap-scan zap-gate ssl-cert eval-providers help
+.PHONY: dev infra down logs clean rebuild backend frontend ai-engine viewer dast-runner perf-test zap-scan zap-gate ssl-cert eval-providers eval eval-fetch eval-check help
 
 # ──────────────────────────────────────────────────────────────────
 # make dev              전체 서비스 (postgres, redis, backend, ai_engine, frontend)
@@ -19,6 +19,10 @@
 #   TARGET=<dir>        분석 대상 디렉터리 (필수)
 #   PROVIDERS=gemini,anthropic  provider 목록 (기본: gemini,anthropic)
 #   LIMIT=N             최대 파일 수 (선택)
+# make eval             OWASP Benchmark 평가 하니스 (VAL-1)
+#   LIMIT=N             vulnType별 최대 케이스 수 (기본: 풀런 2,740)
+# make eval-fetch       BenchmarkJava 데이터셋 클론 (최초 1회)
+# make eval-check       baseline.json 대비 latest.json 회귀 감시 (LLM 없음, VAL-2)
 # ──────────────────────────────────────────────────────────────────
 
 dev:
@@ -125,6 +129,26 @@ ssl-cert: ## 개발용 자체 서명 인증서 생성 (nginx/certs/server.key, s
 	  -out nginx/certs/server.crt \
 	  -subj "/C=KR/ST=Seoul/L=Seoul/O=SecureAI/CN=localhost"
 	@echo "✓ 인증서 생성 완료: nginx/certs/server.crt, nginx/certs/server.key"
+
+eval: ## OWASP Benchmark 평가 하니스 (VAL-1) — recall/fpr/score + latest.json
+	@echo "▶ OWASP Benchmark 평가 시작 (LIMIT=$(LIMIT))..."
+	@if [ ! -d "apps/ai_engine/eval/owasp_benchmark/BenchmarkJava" ]; then \
+	  echo "✗ BenchmarkJava 데이터셋 없음. 먼저 실행: make eval-fetch"; \
+	  exit 1; \
+	fi
+	cd apps/ai_engine && python -m eval.owasp_benchmark.runner \
+		$(if $(LIMIT),--limit $(LIMIT),) \
+		--output "eval/results/latest.json"
+
+eval-fetch: ## BenchmarkJava 데이터셋 클론 (최초 1회 실행)
+	@echo "▶ BenchmarkJava 데이터셋 fetch..."
+	bash apps/ai_engine/eval/owasp_benchmark/fetch.sh
+	@echo "✓ fetch 완료. 이제 'make eval LIMIT=100' 실행 가능"
+
+eval-check: ## baseline.json 대비 latest.json 회귀 감시 (LLM 없음, VAL-2 게이트)
+	@echo "▶ eval 회귀 게이트 실행..."
+	cd apps/ai_engine && python -m eval.check_regression
+	@echo "✓ eval-check 완료 (비차단 — 경고 메시지 위 참조)"
 
 eval-providers: ## Gemini vs Claude SAST 품질 비교 (TARGET=<dir> PROVIDERS=gemini,anthropic [LIMIT=N])
 	@if [ -z "$(TARGET)" ]; then \

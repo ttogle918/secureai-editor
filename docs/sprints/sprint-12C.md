@@ -107,6 +107,16 @@
 - **준수**: 허브 패턴 상수화, 개별 실패 전체중단 금지, **api_groups 출력계약 불변**(DETERMINISTIC/LLM 양쪽).
 - **DoD**: 🧪 `_is_hub_file` 정확(Controller/route/api True, util/entity False) / 🧪 (B 시)비허브 read 미호출(mock 호출수=허브수) / 🧪 **api_groups·stage 산출 기존과 동일(회귀 — 기존 test_api_discovery 그린)** / ✅ 대형레포 메모리/시간 감소 + 전체 파일 sast 분석(누락 0).
 
+### ✅ STAGE-3 완료 (2026-06-18) — 브랜치 `feat/sprint12C-stage3-hub-first`
+**커밋**: `b0af06b` — `feat(sprint12C-stage3): API-허브 우선 읽기 (A안 — api_groups 불변)`
+단독 Dev → Tester PASS → Reviewer PASS(권고 3건, 블로커 0) → 커밋. EPIC-VAL(Sprint13) main 머지 후 그 위에서 분기 — 계획 순서(STAGE-2 → EPIC-VAL → STAGE-3) 준수, api_discovery_node는 VAL-3 미수정 파일이라 충돌 0.
+
+- **채택: A안**(계획서 "A부터 시도" 지시). `api_discovery_node`는 전체 파일을 기존대로 읽어 **api_groups 출력계약 완전 보존**, "허브 우선"은 **읽기 순서/우선순위**에만 적용. B안(허브-only read)은 흩어진 axios 호출(임의 .tsx 컴포넌트)이 허브 패턴에 안 걸려 api_groups 그룹핑이 바뀔 위험 → 출력계약 위반이라 미채택.
+- **구현**: `_HUB_PATH_PATTERNS` 상수(Controller·controller/·route.ts|tsx|js·*api|client|axios·routes/**.py) + `_is_hub_file(path)`(PurePosixPath.match 글롭, Python 3.12 `**`) + `api_discovery_node()`에서 target_files를 허브 우선 정렬(결정론적, list comprehension stable). planning_node 무변경(others="공통/기타" 기존 보유 — 미그룹 파일도 전부 files_to_scan 포함 → sast 분석 누락 0).
+- **검증**: 🧪 32개(`_is_hub_file` True 16·False 9 + 허브정렬 1 + **api_groups 동일성 회귀 1** + 기존 4 + route.tsx known-FP 1). agent 전체 402 그린. 🧪 기존 test_api_discovery 회귀 0(api_groups 불변 고정). ✅ 대형레포 메모리/시간 감소는 수동검증(허브 우선 정렬로 진입점 우선 처리).
+- **Reviewer 권고 반영**: B안 잔류 미사용 상수(`_FASTAPI_HUB_CONTENT_RE`/`_HUB_PEEK_LINES`) 제거(YAGNI, VAL-1 tabulate 선례), 테스트 미사용 import 제거, `src/components/route.tsx` known false-positive 케이스 명시.
+- **잔여 한계**: `**/route.tsx`가 비-API route.tsx도 허브로 분류하는 FP — `_is_nextjs_route_file`(app/api/.../route.*)에서 걸러져 api_groups 무영향(읽기 우선순위에만 영향). B안(허브-only read) 메모리 최적화는 api_groups 동일성 회귀코퍼스 확보 후 별도 검토.
+
 ---
 
 ## 리스크

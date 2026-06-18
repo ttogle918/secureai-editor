@@ -9,11 +9,16 @@ api_discovery_node — LLM 없이 정적 파싱으로 API 엔드포인트를 발
 
 출력: api_groups: [{name, url, files:[{path, line}]}]
 파싱 실패 파일은 skip & log (전체 세션 실패 금지).
+
+허브 우선 읽기 (STAGE-3):
+- _is_hub_file(path) 로 허브 파일을 식별한다.
+- api_discovery_node는 전체 파일을 읽되(api_groups 출력계약 불변),
+  허브 파일을 비허브보다 먼저 처리한다(A안 — 회귀 0).
 """
 import logging
 import os
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from agent.agent_state import AgentState
 
@@ -59,7 +64,47 @@ _JAVA_IMPORT_RE = re.compile(
     re.MULTILINE,
 )
 
-# 그룹화 접미어 패턴 (Controller/Service/ServiceImpl/Repository/Mapper 우선순위 순)
+# ── 허브 파일 휴리스틱 상수 ──────────────────────────────────────────────────────
+#
+# 허브(Hub) 파일: API 엔드포인트를 직접 선언하거나 API 클라이언트 호출을 집중하는 파일.
+# 비허브 파일보다 먼저 읽어 처리함으로써 API 그룹 발견의 우선순위를 높인다.
+# 단, api_discovery_node는 전체 파일을 읽으므로(A안) api_groups 출력계약은 불변.
+
+# 경로 패턴 기반 허브 판별 (PurePosixPath.match() 글롭 패턴 — Python 3.12 ** 지원)
+_HUB_PATH_PATTERNS: list[str] = [
+    "*Controller.java",                  # Spring Controller (예: AuthController.java)
+    "**/controller/**.java",             # controller 패키지 내 모든 .java
+    "**/route.ts",                       # Next.js App Router route 파일 (위치 무관)
+    "**/route.tsx",
+    "**/route.js",
+    "*api.ts",                           # api·client·axios 접미어 TypeScript/JavaScript
+    "*api.js",
+    "*client.ts",
+    "*client.js",
+    "*axios.ts",
+    "*axios.js",
+    "**/routes/**.py",                   # FastAPI 라우터 디렉터리 (routes/ 하위 모든 .py)
+]
+
+
+def _is_hub_file(file_path: str) -> bool:
+    """경로명 기반으로 허브(API 진입점) 파일 여부를 반환한다.
+
+    허브 파일은 API 엔드포인트를 직접 선언하거나 API 클라이언트 호출을 집중하는 파일이다.
+    경로 글롭 패턴(_HUB_PATH_PATTERNS)을 순서대로 검사하여 하나라도 매칭되면 True 반환.
+
+    PurePosixPath.match()를 사용하여 ** (다중 세그먼트 와일드카드)를 지원한다 (Python 3.12+).
+    경로 구분자는 플랫폼 독립 처리를 위해 '/'로 정규화한다.
+    """
+    normalized = file_path.replace("\\", "/")
+    posix_path = PurePosixPath(normalized)
+    for pattern in _HUB_PATH_PATTERNS:
+        if posix_path.match(pattern):
+            return True
+    return False
+
+
+# ── 그룹화 접미어 패턴 (Controller/Service/ServiceImpl/Repository/Mapper 우선순위 순)
 _GROUP_SUFFIXES = [
     "Controller",
     "ServiceImpl",
@@ -349,8 +394,20 @@ async def api_discovery_node(state: AgentState) -> dict:
             session_id, len(target_files), len(files_to_scan),
         )
 
+    # ── 허브 우선 정렬 (A안) ─────────────────────────────────────────────────────
+    # api_groups 출력계약 불변(전체 파일 읽기 유지).
+    # 허브 파일을 먼저 읽어 API 그룹 발견 우선순위를 높인다.
+    hub_files = [f for f in target_files if _is_hub_file(f)]
+    non_hub_files = [f for f in target_files if not _is_hub_file(f)]
+    ordered_target_files = hub_files + non_hub_files
+
+    logger.info(
+        "[api_discovery] session=%s hub_files=%d non_hub_files=%d",
+        session_id, len(hub_files), len(non_hub_files),
+    )
+
     file_contents: dict[str, str] = {}
-    for file_path in target_files:
+    for file_path in ordered_target_files:
         # 절대 경로 구성
         if workspace_root and not os.path.isabs(file_path):
             abs_path = os.path.join(workspace_root, file_path)

@@ -12,6 +12,7 @@ import asyncio
 import logging
 
 import psycopg
+from psycopg_pool import AsyncConnectionPool
 
 from config.settings import settings
 
@@ -22,6 +23,31 @@ logger = logging.getLogger(__name__)
 _cache: dict[str, str] = {}
 
 _ALWAYS_INCLUDED_STACK = "common"
+_pool: AsyncConnectionPool | None = None
+
+
+async def get_pool() -> AsyncConnectionPool:
+    """AsyncConnectionPool 싱글톤을 초기화하고 반환한다."""
+    global _pool
+    if _pool is None:
+        _pool = AsyncConnectionPool(
+            conninfo=settings.postgres_url,
+            min_size=1,
+            max_size=5,
+            kwargs={"autocommit": True},
+            open=False,
+        )
+        await _pool.open()
+    return _pool
+
+
+async def close_pool() -> None:
+    """AsyncConnectionPool 싱글톤을 닫고 해제한다."""
+    global _pool
+    if _pool is not None:
+        await _pool.close()
+        logger.info("[guidelines] Database connection pool closed.")
+        _pool = None
 
 
 def _normalize_stacks(stacks: "str | list[str]") -> list[str]:
@@ -60,7 +86,8 @@ async def load_guidelines(stacks: "str | list[str]") -> str:
     query_stacks = list(set(normalized))
 
     try:
-        async with await psycopg.AsyncConnection.connect(settings.postgres_url) as conn:
+        pool = await get_pool()
+        async with pool.connection() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(
                     """
@@ -119,7 +146,8 @@ async def search_guidelines_by_vuln_type(vuln_type: str, top_k: int = 5) -> str:
             LIMIT %s
         """
 
-        async with await psycopg.AsyncConnection.connect(settings.postgres_url) as conn:
+        pool = await get_pool()
+        async with pool.connection() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(sql, (vector_str, top_k))
                 rows = await cur.fetchall()

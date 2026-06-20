@@ -23,6 +23,7 @@ from api.routes.secret_scan import router as secret_scan_router
 from api.routes.validate_key import router as validate_key_router
 from config.settings import settings
 from infrastructure.checkpointer import set_checkpointer
+from infrastructure.guidelines_client import close_pool
 
 # OpenTelemetry 초기화 — OTEL_ENABLED=true 시에만 활성화
 # asyncio Task 경계에서 ContextVar 전파 단절 방지를 위해 앱 시작 직전에 설정한다.
@@ -115,6 +116,11 @@ async def lifespan(app: FastAPI):
         )
 
     yield
+
+    try:
+        await close_pool()
+    except Exception as exc:
+        logger.warning("Guidelines connection pool 해제 실패: %s", exc)
 
     if _pool is not None:
         await _pool.close()

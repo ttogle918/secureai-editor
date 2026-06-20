@@ -58,11 +58,147 @@ apps/frontend/src/hooks/__tests__/useConfirmPlan.test.ts:86
 
 ---
 
+---
+
+## 묶음 A: useConfirmPlan ApiError 버그 수정
+
+**커밋**: 7548b90  
+**브랜치**: direct-main (소형 테스트전용 fix)
+
+### 완료 작업
+
+| 항목 | 주요 파일 |
+|------|---------|
+| ApiError 생성자 시그니처 정렬 | apps/frontend/src/hooks/__tests__/useConfirmPlan.test.ts (line 86) |
+
+### 의논 내용 & 결정 맥락
+
+- **배경**: §3.2에서 발견한 기존 버그. 사용자가 "Fix 우선 처리" 요청 → 즉시 수정.
+- **수정 내용**: `new ApiError('컨펌 실패','CONFIRM_FAILED',500)` → `new ApiError(500,'CONFIRM_FAILED','컨펌 실패')`  
+  ApiError 정의된 시그니처는 `(status: number, code: string, message: string)`. 테스트에서만 인자 순서 뒤바뀨어 있었음.
+- **검증**: `tsc --noEmit` 0 에러 (프로젝트 전체 클린), useConfirmPlan 6/6 그린, direct-main (무관파일).
+
+### 버그 수정 / 특이사항
+
+- 테스트 전용 1라인 수정. 기존 버그(mock 환경에서만 노출) 해소.
+
+---
+
+## 묶음 B: VC 데모 숫자 정리
+
+**커밋**: 6d788b6  
+**문서**: `docs/21_VC_DEMO_NUMBERS_260620.md` (신규)
+
+### 완료 작업
+
+| 항목 | 주요 파일 |
+|------|---------|
+| VC 피치용 데모 숫자 정리 (961케이스, gemini-2.5-flash baseline) | docs/21_VC_DEMO_NUMBERS_260620.md |
+
+### 의론 내용 & 결정 맥락
+
+- **요구사항**: Sprint 13 완료 게이트 항목 ④ "VC 데모 숫자 확보" → baseline.json(961케이스, gemini-2.5-flash 평가) 측정값을 VC 피치용으로 정직하게 정리.
+
+- **핵심 산출**:
+  - **전체 평균**: 탐지율(recall) 43.9% / 오탐율(FPR) 27.1% / 점수(macro F1) 0.168
+  - **인젝션 계열 합산**(SQLi/CmdI/XPath/PathTraversal/LDAP Injection/XSS): 탐지율 84.6% (강점)
+  - **위생 계열**(Crypto/Config): 탐지율 3.4% (약점 → 전체 평균을 끌어내림)
+  - **계열 분리 프레이밍**: 제품의 강점(인젝션)과 현재 한계(위생) 분리 제시.
+
+- **한계 정직 표기**:
+  - 오탐율 27.1% 높음 (실운영 고려 필요)
+  - Recall 80% 지점의 FPR 산출 불가 (단일 임계값 설정이라 ROC 곡선 산출 불가)
+  - **헤드라인이 비-기본 모델**: gemini-2.5-flash (제품 기본은 Claude)
+  - 위생 계열 ~0% (구조적 한계)
+  - 샘플(961케이스)≠풀런(전체 데이터셋) → 확장성 미보증
+  - VAL-3 "가짜인용" 0건은 구조적 보장(평가셋이 폐쇄, 집계 폐기수 미측정)
+
+- **결정 & 권고**:
+  - 이 숫자들(gemini 평가)은 현재 기술 확보용으로 제시하되, **§6 "제품 기본 모델 Claude로 LIMIT=100 재측정" 권고 명시**.
+  - VAL-2/VAL-3 체크 상태 정보도 표기 (이번 측정 회차에서는 완료 미해당).
+
+---
+
+## 묶음 C: 멀티 프로바이더 모델 선택 확장
+
+**커밋**: bc299b6 (feat/multi-provider-model-selection) → main ff 머지 완료  
+**무관 문서 커밋**: 104f81f (docs: VC 심사 피드백 + 사용자 시나리오)
+
+### 완료 작업
+
+| 항목 | 주요 파일 |
+|------|---------|
+| 사용자 모델선택 체인 검증 + 실제 모델/프로바이더 전달 확인 | 코드추적(Settings → UserService → AnalysisService → AI엔진) |
+| **#1 분석완료 표시 정확화** (하드코딩 Haiku → 실제 모델) | apps/ai_engine/src/api/sse_helpers.py (resolved_model, resolved_provider 추가), apps/frontend/src/components/AppHeader.tsx (event.model/MODEL_RATES 테이블) |
+| **#2 모델 7종 확장** (Claude 3종·Gemini 2종·OpenAI 2종) | apps/backend/src/main/java/io/secureai/common/ModelConstants.java (VALID_MODELS, CREDIT_COST_PER_FILE), apps/frontend/src/lib/constants/models.ts (MODELS with provider label) |
+| **#3 모델→프로바이더 정합화** (자동 유도) | apps/backend/src/main/java/io/secureai/common/ModelConstants.java (providerForModel), apps/backend/src/main/java/io/secureai/user/UserService.java (updateSettings provider 자동 선택) |
+| AI엔진 factory 통합(anthropic/gemini/openai 패스스루) | 기존 지원 확인, 변경 최소 |
+
+### 의논 내용 & 결정 맥락
+
+- **배경**: 사용자가 "FE 모델 선택 기능이 실제로 동작하나" 검증 요청 → 코드추적 결과 전체 체인은 정상이나, **3개 결함 발견**.
+
+- **결함 1: 분석완료 표시 하드코딩**
+  - AppHeader가 `modelId='claude-haiku-4-5'` + Haiku 단가로 고정 → 사용자가 Opus/Gemini 선택해도 항상 "Haiku 사용" 표시.
+  - **해결**: AI엔진 sast_node에서 resolved_model/provider를 상태에 기록 → streaming_helpers의 completed 이벤트에 model/provider 포함 → FE AppHeader가 `event.model` + 모델별 `MODEL_RATES` 테이블로 실제값 반영 (엔진 폴백도 감지).
+
+- **결함 2: 모델 라인업 제한**
+  - 기존 3개(Claude Haiku/Sonnet, Gemini Flash) → 비즈 요청 7종 확장.
+  - Claude Haiku / **Sonnet / Opus 4.8** / Gemini 2.5-Flash/**Pro** / OpenAI GPT-4o-mini/**4o**.
+  - **크레딧 3단계**: 1크레딧/파일(Haiku/GPT-4o-mini) / 5(Sonnet/Gemini-Pro) / 20(Opus/GPT-4o).
+  - FE MODELS 객체: 프로바이더별 그룹 라벨 ("Claude", "Google", "OpenAI").
+
+- **결함 3: 모델→프로바이더 정합화**
+  - handleSaveModel이 preferredModel만 보내면, provider 미스매치 가능 (예: "claude-opus-4.8" 저장했는데 provider가 "gemini"라면 오류).
+  - **해결**: ModelConstants.providerForModel(모델ID prefix 매핑) 신규 함수 + UserService.updateSettings가 선택 모델에서 provider 자동 유도 저장 → 단일 진실원천.
+
+- **AI엔진 영향**: factory.py가 이미 anthropic/gemini/openai 3종 factory 지원 + 모델ID passthrough 기능 있음 → 엔진 변경 최소.
+
+- **의논 & 선택지**:
+  - 사용자가 2개 선택: (A) 모델 라인업=추천 7종 vs 더 다양 / (B) 분석완료 표시 방식=#1 방식(엔진이 model 전달) vs FE 저장값 사용.
+  - **선택 결정**: 추천 7종 + #1 방식(엔진 전달이 더 정확).
+
+- **형상관리**: feat/multi-provider-model-selection → main fast-forward 머지.  
+  무관 스트레이 문서 3건(`docs/feedback/*`, `docs/user_scenarios_updated.md`)은 기능 커밋에서 제외 → 별도 `104f81f docs:` 커밋으로 정리.
+
+### 검증 결과
+
+- **Backend**: `./gradlew test` → ModelConstants 신규 14케이스 + UserService 신규 4케이스 합산 전체 832 통과. 기존 Redis IT 4건만 인프라 의존(테스트 환경 미설정, 기능 회귀 아님).
+- **AI Engine**: streaming 4·sast 18 (신규 model/provider 필드 포함 검증).
+- **Frontend**: `npm test` 118 통과·`tsc --noEmit` 0 에러.
+- **회귀**: 0 (기존 분석/사용자/설정 기능 영향 없음).
+
+### 버그 수정 / 특이사항
+
+- 결함 3건 발견·수정 완료. 회귀 0.
+
+---
+
+## 묶음 D: 잡문서 커밋 + 푸시
+
+**커밋**: 104f81f (docs)  
+**푸시**: main을 origin/main에 반영 (7548b90..104f81f)
+
+### 완료 작업
+
+| 항목 | 주요 파일 |
+|------|---------|
+| VC 심사 피드백 정리 | docs/feedback/ (2건) |
+| 사용자 시나리오 업데이트 | docs/user_scenarios_updated.md |
+| main 푸시 | (워킹트리 클린) |
+
+### 의론 내용 & 결정 맥락
+
+- **배경**: 묶음 A~C의 커밋 후 외부 평가 산출물(VC 심사 피드백, 사용자 시나리오) 보존 필요.
+- **처리**: 기능 커밋과 분리하여 별도 docs 커밋으로 정리.
+- **푸시**: main을 origin/main에 푸시 완료 (7548b90..104f81f).
+
+---
+
 ## 4. 다음 세션에서 할 것
 
-- [ ] Sprint 13 완료 게이트: 이월 #1(FE 타입 fix) ✅ 해소 + baseline 대표런 ✅(이전 세션) → 클로즈에 남은 건 ④ VC 데모 숫자 정리뿐
-- [ ] ② VAL-1 탐지율 개선(recall 0.439↑) → 개선 후 baseline.json + kkebi README 숫자 동기화
-- [ ] ③ kkebi: 시연영상 촬영·README 링크, repo Description/Topics, (선택) 스크린샷
-- [ ] ④ VC 데모 숫자 확보(961케이스 recall/fpr/score 첫 슬라이드화)
-- [ ] (선택) useConfirmPlan.test.ts ApiError 인자 순서 기존버그 별도 fix
-- [ ] fix/fe-vuln-status-normalize 머지분 main 푸시 여부 판단
+- [ ] **버그 우선 처리(사용자 지정)** — eval 재측정 전에 잡을 버그 먼저. (구체 버그는 다음 세션에 사용자가 지정)
+- [ ] **VAL-1 eval 헤드라인 Claude 재측정** — 제품 기본 모델(Claude)로 `make eval` LIMIT=100 재측정 → docs/21_VC_DEMO_NUMBERS §2·§3 갱신 + baseline.json 모델표기 정정 + kkebi README 숫자 동기화. (gemini 결과는 저비용 대조군 병기). ※사용자가 "버그 먼저 잡고" 후 진행 지시.
+- [ ] 모델 선택 멀티프로바이더 **브라우저 에이전트 수동 테스트 보류**(사용자가 미룸) — Settings에서 Gemini/GPT-4o 선택 분석 시 헤더 토스트·Dashboard 토큰차트 모델이 선택값과 일치하는지.
+- [ ] (부채) FE 모델 상수 lib/constants/models.ts 단일화 — 모델 8종+ 시 (Reviewer 권고).
+- [ ] ② VAL-1 탐지율 개선(recall 0.439↑) / ③ kkebi 마감(시연영상·Description/Topics).

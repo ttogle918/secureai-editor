@@ -165,9 +165,14 @@ FE `mockData.ts`의 `VulnStatus = 'open'|'exploited'|'patched'|'pending'`와 서
 | VAL-3 | **가짜인용 0건**(폐기 후 저장 findings는 모두 라인 실재) + Java/Python 동작 + discarded 카운트 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
 | MOAT-1 | 3액션 라벨 저장(독점 데이터 수집 개시) + status 매핑 + 이력 append + 권한 | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
 | VAL-2 | PR eval + baseline 회귀 경고 (TASK-1203 통합) | ✅ 수동 검증 완료 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
-| **Sprint 13 완료** | 위 통과 + **VC 데모 숫자 확보**("FP율 X%/탐지율 Y%" · 가짜인용 차단 수) + 부채대장 잔여 0 + 세션 로그 | 진행 중 (Stage 1·2 완료, baseline 대표런·FE 타입 fix 후속) |
+| **Sprint 13 완료** | 위 통과 + **VC 데모 숫자 확보**("FP율 X%/탐지율 Y%" · 가짜인용 차단 수) + 부채대장 잔여 0 + 세션 로그 | 진행 중 (Stage 1·2 완료, baseline 대표런·FE 타입 fix·VC 숫자 문서화 완료) |
 
 > 산출물의 본질 = **"VC에게 보여줄 첫 슬라이드 숫자"**. VAL-1 숫자가 0순위, VAL-3 가짜인용 차단이 신뢰 증명.
+
+### 후속(open) — VC 숫자 헤드라인 Claude 재측정
+- **현황(2026-06-20)**: VC 데모 숫자는 [docs/21_VC_DEMO_NUMBERS_260620.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/21_VC_DEMO_NUMBERS_260620.md)로 정리 완료. 단 헤드라인이 **비-기본 모델 gemini-2.5-flash**(baseline.json 961케이스) 기준이라, 제품 기본 모델과 불일치.
+- **할 일**: 제품 기본 모델 **Claude로 `make eval` LIMIT=100 재측정** → doc 21 §2·§3 갱신 + `eval/baseline.json` 모델표기 정정 + `eval/check_regression.py` 게이트 재확인 + kkebi README 검증 숫자 동기화. (gemini 결과는 저비용 대조군으로 병기.)
+- **순서**: 사용자 지시로 **버그 우선 처리 후** 착수(2026-06-20 세션). 멀티 프로바이더 모델 선택 확장(`bc299b6`)으로 Settings에서 Claude 모델 선택은 가능하나, eval 하니스는 `EVAL_PROVIDER` 환경변수 경로(제품 설정과 별개)이므로 `EVAL_PROVIDER`/`EVAL_MODEL`로 Claude 지정해 실행.
 
 ---
 

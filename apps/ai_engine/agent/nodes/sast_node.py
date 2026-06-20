@@ -60,6 +60,7 @@ def _detect_stacks(file_path: str, content: str) -> list[str]:
     load_guidelines 가 항상 "common" 을 추가하므로 여기서는 common을 명시하지 않는다.
     이중 파일 읽기 및 경로 순회를 방지하기 위해 content 인자를 그대로 사용한다.
     """
+    normalized_path = file_path.replace("\\", "/").lower()
     ext = os.path.splitext(file_path)[1].lower()
 
     if ext == ".py":
@@ -71,6 +72,26 @@ def _detect_stacks(file_path: str, content: str) -> list[str]:
         else:
             framework = "python_fastapi"
         return ["common_python", framework]
+
+    # 코틀린/자바 파일 분기 (Android vs Spring Boot)
+    if ext in (".java", ".kt"):
+        if "apps/android" in normalized_path:
+            return ["android"]
+        else:
+            return ["java_spring"]
+
+    # 자바스크립트/타입스크립트 분기 (React vs Node)
+    if ext in (".js", ".ts", ".jsx", ".tsx"):
+        if "apps/frontend" in normalized_path:
+            return ["frontend_react_nextjs", "common_js"]
+        elif "apps/mcp_server" in normalized_path:
+            return ["node_express_nestjs", "common_js"]
+        else:
+            # 기본값 (하위 호환성 및 폴백 유지)
+            if ext in (".ts", ".tsx", ".jsx"):
+                return ["frontend_react_nextjs", "common_js"]
+            else:
+                return ["node_express_nestjs", "common_js"]
 
     return list(_EXT_TO_STACKS.get(ext, ["common"]))
 

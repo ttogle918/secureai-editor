@@ -252,6 +252,34 @@ async def test_sast_node_preferred_model_overrides_scan_mode():
 
 # ── _detect_stacks 단위 테스트 ──────────────────────────────────────────────
 
+def test_detect_stacks_android_kotlin_returns_android():
+    """apps/android 경로의 .kt 파일은 ["android"] 를 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("c:\\Users\\ttogl\\workspace\\secureai-editor\\apps\\android\\src\\User.kt", "class User")
+    assert result == ["android"]
+
+
+def test_detect_stacks_android_java_returns_android():
+    """apps/android 경로의 .java 파일은 ["android"] 를 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("/Users/ttogl/workspace/secureai-editor/apps/android/src/UserService.java", "public class UserService {}")
+    assert result == ["android"]
+
+
+def test_detect_stacks_frontend_ts_returns_frontend_react():
+    """apps/frontend 경로의 .ts 파일은 ["frontend_react_nextjs", "common_js"] 를 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("/Users/ttogl/workspace/secureai-editor/apps/frontend/src/page.ts", "export const handler = () => {}")
+    assert result == ["frontend_react_nextjs", "common_js"]
+
+
+def test_detect_stacks_mcp_server_ts_returns_node():
+    """apps/mcp_server 경로의 .ts 파일은 ["node_express_nestjs", "common_js"] 를 반환한다."""
+    from agent.nodes.sast_node import _detect_stacks
+    result = _detect_stacks("/Users/ttogl/workspace/secureai-editor/apps/mcp_server/src/index.ts", "import express from 'express'")
+    assert result == ["node_express_nestjs", "common_js"]
+
+
 def test_detect_stacks_java_returns_java_spring():
     """.java 파일은 content 무관하게 ["java_spring"] 을 반환한다."""
     from agent.nodes.sast_node import _detect_stacks

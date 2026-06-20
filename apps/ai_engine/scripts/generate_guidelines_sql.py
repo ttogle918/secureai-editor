@@ -34,6 +34,7 @@ _STEM_TO_STACK: dict[str, str] = {
     "STACK_frontend_react_nextjs": "frontend_react_nextjs",
     "STACK_go_gin_echo":          "go_gin_echo",
     "STACK_node_express_nestjs":  "node_express_nestjs",
+    "STACK_android":              "android",
 }
 
 

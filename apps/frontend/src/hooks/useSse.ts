@@ -268,7 +268,12 @@ function parseAndDispatch(
   if (!dataPayload || dataPayload === '[DONE]') return;
 
   try {
-    const parsed = JSON.parse(dataPayload) as ProgressEvent;
+    const rawParsed = JSON.parse(dataPayload);
+    // snake_case인 session_id를 camelCase인 sessionId로 정규화하여 매핑
+    const parsed: ProgressEvent = {
+      ...rawParsed,
+      sessionId: rawParsed.sessionId || rawParsed.session_id || _sessionId,
+    };
     onEventRef.current(parsed);
 
     if (parsed.type === 'completed') {

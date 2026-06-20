@@ -4,7 +4,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
-  type Vulnerability, type ChatMessage, type DastLog, type PatchSuggestion, type FileNode,
+  type Vulnerability, type VulnStatus, type ChatMessage, type DastLog, type PatchSuggestion, type FileNode,
 } from '@/lib/mockData';
 import type { SeverityLevel } from '@/types';
 import type { ConfirmStagePlanItem } from '@/hooks/useSse';
@@ -175,9 +175,9 @@ interface SecureStore {
    * 낙관적 갱신: vulns 배열의 대상 항목 status를 즉시 변경한다.
    * API 실패 시 rollbackVulnStatus 로 이전 값을 복원한다.
    */
-  optimisticUpdateVulnStatus: (vulnId: string, newStatus: string) => void;
+  optimisticUpdateVulnStatus: (vulnId: string, newStatus: VulnStatus) => void;
   /** 낙관적 갱신 롤백 — API 실패 시 이전 status로 복원한다 */
-  rollbackVulnStatus: (vulnId: string, prevStatus: string) => void;
+  rollbackVulnStatus: (vulnId: string, prevStatus: VulnStatus) => void;
 
   // ── SSE 세션 ─────────────────────────────────────────────
   sseSessionId: string | null;
@@ -396,13 +396,13 @@ export const useSecureStore = create<SecureStore>()(
   optimisticUpdateVulnStatus: (vulnId, newStatus) =>
     set((s) => ({
       vulns: s.vulns.map((v) =>
-        v.id === vulnId ? { ...v, status: newStatus as Vulnerability['status'] } : v
+        v.id === vulnId ? { ...v, status: newStatus } : v
       ),
     })),
   rollbackVulnStatus: (vulnId, prevStatus) =>
     set((s) => ({
       vulns: s.vulns.map((v) =>
-        v.id === vulnId ? { ...v, status: prevStatus as Vulnerability['status'] } : v
+        v.id === vulnId ? { ...v, status: prevStatus } : v
       ),
     })),
 
@@ -441,7 +441,7 @@ export const useSecureStore = create<SecureStore>()(
       return {
         fileContents: newContents,
         vulns: s.vulns.map((v) =>
-          v.id === vulnId ? { ...v, status: 'patched' as const } : v
+          v.id === vulnId ? { ...v, status: 'fixed' as const } : v
         ),
       };
     }),

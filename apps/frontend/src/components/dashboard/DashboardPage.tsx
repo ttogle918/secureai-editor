@@ -13,6 +13,7 @@ import { TrendLineChart }         from '@/components/dashboard/TrendLineChart';
 import { FileHeatmap }            from '@/components/dashboard/FileHeatmap';
 import { OwaspCoverageMatrix }    from '@/components/dashboard/OwaspCoverageMatrix';
 import { EmptyState }             from '@/components/ui/EmptyState';
+import { isVulnResolved }         from '@/lib/mockData';
 
 type DateRange    = '24h' | '7d' | '30d' | '90d' | 'all';
 type DashViewMode = 'executive' | 'analyst';
@@ -199,7 +200,7 @@ export default function DashboardPage() {
   const localMedium   = useMemo(() => vulns.filter((v) => v.severity === 'medium').length,   [vulns]);
   const localLow      = useMemo(() => vulns.filter((v) => v.severity === 'low').length,      [vulns]);
   const localTotal    = vulns.length;
-  const patched       = useMemo(() => vulns.filter((v) => v.status === 'patched').length, [vulns]);
+  const patched       = useMemo(() => vulns.filter((v) => isVulnResolved(v.status)).length, [vulns]);
 
   const critical   = isApiLive ? apiData.critical   : localCritical;
   const high       = isApiLive ? apiData.high        : localHigh;

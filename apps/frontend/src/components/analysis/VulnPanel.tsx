@@ -1,7 +1,8 @@
 'use client';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Zap, Terminal, XCircle, Copy, ExternalLink, Eye, Sparkles, Check, X } from 'lucide-react';
-import type { Vulnerability, PatchSuggestion } from '@/lib/mockData';
+import type { Vulnerability, VulnStatus, PatchSuggestion } from '@/lib/mockData';
+import { isVulnResolved } from '@/lib/mockData';
 import { useSecureStore } from '@/store/useSecureStore';
 import { EmptyState } from '@/components/ui/EmptyState';
 
@@ -21,18 +22,17 @@ const severityColor: Record<string, string> = {
   low:      'var(--low)',
 };
 
-const statusLabel: Record<string, string> = {
-  open:      '미해결',
-  exploited: '익스플로잇됨',
-  patched:   '패치됨',
-  pending:   '대기중',
+// VulnStatus(서버 정렬: open|false_positive|fixed) 와 1:1 대응
+const statusLabel: Record<VulnStatus, string> = {
+  open:           '미해결',
+  false_positive: '기각됨',
+  fixed:          '패치됨',
 };
 
-const statusColor: Record<string, string> = {
-  open:      'var(--text-secondary)',
-  exploited: 'var(--critical)',
-  patched:   'var(--success)',
-  pending:   'var(--high)',
+const statusColor: Record<VulnStatus, string> = {
+  open:           'var(--text-secondary)',
+  false_positive: 'var(--text-tertiary)',
+  fixed:          'var(--success)',
 };
 
 interface Props {
@@ -522,7 +522,7 @@ export default function VulnPanel({ vulns, patches, selectedId, onSelect }: Prop
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                         {/* Patch/SOLVED 배지 */}
-                        {v.status === 'patched' ? (
+                        {isVulnResolved(v.status) ? (
                           <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 3, background: 'rgba(76,175,80,0.15)', color: '#4caf50', border: '0.5px solid rgba(76,175,80,0.35)' }}>SOLVED</span>
                         ) : patches.find((p) => (p.vulnId && p.vulnId === v.id) || (p.filePath === v.filePath && p.vulnType === v.type)) ? (
                           <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 3, background: 'rgba(234,88,12,0.12)', color: '#f97316', border: '0.5px solid rgba(234,88,12,0.3)' }}>PATCHED</span>

@@ -4,6 +4,7 @@ import { useSecureStore } from '@/store/useSecureStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { apiClient } from '@/lib/api/client';
 import type { Severity, VulnCategory, Vulnerability, PatchSuggestion } from '@/lib/mockData';
+import { normalizeVulnStatus } from '@/lib/mockData';
 
 interface SessionItem {
   id: string;
@@ -128,7 +129,7 @@ export function useLoadLatestResults() {
             description:   v.description ?? '',
             cweId:         v.cwe ?? '',
             owaspCategory: v.owasp ?? '',
-            status:        'open',
+            status:        normalizeVulnStatus(v.status),
           };
           addVuln(vuln);
         }

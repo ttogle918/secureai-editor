@@ -6,6 +6,10 @@
 export type SeverityLevel = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
 // ── Vulnerability ─────────────────────────────────────────
+// NOTE: 이 인터페이스는 현재 미사용(어디서도 import되지 않음).
+// 활성 취약점 타입은 `@/lib/mockData`의 Vulnerability + VulnStatus 를 사용한다.
+// 필드 shape(title/line/cwe/owaspId)가 mockData 의 Vulnerability 와 달라
+// 단순 병합 불가 — 향후 타입 통합 시 별도 리팩터링 필요.
 export interface Vulnerability {
   id: string;
   severity: SeverityLevel;

@@ -13,7 +13,8 @@ import { useVulnFilter } from '@/hooks/useVulnFilter';
 import { useTranslate } from '@/hooks/useTranslate';
 import { CallChainView } from '@/components/analysis/CallChainView';
 import FilterBar from '@/components/ui/FilterBar';
-import type { Vulnerability } from '@/lib/mockData';
+import type { Vulnerability, VulnStatus } from '@/lib/mockData';
+import { isVulnResolved } from '@/lib/mockData';
 import { deriveEndpoint } from '@/lib/vulnUtils';
 import { BASE_URL, getAccessToken, apiClient } from '@/lib/api/client';
 
@@ -37,7 +38,7 @@ function TriageSection({ vuln }: { vuln: Vulnerability }) {
   };
 
   /** action → vuln status 낙관적 매핑 */
-  const actionToStatus: Record<TriageAction, string> = {
+  const actionToStatus: Record<TriageAction, VulnStatus> = {
     CONFIRM:      'open',
     DISMISS:      'false_positive',
     ACCEPT_PATCH: 'fixed',
@@ -393,8 +394,14 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
   const displayLanguage   = useSecureStore((s) => s.displayLanguage);
 
   const [isFixing,       setIsFixing]       = useState(false);
-  const [patchApplied,   setPatchApplied]   = useState(vuln.status === 'patched');
+  const [patchApplied,   setPatchApplied]   = useState(isVulnResolved(vuln.status));
   const [translatedDesc, setTranslatedDesc] = useState<string | null>(null);
+
+  // 트리아지(ACCEPT_PATCH) 등 store status 변경 시 SOLVED 배지 동기화.
+  // handleFix 의 낙관적 setPatchApplied(true) 와 양립 — resolved면 항상 반영.
+  useEffect(() => {
+    if (isVulnResolved(vuln.status)) setPatchApplied(true);
+  }, [vuln.status]);
 
   const { translate, translating } = useTranslate();
 

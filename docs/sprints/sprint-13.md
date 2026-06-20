@@ -125,6 +125,8 @@
 #### ⚠️ 이월(다음 스테이지 처리) — FE VulnStatus 타입 불일치
 FE `mockData.ts`의 `VulnStatus = 'open'|'exploited'|'patched'|'pending'`와 서버 반환값(`false_positive`/`fixed`)이 불일치. MOAT-1 낙관적 갱신은 `as` 캐스팅으로 처리 중이나, `VulnCard`의 `vuln.status==='patched'` 체크가 서버 `fixed`와 어긋남. → **서버 enum↔FE 타입 정규화 매핑 레이어** 필요(Reviewer 비차단 권고 #2). Stage 2 또는 별도 fix에서 처리. (Stage 2 시점 미처리 — 별도 fix로 잔존.)
 
+> **✅ 해소 (2026-06-20, 별도 fix `5385e5e`)**: `VulnStatus`를 서버 정렬 `'open'|'false_positive'|'fixed'`로 단일화 + `normalizeVulnStatus`/`isVulnResolved` 헬퍼 도입. ingest 경계(`useLoadLatestResults`) 서버 status 정규화로 새로고침 시 트리아지 상태 소실도 함께 해소. `applyPatch 'patched'→'fixed'`, 표시 로직(`VulnCard`/`VulnPanel`/`DashboardPage`) `=== 'patched'`→`isVulnResolved()`, `VulnPanel` statusLabel/statusColor 캐논값 정렬, `patchApplied` 트리아지 경로 동기화. FE 103 그린(헬퍼 단위 12 신규). 세션로그: [2026-06-20](file:///c:/Users/ttogl/workspace/secureai-editor/docs/session_log/2026-06-20_session-summary.md).
+
 ---
 
 ## ✅ Stage 2 완료 (2026-06-18) — 브랜치 `feat/sprint13-val`

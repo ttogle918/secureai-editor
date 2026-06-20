@@ -9,6 +9,7 @@ import { apiClient, BASE_URL } from '@/lib/api/client';
 import { useSecureStore, type DisplayLanguage, type AiTone } from '@/store/useSecureStore';
 import { MOCK_CREDITS } from '@/lib/uiMockData';
 import { ScanModeSelector } from '@/components/analysis/ScanModeSelector';
+import { MODELS, MODEL_PROVIDER_ORDER, PROVIDER_GROUP_LABELS, DEFAULT_MODEL_ID } from '@/lib/constants/models';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -74,40 +75,6 @@ const PROVIDERS: Array<{
   },
 ];
 
-type ModelProvider = 'anthropic' | 'gemini' | 'openai';
-
-interface ModelOption {
-  id: string;
-  label: string;
-  provider: ModelProvider;
-  providerLabel: string;
-  desc: string;
-  creditCost: number;
-  color: string;
-}
-
-const MODELS: ModelOption[] = [
-  // ── Anthropic (Claude) ─────────────────────────────────────────────────────
-  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5',  provider: 'anthropic', providerLabel: 'Claude', desc: '빠르고 저렴 — 대부분의 프로젝트에 추천', creditCost: 1,  color: '#22c55e' },
-  { id: 'claude-sonnet-4-6',          label: 'Claude Sonnet 4.6', provider: 'anthropic', providerLabel: 'Claude', desc: '균형 잡힌 성능 — 복잡한 코드베이스에 최적', creditCost: 5,  color: '#f59e0b' },
-  { id: 'claude-opus-4-8',            label: 'Claude Opus 4.8',   provider: 'anthropic', providerLabel: 'Claude', desc: '최고 성능 — 대규모·고위험 분석', creditCost: 20, color: '#818cf8' },
-  // ── Google Gemini ──────────────────────────────────────────────────────────
-  { id: 'gemini-2.5-flash',            label: 'Gemini 2.5 Flash',  provider: 'gemini',    providerLabel: 'Gemini', desc: '빠른 멀티모달 모델 — 저비용 대규모 스캔', creditCost: 1,  color: '#34d399' },
-  { id: 'gemini-2.5-pro',              label: 'Gemini 2.5 Pro',    provider: 'gemini',    providerLabel: 'Gemini', desc: '고성능 Gemini — 정밀 분석에 최적', creditCost: 5,  color: '#10b981' },
-  // ── OpenAI ─────────────────────────────────────────────────────────────────
-  { id: 'gpt-4o-mini',                 label: 'GPT-4o mini',       provider: 'openai',    providerLabel: 'OpenAI', desc: '경량·고속 GPT — 빠른 정적 분석', creditCost: 1,  color: '#60a5fa' },
-  { id: 'gpt-4o',                      label: 'GPT-4o',            provider: 'openai',    providerLabel: 'OpenAI', desc: '최신 GPT — 복잡한 취약점 패턴 분석', creditCost: 5,  color: '#3b82f6' },
-];
-
-/** provider별 모델 그룹 순서 */
-const MODEL_PROVIDER_ORDER: ModelProvider[] = ['anthropic', 'gemini', 'openai'];
-
-const PROVIDER_GROUP_LABELS: Record<ModelProvider, string> = {
-  anthropic: 'Claude (Anthropic)',
-  gemini:    'Gemini (Google)',
-  openai:    'GPT (OpenAI)',
-};
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const LANGUAGES: Array<{ id: DisplayLanguage; label: string; desc: string }> = [
@@ -144,7 +111,7 @@ export default function SettingsPage() {
   });
   const [selectedProvider, setSelectedProvider] = useState<SupportedProvider>('anthropic');
 
-  const [selectedModel, setSelectedModel] = useState('claude-haiku-4-5-20251001');
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
   const [modelStatus, setModelStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   // GitHub 설정 상태

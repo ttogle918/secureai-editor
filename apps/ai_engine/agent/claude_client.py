@@ -53,13 +53,14 @@ Framework-aware rules (do NOT report these as HIGH/MEDIUM SECURITY):
 - CSS class name generation in JS (e.g. tailwind, clsx) is NOT injection
 - `Date.now()` / `Math.random()` for non-security IDs is CODE_QUALITY, not CRITICAL
 
-PHP-specific patterns (ALWAYS report these as CRITICAL/HIGH SECURITY):
-- `$_GET`, `$_POST`, `$_REQUEST` used directly in SQL queries → SQL_INJECTION CRITICAL
-- `echo $_GET[...]` or `echo $_POST[...]` without htmlspecialchars → XSS HIGH
-- `include($_GET[...])` or `require($_GET[...])` → PATH_TRAVERSAL CRITICAL
-- `system()`, `exec()`, `shell_exec()` with user input → COMMAND_INJECTION CRITICAL
-- `mysql_query()` with unescaped user input → SQL_INJECTION CRITICAL
-- `$_FILES` without proper validation → UNRESTRICTED_FILE_UPLOAD HIGH\
+Common vulnerability patterns (ALWAYS report these as CRITICAL/HIGH SECURITY):
+- SQL Injection (CWE-89): Raw sql queries constructed using string concatenation/interpolation with user input without parameterized queries (e.g. `mysql_query()`, `db.rawQuery()`, `execute()`).
+- Command Injection (CWE-78): Running shell or system commands (e.g., `system()`, `exec()`, `shell_exec()`, `subprocess.run()`) with unvalidated user input.
+- Path Traversal (CWE-22): File access using paths derived from unvalidated user input (e.g., `include()`, `require()`, `os.ReadFile()`).
+- Cross-Site Scripting (XSS) (CWE-79): Direct output of user input to HTML without proper escaping/sanitization (e.g. `echo $_GET[...]`, `response.write()`).
+- Insecure Deserialization (CWE-502): Deserializing untrusted data without validation.
+- Unrestricted File Upload (CWE-434): File uploads allowed without proper validation.
+- Hardcoded Cryptographic Keys (CWE-321): Hardcoding encryption keys, tokens, or passwords in source code.
 """
 
 

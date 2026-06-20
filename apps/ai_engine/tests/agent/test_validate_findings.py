@@ -286,10 +286,10 @@ def test_verify_finding_ts_code_passes():
 
 
 def test_verify_finding_path_traversal_blocked():
-    """경로 순회 패턴이 포함된 finding → pass-through (차단 후 안전 처리)."""
+    """경로 순회 패턴이 포함된 finding → verified=False (차단 및 폐기)."""
     finding = {"file": "../../etc/passwd", "line": 1, "type": "PATH_TRAVERSAL"}
     result = verify_finding(finding, "root:x:0:0\n", "python")
-    assert result["verified"] is True  # 차단하지만 폐기하지 않음(pass-through)
+    assert result["verified"] is False  # 차단하여 폐기
     assert "path traversal" in result["reason"]
 
 

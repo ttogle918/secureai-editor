@@ -97,7 +97,7 @@ def verify_finding(finding: dict, file_content: str, language: str) -> VerifyRes
     file_path: str = finding.get("file", "")
     if file_path and not _is_safe_path(file_path):
         logger.warning("[ast_verifier] path traversal attempt blocked: %s", file_path)
-        return {"verified": True, "reason": "path traversal blocked — pass-through"}
+        return {"verified": False, "reason": "path traversal blocked"}
 
     # line 정보 없으면 file 존재만 확인 (line 0, None, 빈 값 모두 포함)
     raw_line = finding.get("line")

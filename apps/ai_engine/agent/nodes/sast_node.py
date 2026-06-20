@@ -232,6 +232,11 @@ async def sast_node(state: AgentState) -> dict:
     total_files = len(files)
     progress_percent = (idx + 1) / total_files * 100
 
+    # 실제 사용 모델/프로바이더 — try 블록 내에서 결정 후 기록된다.
+    # 예외 발생 시에도 update 키가 안전하도록 미리 None으로 초기화.
+    resolved_provider: str | None = None
+    preferred_model: str | None = None
+
     logger.info("[sast] session=%s file=%s (%d/%d)", session_id, file_path, idx + 1, total_files)
     await log_started(session_id, "sast", _STEP_ORDER, target=file_path)
     await _publish_scanning(session_id, file_path, idx, total_files)
@@ -355,8 +360,15 @@ async def sast_node(state: AgentState) -> dict:
           result = {"file": file_path, "vulnerabilities": [], "error": str(exc)}
 
     prev_usage = state.get("token_usage") or dict(_EMPTY_USAGE)
-    return {
+    update: dict = {
         "sast_results": state.get("sast_results", []) + [result],
         "progress_percent": progress_percent,
         "token_usage": _add_usage(prev_usage, file_usage),
     }
+    # 실제 분석에 사용된 모델/프로바이더를 state에 기록한다.
+    # 다중 파일 루프에서 동일 preferred_model을 쓰므로 첫 번째 파일에서
+    # 한 번 기록하면 충분하고, 이후 루프에서 덮어써도 동일 값이다.
+    if resolved_provider and preferred_model:
+        update["resolved_provider"] = resolved_provider
+        update["resolved_model"] = preferred_model
+    return update

@@ -1,12 +1,14 @@
 package io.secureai.backend.domain.user.service;
 
 import io.secureai.backend.domain.plan.Plan;
+import io.secureai.backend.domain.user.dto.UpdateSettingsRequest;
 import io.secureai.backend.domain.user.dto.UserMeResponse;
 import io.secureai.backend.domain.user.entity.User;
 import io.secureai.backend.domain.user.repository.RefreshTokenRepository;
 import io.secureai.backend.domain.user.repository.UserRepository;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
+import io.secureai.backend.global.model.ModelConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -90,6 +92,74 @@ class UserServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
+    // ── updateSettings — 모델→provider 자동 유도 ─────────────────────────────
+
+    private Plan buildMockPlan() {
+        // CreditSummaryResponse.from(user) 는 Plan 필드를 사용하지 않으므로
+        // 불필요한 stubbing 없이 bare mock만 반환한다.
+        return mock(Plan.class);
+    }
+
+    @Test
+    @DisplayName("updateSettings — claude 모델 선택 시 preferredProvider가 anthropic으로 자동 설정된다")
+    void updateSettings_claudeModel_setsProviderAnthropic() {
+        User realUser = User.builder()
+                .email("a@b.com").username("dev").plan(buildMockPlan())
+                .preferredModel(ModelConstants.HAIKU)
+                .preferredProvider("anthropic")
+                .build();
+        when(userRepository.findByIdWithPlan(userId)).thenReturn(Optional.of(realUser));
+
+        userService.updateSettings(userId, new UpdateSettingsRequest(ModelConstants.SONNET, null));
+
+        assertThat(realUser.getPreferredModel()).isEqualTo(ModelConstants.SONNET);
+        assertThat(realUser.getPreferredProvider()).isEqualTo("anthropic");
+        verify(userRepository).save(realUser);
+    }
+
+    @Test
+    @DisplayName("updateSettings — gemini 모델 선택 시 preferredProvider가 gemini로 자동 설정된다")
+    void updateSettings_geminiModel_setsProviderGemini() {
+        User realUser = User.builder()
+                .email("a@b.com").username("dev").plan(buildMockPlan())
+                .preferredModel(ModelConstants.HAIKU)
+                .preferredProvider("anthropic")
+                .build();
+        when(userRepository.findByIdWithPlan(userId)).thenReturn(Optional.of(realUser));
+
+        userService.updateSettings(userId, new UpdateSettingsRequest(ModelConstants.GEMINI_FLASH, null));
+
+        assertThat(realUser.getPreferredModel()).isEqualTo(ModelConstants.GEMINI_FLASH);
+        assertThat(realUser.getPreferredProvider()).isEqualTo("gemini");
+        verify(userRepository).save(realUser);
+    }
+
+    @Test
+    @DisplayName("updateSettings — gpt 모델 선택 시 preferredProvider가 openai로 자동 설정된다")
+    void updateSettings_gptModel_setsProviderOpenai() {
+        User realUser = User.builder()
+                .email("a@b.com").username("dev").plan(buildMockPlan())
+                .preferredModel(ModelConstants.HAIKU)
+                .preferredProvider("anthropic")
+                .build();
+        when(userRepository.findByIdWithPlan(userId)).thenReturn(Optional.of(realUser));
+
+        userService.updateSettings(userId, new UpdateSettingsRequest(ModelConstants.GPT4O, null));
+
+        assertThat(realUser.getPreferredModel()).isEqualTo(ModelConstants.GPT4O);
+        assertThat(realUser.getPreferredProvider()).isEqualTo("openai");
+        verify(userRepository).save(realUser);
+    }
+
+    @Test
+    @DisplayName("updateSettings — 미지원 모델은 IllegalArgumentException을 던진다")
+    void updateSettings_invalidModel_throwsException() {
+        // request.validate() 는 loadUser 전에 실행되므로 repository stub 불필요
+        assertThatThrownBy(() ->
+                userService.updateSettings(userId, new UpdateSettingsRequest("invalid-model-xyz", null))
+        ).isInstanceOf(IllegalArgumentException.class);
     }
 
     // ── updateWorkspaceMode (TASK-1101) ───────────────────────────────────────

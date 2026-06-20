@@ -101,9 +101,9 @@ public class UserService {
         request.validate();
         User user = loadUser(userId);
         user.setPreferredModel(request.preferredModel());
-        if (request.preferredProvider() != null) {
-            user.setPreferredProvider(request.preferredProvider());
-        }
+        // 단일 진실원천: 선택한 모델에서 provider를 자동 유도한다.
+        // 요청의 preferredProvider 유무와 무관하게 모델 기준으로 덮어쓴다.
+        user.setPreferredProvider(ModelConstants.providerForModel(request.preferredModel()));
         userRepository.save(user);
         return CreditSummaryResponse.from(user);
     }

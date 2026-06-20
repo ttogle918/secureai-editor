@@ -37,6 +37,38 @@ import { deriveApiGroup } from '@/lib/vulnUtils';
 const SEV_FILTERS: Array<'critical' | 'high' | 'medium' | 'low'> = ['critical', 'high', 'medium', 'low'];
 const VALID_CATS: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
 
+/**
+ * 모델별 토큰 단가 (USD per 1M tokens).
+ * 표시용 추정치 — 권위 비용 기록은 백엔드 token_usage 참조.
+ * cache_write / cache_read는 Anthropic 전용. Gemini/OpenAI는 0으로 처리.
+ */
+interface ModelRate {
+  input: number;
+  output: number;
+  cacheWrite: number;
+  cacheRead: number;
+}
+
+const MODEL_RATES: Record<string, ModelRate> = {
+  'claude-haiku-4-5-20251001': { input: 0.80,  output: 4.00,   cacheWrite: 1.00,  cacheRead: 0.08  },
+  'claude-sonnet-4-6':          { input: 3.00,  output: 15.00,  cacheWrite: 3.75,  cacheRead: 0.30  },
+  'claude-opus-4-8':            { input: 15.00, output: 75.00,  cacheWrite: 18.75, cacheRead: 1.50  },
+  'gemini-2.5-flash':           { input: 0.15,  output: 0.60,   cacheWrite: 0,     cacheRead: 0     },
+  'gemini-2.5-pro':             { input: 1.25,  output: 10.00,  cacheWrite: 0,     cacheRead: 0     },
+  'gpt-4o-mini':                { input: 0.15,  output: 0.60,   cacheWrite: 0,     cacheRead: 0     },
+  'gpt-4o':                     { input: 2.50,  output: 10.00,  cacheWrite: 0,     cacheRead: 0     },
+} as const;
+
+/** 폴백 단가 — 미지원 모델 시 Haiku 단가 사용 */
+const FALLBACK_RATE: ModelRate = MODEL_RATES['claude-haiku-4-5-20251001'];
+
+function calcCostUsd(
+  inp: number, out: number, cw: number, cr: number, modelId: string,
+): number {
+  const rate = MODEL_RATES[modelId] ?? FALLBACK_RATE;
+  return (inp * rate.input + out * rate.output + cw * rate.cacheWrite + cr * rate.cacheRead) / 1_000_000;
+}
+
 interface AppHeaderProps {
   onExportJSON?: () => void;
 }
@@ -146,6 +178,8 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           .catch(() => {});
 
         const totalVulns = event.vuln_count ?? 0;
+        // 엔진이 실제 사용한 모델. 없으면 Haiku 폴백(하위 호환).
+        const resolvedModelId: string = (event as { model?: string }).model ?? 'claude-haiku-4-5-20251001';
         const usage = event.token_usage as {
           input_tokens: number; output_tokens: number;
           cache_creation_input_tokens?: number; cache_read_input_tokens?: number;
@@ -154,10 +188,10 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           const inp = usage.input_tokens, out = usage.output_tokens;
           const cw = usage.cache_creation_input_tokens ?? 0;
           const cr = usage.cache_read_input_tokens ?? 0;
-          const costUsd = (inp * 0.80 + out * 4.00 + cw * 1.00 + cr * 0.08) / 1_000_000;
+          const costUsd = calcCostUsd(inp, out, cw, cr, resolvedModelId);
           setLastTokenUsage({
             inputTokens: inp, outputTokens: out, cacheWriteTokens: cw, cacheReadTokens: cr,
-            estimatedCostUsd: costUsd, modelId: 'claude-haiku-4-5',
+            estimatedCostUsd: costUsd, modelId: resolvedModelId,
           });
           const totalTokens = inp + out + cw + cr;
           addToast(`분석 완료 — 취약점 ${totalVulns}개 · ${(totalTokens / 1000).toFixed(1)}k 토큰 · $${costUsd.toFixed(4)}`, 'info');

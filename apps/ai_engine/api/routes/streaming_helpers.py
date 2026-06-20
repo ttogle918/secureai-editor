@@ -207,7 +207,16 @@ async def _handle_node_event(
         results = state.get("sast_results", [])
         vuln_count = sum(len(r.get("vulnerabilities", [])) for r in results)
         token_usage = state.get("token_usage", {})
-        await publish("completed", vuln_count=vuln_count, results=results, token_usage=token_usage)
+        resolved_model = state.get("resolved_model")
+        resolved_provider = state.get("resolved_provider")
+        await publish(
+            "completed",
+            vuln_count=vuln_count,
+            results=results,
+            token_usage=token_usage,
+            model=resolved_model,
+            provider=resolved_provider,
+        )
 
 
 def _update_last_stage_no(

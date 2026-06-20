@@ -74,11 +74,39 @@ const PROVIDERS: Array<{
   },
 ];
 
-const MODELS = [
-  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku', tier: 'haiku', desc: '빠르고 저렴 — 대부분의 프로젝트에 추천', creditCost: 1, color: '#22c55e' },
-  { id: 'claude-sonnet-4-6',          label: 'Claude Sonnet', tier: 'sonnet', desc: '균형 잡힌 성능 — 복잡한 코드베이스에 최적', creditCost: 5, color: '#f59e0b' },
-  { id: 'claude-opus-4-7',            label: 'Claude Opus',   tier: 'opus',   desc: '최고 성능 — 대규모·고위험 분석', creditCost: 20, color: '#818cf8' },
-] as const;
+type ModelProvider = 'anthropic' | 'gemini' | 'openai';
+
+interface ModelOption {
+  id: string;
+  label: string;
+  provider: ModelProvider;
+  providerLabel: string;
+  desc: string;
+  creditCost: number;
+  color: string;
+}
+
+const MODELS: ModelOption[] = [
+  // ── Anthropic (Claude) ─────────────────────────────────────────────────────
+  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5',  provider: 'anthropic', providerLabel: 'Claude', desc: '빠르고 저렴 — 대부분의 프로젝트에 추천', creditCost: 1,  color: '#22c55e' },
+  { id: 'claude-sonnet-4-6',          label: 'Claude Sonnet 4.6', provider: 'anthropic', providerLabel: 'Claude', desc: '균형 잡힌 성능 — 복잡한 코드베이스에 최적', creditCost: 5,  color: '#f59e0b' },
+  { id: 'claude-opus-4-8',            label: 'Claude Opus 4.8',   provider: 'anthropic', providerLabel: 'Claude', desc: '최고 성능 — 대규모·고위험 분석', creditCost: 20, color: '#818cf8' },
+  // ── Google Gemini ──────────────────────────────────────────────────────────
+  { id: 'gemini-2.5-flash',            label: 'Gemini 2.5 Flash',  provider: 'gemini',    providerLabel: 'Gemini', desc: '빠른 멀티모달 모델 — 저비용 대규모 스캔', creditCost: 1,  color: '#34d399' },
+  { id: 'gemini-2.5-pro',              label: 'Gemini 2.5 Pro',    provider: 'gemini',    providerLabel: 'Gemini', desc: '고성능 Gemini — 정밀 분석에 최적', creditCost: 5,  color: '#10b981' },
+  // ── OpenAI ─────────────────────────────────────────────────────────────────
+  { id: 'gpt-4o-mini',                 label: 'GPT-4o mini',       provider: 'openai',    providerLabel: 'OpenAI', desc: '경량·고속 GPT — 빠른 정적 분석', creditCost: 1,  color: '#60a5fa' },
+  { id: 'gpt-4o',                      label: 'GPT-4o',            provider: 'openai',    providerLabel: 'OpenAI', desc: '최신 GPT — 복잡한 취약점 패턴 분석', creditCost: 5,  color: '#3b82f6' },
+];
+
+/** provider별 모델 그룹 순서 */
+const MODEL_PROVIDER_ORDER: ModelProvider[] = ['anthropic', 'gemini', 'openai'];
+
+const PROVIDER_GROUP_LABELS: Record<ModelProvider, string> = {
+  anthropic: 'Claude (Anthropic)',
+  gemini:    'Gemini (Google)',
+  openai:    'GPT (OpenAI)',
+};
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -734,35 +762,52 @@ export default function SettingsPage() {
             분석에 사용할 기본 모델을 선택하세요. BYOK 연결 시 크레딧 없이 모든 모델 사용이 가능합니다.
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* API: PUT /api/v1/users/me/settings — { preferredModel } */}
-            {MODELS.map((m) => {
-              const active = selectedModel === m.id;
+          {/* API: PUT /api/v1/users/me/settings — { preferredModel } */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {MODEL_PROVIDER_ORDER.map((provider) => {
+              const group = MODELS.filter((m) => m.provider === provider);
               return (
-                <button
-                  key={m.id}
-                  onClick={() => handleSaveModel(m.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 16,
-                    padding: '14px 18px', borderRadius: 10,
-                    background: active ? `${m.color}10` : 'rgba(255,255,255,0.02)',
-                    border: `1px solid ${active ? m.color + '55' : 'rgba(255,255,255,0.08)'}`,
-                    cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s',
-                  }}
-                >
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: active ? '#e8e8ee' : 'rgba(255,255,255,0.6)', marginBottom: 2 }}>{m.label}</div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{m.desc}</div>
-                  </div>
+                <div key={provider}>
+                  {/* provider 그룹 헤더 */}
                   <div style={{
-                    fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                    background: `${m.color}18`, color: m.color, fontFamily: 'var(--font-mono)', flexShrink: 0,
+                    fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.25)',
+                    textTransform: 'uppercase', letterSpacing: '0.08em',
+                    marginBottom: 8,
                   }}>
-                    {m.creditCost} cr/파일
+                    {PROVIDER_GROUP_LABELS[provider]}
                   </div>
-                  {active && <Check size={15} color={m.color} />}
-                </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {group.map((m) => {
+                      const active = selectedModel === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          onClick={() => handleSaveModel(m.id)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 16,
+                            padding: '14px 18px', borderRadius: 10,
+                            background: active ? `${m.color}10` : 'rgba(255,255,255,0.02)',
+                            border: `1px solid ${active ? m.color + '55' : 'rgba(255,255,255,0.08)'}`,
+                            cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s',
+                          }}
+                        >
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: active ? '#e8e8ee' : 'rgba(255,255,255,0.6)', marginBottom: 2 }}>{m.label}</div>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{m.desc}</div>
+                          </div>
+                          <div style={{
+                            fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                            background: `${m.color}18`, color: m.color, fontFamily: 'var(--font-mono)', flexShrink: 0,
+                          }}>
+                            {m.creditCost} cr/파일
+                          </div>
+                          {active && <Check size={15} color={m.color} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </div>

@@ -64,6 +64,11 @@ class AgentState(TypedDict):
     # 토큰 사용량 누적 (input, output, cache_creation_input, cache_read_input)
     token_usage: dict
 
+    # 실제 분석에 사용된 모델/프로바이더 (sast_node가 provider 결정 후 기록)
+    # completed 이벤트에 포함되어 FE에 정확한 모델/비용 표시에 활용된다.
+    resolved_model: str | None
+    resolved_provider: str | None
+
     # STAGE-2: 사용자 컨펌 게이트
     # True = 사용자가 계획을 확인하고 분석 재개를 승인함
     # planning_node interrupt 후 /agent/confirm 으로 설정

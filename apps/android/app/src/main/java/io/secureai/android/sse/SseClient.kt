@@ -53,7 +53,7 @@ class SseClient @Inject constructor(private val okHttpClient: OkHttpClient) {
      */
     fun observeSession(sessionId: String, baseUrl: String): Flow<SseResult> = callbackFlow {
         val request = Request.Builder()
-            .url("${baseUrl}api/v1/sessions/$sessionId/events")
+            .url("${baseUrl}api/v1/analysis/sessions/$sessionId/stream")
             .addHeader("Accept", "text/event-stream")
             .addHeader("Cache-Control", "no-cache")
             .build()

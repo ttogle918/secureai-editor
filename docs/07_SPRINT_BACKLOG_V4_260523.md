@@ -1459,6 +1459,63 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 ---
 
+## EPIC-ECON — 토큰 경제성 정식화 (Sprint 번호 미배정 · 잠정 19)
+> **출처**: 2026-06-20 VC 피드백 2건(토큰 단위 경제성 = 단기 3대 마일스톤) + `18_VC_REVIEW_RESPONSE_260530.md` EPIC-ECON.
+> ⚠️ **백로그 편입 단계** — 실행 계획(`/stage`)은 미수립. Sprint 13~18 진행 후 순서·번호 확정. (VC 우선순위상 앞당길 여지 있음 — 별도 판단)
+> 🔎 **PM 실측 스코핑(2026-06-20)**: 아래 "현황(실측)"이 각 태스크 스코프를 크게 줄인다 — "신규 구현"으로 착각하지 말 것.
+
+### TASK-1331 ⚡ 프롬프트 캐싱 효과 계측 + 적중률 극대화
+- **중요도**: 🟠 High | **사이즈**: S
+- **현황(실측)**: Anthropic prompt caching(`cache_control:ephemeral`)은 **이미 구현됨**(`apps/ai_engine/agent/llm/anthropic_provider.py:52`), usage 4키 집계도 존재 → "신규 구현"이 아니라 **계측 + 적중률 리팩터**로 재정의.
+- **하위 할일**
+  - [ ] `prev_vuln_context`(가변)가 system(캐시 대상) 블록을 오염시켜 프로젝트별 적중률을 깨뜨리는지 측정 → 가변 컨텍스트를 user 메시지로 이동
+  - [ ] 캐시 적중률 Prometheus 메트릭(`cache_read`/`cache_creation` Counter) 추가
+  - [ ] 캐시 전/후 input_tokens 절감률 숫자 1개 확보(VC 자료)
+- **테스트 체크리스트**
+  - [ ] 🧪 동일 가이드라인 2회 호출 → 2번째 cache_read>0 (mock usage)
+  - [ ] 🧪 prev_vuln_context가 user에 포함됨 단언
+  - [ ] ✅ 실런 1회로 실제 cache_read>0 관측(수동)
+
+### TASK-1332 증분 스캔 완성 (diff 라인 한정 + 야간 풀스캔 라우팅)
+- **중요도**: 🟠 High | **사이즈**: S (PM 하향 권고 — Dev 현실성 평가 미반영)
+- **현황(실측)**: PR 변경파일 경로는 **이미 end-to-end 연결**(`GitHubWebhookService.java:190,238` → AI Engine `file_filter`, TASK-1106). 야간 풀스캔 인프라(`project_schedules` V044, TASK-1001)도 존재 → 신규는 diff **라인(hunk) 한정** + PR=AUDIT·야간=PIPELINE 라우팅 보장 + 절감률 계측.
+- **하위 할일**
+  - [ ] PR patch에서 hunk 라인범위 파싱 → `changed_line_ranges`로 AI Engine 전달(`StartAnalysisRequest` 필드 추가, nullable=전체 폴백)
+  - [ ] sast_node가 changed_line_ranges 있으면 해당 인근만 한정(없으면 전체 — 하위호환)
+  - [ ] 야간 스케줄이 풀스캔(PIPELINE)으로 동작함을 명시·검증
+- **테스트 체크리스트**
+  - [ ] 🧪 changed_line_ranges 주어지면 해당 범위만 대상
+  - [ ] 🧪 patch 파싱 실패 → 전체 폴백(recall 보호)
+  - [ ] ✅ PR vs 풀스캔 토큰 절감률 숫자 확보(수동)
+
+### TASK-1333 🔬 모델 캐스케이드 (cheap-screen → expensive-confirm)
+- **중요도**: 🟠 High | **사이즈**: M
+- **현황(실측)**: settings에 AUDIT/PIPELINE 2-tier(스캔모드별 전체 라우팅)는 있으나 **한 스캔 내 2-pass(싼 모델 1차→의심 후보만 비싼 모델)는 미구현** — 진짜 신규.
+- **하위 할일**
+  - [ ] 신규 `cascade_screen_node`(sast_node 비대 방지) — 1차 haiku 스크리닝 → 후보 파일만 2차 sonnet 정밀
+  - [ ] graph 분기 `route_after_cascade`(needs_deep_scan), settings `cascade_enabled`(기본 off — 안전)
+  - [ ] cascade on/off 토큰·탐지율 비교 숫자(VC 자료 — "정확도 유지하며 X% 절감")
+- **테스트 체크리스트**
+  - [ ] 🧪 cascade off → 단일 패스 회귀 0
+  - [ ] 🧪 1차 후보 없음 → deep skip / 있음 → deep 호출
+  - [ ] 🧪 1차 오류 → deep 폴백(recall 보호 — VAL-3 원칙 재사용)
+
+### TASK-1334 스캔 1건(세션) 원가 계측 + 노출
+- **중요도**: 🟠 High | **사이즈**: S | **Flyway**: V061 (실측 최고 V060 확인)
+- **현황(실측)**: `token_usage`(V054)·누적/일별 원가·`GET /me/token-usage`(TASK-1204 완료)는 있으나 **세션 단위 원가 뷰만 부재**. VAL-15(벤치 $/finding 사후분석)와 **공존**(중복 아님 — 데이터원천만 공유).
+- **하위 할일**
+  - [ ] V061 — `analysis_sessions`에 `total_cost_usd NUMERIC(12,6)`/`total_tokens BIGINT` 컬럼
+  - [ ] 세션 종료 시 token_usage 합산 채움 + `GET /sessions/{id}/cost`(소유권 검증 = IDOR 차단, MOAT-1 패턴)
+  - [ ] FE 세션 상세 "이 스캔 원가 $X.XXXXXX" 배지
+- **테스트 체크리스트**
+  - [ ] 🧪 세션 cost 합산 정확(고정 PricingTable·토큰 입력)
+  - [ ] 🛡️ 타 사용자 세션 조회 → SESSION_NOT_FOUND, 미인증 → 401
+  - [ ] ✅ FE 배지 표시(수동)
+
+> **TASK-1335(가격 모델 재설계 — per-scan → per-seat/per-repo 구독)**: 엔진이 아닌 빌링 도메인 → **Sprint 17(수익화 인프라)로 이관**(line 90 ECON-5 매핑과 일치). EPIC-ECON에서 제외.
+
+---
+
 ## EPIC-MISC — 독립 기능 (스프린트 비종속)
 
 
@@ -1595,6 +1652,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | FEAT-AI-005 | 패치 검증 자동화 | 🟡 Medium | 생성된 패치 코드를 임시 컨테이너에서 자동으로 단위 테스트 실행 후 pass 여부를 `patchSuggestions.verificationStatus`에 저장. 패치 생성 시 테스트 코드를 Claude API로 동시 생성 → 도커 컨테이너에서 실행 → 검증 통과(Verified) 패치만 사용자에게 추천. VC 피드백(AI 환각 제어) 핵심 구현 항목. `patch_suggestions.verified_at`, `test_code` 컬럼 추가 필요 (Flyway 미배정) |
 | FEAT-AI-007 | AI 음성 답변 (TTS) | 🟢 Low | preferences에 "Sprint 8 예정" 명시되었으나 미구현. ElevenLabs/OpenAI TTS 연동, 성별/톤/속도 슬라이더 제공. 모바일에서 핸즈프리 보안 브리핑 시나리오 |
 | FEAT-AI-008 | AI Chat History (검색·북마크·공유) | 🟠 High | 사용자가 수행한 모든 AI 대화를 `ai_chat_sessions` 테이블에 누적. 전문 검색(pgvector embedding), 즐겨찾기, 팀원에게 링크 공유. 동일 취약점에 대한 과거 대화 자동 추천 |
+| FEAT-AI-009 | 로컬 LLM(Ollama/vLLM) 연동 | 🟡 Medium | (2026-06-20 VC 피드백) 소스코드 외부 유출을 거부하는 고객용 프리미엄 옵션. 기존 멀티프로바이더 BYOK 구조(`agent/llm/factory.py`)에 `provider='ollama'`(OpenAI 호환 엔드포인트) 확장 + settings `ollama_base_url`/`ollama_model`. **세트 조건(필수)**: VAL 벤치마크(VAL-1/VAL-7)를 로컬 모델에도 적용해 탐지율·오탐율 품질 저하를 측정·문서화 — 미측정 시 "싸지만 못 잡는" 플랜 금지. On-Prem(FEAT-OPS-007)과 묶으면 완전 폐쇄망 가능 |
 
 
 ### VSCode Extension 고도화 (IDE 내 조치 완결)
@@ -1732,6 +1790,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | **FEAT-OPS-005** | **피처 플래그 / 킬 스위치** (V5.5 갭) | 🟠 High | 위험 기능(자동 패치 PR `1401`·자동 롤백 `1403`·야간 스캔 `1001`)을 런타임에 끄고 켤 수단 부재. 조직/사용자 단위 플래그 테이블 + 관리자 토글. 베타에서 사고 시 즉시 비활성화 — 자동화 기능 출시의 전제 조건 |
 | **FEAT-INFRA-002** | **DB 마이그레이션 CI 검증 + Flyway baseline** (V5.5 갭) | 🟠 High | CI에서 fresh DB로 V001~최신 전체 마이그레이션 실행 검증(현재 미검증 — V047 CHECK 충돌류 사고 재발 가능). 47개 단일 체인 → `V050 baseline` squash로 신규 환경 초기화 가속 |
 | **FEAT-OPS-006** | **Rate Limit 플랜별 적용 검증 + SLO/알림 정책** (V5.5 갭) | 🟠 High | `RateLimitInterceptor`·플랜별 한도(10/60/120 rpm) 정의는 있으나 실제 적용 자동 검증 부재. + Prometheus/Grafana는 있으나 SLO·알림 임계(에러율·p95·큐 적체) 정책 미정의 → `docs/runbooks/slo.md` |
+| **FEAT-OPS-007** | On-Premise / 폐쇄망(air-gapped) 설치형 배포 | 🟠 High | (2026-06-20 VC 피드백) 금융·공공 엔터프라이즈 대상 설치형. **숨은 비용 명시**: ① 라이선스 키 발급/검증 + 오프라인 업데이트 채널, ② **에어갭 NVD/CVE 피드 동기화**(현재 온라인 NVD 전제 → 오프라인 미러/수동 임포트), ③ 텔레메트리(Sentry/OTEL) 차단 모드, ④ 시크릿 관리(FEAT-OPS-004 연계 — Vault 없이 로컬 키), ⑤ 데이터 레지던시(FEAT-COMP-004 연계). 로컬 LLM(FEAT-AI-009) 전제 시 완전 폐쇄망 가능 |
 
 ### 성능 & 부하 (신규 — V5.5 갭)
 
@@ -1751,6 +1810,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | ID | 항목 | 우선순위 | 설명 |
 |----|------|---------|------|
 | FEAT-FE-006 | 사용자 프로필 + 단축키 커스텀 | 🟡 Medium | `/profile`에 "키보드 단축키" 섹션 추가. 에디터 액션(분석 시작 / 패치 적용 / AI 채팅 토글)에 사용자별 단축키 매핑 (`user_keybindings` 테이블). VS Code 패턴 (Cmd/Ctrl+K 입력 후 키 캡처). 충돌 감지 + 기본값 복원 |
+| FEAT-FE-008 | 온보딩·GitHub스캔 화면 모델 데이터 정합화 (기술부채) | 🟡 Medium | `app/onboarding/page.tsx`·`app/github-scan/page.tsx`가 각자 로컬 `MODELS`(`AnalysisModel='haiku'\|'sonnet'\|'opus'` 단축 ID)를 들고 있어 캐노니컬 `lib/constants/models.ts`와 어긋남. **stale 표기**: "Opus 4"(→4.8), "Sonnet 4.5"(→4.6), 크레딧 5/15/75·140/420/2100(캐노니컬 1/5/20). 모델 상수 단일화(`b35c363`)에서 의도적으로 제외됨 — 동작 변경(Gemini/OpenAI 7종 노출·크레딧 표기 변경)이 따르기 때문. **할 일**: 두 화면을 `models.ts` 기반으로 재배선하되, 데모용 추정치(파일수·예상 크레딧·소요시간)는 별도 표시 레이어로 분리. 라벨/크레딧은 단일 진실원천에서만 가져오도록 정리 |
 | FEAT-MOB-001 | 모바일 AI 채팅 플로팅 + 크기 조절 | 🟢 Low | Android Compose — 풀스크린 채팅을 오른쪽 아래 원형 플로팅 버튼으로 전환. 클릭 시 말풍선 팝업 (M 사이즈 기본). 좌측 하단 드래그 핸들로 L 사이즈 확장 시 폰트 11→15px 자동. 에디터와 동일한 green-bordered 패치 카드 표시 |
 
 ---

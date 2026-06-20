@@ -6,6 +6,17 @@
     <!-- Android 13(API 33)+ 알림 표시 런타임 권한 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- 패키지 가시성 쿼리 정의 (RootDetector용) -->
+    <queries>
+        <package android:name="com.noshufou.android.su" />
+        <package android:name="com.thirdparty.superuser" />
+        <package android:name="eu.chainfire.supersu" />
+        <package android:name="com.koushikdutta.superuser" />
+        <package android:name="com.zachspong.temprootremovejb" />
+        <package android:name="com.ramdroid.appquarantine" />
+        <package android:name="com.topjohnwu.magisk" />
+    </queries>
+
     <application
         android:name=".SecureAiApplication"
         android:allowBackup="true"

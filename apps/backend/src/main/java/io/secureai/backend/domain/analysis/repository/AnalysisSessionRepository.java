@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 public interface AnalysisSessionRepository extends JpaRepository<AnalysisSession, UUID> {
 
@@ -22,6 +24,10 @@ public interface AnalysisSessionRepository extends JpaRepository<AnalysisSession
     Page<AnalysisSession> findByProjectIdOrderByCreatedAtDesc(UUID projectId, Pageable pageable);
 
     Optional<AnalysisSession> findByIdAndUserId(UUID id, UUID userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM AnalysisSession s WHERE s.id = :id")
+    Optional<AnalysisSession> findByIdForUpdate(@Param("id") UUID id);
 
     boolean existsByProjectIdAndStatus(UUID projectId, SessionStatus status);
 

@@ -83,7 +83,7 @@ describe('useConfirmPlan', () => {
   });
 
   it('API 오류 시 error toast 가 발행되고 isAnalyzing 은 false 유지', async () => {
-    const apiError = new ApiError('컨펌 실패', 'CONFIRM_FAILED', 500);
+    const apiError = new ApiError(500, 'CONFIRM_FAILED', '컨펌 실패');
     mockPost.mockRejectedValueOnce(apiError);
 
     const { result } = renderHook(() => useConfirmPlan());

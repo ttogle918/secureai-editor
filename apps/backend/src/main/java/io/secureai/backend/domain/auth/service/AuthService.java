@@ -119,7 +119,7 @@ public class AuthService {
         TokenService.TokenWithJti tokenWithJti = tokenService.generateAccessTokenWithJtiResult(user.getId(), user.getEmail());
         recordSession(user, tokenWithJti.jti(), httpRequest);
         String rawRefreshToken = issueRefreshToken(user, httpRequest);
-        setRefreshCookie(rawRefreshToken, httpResponse);
+        setRefreshCookie(rawRefreshToken, httpRequest, httpResponse);
 
         return new LoginResponse(tokenWithJti.token(), "Bearer", jwtProperties.getAccessTokenExpirySeconds(), user);
     }
@@ -148,7 +148,7 @@ public class AuthService {
         TokenService.TokenWithJti tokenWithJti = tokenService.generateAccessTokenWithJtiResult(user.getId(), user.getEmail());
         recordSession(user, tokenWithJti.jti(), request);
         String newRawRefresh = issueRefreshToken(user, request);
-        setRefreshCookie(newRawRefresh, response);
+        setRefreshCookie(newRawRefresh, request, response);
 
         return new TokenRefreshResponse(tokenWithJti.token(), jwtProperties.getAccessTokenExpirySeconds());
     }
@@ -165,7 +165,7 @@ public class AuthService {
         }
         // Redis 캐시 무효화
         redisTemplate.delete("secureai:user:%s:plan".formatted(userId));
-        clearRefreshCookie(response);
+        clearRefreshCookie(request, response);
     }
 
     @Transactional
@@ -178,7 +178,7 @@ public class AuthService {
         TokenService.TokenWithJti tokenWithJti = tokenService.generateAccessTokenWithJtiResult(freshUser.getId(), freshUser.getEmail());
         recordSession(freshUser, tokenWithJti.jti(), httpRequest);
         String rawRefreshToken = issueRefreshToken(freshUser, httpRequest);
-        setRefreshCookie(rawRefreshToken, httpResponse);
+        setRefreshCookie(rawRefreshToken, httpRequest, httpResponse);
         return new LoginResponse(tokenWithJti.token(), "Bearer", jwtProperties.getAccessTokenExpirySeconds(), freshUser);
     }
 
@@ -245,20 +245,20 @@ public class AuthService {
         return raw;
     }
 
-    private void setRefreshCookie(String token, HttpServletResponse response) {
+    private void setRefreshCookie(String token, HttpServletRequest request, HttpServletResponse response) {
         Cookie cookie = new Cookie(REFRESH_COOKIE, token);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(request.isSecure());
         cookie.setPath("/api/v1/auth");
         cookie.setMaxAge((int) jwtProperties.getRefreshTokenExpirySeconds());
         cookie.setAttribute("SameSite", "Strict");
         response.addCookie(cookie);
     }
 
-    private void clearRefreshCookie(HttpServletResponse response) {
+    private void clearRefreshCookie(HttpServletRequest request, HttpServletResponse response) {
         Cookie cookie = new Cookie(REFRESH_COOKIE, "");
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(request.isSecure());
         cookie.setPath("/api/v1/auth");
         cookie.setMaxAge(0);
         response.addCookie(cookie);

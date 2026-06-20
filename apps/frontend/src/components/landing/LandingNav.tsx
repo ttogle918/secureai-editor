@@ -14,10 +14,14 @@ import { apiClient } from '@/lib/api/client';
  */
 export default function LandingNav() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false); // Hydration Mismatch 방지용
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const hasHydrated = useAuthStore((s) => s._hasHydrated);  // localStorage 복원 완료 여부
   const storeLogout = useAuthStore((s) => s.logout);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // 메뉴 오픈 시 body 스크롤 방지
   useEffect(() => {
@@ -42,9 +46,17 @@ export default function LandingNav() {
   }, [storeLogout, router]);
 
   // ── 인증 버튼 렌더링 헬퍼 ─────────────────────────────────
-  // hasHydrated 전(SSR/hydration)에는 기본 버튼으로 렌더링해 hydration mismatch 방지
-  const AuthButtons = () =>
-    (hasHydrated && user) ? (
+  // 마운트 완료(isMounted) 전에는 서버와 동일한 마크업을 렌더링하여 hydration mismatch 방지
+  const renderAuthButtons = () => {
+    if (!isMounted) {
+      return (
+        <>
+          <Link href="/login" className="landing-nav__login">로그인</Link>
+          <Link href="/register" className="landing-nav__cta">무료 시작</Link>
+        </>
+      );
+    }
+    return user ? (
       <>
         <Link href="/editor" className="landing-nav__login" onClick={closeMenu}>
           대시보드 열기
@@ -63,9 +75,22 @@ export default function LandingNav() {
         <Link href="/register" className="landing-nav__cta">무료 시작</Link>
       </>
     );
+  };
 
-  const MobileAuthButtons = () =>
-    (hasHydrated && user) ? (
+  const renderMobileAuthButtons = () => {
+    if (!isMounted) {
+      return (
+        <>
+          <Link href="/login" className="landing-nav__mobile-link" onClick={closeMenu}>
+            로그인
+          </Link>
+          <Link href="/register" className="landing-nav__mobile-cta" onClick={closeMenu}>
+            무료 시작
+          </Link>
+        </>
+      );
+    }
+    return user ? (
       <>
         <Link href="/editor" className="landing-nav__mobile-link" onClick={closeMenu}>
           대시보드 열기
@@ -88,6 +113,7 @@ export default function LandingNav() {
         </Link>
       </>
     );
+  };
 
   return (
     <nav className="landing-nav">
@@ -99,8 +125,8 @@ export default function LandingNav() {
           <span style={{ color: '#ea580c' }}>AI</span>
         </Link>
 
-        {/* 로그인 상태 표시 배지 — 복원 완료 후에만 */}
-        {hasHydrated && user && (
+        {/* 로그인 상태 표시 배지 — 마운트 완료 후에만 */}
+        {isMounted && user && (
           <div style={{
             fontSize: 11, color: 'rgba(234,88,12,0.8)', fontWeight: 600,
             padding: '2px 8px', borderRadius: 10,
@@ -128,7 +154,7 @@ export default function LandingNav() {
 
         {/* Desktop auth buttons */}
         <div className="landing-nav__auth">
-          <AuthButtons />
+          {renderAuthButtons()}
         </div>
 
         {/* Hamburger button (모바일 only) */}
@@ -172,7 +198,7 @@ export default function LandingNav() {
 
             <div className="landing-nav__mobile-divider" />
 
-            <MobileAuthButtons />
+            {renderMobileAuthButtons()}
           </div>
         </div>
       )}

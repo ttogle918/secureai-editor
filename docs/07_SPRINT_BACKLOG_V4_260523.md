@@ -1462,57 +1462,170 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ## EPIC-ECON — 토큰 경제성 정식화 (Sprint 번호 미배정 · 잠정 19)
 > **출처**: 2026-06-20 VC 피드백 2건(토큰 단위 경제성 = 단기 3대 마일스톤) + `18_VC_REVIEW_RESPONSE_260530.md` EPIC-ECON.
 > ⚠️ **백로그 편입 단계** — 실행 계획(`/stage`)은 미수립. Sprint 13~18 진행 후 순서·번호 확정. (VC 우선순위상 앞당길 여지 있음 — 별도 판단)
-> 🔎 **PM 실측 스코핑(2026-06-20)**: 아래 "현황(실측)"이 각 태스크 스코프를 크게 줄인다 — "신규 구현"으로 착각하지 말 것.
+> 🔎 **PM 실측 스코핑(2026-06-20, 마스터 재검증 완료)**: 아래 "현황(실측)"은 코드 직접 확인됨 — "신규 구현"으로 착각하지 말 것.
+> 🎯 **EPIC 공통 KPI**: 스캔 1건당 토큰 원가($) · 캐싱/증분/캐스케이드 도입 후 토큰 절감률(%) · 절감 후 탐지율(%) 유지 여부.
+> 🧩 **권장 스테이지 배치(참고, /stage 확정 시 재평가)**: Stage 1 = TASK-1331(ai_engine) ∥ TASK-1334(backend+frontend) 병렬 / Stage 2 = TASK-1332 → TASK-1333 (둘 다 `sast_node`/그래프 점유 → AI Engine 그래프 변경은 직렬).
 
 ### TASK-1331 ⚡ 프롬프트 캐싱 효과 계측 + 적중률 극대화
-- **중요도**: 🟠 High | **사이즈**: S
-- **현황(실측)**: Anthropic prompt caching(`cache_control:ephemeral`)은 **이미 구현됨**(`apps/ai_engine/agent/llm/anthropic_provider.py:52`), usage 4키 집계도 존재 → "신규 구현"이 아니라 **계측 + 적중률 리팩터**로 재정의.
+- **중요도**: 🟠 High | **사이즈**: S | **서비스**: ai_engine
+- **목적(증명할 것)**: "정적 가이드라인 컨텍스트를 캐시해 호출당 input_tokens를 NN% 절감한다"는 숫자.
+- **현황(실측)**: Anthropic prompt caching은 **이미 구현됨** — `anthropic_provider.py:52`가 `system=[{type:text, cache_control:{type:ephemeral}}]`로 system 블록을 캐시하고 usage 4키(`cache_creation/read_input_tokens`)도 정규화·집계 중. → "신규 구현"이 아니라 **(a) 적중률 계측 + (b) 캐시가 안 깨지게 system/user 경계 정리**로 재정의.
+- **구현할 내용**
+  - **대상 파일**: `apps/ai_engine/agent/nodes/sast_node.py`(프롬프트 조립부), `apps/ai_engine/agent/claude_client.py`(또는 caller — system_text/user_content 경계), `apps/ai_engine/tests/agent/test_prompt_cache.py`(신규).
+  - **핵심 로직**: 가변 컨텍스트(`prev_vuln_context` 등 프로젝트·세션별로 달라지는 값)가 `system_text`(캐시 대상)에 섞이면 프로젝트마다 캐시가 깨져 적중률 0이 된다. → 정적 가이드라인만 `system_text`로, 가변 컨텍스트는 `user_content`로 이동. provider 시그니처(`analyze(system_text, user_content, ...)`)는 이미 분리돼 있으므로 **caller 쪽 경계만 교정**.
+  - **인터페이스**: Prometheus Counter `secureai_ai_cache_read_tokens_total{service}` · `secureai_ai_cache_creation_tokens_total{service}` (메트릭명 상수화, 매직스트링 금지).
+  - **provider 분기**: gemini/openai(`openai_compat_provider`)는 cache_control 미지원 → usage 4키 0 정규화되므로 메트릭 0 가산(분기 불필요).
 - **하위 할일**
-  - [ ] `prev_vuln_context`(가변)가 system(캐시 대상) 블록을 오염시켜 프로젝트별 적중률을 깨뜨리는지 측정 → 가변 컨텍스트를 user 메시지로 이동
-  - [ ] 캐시 적중률 Prometheus 메트릭(`cache_read`/`cache_creation` Counter) 추가
-  - [ ] 캐시 전/후 input_tokens 절감률 숫자 1개 확보(VC 자료)
-- **테스트 체크리스트**
-  - [ ] 🧪 동일 가이드라인 2회 호출 → 2번째 cache_read>0 (mock usage)
-  - [ ] 🧪 prev_vuln_context가 user에 포함됨 단언
-  - [ ] ✅ 실런 1회로 실제 cache_read>0 관측(수동)
+  - [ ] system/user 경계 점검 — `prev_vuln_context`가 system을 오염시키는지 1차 측정 → user로 이동
+  - [ ] 캐시 적중률 Prometheus Counter 2종 추가 + 적중률 로깅(토큰 수치만, 키/페이로드 금지)
+  - [ ] 캐시 도입 전/후 input_tokens 비교로 절감률 숫자 1개 산출
+- **자동 테스트**
+  - [ ] 🧪 동일 가이드라인 2회 호출 시 2번째 `cache_read_input_tokens > 0` (mock usage)
+  - [ ] 🧪 `prev_vuln_context`가 system이 아닌 user_content에 포함됨을 단언
+  - [ ] 🧪 캐시 메트릭 Counter 증가 검증
+  - [ ] 🧪 gemini/openai provider 경로에서 4키 0 정규화 회귀 0
+- **수동 검증**
+  - [ ] ✅ `make dev` 실런 1회 — 실제 응답 usage에 `cache_read_input_tokens > 0` 관측, 로그/대시보드 캡처
+  - [ ] ✅ 동일 프로젝트 연속 스캔 2회 — 2회차 input_tokens가 1회차 대비 감소함을 수치로 확인
+- **리스크**: 적중률이 0이던 진짜 원인이 system 오염이 아닐 수 있음 → **계측 먼저(baseline) → 리팩터** 순서 엄수.
 
 ### TASK-1332 증분 스캔 완성 (diff 라인 한정 + 야간 풀스캔 라우팅)
-- **중요도**: 🟠 High | **사이즈**: S (PM 하향 권고 — Dev 현실성 평가 미반영)
-- **현황(실측)**: PR 변경파일 경로는 **이미 end-to-end 연결**(`GitHubWebhookService.java:190,238` → AI Engine `file_filter`, TASK-1106). 야간 풀스캔 인프라(`project_schedules` V044, TASK-1001)도 존재 → 신규는 diff **라인(hunk) 한정** + PR=AUDIT·야간=PIPELINE 라우팅 보장 + 절감률 계측.
+- **중요도**: 🟠 High | **사이즈**: S (PM 하향 권고 — Dev 현실성 평가 미반영) | **서비스**: ai_engine + backend
+- **목적(증명할 것)**: "PR 스캔은 변경분만 보고 전체 대비 토큰 NN% 절감, 풀스캔은 야간 1회"라는 비용 구조.
+- **현황(실측)**: PR 변경파일 경로는 **이미 end-to-end 연결됨** — `GitHubWebhookService.java`(`getPrChangedFiles` → `startAnalysis(...changedFiles...)`) → AI Engine `file_filter`(`scan_files_node.py`, TASK-1106). 야간 풀스캔 인프라(`project_schedules` V044, TASK-1001)·`test_webhook_pr.py`도 존재. → 신규는 **diff 라인(hunk) 단위 한정** + **PR=AUDIT / 야간=PIPELINE 라우팅 명시** + **절감률 계측**.
+- **구현할 내용**
+  - **대상 파일**: `apps/ai_engine/agent/nodes/scan_files_node.py`·`sast_node.py`(라인범위 수용), `apps/ai_engine/agent/agent_state.py`(`changed_line_ranges: dict[str, list[tuple[int,int]]]` 신규 키), backend `GitHubWebhookService.java`/`GitHubRestClient`(PR patch → hunk 라인범위 파싱), `DefaultAiAgentClient`/`StartAnalysisRequest`(`changedLineRanges` 패스스루), `tests/test_webhook_pr.py`(mock 스텁 → 실제 필터 검증으로 승격).
+  - **핵심 로직**: ① PR webhook이 file 목록뿐 아니라 patch의 hunk 라인범위를 파싱해 `changed_line_ranges` 전달 → sast_node가 finding을 변경 라인 인근으로 한정(노이즈·토큰 절감). ② 야간 스케줄 트리거는 file_filter/line_ranges 없이 `scan_mode=PIPELINE` 전체 스캔. ③ 증분 시 `files_scanned/total_files` 비율 로깅.
+  - **인터페이스**: `StartAnalysisRequest + Map<String,List<int[]>> changedLineRanges`(nullable=전체 폴백, 하위호환).
 - **하위 할일**
-  - [ ] PR patch에서 hunk 라인범위 파싱 → `changed_line_ranges`로 AI Engine 전달(`StartAnalysisRequest` 필드 추가, nullable=전체 폴백)
-  - [ ] sast_node가 changed_line_ranges 있으면 해당 인근만 한정(없으면 전체 — 하위호환)
-  - [ ] 야간 스케줄이 풀스캔(PIPELINE)으로 동작함을 명시·검증
-- **테스트 체크리스트**
-  - [ ] 🧪 changed_line_ranges 주어지면 해당 범위만 대상
-  - [ ] 🧪 patch 파싱 실패 → 전체 폴백(recall 보호)
-  - [ ] ✅ PR vs 풀스캔 토큰 절감률 숫자 확보(수동)
+  - [ ] PR patch hunk 라인범위 파싱 → `changedLineRanges` 전달 경로 구현
+  - [ ] sast_node가 `changed_line_ranges` 있으면 해당 인근만, 없으면 전체(하위호환)
+  - [ ] 야간 스케줄 = 풀스캔(PIPELINE) 동작 명시·검증
+  - [ ] 증분 vs 풀 토큰 절감률 로깅
+- **자동 테스트**
+  - [ ] 🧪 `changed_line_ranges` 주어지면 해당 범위만 분석 대상에 반영
+  - [ ] 🧪 patch 파싱 실패 → 파일 전체 스캔 폴백(recall 보호)
+  - [ ] 🔬 webhook → file_filter + line_ranges 전달 경로(mock GitHub API)
+  - [ ] 🛡️ github_token·patch 원문이 로그에 출력되지 않음
+- **수동 검증**
+  - [ ] ✅ 실제 PR 1건 vs 동일 레포 풀스캔 토큰 비교 → 절감률 숫자 확보(VC 자료)
+  - [ ] ✅ 야간 스케줄 트리거가 PIPELINE 풀스캔으로 도는지 1회 관측
+- **리스크**: 대용량 diff·바이너리 patch 파싱 → file 단위 필터로 폴백(라인범위는 best-effort).
 
 ### TASK-1333 🔬 모델 캐스케이드 (cheap-screen → expensive-confirm)
-- **중요도**: 🟠 High | **사이즈**: M
-- **현황(실측)**: settings에 AUDIT/PIPELINE 2-tier(스캔모드별 전체 라우팅)는 있으나 **한 스캔 내 2-pass(싼 모델 1차→의심 후보만 비싼 모델)는 미구현** — 진짜 신규.
+- **중요도**: 🟠 High | **사이즈**: M | **서비스**: ai_engine
+- **목적(증명할 것)**: "싼 모델 1차 필터로 탐지율 유지하며 토큰 NN% 절감".
+- **현황(실측)**: settings에 AUDIT/PIPELINE 2-tier(`audit_model`/`pipeline_model`)는 있으나 이는 **스캔 모드별 전체 라우팅**일 뿐, **한 스캔 내 2-pass(싼 1차 → 의심 후보만 비싼 2차)는 미구현** — 진짜 신규.
+- **구현할 내용**
+  - **대상 파일**: 신규 `apps/ai_engine/agent/nodes/cascade_screen_node.py`(sast_node 비대 방지 — 분리 권장), `agent/graph_builder.py`·`security_audit_graph.py`(분기), `agent_state.py`(`screen_results`/`needs_deep_scan` 키), `config/settings.py`(`cascade_enabled:bool=False`, `screen_model=claude-haiku-4-5`, `confirm_model=claude-sonnet-4-6`), `tests/agent/test_cascade.py`(신규).
+  - **핵심 로직**: cascade_enabled 시 1차 cheap(haiku) 스크리닝 → 후보 없음/low-confidence면 deep skip, 의심 파일만 2차 expensive(sonnet) 정밀. `route_after_cascade(needs_deep_scan)` 분기. cache miss 경로에서만 동작(캐시히트와 충돌 회피). 순서 **screen → (deep) sast → validate(VAL-3) → persist** 유지.
+  - **모델 ID**: settings env가 SSOT — 매직 모델ID 금지. FE/BE `models.ts`/`ModelConstants.java`와 크레딧 체계 정합.
 - **하위 할일**
-  - [ ] 신규 `cascade_screen_node`(sast_node 비대 방지) — 1차 haiku 스크리닝 → 후보 파일만 2차 sonnet 정밀
-  - [ ] graph 분기 `route_after_cascade`(needs_deep_scan), settings `cascade_enabled`(기본 off — 안전)
-  - [ ] cascade on/off 토큰·탐지율 비교 숫자(VC 자료 — "정확도 유지하며 X% 절감")
-- **테스트 체크리스트**
-  - [ ] 🧪 cascade off → 단일 패스 회귀 0
-  - [ ] 🧪 1차 후보 없음 → deep skip / 있음 → deep 호출
-  - [ ] 🧪 1차 오류 → deep 폴백(recall 보호 — VAL-3 원칙 재사용)
+  - [ ] `cascade_screen_node` 신규 + graph 분기 + state 키
+  - [ ] `cascade_enabled` 기본 off(안전 출시 후 A/B)
+  - [ ] cascade on/off 토큰·탐지율 비교 숫자
+- **자동 테스트**
+  - [ ] 🧪 cascade off → 기존 단일 패스 동작 불변(회귀 0)
+  - [ ] 🧪 1차 후보 없음 → deep skip(expensive 호출 0회) / 후보 있음 → deep 호출 발생
+  - [ ] 🧪 1차 모델 오류 → deep 폴백(false negative 회피, recall 보호)
+  - [ ] 🔬 그래프 전체 경로 통과(screen→sast→validate→persist)
+- **수동 검증**
+  - [ ] ✅ cascade on/off 동일 코퍼스 스캔 → "탐지율 유지 + 토큰 X% 절감" 수치 확보
+  - [ ] ✅ VAL-3 검증 레이어와 순서 충돌 없이 동작(의심 finding이 validate까지 도달)
+- **리스크**: 1차 cheap 모델이 진짜 취약점을 놓치면 영구 누락 → **불확실 시 deep 폴백**(VAL-3 원칙 재사용). VAL-3 노드와 같은 sast↔validate 구간 → 그래프 회귀 주의(노드 분리로 완화).
 
 ### TASK-1334 스캔 1건(세션) 원가 계측 + 노출
-- **중요도**: 🟠 High | **사이즈**: S | **Flyway**: V061 (실측 최고 V060 확인)
-- **현황(실측)**: `token_usage`(V054)·누적/일별 원가·`GET /me/token-usage`(TASK-1204 완료)는 있으나 **세션 단위 원가 뷰만 부재**. VAL-15(벤치 $/finding 사후분석)와 **공존**(중복 아님 — 데이터원천만 공유).
+- **중요도**: 🟠 High | **사이즈**: S | **서비스**: backend + frontend | **Flyway**: V061 (실측 최고 **V060** 확인)
+- **목적(증명할 것)**: 사용자·영업이 "이 스캔에 얼마 썼는지"를 즉시 보는 실시간 원가 뷰(VC 원가 통제 마일스톤).
+- **현황(실측)**: `token_usage`(V054)·누적/일별 원가·`GET /me/token-usage`(TASK-1204 완료)는 있으나 **세션 단위 원가 뷰만 부재**. VAL-15(벤치 `$/finding` 사후분석)·1204(누적/유저)와 **공존**(중복 아님 — `token_usage` 데이터원천만 공유).
+- **구현할 내용**
+  - **대상 파일**: `db/migration/V061__add_cost_usd_to_analysis_sessions.sql`(신규), `domain/analysis/entity/AnalysisSession.java`(`totalCostUsd`/`totalTokens` 필드), `domain/usage/service/TokenUsageService.java`(`aggregateSessionCost(sessionId)` — 기존 `PricingTable` 재사용), `domain/analysis/dto/SessionCostResponse.java`(신규), `domain/analysis/controller/AnalysisController.java`(`GET /sessions/{id}/cost`), FE 세션/대시보드 상세 원가 배지.
+  - **DB**: `ALTER TABLE analysis_sessions ADD COLUMN total_cost_usd NUMERIC(12,6), ADD COLUMN total_tokens BIGINT;`
+  - **API**: `GET /api/v1/sessions/{sessionId}/cost`(JWT) → `{sessionId, totalCostUsd, totalTokens, inputTokens, outputTokens, cacheReadTokens, cacheHitRate, provider, model}`. 컬럼값 우선, 레거시 세션은 온더플라이 집계 폴백.
+  - **소유권**: 세션 user_id ≠ principal → `SESSION_NOT_FOUND`(IDOR 비노출, MOAT-1 패턴). cost는 `PricingTable` SSOT(매직 단가 금지). JPQL 파라미터 바인딩.
 - **하위 할일**
-  - [ ] V061 — `analysis_sessions`에 `total_cost_usd NUMERIC(12,6)`/`total_tokens BIGINT` 컬럼
-  - [ ] 세션 종료 시 token_usage 합산 채움 + `GET /sessions/{id}/cost`(소유권 검증 = IDOR 차단, MOAT-1 패턴)
+  - [ ] V061 마이그레이션 + 엔티티 필드
+  - [ ] 세션 종료 시 token_usage 합산 → 컬럼 채움(idempotent)
+  - [ ] `GET /sessions/{id}/cost` + 소유권 검증
   - [ ] FE 세션 상세 "이 스캔 원가 $X.XXXXXX" 배지
-- **테스트 체크리스트**
-  - [ ] 🧪 세션 cost 합산 정확(고정 PricingTable·토큰 입력)
-  - [ ] 🛡️ 타 사용자 세션 조회 → SESSION_NOT_FOUND, 미인증 → 401
-  - [ ] ✅ FE 배지 표시(수동)
+- **자동 테스트**
+  - [ ] 🧪 세션 cost 합산 정확(고정 PricingTable·토큰 입력 → 기대값)
+  - [ ] 🔬 token_usage 행 → 세션 cost 컬럼 채움(실 DB)
+  - [ ] 🛡️ 타 사용자 세션 조회 → SESSION_NOT_FOUND, 미인증 요청 → 401
+  - [ ] 🧪 token_usage 0행(BYOK·실패 세션) → cost 0·hitRate 0
+- **수동 검증**
+  - [ ] ✅ FE 세션 상세에 "이 스캔 원가 $X" 배지 표시
+  - [ ] ✅ 실제 스캔 1건 → DB 컬럼·API 응답·FE 배지 3자 일치 확인
+- **리스크**: provider 단가 변동 시 cost 오차 → `PricingTable` 갱신 절차 확인. 세션 종료 콜백 동시성 → upsert/idempotent.
 
 > **TASK-1335(가격 모델 재설계 — per-scan → per-seat/per-repo 구독)**: 엔진이 아닌 빌링 도메인 → **Sprint 17(수익화 인프라)로 이관**(line 90 ECON-5 매핑과 일치). EPIC-ECON에서 제외.
+
+---
+
+## 신규 전략·후속 항목 상세 (2026-06-20 VC 피드백 반영)
+> Future Backlog 표(아래 §AI Agent 고도화·§인프라)의 신규 행을 상세화한 것. 스프린트 미배정 — 우선순위에 따라 편입.
+
+### FEAT-RPT-001 🟠 야간 스캔 모닝 브리핑 다이제스트 (이메일/PDF)
+- **중요도**: 🟠 High | **사이즈**: M | **서비스**: backend + frontend
+- **배경**: 2026-06-20 VC 피드백이 데모 킬러 시나리오로 명시 — *"개발자가 치명적 실수 커밋 → 야간 스캔 탐지 → 다음 날 아침 이메일로 HTML/PDF 브리핑 수신 → 원클릭 패치"*. 야간 스캔(TASK-1001)·트랜잭션 이메일(Sprint 12)·보안문서 PDF(Sprint 8)는 **이미 있으나, 결과를 묶어 발송하는 "다이제스트" 레이어가 없음.**
+- **구현할 내용**
+  - **대상 파일**: backend — 야간 스캔 완료 이벤트 구독 `DigestService`(신규, ApplicationEvent 기반 — 도메인 직접 Repo 주입 금지), `DigestEmailTemplate`(Thymeleaf), 기존 `PdfReportGenerator` 재사용, 사용자 설정 `daily_digest_enabled`/`digest_hour`(V0xx). frontend — 설정 페이지 "모닝 브리핑" 토글 + 발송 시각.
+  - **핵심 로직**: 야간 풀스캔 완료 → 신규/해결 취약점 delta·security score 변화·Top 위험 파일 집계 → HTML 이메일(+선택 PDF 첨부) 발송. 변화 없으면 발송 스킵(스팸 방지) 옵션.
+  - **인터페이스**: `PUT /api/v1/users/me/digest-settings { enabled, hour }`. 발송은 `@Scheduled`가 아니라 야간 스캔 완료 이벤트 후행(중복 발송 방지 dedupe).
+- **하위 할일**
+  - [ ] 다이제스트 집계(신규/해결 delta, score, Top 파일) 쿼리
+  - [ ] HTML 이메일 템플릿 + PDF 재사용 첨부(선택)
+  - [ ] 사용자 토글/발송시각 설정 API + FE
+  - [ ] 변화 없을 때 발송 스킵 옵션
+- **자동 테스트**
+  - [ ] 🧪 delta 집계 정확(신규/해결 분리)
+  - [ ] 🔬 야간 스캔 완료 이벤트 → 다이제스트 1회 발송(중복 0, mock 메일러)
+  - [ ] 🛡️ 이메일 본문에 토큰·내부경로·민감 페이로드 미포함
+- **수동 검증**
+  - [ ] ✅ 토글 on 사용자에게 다음 발송시각에 브리핑 수신(스테이징 메일)
+  - [ ] ✅ HTML/PDF 가독성 — 경영진·개발자 모두 읽기 적합
+- **연계**: TASK-1001(야간 스캔) · Sprint 12(이메일 인프라) · TASK-MISC-002(PDF). **TASK-1801 E2E에 데모 시나리오(커밋→야간스캔→브리핑→패치) 1건 추가 권장.**
+
+### FEAT-AI-009 🟡 로컬 LLM (Ollama/vLLM) 연동
+- **중요도**: 🟡 Medium | **사이즈**: M | **서비스**: ai_engine
+- **배경**: 소스코드 외부 유출을 거부하는 금융·공공 고객용 프리미엄 옵션(2026-06-20 VC). On-Prem(FEAT-OPS-007) 전제 시 완전 폐쇄망 가능.
+- **구현할 내용**
+  - **대상 파일**: `apps/ai_engine/agent/llm/factory.py`(provider 분기에 `ollama` 추가 — OpenAI 호환 엔드포인트라 기존 `openai_compat_provider` 재사용 가능성 큼), `config/settings.py`(`ollama_base_url`/`ollama_model`), 멀티프로바이더 BYOK 구조 확장.
+  - **핵심 로직**: provider=`ollama`면 로컬 엔드포인트로 라우팅. cache_control 미지원 → usage 4키 0 정규화(기존 openai_compat와 동일 처리). 모델 ID/표시는 FE `models.ts`에 ollama 그룹 추가.
+- **세트 조건(필수)**: VAL 벤치마크(VAL-1/VAL-7)를 로컬 모델에도 적용해 **탐지율·오탐율 품질 저하를 측정·문서화** — 미측정 시 "싸지만 못 잡는" 플랜 금지.
+- **하위 할일**
+  - [ ] factory에 `ollama` provider 분기(openai_compat 재사용 검토)
+  - [ ] settings `ollama_base_url`/`ollama_model`
+  - [ ] FE `models.ts`에 로컬 모델 그룹(크레딧 0 또는 "self-hosted" 표기)
+  - [ ] VAL 벤치 로컬 모델 런 + 품질 저하 스코어카드
+- **자동 테스트**
+  - [ ] 🧪 provider=ollama 라우팅 + usage 4키 0 정규화
+  - [ ] 🔬 로컬 엔드포인트 mock으로 analyze 경로 통과
+- **수동 검증**
+  - [ ] ✅ 로컬 Ollama 1개 모델로 실제 스캔 1건 성공
+  - [ ] ✅ VAL 벤치 결과로 클라우드 대비 탐지율/오탐율 차이 표 확보
+- **리스크**: 로컬 모델 품질 편차 큼 → 품질 측정 없이 프리미엄으로 팔지 말 것.
+
+### FEAT-OPS-007 🟠 On-Premise / 폐쇄망(air-gapped) 설치형 배포
+- **중요도**: 🟠 High | **사이즈**: L | **서비스**: infra + backend
+- **배경**: 금융·공공 엔터프라이즈는 SaaS 기피 — Series A 실사 단골. Docker 아키텍처 강점을 살린 설치형. 진짜 무거운 건 LLM이 아니라 아래 운영 항목들.
+- **구현할 내용 / 숨은 비용(필수 고려)**
+  - ① **라이선스 키 발급/검증** + 오프라인 업데이트 채널(이미지 번들 버전 관리)
+  - ② **에어갭 NVD/CVE 피드 동기화** — 현재 온라인 NVD 전제 → 오프라인 미러/수동 임포트 경로 필요(가장 큰 작업)
+  - ③ **텔레메트리 차단 모드** — Sentry/OTEL/외부 전송 env-gated off
+  - ④ **시크릿 관리** — Vault 없이 로컬 키 관리(FEAT-OPS-004 연계)
+  - ⑤ **데이터 레지던시**(FEAT-COMP-004 연계) — 소스·증적 내부망 잔류 보증
+  - ⑥ 설치 번들: `docker-compose` 오프라인 이미지 + 초기 마이그레이션 + 헬스체크 스크립트
+- **하위 할일**
+  - [ ] 오프라인 설치 번들(이미지 export + compose + seed)
+  - [ ] 에어갭 CVE 미러/임포트 도구
+  - [ ] 텔레메트리 kill-switch env
+  - [ ] 라이선스 키 검증 모듈
+- **테스트/검증 방향**
+  - [ ] 🔬 네트워크 차단 환경에서 설치 → 스캔까지 완주(통합)
+  - [ ] 🛡️ 에어갭에서 외부 아웃바운드 0건 확인(텔레메트리·NVD 포함)
+  - [ ] ✅ 오프라인 CVE 임포트 후 SBOM/CVE 매핑 동작
+- **선행/연계**: FEAT-AI-009(로컬 LLM, 완전 폐쇄망 전제) · FEAT-OPS-004(시크릿) · FEAT-COMP-004(레지던시).
 
 ---
 

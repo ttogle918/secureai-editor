@@ -194,8 +194,10 @@ def sync(docs_path: Path) -> None:
     logger.info("[sync] upserting %d guidelines", len(guidelines))
 
     db_url = settings.postgres_url
-    # 로컬 실행 시 Docker 내부 호스트명 'postgres'를 'localhost'로 교체
-    if "@postgres:" in db_url and "localhost" not in db_url:
+    # 로컬 실행 시 Docker 내부 호스트명 'postgres'를 'localhost'로 교체 (단, Docker 내부 구동 시에는 유지)
+    import os
+    is_docker = os.path.exists("/.dockerenv") or os.environ.get("INTERNAL_API_KEY") is not None
+    if not is_docker and "@postgres:" in db_url and "localhost" not in db_url:
         db_url = db_url.replace("@postgres:", "@localhost:")
 
     try:

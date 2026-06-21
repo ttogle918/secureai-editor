@@ -24,20 +24,23 @@ _cache: dict[str, str] = {}
 
 _ALWAYS_INCLUDED_STACK = "common"
 _pool: AsyncConnectionPool | None = None
+_pool_lock = asyncio.Lock()
 
 
 async def get_pool() -> AsyncConnectionPool:
     """AsyncConnectionPool 싱글톤을 초기화하고 반환한다."""
     global _pool
     if _pool is None:
-        _pool = AsyncConnectionPool(
-            conninfo=settings.postgres_url,
-            min_size=1,
-            max_size=5,
-            kwargs={"autocommit": True},
-            open=False,
-        )
-        await _pool.open()
+        async with _pool_lock:
+            if _pool is None:
+                _pool = AsyncConnectionPool(
+                    conninfo=settings.postgres_url,
+                    min_size=1,
+                    max_size=5,
+                    kwargs={"autocommit": True},
+                    open=False,
+                )
+                await _pool.open()
     return _pool
 
 

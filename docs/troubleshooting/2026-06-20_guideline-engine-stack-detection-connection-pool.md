@@ -75,24 +75,28 @@ def _detect_stacks(file_path: str, content: str) -> list[str]:
 ### 해결
 
 - `psycopg_pool` 패키지의 `AsyncConnectionPool`을 이용해 전역 커넥션 풀 싱글톤(`_pool`)을 적용하여 커넥션을 재사용하도록 리팩토링했습니다.
+- **[추가 보완] 동시성 경쟁 상태(Race Condition) 방지**: 병렬 SAST 분석 중 풀이 아직 초기화되지 않은 상태에서 복수의 비동기 태스크가 `get_pool()`을 동시 호출할 경우 풀 인스턴스가 중복 생성될 수 있는 경쟁 상태를 발견했습니다. 이를 완벽히 방어하고자 `asyncio.Lock`을 사용한 이중 검사 락(double-checked locking) 패턴을 추가 통합했습니다.
 - 애플리케이션 수명 주기 종료 시 커넥션이 안전하게 수거되도록 `main.py`의 `lifespan` 블록 내에서 `close_pool`을 명시적으로 트리거했습니다.
 
 ```python
 # apps/ai_engine/infrastructure/guidelines_client.py
 
 _pool: AsyncConnectionPool | None = None
+_pool_lock = asyncio.Lock()
 
 async def get_pool() -> AsyncConnectionPool:
     global _pool
     if _pool is None:
-        _pool = AsyncConnectionPool(
-            conninfo=settings.postgres_url,
-            min_size=1,
-            max_size=5,
-            kwargs={"autocommit": True},
-            open=False,
-        )
-        await _pool.open()
+        async with _pool_lock:
+            if _pool is None:
+                _pool = AsyncConnectionPool(
+                    conninfo=settings.postgres_url,
+                    min_size=1,
+                    max_size=5,
+                    kwargs={"autocommit": True},
+                    open=False,
+                )
+                await _pool.open()
     return _pool
 
 async def close_pool() -> None:

@@ -52,7 +52,8 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 ## 현재 위치 (Status) — 2026-06-21 갱신
 
-- **진행 위치**: Sprint 13 **Stage 1 완료**(VAL-1·VAL-3·MOAT-1, 커밋 `15cd49a`, 2026-06-18) + AI Engine 후속(guidelines·path-aware stack detection·DB 커넥션 풀링) 진행 중. 이후 Stage 2(VAL-2)·Sprint 14~.
+- **진행 위치**: **Sprint 13 전체 완료** — Stage 1(VAL-1·VAL-3·MOAT-1, `15cd49a`, 2026-06-18) + **Stage 2(VAL-2 평가 CI 게이트, `908c7eb`, 2026-06-18)** 모두 완료. 이후 AI Engine 후속(guidelines·path-aware stack detection·DB 커넥션 풀링·AST 사전필터) 진행. **다음 = Sprint 14.**
+  - ⚠️ VAL-2 잔여(비차단): `eval/baseline.json`이 LIMIT=5 시드라 대표 런(LIMIT≥100/풀런, API 키 필요)으로 갱신해야 게이트가 실효(sprint-13.md #baseline 한계).
 
 - **📹 시연/배포 2트랙 (2026-06-21 확정 — 데모는 빠르게, 배포는 안정적으로)**
 
@@ -63,7 +64,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
   > **요지**: "AI가 찾고 → 샌드박스에서 실제 익스플로잇으로 증명(붉은 딱지) → 자동 패치 → 스캔당 원가 NN% 절감" 한 편 = **14(+EPIC-ECON)**. 데모와 배포는 분리 진행.
 
-- **다음 액션 후보**: Sprint 13 Stage 2(VAL-2 CI 게이트) → **Sprint 14(검증된 AI = 패치 자동화 1401 + VAL-4 proven_exploitable)** — 시연 영상 핵심 산출. 그 직후 **EPIC-ECON 당겨** ③원가 마일스톤 확보.
+- **다음 액션 후보**: **Sprint 14(검증된 AI = 패치 자동화 1401 + VAL-4 proven_exploitable)** — 시연 영상 핵심 산출. 그 직후 **EPIC-ECON 당겨** ③원가 마일스톤 확보. (병행 가능 후속: VAL-2 baseline 대표 런 갱신 / AST 사전필터 VAL-1 recall 측정 — 둘 다 eval 실행+API 키 필요.)
 
 > ⤵ 아래는 **2026-05-31 시점 기록**(보존):
 - **브랜치**: `main` (origin 동기화). Sprint 11 **Stage 0·1·2 dev 완료**(1100·1101·1102·1103·1104·1106) — 빌드/테스트 그린, 푸시 완료

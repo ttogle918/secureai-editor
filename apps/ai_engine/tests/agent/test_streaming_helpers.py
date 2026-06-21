@@ -122,6 +122,7 @@ async def test_sast_node_records_resolved_model_in_state():
     with (
         patch("agent.nodes.sast_node.read_file", new=AM(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AM(return_value="")),
+        patch("agent.nodes.sast_node.should_skip_llm", return_value=False),
         patch("agent.nodes.sast_node._analyze_chunks", new=AM(return_value=([], fake_usage))),
         patch("agent.nodes.sast_node.log_started", new=AM()),
         patch("agent.nodes.sast_node.log_completed", new=AM()),

@@ -46,6 +46,7 @@ async def test_sast_node_increments_token_counter():
     with (
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
+        patch("agent.nodes.sast_node.should_skip_llm", return_value=False),
         # _analyze_chunks 전체를 mock — (vulns_list, usage_dict) 반환
         patch("agent.nodes.sast_node._analyze_chunks", new=AsyncMock(return_value=([], fake_usage))),
         # VAL-3: save_vulnerabilities는 validate_findings_node로 이관 — sast_node에서 제거됨
@@ -78,6 +79,7 @@ async def test_sast_node_does_not_increment_counter_when_zero_tokens():
     with (
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
+        patch("agent.nodes.sast_node.should_skip_llm", return_value=False),
         patch("agent.nodes.sast_node._analyze_chunks", new=AsyncMock(return_value=([], fake_usage))),
         # VAL-3: save_vulnerabilities는 validate_findings_node로 이관
         patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
@@ -127,6 +129,7 @@ async def test_sast_node_audit_mode_uses_haiku_model():
     with (
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
+        patch("agent.nodes.sast_node.should_skip_llm", return_value=False),
         patch("agent.nodes.sast_node._analyze_chunks", side_effect=fake_analyze_chunks),
         # VAL-3: save_vulnerabilities는 validate_findings_node로 이관 — sast_node에 없음
         patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
@@ -178,6 +181,7 @@ async def test_sast_node_pipeline_mode_uses_sonnet_model():
     with (
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
+        patch("agent.nodes.sast_node.should_skip_llm", return_value=False),
         patch("agent.nodes.sast_node._analyze_chunks", side_effect=fake_analyze_chunks),
         # VAL-3: save_vulnerabilities는 validate_findings_node로 이관 — sast_node에 없음
         patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
@@ -229,6 +233,7 @@ async def test_sast_node_preferred_model_overrides_scan_mode():
     with (
         patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="x = 1")),
         patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
+        patch("agent.nodes.sast_node.should_skip_llm", return_value=False),
         patch("agent.nodes.sast_node._analyze_chunks", side_effect=fake_analyze_chunks),
         # VAL-3: save_vulnerabilities는 validate_findings_node로 이관 — sast_node에 없음
         patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
@@ -379,3 +384,34 @@ def test_detect_stacks_does_not_include_common_explicitly():
     # Python 파일: common_python은 포함되지만 "common" 문자열 자체는 없어야 한다
     result = _detect_stacks("/app/views.py", "from django.db import models\nimport django")
     assert "common" not in result  # "common_python"과 구분
+
+
+@pytest.mark.asyncio
+async def test_sast_node_skips_llm_when_pre_filter_permits():
+    """ast_pre_filter가 안전하다고 판단하면 LLM 분석을 스킵하고 비어있는 vulnerabilities를 반환한다."""
+    mock_analyze = AsyncMock()
+
+    with (
+        patch("agent.nodes.sast_node.read_file", new=AsyncMock(return_value="def greet(): pass")),
+        patch("agent.nodes.sast_node.load_guidelines", new=AsyncMock(return_value="")),
+        patch("agent.nodes.sast_node.should_skip_llm", return_value=True),
+        patch("agent.nodes.sast_node._analyze_chunks", mock_analyze),
+        patch("agent.nodes.sast_node.log_started", new=AsyncMock()),
+        patch("agent.nodes.sast_node.log_completed", new=AsyncMock()),
+        patch("agent.nodes.sast_node.classify_and_enrich", return_value=[]),
+        patch("agent.nodes.sast_node._get_redis", return_value=MagicMock()),
+        patch("agent.nodes.sast_node._fetch_prev_vuln_context", new=AsyncMock(return_value="")),
+        patch("agent.nodes.sast_node._ai_tokens_counter", MagicMock()),
+    ):
+        from agent.nodes.sast_node import sast_node
+        state = _make_state(files_to_scan=["/app/utils.py"])
+        update = await sast_node(state)
+
+    # _analyze_chunks가 호출되지 않아야 함
+    mock_analyze.assert_not_called()
+    
+    # 결과 검증
+    results = update["sast_results"]
+    assert len(results) == 1
+    assert results[0]["skipped"] is True
+    assert results[0]["vulnerabilities"] == []

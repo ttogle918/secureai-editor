@@ -141,3 +141,26 @@ async def load_guidelines(stacks: "str | list[str]") -> str:
     if not is_docker and "@postgres:" in db_url and "localhost" not in db_url:
         db_url = db_url.replace("@postgres:", "@localhost:")
 ```
+
+---
+
+## 이슈 4 — 워크플로우 노드 간의 이중/삼중 파일 읽기로 인한 I/O 오버헤드 및 GitHub API 속도 한계 소모
+
+### 증상
+
+- 1개 파일을 SAST 분석하는 1사이클 내에 동일한 파일을 최대 3번(캐시 조회 시 1회, 캐시 미스 스캔 시 1회, AST 할루시네이션 가드 검증 시 1회) 반복해서 로드하는 성능 저하가 발생함.
+- 특히 `github` 소스 타입으로 스캔 시 깃허브 API 호출 횟수가 최대 3배로 폭증하여 Rate Limit 소모 속도가 지나치게 빨랐음.
+- 또한 `cache_check_node`가 로컬 `read_file`만 하드코딩 지원하여 GitHub 스캔 시 에러(`Exception`)가 터지면서 캐시 조회가 항상 실패하고 캐시 미스로 처리되었음.
+
+### 원인 분석
+
+- `cache_check_node`, `sast_node`, `validate_findings_node` 3개 노드가 독자적인 파일 읽기 로직(`read_file` / `get_github_file_content`)을 각각 수행함.
+- LangGraph의 체크포인트 비대화를 막기 위해 `content`를 최종 상태로 보존하지 않는 의도된 가이드라인이 존재했으나, 임시 라이프사이클을 타는 상태 공유 체계가 부재하여 비효율적인 반복 로드가 발생함.
+
+### 해결
+
+- `AgentState`에 `current_file_content` 임시 필드를 도입했습니다.
+- `cache_check_node`가 GitHub/로컬 환경 분기를 타며 파일을 1회 읽고, 해시 계산 후 `current_file_content`에 내용을 실어 다음 노드로 넘깁니다.
+- `sast_node`와 `validate_findings_node`는 해당 임시 필드가 있으면 파일 읽기를 우회(skip)하고 캐싱된 내용만 활용하도록 개선했습니다.
+- 루프가 끝나 다음 파일로 전이하기 직전인 `validate_findings_node` 리턴 시점에 `current_file_content: None`으로 가비지 컬렉션을 명시하여 영구 체크포인트 크기 비대화를 원천 차단했습니다.
+

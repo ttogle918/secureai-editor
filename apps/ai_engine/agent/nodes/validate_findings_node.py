@@ -149,6 +149,7 @@ async def validate_findings_node(state: AgentState) -> dict:
         "sast_results": updated_sast_results,
         "validated_findings": prev_validated + validated,
         "discarded_findings": prev_discarded + discarded,
+        "current_file_content": None,
     }
 
 
@@ -160,6 +161,10 @@ async def _fetch_file_content(state: AgentState, file_path: str, session_id: str
     """
     if not file_path:
         return ""
+
+    content = state.get("current_file_content")
+    if content is not None:
+        return content
 
     try:
         source_type = state.get("source_type", "local")

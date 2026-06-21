@@ -26,6 +26,9 @@ class AgentState(TypedDict):
 
     # cache_check_node 가 계산한 현재 파일 SHA-256 (sast_node에서 캐시 저장에 재사용)
     current_file_sha256: str | None
+    
+    # cache_check_node 에서 한 번 읽은 현재 파일 내용 (이중/삼중 읽기 방지 및 성능/API 절감용 임시 변수)
+    current_file_content: str | None
 
     # 노드 간 신호
     cache_hit: bool

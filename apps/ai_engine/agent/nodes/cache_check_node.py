@@ -6,6 +6,7 @@ import redis.asyncio as aioredis
 
 from agent.agent_state import AgentState
 from agent.tools.mcp_filesystem_tools import read_file
+from agent.tools.mcp_github_tools import get_github_file_content
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,19 @@ async def cache_check_node(state: AgentState) -> dict:
     logger.info("[cache_check] session=%s file=%s", session_id, file_path)
 
     try:
-        content = await read_file(session_id, file_path)
+        source_type = state.get("source_type", "local")
+        if source_type == "github":
+            content = await get_github_file_content(
+                session_id,
+                state["github_owner"],
+                state["github_repo"],
+                file_path,
+                state.get("github_ref"),
+                state.get("github_token"),
+            )
+        else:
+            content = await read_file(session_id, file_path)
+
         sha256 = hashlib.sha256(content.encode()).hexdigest()
 
         r = _get_redis()
@@ -50,10 +63,15 @@ async def cache_check_node(state: AgentState) -> dict:
                 "current_file_sha256": sha256,
                 "cache_hit": True,
                 "sast_results": state.get("sast_results", []) + [cached_result],
+                "current_file_content": content,
             }
 
         logger.info("[cache_check] MISS session=%s file=%s", session_id, file_path)
-        return {"current_file_sha256": sha256, "cache_hit": False}
+        return {
+            "current_file_sha256": sha256,
+            "cache_hit": False,
+            "current_file_content": content,
+        }
 
     except Exception as exc:
         logger.error("[cache_check] session=%s file=%s error=%s", session_id, file_path, exc)

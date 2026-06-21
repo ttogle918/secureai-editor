@@ -270,18 +270,20 @@ async def sast_node(state: AgentState) -> dict:
 
       try:
         source_type = state.get("source_type", "local")
-        if source_type == "github":
-            # github_token은 로그에 절대 출력 금지
-            content = await get_github_file_content(
-                session_id,
-                state["github_owner"],
-                state["github_repo"],
-                file_path,
-                state.get("github_ref"),
-                state.get("github_token"),
-            )
-        else:
-            content = await read_file(session_id, file_path)
+        content = state.get("current_file_content")
+        if content is None:
+            if source_type == "github":
+                # github_token은 로그에 절대 출력 금지
+                content = await get_github_file_content(
+                    session_id,
+                    state["github_owner"],
+                    state["github_repo"],
+                    file_path,
+                    state.get("github_ref"),
+                    state.get("github_token"),
+                )
+            else:
+                content = await read_file(session_id, file_path)
 
         stacks = _detect_stacks(file_path, content)
         guidelines = await load_guidelines(stacks)

@@ -9,6 +9,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -247,10 +249,237 @@ public class GitHubRestClient {
                 .toList();
     }
 
+    /**
+     * 레포지토리 기본 브랜치의 최신 커밋 SHA를 조회한다.
+     *
+     * @param owner     레포지토리 소유자
+     * @param repo      레포지토리 이름
+     * @param branch    기준 브랜치명 (null/blank이면 기본 브랜치 조회 후 SHA 반환)
+     * @param appToken  Installation Token (로그 출력 금지)
+     * @return 브랜치 HEAD 커밋 SHA (40자 hex)
+     */
+    @SuppressWarnings("unchecked")
+    public String getDefaultBranchSha(String owner, String repo, String branch, String appToken) {
+        // appToken 로그 출력 금지
+        String targetBranch = (branch != null && !branch.isBlank()) ? branch : resolveDefaultBranch(owner, repo, appToken);
+
+        Map<String, Object> response = restClient.get()
+                .uri("/repos/{owner}/{repo}/git/ref/heads/{branch}", owner, repo, targetBranch)
+                .headers(headers -> {
+                    headers.setBearerAuth(appToken);
+                    headers.set("Accept", "application/vnd.github+json");
+                })
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                    int statusCode = res.getStatusCode().value();
+                    log.warn("[github-client] HEAD SHA 조회 실패 owner={} repo={} branch={} status={}",
+                            owner, repo, targetBranch, statusCode);
+                    if (statusCode == 403) throw new BusinessException(ErrorCode.GITHUB_AUTH_REQUIRED);
+                    if (statusCode == 429) throw new BusinessException(ErrorCode.GITHUB_RATE_LIMIT_EXCEEDED);
+                    throw new BusinessException(ErrorCode.GITHUB_REPO_NOT_FOUND);
+                })
+                .body(Map.class);
+
+        if (response == null) {
+            throw new BusinessException(ErrorCode.GITHUB_REPO_NOT_FOUND);
+        }
+
+        Map<String, Object> object = (Map<String, Object>) response.get("object");
+        if (object == null || object.get("sha") == null) {
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+        String sha = (String) object.get("sha");
+        log.info("[github-client] HEAD SHA 조회 완료 owner={} repo={} branch={}", owner, repo, targetBranch);
+        return sha;
+    }
+
+    /**
+     * 새 브랜치 ref를 생성한다.
+     * 이미 존재하면 PATCH_BRANCH_CONFLICT 예외를 발생시킨다.
+     *
+     * @param owner      레포지토리 소유자
+     * @param repo       레포지토리 이름
+     * @param branchName 생성할 브랜치명 (예: "secureai/patch-abc123")
+     * @param sha        기준 커밋 SHA (base HEAD)
+     * @param appToken   Installation Token (로그 출력 금지)
+     */
+    public void createBranchRef(String owner, String repo, String branchName, String sha, String appToken) {
+        // appToken 로그 출력 금지
+        Map<String, Object> body = new HashMap<>();
+        body.put("ref", "refs/heads/" + branchName);
+        body.put("sha", sha);
+
+        restClient.post()
+                .uri("/repos/{owner}/{repo}/git/refs", owner, repo)
+                .headers(headers -> {
+                    headers.setBearerAuth(appToken);
+                    headers.set("Accept", "application/vnd.github+json");
+                })
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                    int statusCode = res.getStatusCode().value();
+                    log.warn("[github-client] 브랜치 ref 생성 실패 owner={} repo={} branch={} status={}",
+                            owner, repo, branchName, statusCode);
+                    if (statusCode == 422) throw new BusinessException(ErrorCode.PATCH_BRANCH_CONFLICT);
+                    if (statusCode == 403) throw new BusinessException(ErrorCode.GITHUB_AUTH_REQUIRED);
+                    if (statusCode == 429) throw new BusinessException(ErrorCode.GITHUB_RATE_LIMIT_EXCEEDED);
+                    throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+                })
+                .toBodilessEntity();
+
+        log.info("[github-client] 브랜치 ref 생성 완료 owner={} repo={} branch={}", owner, repo, branchName);
+    }
+
+    /**
+     * 파일을 브랜치에 커밋한다 (신규 파일 create / 기존 파일 update).
+     * 기존 파일 업데이트 시 fileSha가 반드시 필요하다 (GitHub API 요구사항).
+     *
+     * @param owner      레포지토리 소유자
+     * @param repo       레포지토리 이름
+     * @param filePath   파일 경로 (레포 루트 기준, 예: "src/main/java/Dao.java")
+     * @param message    커밋 메시지 (민감 경로/페이로드 금지)
+     * @param content    파일 내용 (UTF-8 인코딩 후 Base64)
+     * @param branch     대상 브랜치명
+     * @param fileSha    기존 파일 SHA (신규 파일이면 null)
+     * @param appToken   Installation Token (로그 출력 금지)
+     */
+    public void putFileContents(String owner, String repo, String filePath,
+                                String message, String content, String branch,
+                                String fileSha, String appToken) {
+        // appToken 로그 출력 금지
+        String encodedContent = Base64.getEncoder()
+                .encodeToString(content.getBytes(StandardCharsets.UTF_8));
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("message", message);
+        body.put("content", encodedContent);
+        body.put("branch", branch);
+        if (fileSha != null && !fileSha.isBlank()) {
+            // 기존 파일 업데이트 — sha 필수
+            body.put("sha", fileSha);
+        }
+
+        restClient.put()
+                .uri("/repos/{owner}/{repo}/contents/{filePath}", owner, repo, filePath)
+                .headers(headers -> {
+                    headers.setBearerAuth(appToken);
+                    headers.set("Accept", "application/vnd.github+json");
+                })
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                    int statusCode = res.getStatusCode().value();
+                    log.warn("[github-client] 파일 커밋 실패 owner={} repo={} path={} status={}",
+                            owner, repo, filePath, statusCode);
+                    if (statusCode == 403) throw new BusinessException(ErrorCode.GITHUB_AUTH_REQUIRED);
+                    if (statusCode == 429) throw new BusinessException(ErrorCode.GITHUB_RATE_LIMIT_EXCEEDED);
+                    throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+                })
+                .toBodilessEntity();
+
+        log.info("[github-client] 파일 커밋 완료 owner={} repo={} path={} branch={}", owner, repo, filePath, branch);
+    }
+
+    /**
+     * Pull Request를 생성한다. 자동 머지는 절대 금지한다.
+     *
+     * @param owner      레포지토리 소유자
+     * @param repo       레포지토리 이름
+     * @param title      PR 제목 (민감 정보 금지)
+     * @param body       PR 본문 (마크다운, 민감 경로/페이로드 금지)
+     * @param head       소스 브랜치명 (secureai/patch-xxx)
+     * @param base       대상 브랜치명 (main, develop 등)
+     * @param appToken   Installation Token (로그 출력 금지)
+     * @return PR 생성 응답 (prUrl, prNumber 포함)
+     */
+    @SuppressWarnings("unchecked")
+    public PullRequestResponse createPullRequest(String owner, String repo,
+                                                  String title, String body,
+                                                  String head, String base,
+                                                  String appToken) {
+        // appToken 로그 출력 금지 — auto-merge 절대 금지
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("title", title);
+        requestBody.put("body", body);
+        requestBody.put("head", head);
+        requestBody.put("base", base);
+        // draft=false, auto-merge 옵션 없음 (PR-only 정책 준수)
+
+        Map<String, Object> response = restClient.post()
+                .uri("/repos/{owner}/{repo}/pulls", owner, repo)
+                .headers(headers -> {
+                    headers.setBearerAuth(appToken);
+                    headers.set("Accept", "application/vnd.github+json");
+                })
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(requestBody)
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                    int statusCode = res.getStatusCode().value();
+                    log.warn("[github-client] PR 생성 실패 owner={} repo={} head={} status={}",
+                            owner, repo, head, statusCode);
+                    if (statusCode == 403) throw new BusinessException(ErrorCode.GITHUB_AUTH_REQUIRED);
+                    if (statusCode == 422) throw new BusinessException(ErrorCode.PATCH_BRANCH_CONFLICT);
+                    if (statusCode == 429) throw new BusinessException(ErrorCode.GITHUB_RATE_LIMIT_EXCEEDED);
+                    throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+                })
+                .body(Map.class);
+
+        if (response == null || response.get("number") == null || response.get("html_url") == null) {
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+
+        int prNumber = ((Number) response.get("number")).intValue();
+        String prUrl = (String) response.get("html_url");
+        log.info("[github-client] PR 생성 완료 owner={} repo={} prNumber={}", owner, repo, prNumber);
+        return new PullRequestResponse(prNumber, prUrl);
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * 레포지토리의 기본 브랜치명을 조회한다.
+     * baseBranch 미지정 시 PR 생성에서 사용한다.
+     *
+     * @param owner    레포지토리 소유자
+     * @param repo     레포지토리 이름
+     * @param appToken Installation Token (로그 출력 금지)
+     * @return 기본 브랜치명 (조회 실패 시 "main")
+     */
+    @SuppressWarnings("unchecked")
+    public String resolveDefaultBranch(String owner, String repo, String appToken) {
+        Map<String, Object> response = restClient.get()
+                .uri("/repos/{owner}/{repo}", owner, repo)
+                .headers(headers -> {
+                    headers.setBearerAuth(appToken);
+                    headers.set("Accept", "application/vnd.github+json");
+                })
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                    log.warn("[github-client] 기본 브랜치 조회 실패 owner={} repo={} status={}",
+                            owner, repo, res.getStatusCode().value());
+                    throw new BusinessException(ErrorCode.GITHUB_REPO_NOT_FOUND);
+                })
+                .body(Map.class);
+
+        if (response == null || response.get("default_branch") == null) {
+            return "main";
+        }
+        return (String) response.get("default_branch");
+    }
+
     // ─── Inner DTOs ──────────────────────────────────────────────────────────
 
     /**
      * Check Run 생성 응답 DTO.
      */
     public record CheckRunResponse(long id) {}
+
+    /**
+     * Pull Request 생성 응답 DTO.
+     */
+    public record PullRequestResponse(int prNumber, String prUrl) {}
 }

@@ -138,6 +138,67 @@ public class GitHubAppAuthService {
     }
 
     /**
+     * 특정 레포지토리의 GitHub App Installation Token을 발급한다.
+     *
+     * GET /repos/{owner}/{repo}/installation 으로 installation id를 조회한 뒤
+     * Installation Token을 교환한다.
+     * App JWT 및 응답 토큰은 절대 로그에 출력하지 않는다.
+     *
+     * @param owner 레포지토리 소유자
+     * @param repo  레포지토리 이름
+     * @return installation access token (로그 출력 금지)
+     * @throws BusinessException GITHUB_AUTH_REQUIRED — App 미설치 또는 권한 없음
+     * @throws BusinessException GITHUB_APP_AUTH_FAILED — 토큰 교환 실패
+     */
+    @SuppressWarnings("unchecked")
+    public String getInstallationTokenForRepo(String owner, String repo) {
+        String appId = gitHubConfig.getCheckRunAppId();
+        if (appId == null || appId.isBlank()) {
+            throw new BusinessException(ErrorCode.GITHUB_APP_AUTH_FAILED, "GITHUB_APP_ID가 설정되지 않았습니다.");
+        }
+
+        String appJwt = buildAppJwt();
+        // appJwt 로그 출력 절대 금지
+
+        Map<String, Object> response;
+        try {
+            response = restClient.get()
+                    .uri("/repos/{owner}/{repo}/installation", owner, repo)
+                    .headers(headers -> {
+                        headers.setBearerAuth(appJwt);
+                        headers.set("Accept", "application/vnd.github+json");
+                    })
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                        int statusCode = res.getStatusCode().value();
+                        log.warn("[github-app-auth] 레포 installation 조회 실패 owner={} repo={} status={}",
+                                owner, repo, statusCode);
+                        if (statusCode == 404) {
+                            throw new BusinessException(ErrorCode.GITHUB_AUTH_REQUIRED,
+                                    "GitHub App이 해당 레포에 설치되어 있지 않습니다.");
+                        }
+                        throw new BusinessException(ErrorCode.GITHUB_APP_AUTH_FAILED,
+                                "레포 installation 조회 실패: HTTP " + statusCode);
+                    })
+                    .body(Map.class);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("[github-app-auth] 레포 installation 조회 중 예외 owner={} repo={} err={}",
+                    owner, repo, e.getMessage());
+            throw new BusinessException(ErrorCode.GITHUB_APP_AUTH_FAILED, "레포 installation 조회 실패: " + e.getMessage());
+        }
+
+        if (response == null || response.get("id") == null) {
+            throw new BusinessException(ErrorCode.GITHUB_AUTH_REQUIRED, "installation 정보를 파싱할 수 없습니다.");
+        }
+
+        long installationId = ((Number) response.get("id")).longValue();
+        log.info("[github-app-auth] 레포 installation 조회 완료 owner={} repo={}", owner, repo);
+        return exchangeInstallationToken(installationId);
+    }
+
+    /**
      * 웹훅 페이로드에서 installation.id를 추출하여 Installation Token을 반환한다.
      * installation 정보가 없거나 App 설정이 불완전하면 빈 문자열을 반환한다 (skip & log).
      *

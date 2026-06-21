@@ -1,8 +1,11 @@
 package io.secureai.backend.domain.patch.controller;
 
+import io.secureai.backend.domain.patch.dto.CreatePatchPrRequest;
 import io.secureai.backend.domain.patch.dto.PatchExampleItem;
+import io.secureai.backend.domain.patch.dto.PatchPrResponse;
 import io.secureai.backend.domain.patch.dto.PatchSuggestionResponse;
 import io.secureai.backend.domain.patch.dto.SavePatchResultsRequest;
+import io.secureai.backend.domain.patch.service.PatchPrService;
 import io.secureai.backend.domain.patch.service.PatchService;
 import io.secureai.backend.global.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -21,6 +24,7 @@ import java.util.UUID;
 public class PatchController {
 
     private final PatchService patchService;
+    private final PatchPrService patchPrService;
 
     /** AI Engine → Backend 내부 엔드포인트 (X-Internal-Key 인증) */
     @PostMapping("/api/v1/internal/patches")
@@ -63,5 +67,26 @@ public class PatchController {
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID patchId) {
         return ResponseEntity.ok(ApiResponse.success(patchService.applyPatch(userId, patchId)));
+    }
+
+    /**
+     * 패치 → GitHub PR 생성 (JWT 인증 필요).
+     *
+     * 입력 검증은 Controller 레이어에서만 수행 (general.md 보안 규칙).
+     * patchId 소유 검증은 PatchPrService에서 수행한다.
+     * auto-merge 절대 금지 — PR-only.
+     *
+     * @param userId    JWT에서 추출한 사용자 ID
+     * @param patchId   패치 제안 ID
+     * @param request   PR 생성 요청 ({owner, repo, baseBranch?})
+     * @return PatchPrResponse ({prUrl, prNumber, branchName})
+     */
+    @PostMapping("/api/v1/patches/{patchId}/pull-request")
+    public ResponseEntity<ApiResponse<PatchPrResponse>> createPullRequest(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID patchId,
+            @Valid @RequestBody CreatePatchPrRequest request) {
+        PatchPrResponse response = patchPrService.createPr(userId, patchId, request);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

@@ -1,9 +1,14 @@
 package io.secureai.backend.domain.patch.controller;
 
+import io.secureai.backend.domain.patch.dto.CreatePatchPrRequest;
 import io.secureai.backend.domain.patch.dto.PatchExampleItem;
+import io.secureai.backend.domain.patch.dto.PatchPrResponse;
 import io.secureai.backend.domain.patch.dto.PatchSuggestionResponse;
 import io.secureai.backend.domain.patch.dto.SavePatchResultsRequest;
+import io.secureai.backend.domain.patch.service.PatchPrService;
 import io.secureai.backend.domain.patch.service.PatchService;
+import io.secureai.backend.global.exception.BusinessException;
+import io.secureai.backend.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,17 +25,19 @@ import static org.mockito.Mockito.*;
 /**
  * PatchController 단위 테스트 — 내부(Agent) 저장/예시 조회와 인증 사용자용
  * 패치 목록/적용의 위임·상태코드를 검증한다.
+ * TASK-1401: createPullRequest 엔드포인트 위임 및 오류 전파 테스트 포함.
  */
 @ExtendWith(MockitoExtension.class)
 class PatchControllerTest {
 
     @Mock PatchService patchService;
+    @Mock PatchPrService patchPrService;
 
     private PatchController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new PatchController(patchService);
+        controller = new PatchController(patchService, patchPrService);
     }
 
     @Test
@@ -84,5 +91,62 @@ class PatchControllerTest {
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody().getData()).isSameAs(applied);
         verify(patchService).applyPatch(userId, patchId);
+    }
+
+    // -----------------------------------------------------------------------
+    // TASK-1401: PR 생성 엔드포인트 테스트
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("createPullRequest — PatchPrService에 위임하고 200과 PatchPrResponse를 반환한다")
+    void createPullRequest_delegates_and_returns200() {
+        UUID userId = UUID.randomUUID();
+        UUID patchId = UUID.randomUUID();
+        CreatePatchPrRequest request = new CreatePatchPrRequest("octocat", "my-repo", null);
+        PatchPrResponse prResponse = new PatchPrResponse(
+                "https://github.com/octocat/my-repo/pull/42", 42, "secureai/patch-a1b2c3d4"
+        );
+
+        when(patchPrService.createPr(userId, patchId, request)).thenReturn(prResponse);
+
+        var response = controller.createPullRequest(userId, patchId, request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody().getData().prNumber()).isEqualTo(42);
+        assertThat(response.getBody().getData().prUrl()).contains("github.com");
+        assertThat(response.getBody().getData().branchName()).startsWith("secureai/patch-");
+        verify(patchPrService).createPr(userId, patchId, request);
+    }
+
+    @Test
+    @DisplayName("createPullRequest — PATCH_ACCESS_DENIED 예외가 발생하면 그대로 전파된다")
+    void createPullRequest_accessDenied_propagatesException() {
+        UUID userId = UUID.randomUUID();
+        UUID patchId = UUID.randomUUID();
+        CreatePatchPrRequest request = new CreatePatchPrRequest("octocat", "my-repo", null);
+
+        when(patchPrService.createPr(userId, patchId, request))
+                .thenThrow(new BusinessException(ErrorCode.PATCH_ACCESS_DENIED));
+
+        assertThatThrownBy(() -> controller.createPullRequest(userId, patchId, request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.PATCH_ACCESS_DENIED));
+    }
+
+    @Test
+    @DisplayName("createPullRequest — GITHUB_RATE_LIMIT_EXCEEDED 예외가 발생하면 그대로 전파된다")
+    void createPullRequest_rateLimitExceeded_propagatesException() {
+        UUID userId = UUID.randomUUID();
+        UUID patchId = UUID.randomUUID();
+        CreatePatchPrRequest request = new CreatePatchPrRequest("octocat", "my-repo", null);
+
+        when(patchPrService.createPr(userId, patchId, request))
+                .thenThrow(new BusinessException(ErrorCode.GITHUB_RATE_LIMIT_EXCEEDED));
+
+        assertThatThrownBy(() -> controller.createPullRequest(userId, patchId, request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.GITHUB_RATE_LIMIT_EXCEEDED));
     }
 }

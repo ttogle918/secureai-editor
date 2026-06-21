@@ -81,5 +81,8 @@ class Settings(BaseSettings):
     # Sentry 에러 추적 — SENTRY_DSN 미설정 시 init 스킵 (env-gated, TASK-1804)
     sentry_dsn: str = Field("", alias="SENTRY_DSN")
 
+    # AST 사전 필터링 활성화 여부 (VAL-1 검증 완료 전까지 기본값 False 권장)
+    ast_pre_filter_enabled: bool = Field(False, alias="AST_PRE_FILTER_ENABLED")
+
 
 settings = Settings()

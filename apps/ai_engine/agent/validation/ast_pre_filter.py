@@ -12,21 +12,46 @@ logger = logging.getLogger(__name__)
 
 # 각 언어별 위험 관심사(Concerns) 키워드 세트 (텍스트 빠른 매칭용)
 _PYTHON_SENSITIVE_KEYWORDS = {
+    # SQL / DB
     "execute", "raw", "cursor", "connect", "sqlite3", "psycopg", "pymysql",
-    "sqlalchemy", "subprocess", "popen", "spawn", "shutil", "eval", "exec", "open"
+    "sqlalchemy", "db", "sql",
+    # OS Command execution
+    "subprocess", "popen", "spawn", "shutil", "system", "os",
+    # Dynamic execution / Deserialization
+    "eval", "exec", "pickle", "yaml", "load", "loads",
+    # File I/O (Path traversal 등)
+    "open", "read", "write",
+    # SSRF
+    "requests", "urllib", "http"
 }
 
 _JAVA_SENSITIVE_KEYWORDS = {
+    # Connection & Statement
     "Connection", "Statement", "PreparedStatement", "JdbcTemplate", "EntityManager",
-    "Repository", "rawQuery", "exec", "ProcessBuilder", "FileInputStream",
-    "FileOutputStream", "Socket", "HttpURLConnection", "getSharedPreferences",
-    "WebView", "WebViewClient", "SslErrorHandler", "addJavascriptInterface", "Intent"
+    "Repository", "rawQuery",
+    # Command execution
+    "exec", "ProcessBuilder", "Runtime",
+    # File & Network (Path traversal / SSRF)
+    "FileInputStream", "FileOutputStream", "Socket", "HttpURLConnection", "URL", "InputStream", "OutputStream",
+    # Android specific security concerns
+    "getSharedPreferences", "WebView", "WebViewClient", "SslErrorHandler", "addJavascriptInterface", "Intent"
 }
 
 _JS_TS_SENSITIVE_KEYWORDS = {
-    "dangerouslySetInnerHTML", "innerHTML", "eval", "child_process", "exec",
-    "spawn", "execSync", "query", "sql", "mysql", "pg", "sqlite", "mongoose"
+    # Frontend vulnerabilities / XSS
+    "dangerouslySetInnerHTML", "innerHTML", "eval", "Function",
+    # Command execution
+    "child_process", "exec", "spawn", "execSync", "run",
+    # Database / SQL
+    "query", "sql", "mysql", "pg", "sqlite", "mongoose", "db",
+    # File I/O (Path traversal)
+    "fs", "readFile", "readFileSync", "writeFile", "writeFileSync", "path",
+    # Dynamic module load & Redirect
+    "require", "redirect",
+    # Prototype pollution
+    "prototype", "__proto__", "constructor"
 }
+
 
 
 class _PythonPreFilterVisitor(ast.NodeVisitor):

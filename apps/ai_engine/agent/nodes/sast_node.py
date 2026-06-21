@@ -32,6 +32,12 @@ _ai_tokens_counter = Counter(
     ["service"],
 )
 
+_ai_skipped_counter = Counter(
+    "secureai_ai_llm_skipped_total",
+    "Total LLM invocations skipped by AST pre-filter",
+    ["service"],
+)
+
 _redis: aioredis.Redis | None = None
 _CACHE_PREFIX = "secureai:sast:cache:"
 
@@ -285,37 +291,39 @@ async def sast_node(state: AgentState) -> dict:
             else:
                 content = await read_file(session_id, file_path)
 
-        stacks = _detect_stacks(file_path, content)
-        guidelines = await load_guidelines(stacks)
-
-        # OTel span 안에서 조회하여 DB 조회 시간도 트레이싱에 포함된다.
-        prev_vuln_context = await _fetch_prev_vuln_context(state["project_id"])
-        if prev_vuln_context:
-            guidelines = (
-                guidelines
-                + "\n\n### Previous Vulnerabilities in This Project (last 30 days)\n"
-                + prev_vuln_context
-            )
-
         # ── 1차 정적 AST 스크리닝 필터 적용 ──────────────────────────────────
-        # 파일이 완전히 청정하다고 판정되면 LLM 호출 자체를 생략(Short-circuit)한다.
-        # 단, 확장자 기반 매핑을 통해 ast_pre_filter에 언어명을 넘겨 검사한다.
-        ext = os.path.splitext(file_path)[1].lower()
-        language_map = {
-            ".py": "python", ".java": "java", ".kt": "kotlin",
-            ".js": "javascript", ".jsx": "javascript",
-            ".ts": "typescript", ".tsx": "typescript"
-        }
-        detected_lang = language_map.get(ext, "")
+        # 설정이 활성화되어 있고 파일이 청정하다고 판단되면 조기 생략(Short-circuit)한다.
+        is_skip = False
+        if settings.ast_pre_filter_enabled:
+            ext = os.path.splitext(file_path)[1].lower()
+            language_map = {
+                ".py": "python", ".java": "java", ".kt": "kotlin",
+                ".js": "javascript", ".jsx": "javascript",
+                ".ts": "typescript", ".tsx": "typescript"
+            }
+            detected_lang = language_map.get(ext, "")
+            if should_skip_llm(file_path, content, detected_lang):
+                is_skip = True
 
-        if should_skip_llm(file_path, content, detected_lang):
+        if is_skip:
             logger.info("[sast] skip LLM scan (clean file) session=%s file=%s", session_id, file_path)
+            _ai_skipped_counter.labels(service="sast").inc()
             file_usage = dict(_EMPTY_USAGE)
             vulns = []
-            resolved_provider = "skipped"
-            preferred_model = "skipped"
             result = {"file": file_path, "vulnerabilities": [], "cached": False, "skipped": True}
         else:
+            stacks = _detect_stacks(file_path, content)
+            guidelines = await load_guidelines(stacks)
+
+            # OTel span 안에서 조회하여 DB 조회 시간도 트레이싱에 포함된다.
+            prev_vuln_context = await _fetch_prev_vuln_context(state["project_id"])
+            if prev_vuln_context:
+                guidelines = (
+                    guidelines
+                    + "\n\n### Previous Vulnerabilities in This Project (last 30 days)\n"
+                    + prev_vuln_context
+                )
+
             # ── Provider/Model 결정 블록 ──────────────────────────────────────────
             # 우선순위:
             # 1. preferred_provider (COST-4 에서 state에 주입 — 현재 없으면 None)
@@ -405,7 +413,7 @@ async def sast_node(state: AgentState) -> dict:
         "progress_percent": progress_percent,
         "token_usage": _add_usage(prev_usage, file_usage),
     }
-    if resolved_provider and preferred_model:
+    if resolved_provider and preferred_model and resolved_provider != "skipped" and preferred_model != "skipped":
         update["resolved_provider"] = resolved_provider
         update["resolved_model"] = preferred_model
     return update

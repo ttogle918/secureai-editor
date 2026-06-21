@@ -124,3 +124,41 @@ function runExpr(expr: string): any {
 }
 """
     assert should_skip_llm("eval.ts", code, "typescript") is False
+
+
+def test_should_skip_llm_dirty_python_os_system():
+    code = """
+import os
+def run_backup():
+    os.system("tar -czf backup.tar.gz /data")
+"""
+    assert should_skip_llm("backup.py", code, "python") is False
+
+
+def test_should_skip_llm_dirty_python_deserialization():
+    code = """
+import pickle
+def load_data(payload):
+    return pickle.loads(payload)
+"""
+    assert should_skip_llm("loader.py", code, "python") is False
+
+
+def test_should_skip_llm_dirty_javascript_fs():
+    code = """
+const fs = require('fs');
+function readConfig(path) {
+    return fs.readFileSync(path, 'utf8');
+}
+"""
+    assert should_skip_llm("config.js", code, "javascript") is False
+
+
+def test_should_skip_llm_dirty_javascript_redirect():
+    code = """
+app.get('/login', (req, res) => {
+    res.redirect(req.query.url);
+});
+"""
+    assert should_skip_llm("auth.js", code, "javascript") is False
+

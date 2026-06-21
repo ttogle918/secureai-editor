@@ -389,6 +389,8 @@ def test_detect_stacks_does_not_include_common_explicitly():
 @pytest.mark.asyncio
 async def test_sast_node_skips_llm_when_pre_filter_permits():
     """ast_pre_filter가 안전하다고 판단하면 LLM 분석을 스킵하고 비어있는 vulnerabilities를 반환한다."""
+    mock_settings = MagicMock()
+    mock_settings.ast_pre_filter_enabled = True
     mock_analyze = AsyncMock()
 
     with (
@@ -402,6 +404,7 @@ async def test_sast_node_skips_llm_when_pre_filter_permits():
         patch("agent.nodes.sast_node._get_redis", return_value=MagicMock()),
         patch("agent.nodes.sast_node._fetch_prev_vuln_context", new=AsyncMock(return_value="")),
         patch("agent.nodes.sast_node._ai_tokens_counter", MagicMock()),
+        patch("agent.nodes.sast_node.settings", mock_settings),
     ):
         from agent.nodes.sast_node import sast_node
         state = _make_state(files_to_scan=["/app/utils.py"])

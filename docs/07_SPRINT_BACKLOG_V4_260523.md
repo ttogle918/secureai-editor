@@ -52,7 +52,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 ## 현재 위치 (Status) — 2026-06-21 갱신
 
-- **진행 위치**: **Sprint 13 전체 완료** — Stage 1(VAL-1·VAL-3·MOAT-1, `15cd49a`, 2026-06-18) + **Stage 2(VAL-2 평가 CI 게이트, `908c7eb`, 2026-06-18)** 모두 완료. 이후 AI Engine 후속(guidelines·path-aware stack detection·DB 커넥션 풀링·AST 사전필터) 진행. **다음 = Sprint 14.**
+- **진행 위치**: **Sprint 14 Stage 1 완료**(VAL-4 proven_exploitable 하니스 + TASK-1401 패치 자동 PR, `bcf3804`, 2026-06-22 · Reviewer PASS). **다음 = Stage 1 수동검증(WebGoat proven 실증·실 PR 등록) → `/stage 2`(TASK-1402)**. (Sprint 13 전체 완료: Stage 1 `15cd49a` + Stage 2 VAL-2 `908c7eb`, 2026-06-18.)
   - ⚠️ VAL-2 잔여(비차단): `eval/baseline.json`이 LIMIT=5 시드라 대표 런(LIMIT≥100/풀런, API 키 필요)으로 갱신해야 게이트가 실효(sprint-13.md #baseline 한계).
 
 - **📹 시연/배포 2트랙 (2026-06-21 확정 — 데모는 빠르게, 배포는 안정적으로)**
@@ -1181,13 +1181,14 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ## Sprint 14 — AI Agent Advanced II (패치 자동화 및 격리 검증)
 > Week 29-30 | 목표: 승인된 패치의 자동 PR 생성 및 Docker 샌드박스를 활용한 단위 테스트 기반 자가 검증
 
-### TASK-1401 🟠 패치 자동 적용 및 GitHub PR 생성
+### TASK-1401 🟠 패치 자동 적용 및 GitHub PR 생성 — 🟢 Stage 1 코드완료(`bcf3804`)·실 PR 수동검증 대기
 - **중요도**: 🟠 High | **순서**: 1번째
 - **하위 할일**
-  - [ ] 취약점 패치 적용 요청 시, GitHub API를 통해 신규 패치 브랜치를 자동 생성하고 수정 사항을 커밋하는 로직 구현
-  - [ ] 원본 브랜치에 대해 Pull Request를 자동으로 개설하는 API 구현 (FEAT-AI-002)
+  - [x] 취약점 패치 적용 요청 시, GitHub API를 통해 신규 패치 브랜치를 자동 생성하고 수정 사항을 커밋하는 로직 구현 (`GitHubRestClient` ref/contents PUT + `PatchPrService`)
+  - [x] 원본 브랜치에 대해 Pull Request를 자동으로 개설하는 API 구현 (FEAT-AI-002) — `POST /patches/{id}/pull-request`, PR-only(auto-merge 금지)
 - **테스트 체크리스트**
-  - [ ] 🔬 패치 적용 완료 시 GitHub 저장소에 PR 코멘트와 함께 실제 PR이 등록되는지 검증
+  - [x] 🧪 단위 12개(PatchPrService 9 + Controller 3) — 브랜치명·PR 바디·소유검증·400·토큰 비로그
+  - [ ] 🔬 패치 적용 완료 시 GitHub 저장소에 PR 코멘트와 함께 실제 PR이 등록되는지 검증 (실 레포 수동검증)
 
 ### TASK-1402 🟠 패치 검증 자동화 (VC Feedback Loop)
 - **중요도**: 🟠 High | **순서**: 2번째

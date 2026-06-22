@@ -238,12 +238,12 @@
 
 - [ ] **PostgreSQL MCP**: AI Agent가 이전 동일 유형 취약점을 DB에서 직접 조회하여 분석 컨텍스트로 활용 (Read-Only 권한 격리 확인)
 - [ ] **Docker MCP**: DAST 컨테이너 생명주기가 MCP 경유로 호출 (Option B thin wrapper), `docker_tool.py` 직접 httpx 호출 코드 제거
-- [ ] **Prometheus + Grafana**: 3개 서비스 타겟 UP + 커스텀 메트릭 4종 대시보드 표시
-- [ ] **GDPR 소프트→하드 삭제 분리**: 사용자 즉시 삭제 → 소프트 삭제로 전환 + 30일 경과 시 자동 하드 삭제 + 감사 로그 기록
-- [ ] **지속 모니터링**: 매시 HTTPS 헬스체크 + SSL 만료 30일 전 Slack 알림 + CVE 재매칭 동작
-- [ ] **VSCode Extension MVP**: `.vsix` 패키지 빌드 + 로컬 설치 성공 + Diagnostic 표시
-- [ ] **Android 고도화**: 채팅 스트리밍·PDF 공유·알림 채널 3종 분리 완료
-- [ ] **Sprint 8 이월 수동 검증**: k6 p95 < 500ms + OWASP ZAP Critical 0건 + 2FA QR + Nginx HTTPS + 보안 문서 PDF E2E
+- [x] **Prometheus + Grafana**: 3개 서비스 타겟 UP + 커스텀 메트릭 4종 대시보드 표시
+- [x] **GDPR 소프트→하드 삭제 분리**: 사용자 즉시 삭제 → 소프트 삭제로 전환 + 30일 경과 시 자동 하드 삭제 + 감사 로그 기록
+- [x] **지속 모니터링**: 매시 HTTPS 헬스체크 + SSL 만료 30일 전 Slack 알림 + CVE 재매칭 동작
+- [x] **VSCode Extension MVP**: `.vsix` 패키지 빌드 + 로컬 설치 성공 + Diagnostic 표시
+- [x] **Android 고도화**: 채팅 스트리밍·PDF 공유·알림 채널 3종 분리 완료
+- [x] **Sprint 8 이월 수동 검증**: k6 p95 < 500ms + OWASP ZAP Critical 0건 + 2FA QR + Nginx HTTPS + 보안 문서 PDF E2E
 
 ---
 

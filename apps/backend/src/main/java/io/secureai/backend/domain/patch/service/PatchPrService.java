@@ -216,17 +216,16 @@ public class PatchPrService {
     /**
      * 기존 파일 SHA를 조회한다.
      *
-     * GitHubRestClient에 파일 SHA 전용 메서드가 없으므로 null을 반환(신규 파일 create 모드).
-     * 기존 파일이면 GitHub API가 409를 반환하고 PATCH_BRANCH_CONFLICT 예외가 발생한다.
-     * Stage 2(TASK-1402) 또는 후속 스프린트에서 getFileSha 메서드 추가 예정.
+     * GitHubRestClient.getFileSha()를 호출하여 파일이 존재하면 SHA를 반환하고,
+     * 없으면 null을 반환한다 (신규 파일 create 모드).
+     * 이로써 기존 파일 업데이트 시 GitHub 409 오류를 방지한다.
+     * (Stage 1 Reviewer 권고 #1 해소 — TASK-1402에서 구현)
      *
-     * @return null (신규 파일 create 모드)
+     * @return 파일 SHA(파일 존재 시) 또는 null(신규 파일)
      */
     private String resolveExistingFileSha(String owner, String repo, String filePath,
                                           String branch, String appToken) {
-        // 현재 GitHubRestClient에는 파일 SHA 단독 조회 메서드가 없음 (신규 파일 create 모드)
-        // 기존 파일 update 시 GitHub API 409 → PATCH_BRANCH_CONFLICT 처리됨
-        return null;
+        return gitHubRestClient.getFileSha(owner, repo, filePath, branch, appToken);
     }
 
     /**

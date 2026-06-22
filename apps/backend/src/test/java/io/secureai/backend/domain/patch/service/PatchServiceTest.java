@@ -3,6 +3,7 @@ package io.secureai.backend.domain.patch.service;
 import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.patch.dto.PatchSuggestionResponse;
+import io.secureai.backend.domain.patch.dto.PatchVerificationRequest;
 import io.secureai.backend.domain.patch.dto.SavePatchResultsRequest;
 import io.secureai.backend.domain.patch.entity.PatchSuggestion;
 import io.secureai.backend.domain.patch.repository.PatchSuggestionRepository;
@@ -167,5 +168,67 @@ class PatchServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.SESSION_NOT_FOUND));
+    }
+
+    // -----------------------------------------------------------------------
+    // TASK-1402: reportVerification — 상태 전이 테스트
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("reportVerification — VERIFIED 상태로 보고 시 markVerified()가 호출된다")
+    void reportVerification_verified_calls_markVerified() {
+        UUID patchId = UUID.randomUUID();
+        PatchSuggestion patch = PatchSuggestion.builder()
+                .session(session)
+                .filePath("src/app.py")
+                .vulnType("SQL_INJECTION")
+                .build();
+        ReflectionTestUtils.setField(patch, "id", patchId);
+
+        when(patchRepository.findById(patchId)).thenReturn(Optional.of(patch));
+
+        PatchVerificationRequest request = new PatchVerificationRequest("VERIFIED", "1 passed in 0.01s");
+        patchService.reportVerification(patchId, request);
+
+        assertThat(patch.getVerificationStatus())
+                .isEqualTo(PatchSuggestion.VerificationStatus.VERIFIED);
+        assertThat(patch.getVerifiedAt()).isNotNull();
+        assertThat(patch.getVerificationLog()).isEqualTo("1 passed in 0.01s");
+    }
+
+    @Test
+    @DisplayName("reportVerification — FAILED 상태로 보고 시 markFailed()가 호출된다")
+    void reportVerification_failed_calls_markFailed() {
+        UUID patchId = UUID.randomUUID();
+        PatchSuggestion patch = PatchSuggestion.builder()
+                .session(session)
+                .filePath("src/app.py")
+                .vulnType("XSS")
+                .build();
+        ReflectionTestUtils.setField(patch, "id", patchId);
+
+        when(patchRepository.findById(patchId)).thenReturn(Optional.of(patch));
+
+        PatchVerificationRequest request = new PatchVerificationRequest("FAILED", "SyntaxError");
+        patchService.reportVerification(patchId, request);
+
+        assertThat(patch.getVerificationStatus())
+                .isEqualTo(PatchSuggestion.VerificationStatus.FAILED);
+        assertThat(patch.getVerifiedAt()).isNotNull();
+        assertThat(patch.getVerificationLog()).isEqualTo("SyntaxError");
+    }
+
+    @Test
+    @DisplayName("reportVerification — 존재하지 않는 patchId 는 PATCH_NOT_FOUND 예외를 발생시킨다")
+    void reportVerification_unknownPatchId_throws_patchNotFound() {
+        UUID unknownId = UUID.randomUUID();
+        when(patchRepository.findById(unknownId)).thenReturn(Optional.empty());
+
+        PatchVerificationRequest request = new PatchVerificationRequest("VERIFIED", null);
+
+        assertThatThrownBy(() -> patchService.reportVerification(unknownId, request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.PATCH_NOT_FOUND));
     }
 }

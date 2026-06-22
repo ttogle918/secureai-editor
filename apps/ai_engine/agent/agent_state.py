@@ -77,6 +77,10 @@ class AgentState(TypedDict):
     # planning_node interrupt 후 /agent/confirm 으로 설정
     confirmed: bool
 
+    # TASK-1402: 패치 검증 결과 [{patch_id, status, log}]
+    # status: PENDING / VERIFIED / FAILED
+    verification_results: list[dict]
+
     # 세션 상태
     status: str          # running / completed / error
     error_message: str | None

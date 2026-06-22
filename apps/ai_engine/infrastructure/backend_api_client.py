@@ -165,6 +165,47 @@ async def report_token_usage(
         )
 
 
+async def report_patch_verification(
+    patch_id: str,
+    status: str,
+    log: str | None = None,
+) -> None:
+    """패치 검증 결과를 Backend 내부 API로 보고한다 (TASK-1402).
+
+    POST /api/v1/internal/patches/{patchId}/verification (X-Internal-Key)
+    status: "VERIFIED" 또는 "FAILED" (PENDING은 보고 대상 아님)
+    log: 실행 로그 요약 — 민감 토큰·페이로드 절대 포함 금지.
+
+    실패 시 경고 로그만 남기고 전체 세션을 중단하지 않는다.
+    """
+    if status not in ("VERIFIED", "FAILED"):
+        logger.warning(
+            "[backend-api] report_patch_verification invalid status=%s patch_id=%s",
+            status, patch_id,
+        )
+        return
+
+    payload: dict = {"status": status}
+    if log is not None:
+        payload["log"] = log
+
+    try:
+        resp = await _client.post(
+            f"/api/v1/internal/patches/{patch_id}/verification",
+            json=payload,
+        )
+        resp.raise_for_status()
+        logger.info(
+            "[backend-api] patch_verification reported patch_id=%s status=%s",
+            patch_id, status,
+        )
+    except Exception as exc:
+        logger.warning(
+            "[backend-api] report_patch_verification failed patch_id=%s status=%s: %s",
+            patch_id, status, exc,
+        )
+
+
 async def get_patch_examples(vuln_type: str, language: str) -> list[dict]:
     """이전 성공 패치 예시를 Backend에서 조회한다 (최대 3건).
 

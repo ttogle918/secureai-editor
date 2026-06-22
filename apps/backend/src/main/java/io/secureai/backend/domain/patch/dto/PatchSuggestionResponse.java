@@ -18,7 +18,10 @@ public record PatchSuggestionResponse(
         boolean isApplied,
         OffsetDateTime appliedAt,
         UUID appliedBy,
-        OffsetDateTime createdAt
+        OffsetDateTime createdAt,
+        /** 검증 상태 — PENDING / VERIFIED / FAILED (TASK-1402) */
+        String verificationStatus,
+        OffsetDateTime verifiedAt
 ) {
     public static PatchSuggestionResponse from(PatchSuggestion patch) {
         return new PatchSuggestionResponse(
@@ -34,7 +37,9 @@ public record PatchSuggestionResponse(
                 patch.getIsApplied(),
                 patch.getAppliedAt(),
                 patch.getAppliedBy() != null ? patch.getAppliedBy().getId() : null,
-                patch.getCreatedAt()
+                patch.getCreatedAt(),
+                patch.getVerificationStatus(),
+                patch.getVerifiedAt()
         );
     }
 }

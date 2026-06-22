@@ -16,6 +16,7 @@ from agent.nodes.api_discovery_node import api_discovery_node
 from agent.nodes.cache_check_node import cache_check_node
 from agent.nodes.next_file_node import next_file_node
 from agent.nodes.patch_node import patch_node
+from agent.nodes.patch_verify_node import patch_verify_node
 from agent.nodes.planning_node import planning_node
 from agent.nodes.sast_node import sast_node
 from agent.nodes.scan_files_node import scan_files_node
@@ -40,6 +41,8 @@ def _build_graph(checkpointer=None, interrupt: bool = False):
     builder.add_node("next_file_node", next_file_node)
     builder.add_node("aggregate_node", aggregate_node)
     builder.add_node("patch_node", patch_node)
+    # TASK-1402: 패치 검증 노드 (Python+pytest 격리 컨테이너)
+    builder.add_node("patch_verify_node", patch_verify_node)
 
     builder.set_entry_point("scan_files_node")
 
@@ -66,7 +69,9 @@ def _build_graph(checkpointer=None, interrupt: bool = False):
         {"cache_check_node": "cache_check_node", "aggregate_node": "aggregate_node"},
     )
     builder.add_edge("aggregate_node", "patch_node")
-    builder.add_edge("patch_node", END)
+    # TASK-1402: patch_node 완료 후 patch_verify_node 실행 (Python+pytest 검증)
+    builder.add_edge("patch_node", "patch_verify_node")
+    builder.add_edge("patch_verify_node", END)
 
     # STAGE-2: interrupt=True 시 planning_node 실행 후 자동 중단.
     # LangGraph가 planning_node 완료 직후 GraphInterrupt를 발생시킨다.

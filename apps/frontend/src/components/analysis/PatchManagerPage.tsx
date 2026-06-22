@@ -1,10 +1,58 @@
 'use client';
 import React, { useState } from 'react';
-import { GitPullRequest, Check, ExternalLink, Loader2 } from 'lucide-react';
+import { GitPullRequest, Check, ExternalLink, Loader2, ShieldCheck, ShieldX, Clock } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSecureStore } from '@/store/useSecureStore';
 import { apiClient } from '@/lib/api/client';
 import { ApiError } from '@/lib/api/client';
+
+// ─── Verification 배지 컴포넌트 ───────────────────────────────────────────────
+
+type VerificationStatus = 'PENDING' | 'VERIFIED' | 'FAILED';
+
+interface VerificationBadgeProps {
+  status: VerificationStatus;
+}
+
+function VerificationBadge({ status }: VerificationBadgeProps) {
+  const configs: Record<VerificationStatus, { icon: React.ReactNode; label: string; style: React.CSSProperties }> = {
+    VERIFIED: {
+      icon: <ShieldCheck size={11} />,
+      label: 'Verified',
+      style: { background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' },
+    },
+    FAILED: {
+      icon: <ShieldX size={11} />,
+      label: 'Failed',
+      style: { background: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' },
+    },
+    PENDING: {
+      icon: <Clock size={11} />,
+      label: 'Pending',
+      style: { background: 'rgba(156,163,175,0.12)', color: '#9ca3af', border: '1px solid rgba(156,163,175,0.3)' },
+    },
+  };
+
+  const config = configs[status] ?? configs.PENDING;
+
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 3,
+        padding: '2px 7px',
+        borderRadius: 10,
+        fontSize: 11,
+        fontWeight: 600,
+        ...config.style,
+      }}
+    >
+      {config.icon}
+      {config.label}
+    </span>
+  );
+}
 
 interface PatchPrResponse {
   prUrl: string;
@@ -149,6 +197,10 @@ export function PatchManagerPage() {
                     <span style={{ fontSize: 11, background: 'rgba(34,197,94,0.1)', color: '#22c55e', padding: '2px 8px', borderRadius: 10 }}>
                       Fix: {patch.vulnType}
                     </span>
+                    {/* TASK-1402: 검증 상태 배지 (verificationStatus가 있을 때만 표시) */}
+                    {(patch as { verificationStatus?: VerificationStatus }).verificationStatus && (
+                      <VerificationBadge status={(patch as { verificationStatus: VerificationStatus }).verificationStatus} />
+                    )}
                     {/* PR 생성 버튼 */}
                     {prResult ? (
                       <a

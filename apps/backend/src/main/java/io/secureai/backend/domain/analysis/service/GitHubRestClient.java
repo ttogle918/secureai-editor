@@ -471,6 +471,71 @@ public class GitHubRestClient {
         return (String) response.get("default_branch");
     }
 
+    /**
+     * 레포지토리의 특정 파일 SHA를 조회한다 (기존 파일 update 시 필수).
+     *
+     * GitHub Contents API GET /repos/{owner}/{repo}/contents/{path}?ref={ref} 응답에서
+     * sha 필드를 추출한다. 파일이 존재하지 않으면 null을 반환한다 (신규 파일 create 모드).
+     *
+     * Stage 1 Reviewer 권고 #1 해소: resolveExistingFileSha()가 항상 null을 반환해
+     * 기존 파일 업데이트 시 GitHub 409가 발생하는 문제 수정.
+     *
+     * @param owner    레포지토리 소유자
+     * @param repo     레포지토리 이름
+     * @param path     파일 경로 (레포 루트 기준, 예: "src/main/java/Dao.java")
+     * @param ref      브랜치 또는 커밋 SHA (null이면 기본 브랜치 사용)
+     * @param appToken Installation Token (로그 출력 금지)
+     * @return 파일 SHA (파일 없으면 null)
+     */
+    @SuppressWarnings("unchecked")
+    public String getFileSha(String owner, String repo, String path, String ref, String appToken) {
+        // appToken 로그 출력 금지
+        try {
+            String uri = (ref != null && !ref.isBlank())
+                    ? "/repos/{owner}/{repo}/contents/{path}?ref={ref}"
+                    : "/repos/{owner}/{repo}/contents/{path}";
+
+            Map<String, Object> response = (ref != null && !ref.isBlank())
+                    ? restClient.get()
+                            .uri(uri, owner, repo, path, ref)
+                            .headers(headers -> {
+                                headers.setBearerAuth(appToken);
+                                headers.set("Accept", "application/vnd.github+json");
+                            })
+                            .retrieve()
+                            .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                                if (res.getStatusCode().value() == 404) return; // 파일 없음 → null 반환
+                                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+                            })
+                            .body(Map.class)
+                    : restClient.get()
+                            .uri("/repos/{owner}/{repo}/contents/{path}", owner, repo, path)
+                            .headers(headers -> {
+                                headers.setBearerAuth(appToken);
+                                headers.set("Accept", "application/vnd.github+json");
+                            })
+                            .retrieve()
+                            .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                                if (res.getStatusCode().value() == 404) return; // 파일 없음 → null 반환
+                                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+                            })
+                            .body(Map.class);
+
+            if (response == null || response.get("sha") == null) {
+                return null;
+            }
+            String sha = (String) response.get("sha");
+            log.info("[github-client] getFileSha 완료 owner={} repo={} path={}", owner, repo, path);
+            return sha;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            // 파일 없음(404) 포함 예외 → null 반환 (신규 파일 create 모드)
+            log.debug("[github-client] getFileSha not found owner={} repo={} path={} err={}", owner, repo, path, e.getMessage());
+            return null;
+        }
+    }
+
     // ─── Inner DTOs ──────────────────────────────────────────────────────────
 
     /**

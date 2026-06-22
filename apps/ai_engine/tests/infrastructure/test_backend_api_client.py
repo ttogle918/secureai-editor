@@ -8,7 +8,11 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from infrastructure.backend_api_client import _fingerprint, save_vulnerabilities
+from infrastructure.backend_api_client import (
+    _fingerprint,
+    report_patch_verification,
+    save_vulnerabilities,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -127,3 +131,95 @@ async def test_save_vulnerabilities_payload_shape():
     assert item["vulnType"] == "PATH_TRAVERSAL"
     assert item["severity"] == "HIGH"
     assert len(item["fingerprint"]) == 64
+
+
+# ---------------------------------------------------------------------------
+# TASK-1402: report_patch_verification
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_report_patch_verification_verified_sends_post():
+    """VERIFIED 상태를 올바른 경로로 POST한다."""
+    captured = {}
+
+    async def _fake_post(url, json=None):
+        captured["url"] = url
+        captured["json"] = json
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    mock_client = MagicMock()
+    mock_client.post = _fake_post
+
+    with patch("infrastructure.backend_api_client._client", mock_client):
+        await report_patch_verification("uuid-patch-123", "VERIFIED", "1 passed")
+
+    assert "uuid-patch-123" in captured["url"]
+    assert "verification" in captured["url"]
+    assert captured["json"]["status"] == "VERIFIED"
+    assert captured["json"]["log"] == "1 passed"
+
+
+@pytest.mark.asyncio
+async def test_report_patch_verification_failed_sends_post():
+    """FAILED 상태를 올바른 경로로 POST한다."""
+    captured = {}
+
+    async def _fake_post(url, json=None):
+        captured["json"] = json
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    mock_client = MagicMock()
+    mock_client.post = _fake_post
+
+    with patch("infrastructure.backend_api_client._client", mock_client):
+        await report_patch_verification("uuid-patch-456", "FAILED", "SyntaxError")
+
+    assert captured["json"]["status"] == "FAILED"
+    assert captured["json"]["log"] == "SyntaxError"
+
+
+@pytest.mark.asyncio
+async def test_report_patch_verification_invalid_status_does_not_post():
+    """PENDING 등 유효하지 않은 status는 POST하지 않는다."""
+    mock_client = MagicMock()
+    mock_client.post = AsyncMock()
+
+    with patch("infrastructure.backend_api_client._client", mock_client):
+        await report_patch_verification("uuid-patch-789", "PENDING", None)
+
+    mock_client.post.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_report_patch_verification_http_error_does_not_raise():
+    """HTTP 오류 발생 시 예외가 전파되지 않는다 (경고 로그만)."""
+    mock_client = MagicMock()
+    mock_client.post = AsyncMock(side_effect=Exception("connection refused"))
+
+    with patch("infrastructure.backend_api_client._client", mock_client):
+        # 예외가 발생하지 않아야 함
+        await report_patch_verification("uuid-patch-err", "VERIFIED", None)
+
+
+@pytest.mark.asyncio
+async def test_report_patch_verification_no_log_excludes_log_key():
+    """log=None 시 payload에 log 키가 포함되지 않는다."""
+    captured = {}
+
+    async def _fake_post(url, json=None):
+        captured["json"] = json
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    mock_client = MagicMock()
+    mock_client.post = _fake_post
+
+    with patch("infrastructure.backend_api_client._client", mock_client):
+        await report_patch_verification("uuid-patch-nolog", "VERIFIED", None)
+
+    assert "log" not in captured["json"]

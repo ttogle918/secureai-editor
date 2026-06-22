@@ -4,6 +4,7 @@ import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.patch.dto.PatchExampleItem;
 import io.secureai.backend.domain.patch.dto.PatchSuggestionResponse;
+import io.secureai.backend.domain.patch.dto.PatchVerificationRequest;
 import io.secureai.backend.domain.patch.dto.SavePatchResultsRequest;
 import io.secureai.backend.domain.patch.entity.PatchSuggestion;
 import io.secureai.backend.domain.patch.repository.PatchSuggestionRepository;
@@ -76,6 +77,30 @@ public class PatchService {
         return patchRepository.findBySession_Id(sessionId).stream()
                 .map(PatchSuggestionResponse::from)
                 .toList();
+    }
+
+    /**
+     * AI Engine → Backend 내부 API용 — 패치 검증 결과를 기록한다 (TASK-1402).
+     *
+     * PatchSuggestion 도메인 메서드를 통해 상태를 전이한다 (직접 setter 금지).
+     * VERIFIED / FAILED 만 수락한다 (PENDING은 초기 상태, 보고 대상이 아님).
+     * 상태 전이는 모든 patchId에 대해 멱등하게 적용된다 (재시도 가능).
+     *
+     * @param patchId 패치 제안 UUID
+     * @param request 검증 결과 ({status, log})
+     */
+    @Transactional
+    public void reportVerification(UUID patchId, PatchVerificationRequest request) {
+        PatchSuggestion patch = patchRepository.findById(patchId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PATCH_NOT_FOUND));
+
+        if (PatchSuggestion.VerificationStatus.VERIFIED.equals(request.status())) {
+            patch.markVerified(null, request.log());
+        } else {
+            patch.markFailed(request.log());
+        }
+
+        log.info("[patch-verification] patchId={} status={}", patchId, request.status());
     }
 
     /**

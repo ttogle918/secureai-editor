@@ -4,6 +4,7 @@ import io.secureai.backend.domain.patch.dto.CreatePatchPrRequest;
 import io.secureai.backend.domain.patch.dto.PatchExampleItem;
 import io.secureai.backend.domain.patch.dto.PatchPrResponse;
 import io.secureai.backend.domain.patch.dto.PatchSuggestionResponse;
+import io.secureai.backend.domain.patch.dto.PatchVerificationRequest;
 import io.secureai.backend.domain.patch.dto.SavePatchResultsRequest;
 import io.secureai.backend.domain.patch.service.PatchPrService;
 import io.secureai.backend.domain.patch.service.PatchService;
@@ -67,6 +68,25 @@ public class PatchController {
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID patchId) {
         return ResponseEntity.ok(ApiResponse.success(patchService.applyPatch(userId, patchId)));
+    }
+
+    /**
+     * AI Engine → Backend 패치 검증 결과 보고 (X-Internal-Key 인증 전용, JWT 혼용 금지).
+     *
+     * 검증 로직은 PatchService에 위임한다 (SRP).
+     * 입력 검증(status 패턴)은 이 Controller 레이어에서만 수행한다 (general.md 보안 규칙).
+     * 민감 페이로드·토큰은 절대 log 필드에 포함 금지.
+     *
+     * @param patchId 패치 제안 UUID
+     * @param request 검증 결과 ({status: "VERIFIED"|"FAILED", log?})
+     * @return 200 OK
+     */
+    @PostMapping("/api/v1/internal/patches/{patchId}/verification")
+    public ResponseEntity<ApiResponse<Void>> reportVerification(
+            @PathVariable UUID patchId,
+            @Valid @RequestBody PatchVerificationRequest request) {
+        patchService.reportVerification(patchId, request);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     /**

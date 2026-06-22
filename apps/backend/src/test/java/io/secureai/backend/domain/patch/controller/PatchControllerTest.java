@@ -4,6 +4,7 @@ import io.secureai.backend.domain.patch.dto.CreatePatchPrRequest;
 import io.secureai.backend.domain.patch.dto.PatchExampleItem;
 import io.secureai.backend.domain.patch.dto.PatchPrResponse;
 import io.secureai.backend.domain.patch.dto.PatchSuggestionResponse;
+import io.secureai.backend.domain.patch.dto.PatchVerificationRequest;
 import io.secureai.backend.domain.patch.dto.SavePatchResultsRequest;
 import io.secureai.backend.domain.patch.service.PatchPrService;
 import io.secureai.backend.domain.patch.service.PatchService;
@@ -148,5 +149,52 @@ class PatchControllerTest {
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.GITHUB_RATE_LIMIT_EXCEEDED));
+    }
+
+    // -----------------------------------------------------------------------
+    // TASK-1402: 패치 검증 엔드포인트 테스트 (X-Internal-Key 전용)
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("reportVerification — VERIFIED 상태 보고를 PatchService에 위임하고 200을 반환한다")
+    void reportVerification_verified_delegates_and_returns200() {
+        UUID patchId = UUID.randomUUID();
+        PatchVerificationRequest request = new PatchVerificationRequest("VERIFIED", "1 passed in 0.01s");
+
+        doNothing().when(patchService).reportVerification(patchId, request);
+
+        var response = controller.reportVerification(patchId, request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        verify(patchService).reportVerification(patchId, request);
+    }
+
+    @Test
+    @DisplayName("reportVerification — FAILED 상태 보고를 PatchService에 위임하고 200을 반환한다")
+    void reportVerification_failed_delegates_and_returns200() {
+        UUID patchId = UUID.randomUUID();
+        PatchVerificationRequest request = new PatchVerificationRequest("FAILED", "SyntaxError: invalid syntax");
+
+        doNothing().when(patchService).reportVerification(patchId, request);
+
+        var response = controller.reportVerification(patchId, request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        verify(patchService).reportVerification(patchId, request);
+    }
+
+    @Test
+    @DisplayName("reportVerification — PATCH_NOT_FOUND 예외가 발생하면 그대로 전파된다")
+    void reportVerification_patchNotFound_propagatesException() {
+        UUID patchId = UUID.randomUUID();
+        PatchVerificationRequest request = new PatchVerificationRequest("VERIFIED", null);
+
+        doThrow(new BusinessException(ErrorCode.PATCH_NOT_FOUND))
+                .when(patchService).reportVerification(patchId, request);
+
+        assertThatThrownBy(() -> controller.reportVerification(patchId, request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.PATCH_NOT_FOUND));
     }
 }

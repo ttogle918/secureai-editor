@@ -766,14 +766,14 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 ### TASK-1100 🔴 브랜치 통합 및 충돌 해소 (선행 필수)
 - **중요도**: 🔴 Critical | **순서**: 0번째 (나머지 모두 선행) | **사이즈**: L
 - **하위 할일**
-  - [ ] `feat/sprint10` → `main` PR 생성 및 머지
-  - [ ] `refactor/frontend-ui`를 `main`으로 머지 (충돌 해소)
+  - [x] `feat/sprint10` → `main` PR 생성 및 머지
+  - [x] `refactor/frontend-ui`를 `main`으로 머지 (충돌 해소)
     - `settings/page.tsx`: Sprint 10의 ScanModeDefaultSection 섹션 유지
     - `onboarding/page.tsx`: refactor 브랜치 버전 유지 (더 완성도 높음)
-  - [ ] 머지 후 `make dev` 전체 서비스 기동 확인
+  - [x] 머지 후 `make dev` 전체 서비스 기동 확인
 - **테스트 체크리스트**
-  - [ ] 🔬 머지 후 백엔드 전체 테스트 통과 (`./gradlew test`)
-  - [ ] ✅ 모든 주요 페이지 렌더링 오류 없음 확인
+  - [x] 🔬 머지 후 백엔드 전체 테스트 통과 (`./gradlew test`)
+  - [x] ✅ 모든 주요 페이지 렌더링 오류 없음 확인
 
 ---
 
@@ -782,28 +782,28 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **맥락**: `refactor/frontend-ui`의 `onboarding/page.tsx` (842줄)이 이미 구현됨.  
   역할 선택 UI 자체는 존재하나 백엔드 API 연동이 없음.
 - **하위 할일**
-  - [ ] **Backend**: `V048__add_workspace_mode_to_users.sql` — `users.workspace_mode TEXT DEFAULT 'DEVELOPER'`
-  - [ ] **Backend**: `PATCH /api/v1/users/me/workspace-mode` API 구현  
+  - [x] **Backend**: `V048__add_workspace_mode_to_users.sql` — `users.workspace_mode TEXT DEFAULT 'DEVELOPER'`
+  - [x] **Backend**: `PATCH /api/v1/users/me/workspace-mode` API 구현  
     (`workspace_mode` 값: `DEVELOPER` | `SECURITY_MANAGER` | `BOTH`)
-  - [ ] **Backend**: `GET /api/v1/users/me` 응답에 `workspaceMode` 필드 추가
-  - [ ] **Frontend**: `useAuthStore`에 `workspaceMode` 상태 추가
-  - [ ] **Frontend**: `onboarding/page.tsx` 역할 선택 단계에서 실제 API 호출로 연동
+  - [x] **Backend**: `GET /api/v1/users/me` 응답에 `workspaceMode` 필드 추가
+  - [x] **Frontend**: `useAuthStore`에 `workspaceMode` 상태 추가
+  - [x] **Frontend**: `onboarding/page.tsx` 역할 선택 단계에서 실제 API 호출로 연동 (`PATCH /users/me/workspace-mode`)
 - **테스트 체크리스트**
   - [ ] 🧪 `PATCH /workspace-mode` — 유효하지 않은 값 400 반환 (단위 테스트)
-  - [ ] ✅ 온보딩 역할 선택 → DB 저장 → 로그인 후 workspaceMode 응답 포함 확인
+  - [x] ✅ 온보딩 역할 선택 → DB 저장 → 로그인 후 workspaceMode 응답 포함 확인
 
 ---
 
 ### TASK-1102 🔴 로그인 후 페르소나별 랜딩 및 사이드바 분기
 - **중요도**: 🔴 Critical | **순서**: 2번째 | **의존성**: TASK-1101 | **사이즈**: M
 - **하위 할일**
-  - [ ] `AuthProvider.tsx`: 로그인 성공 시 `workspaceMode`에 따라 `/editor` 또는 `/dashboard` 리다이렉트
-  - [ ] `AppSidebar.tsx`: `DEVELOPER` — 에디터·SAST·SBOM 메뉴 강조, CISO 대시보드 하단 배치  
+  - [x] `AuthProvider.tsx`: 로그인 성공 시 `workspaceMode`에 따라 `/editor` 또는 `/dashboard` 리다이렉트
+  - [x] `AppSidebar.tsx`: `DEVELOPER` — 에디터·SAST·SBOM 메뉴 강조, CISO 대시보드 하단 배치  
     `SECURITY_MANAGER` — 대시보드·컴플라이언스·리포트 메뉴 강조, 에디터 단순화
-  - [ ] `layout.tsx` 또는 미들웨어: 역할에 맞지 않는 경로 접근 시 적절히 안내 (금지 X, 안내 O)
+  - [x] `layout.tsx` 또는 미들웨어: 역할에 맞지 않는 경로 접근 시 적절히 안내 (금지 X, 안내 O)
 - **테스트 체크리스트**
-  - [ ] ✅ DEVELOPER 로그인 → `/editor` 랜딩, 사이드바 에디터 중심 메뉴
-  - [ ] ✅ SECURITY_MANAGER 로그인 → `/dashboard` 랜딩, 컴플라이언스·리포트 메뉴
+  - [x] ✅ DEVELOPER 로그인 → `/editor` 랜딩, 사이드바 에디터 중심 메뉴
+  - [x] ✅ SECURITY_MANAGER 로그인 → `/dashboard` 랜딩, 컴플라이언스·리포트 메뉴
 
 ---
 
@@ -811,11 +811,11 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **중요도**: 🟠 High | **순서**: 3번째 | **의존성**: TASK-1100 | **사이즈**: S
 - **맥락**: `refactor/frontend-ui`의 `globals.css`에 추가된 토큰이 이미 있음. 통합 후 잔존 불일치 제거.
 - **하위 할일**
-  - [ ] 머지 후 페이지별 스타일 불일치 항목 목록 작성
-  - [ ] 카드 외곽선, 섀도우, 폰트 스케일 — Pagori 토큰으로 통일 (globals.css 기준)
-  - [ ] 다크 테마에서 모든 인터랙티브 요소 hover/focus 상태 일관성 확인
+  - [x] 머지 후 페이지별 스타일 불일치 항목 목록 작성
+  - [x] 카드 외곽선, 섀도우, 폰트 스케일 — Pagori 토큰으로 통일 (globals.css 기준)
+  - [x] 다크 테마에서 모든 인터랙티브 요소 hover/focus 상태 일관성 확인
 - **테스트 체크리스트**
-  - [ ] ✅ 주요 페이지 5개(에디터, 대시보드, 온보딩, 설정, 컴플라이언스) 디자인 일관성 육안 확인
+  - [x] ✅ 주요 페이지 5개(에디터, 대시보드, 온보딩, 설정, 컴플라이언스) 디자인 일관성 육안 확인
 
 ---
 
@@ -823,15 +823,15 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **중요도**: 🔴 Critical | **순서**: 4번째 | **의존성**: TASK-1100 | **사이즈**: L
 - **배경**: 프론트엔드 `apps/frontend/src/app` 하위에 `terms/`, `privacy/`, `legal/` 디렉토리 0개. GDPR(EU), PIPA(한국), CCPA(캘리포니아) 준수 명시 없이는 글로벌 배포 불가. 회원가입 폼에 동의 체크박스도 없음.
 - **하위 할일**
-  - [ ] `apps/frontend/src/app/legal/terms/page.tsx` — 이용약관 (한/영, 데이터 처리 범위 명시)
-  - [ ] `apps/frontend/src/app/legal/privacy/page.tsx` — 개인정보처리방침 (GDPR Art. 13 / PIPA 30조 필수 항목)
-  - [ ] `apps/frontend/src/app/legal/cookie/page.tsx` — 쿠키 정책 + Banner 컴포넌트 (`CookieConsentBanner.tsx`)
-  - [ ] 회원가입 폼에 `terms_accepted_at`, `privacy_accepted_at` 동의 체크박스 추가 + `users` 테이블 컬럼 (V049 마이그레이션)
-  - [ ] 푸터(Footer)에 법적 페이지 3종 링크 추가
+  - [x] `apps/frontend/src/app/legal/terms/page.tsx` — 이용약관 (한/영, 데이터 처리 범위 명시)
+  - [x] `apps/frontend/src/app/legal/privacy/page.tsx` — 개인정보처리방침 (GDPR Art. 13 / PIPA 30조 필수 항목)
+  - [x] `apps/frontend/src/app/legal/cookie/page.tsx` — 쿠키 정책 + Banner 컴포넌트 (`CookieConsentBanner.tsx`)
+  - [x] 회원가입 폼에 `terms_accepted_at`, `privacy_accepted_at` 동의 체크박스 추가 + `users` 테이블 컬럼 (V049 마이그레이션)
+  - [x] 푸터(Footer)에 법적 페이지 3종 링크 추가
 - **테스트 체크리스트**
-  - [ ] 🔬 동의 미체크 시 회원가입 400 반환
-  - [ ] 🛡️ 회원가입 시 동의 시각(`terms_accepted_at`) DB 저장 확인 — 분쟁 시 증빙
-  - [ ] ✅ 푸터에서 3개 페이지 모두 접근 가능 + Cookie Banner 거절 시 비필수 쿠키 미설정 확인
+  - [x] 🔬 동의 미체크 시 회원가입 400 반환
+  - [x] 🛡️ 회원가입 시 동의 시각(`terms_accepted_at`) DB 저장 확인 — 분쟁 시 증빙
+  - [x] ✅ 푸터에서 3개 페이지 모두 접근 가능 + Cookie Banner 거절 시 비필수 쿠키 미설정 확인
 
 ---
 
@@ -839,14 +839,14 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **중요도**: 🟠 High | **순서**: 5번째 (Stage 1과 병행 가능) | **사이즈**: M
 - **배경**: Sprint 10 완료 기준 체크리스트 12개 전부 `[ ]` 상태. 코드는 구현됐으나 실제 동작 미확인 — 베타 배포 전 일괄 검증 필수.
 - **하위 할일**
-  - [ ] 야간 자동 스캔 (`project_schedules` 매일 01:00 KST 트리거 확인)
-  - [ ] 팀 대시보드 — 월별 토큰·MTTR·보안 점수 랭킹 표시 (실제 데이터로 확인)
-  - [ ] 리포트 ROI Export — ROI/MTTR 위젯 포함 PDF 다운로드 확인
-  - [ ] 스캔 모드 AUDIT/PIPELINE 모델 분기 확인 (`grep claude-haiku` 로그)
-  - [ ] CompliancePage / TeamManagementPage / SettingsPage UI 동작 확인
-  - [ ] 이월 수동 검증 4건: k6 p95 < 500ms / OWASP ZAP Critical 0건 / 2FA QR Google Authenticator / Nginx HTTPS 리다이렉트
+  - [x] 야간 자동 스캔 (`project_schedules` 매일 01:00 KST 트리거 확인)
+  - [x] 팀 대시보드 — 월별 토큰·MTTR·보안 점수 랭킹 표시 (실제 데이터로 확인)
+  - [x] 리포트 ROI Export — ROI/MTTR 위젯 포함 PDF 다운로드 확인
+  - [x] 스캔 모드 AUDIT/PIPELINE 모델 분기 확인 (`grep claude-haiku` 로그)
+  - [x] CompliancePage / TeamManagementPage / SettingsPage UI 동작 확인
+  - [x] 이월 수동 검증 4건: k6 p95 < 500ms / OWASP ZAP Critical 0건 / 2FA QR Google Authenticator / Nginx HTTPS 리다이렉트
 - **테스트 체크리스트**
-  - [ ] ✅ 위 모든 항목 체크 완료 + 발견 버그는 Sprint 11 잔여 시간에 즉시 수정
+  - [x] ✅ 위 모든 항목 체크 완료 + 발견 버그는 Sprint 11 잔여 시간에 즉시 수정 (`sprint-11-task-1105-verification.md`)
 
 ---
 
@@ -858,56 +858,42 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   Sprint 13 "AI Agent Advanced I (API 호출 경로 스캔)" 의 MVP 선행 구현.
 - **하위 할일**
 
+  > ✅ 구현 완료 (코드 실측 2026-06-22): `agent/nodes/api_discovery_node.py`(Spring/FastAPI/Next/axios 파서 + prefix 그룹화), `scan_files_node.py` `file_filter`, `StartAnalysisRequest.fileFilter`, FE Progress Panel.
+
   **[AI Engine] `api_discovery_node` 신설** — LLM 없이 정적 파싱
-  - [ ] Spring Boot: `@GetMapping/@PostMapping/@PutMapping/@DeleteMapping/@RequestMapping` 파싱 → URL + 메소드명 추출
-  - [ ] FastAPI: `@router.get/post/put/delete` 데코레이터 파싱 → URL 추출
-  - [ ] Next.js App Router: `app/api/**/route.ts` 경로 구조 → URL 자동 도출
-  - [ ] React/TS SPA: `axios.create()` baseURL + `axios.get/post('/...')` 호출 사이트 파싱 (`api.ts`, `client.ts`, `axios.js` 등)
-  - [ ] Prefix 기반 연관 파일 그룹화:  
-    `*Controller.java` / `*Service.java` / `*ServiceImpl.java` / `*Repository.java` / `*Mapper.java` 동일 prefix → 한 그룹  
-    (`AuthController` → `AuthService` + `AuthServiceImpl` + `AuthRepository`)
-  - [ ] import 문 depth-1 추적: 각 Controller 파일의 직접 import를 그룹 파일 목록에 포함 (순환 참조 방어 필수)
-  - [ ] 출력 state: `api_groups: [{name, url, files: [{path, line}]}]`
+  - [x] Spring Boot: `@GetMapping/@PostMapping/@PutMapping/@DeleteMapping/@RequestMapping` 파싱 → URL + 메소드명 추출
+  - [x] FastAPI: `@router.get/post/put/delete` 데코레이터 파싱 → URL 추출
+  - [x] Next.js App Router: `app/api/**/route.ts` 경로 구조 → URL 자동 도출
+  - [x] React/TS SPA: `axios.create()` baseURL + `axios.get/post('/...')` 호출 사이트 파싱 (`api.ts`, `client.ts`, `axios.js` 등)
+  - [x] Prefix 기반 연관 파일 그룹화 (`*Controller`/`*Service`/`*ServiceImpl`/`*Repository`/`*Mapper` 동일 prefix → 한 그룹)
+  - [x] import 문 depth-1 추적: 각 Controller 파일의 직접 import를 그룹 파일 목록에 포함
+  - [x] 출력 state: `api_groups: [{name, url, files: [{path, line}]}]`
 
   **[AI Engine] `analyze.py` 이벤트 확장**
-  - [ ] `api_plan` Redis 이벤트 추가: `scan_files_node` 완료 직후, 분석 시작 전 발행 (`api_groups` 전체 포함)
-  - [ ] `scan_complete` 이벤트: `total` 외에 `files: List[str]` 추가 (프론트 전체 파일 목록 수신용)
+  - [x] `api_plan` Redis 이벤트 추가: `scan_files_node` 완료 직후, 분석 시작 전 발행
+  - [x] `scan_complete` 이벤트: `total` 외에 `files: List[str]` 추가
 
   **[Backend] SSE 이벤트 + 세션 API**
-  - [ ] `AnalysisController` SSE stream: `api_plan` 이벤트 타입 통과 (현재 필터 없으면 자동 통과 — 확인만)
-  - [ ] `CreateSessionRequest`에 `fileFilter: List<String>` 옵션 필드 추가 (null = 전체 분석)
-  - [ ] AI Engine 분석 요청(`POST /agent/analyze`) 시 `fileFilter` 전달
+  - [x] `AnalysisController` SSE stream: `api_plan` 이벤트 타입 통과
+  - [x] `StartAnalysisRequest`에 `fileFilter: List<String>` 옵션 필드 추가 (null = 전체 분석) — ※ 실제 DTO명은 `CreateSessionRequest`가 아닌 `StartAnalysisRequest`
+  - [x] AI Engine 분석 요청 시 `fileFilter` 전달
 
   **[AI Engine] `scan_files_node` fileFilter 지원**
-  - [ ] `fileFilter` 목록이 있으면 수집한 파일 중 해당 목록만 `files_to_scan`에 포함
+  - [x] `fileFilter` 목록이 있으면 수집한 파일 중 해당 목록만 `files_to_scan`에 포함
 
   **[Frontend] Progress Panel 개편**
-  - [ ] `api_plan` 이벤트 수신 시: API 그룹별 아코디언 렌더링
-    - 그룹 헤더: API 이름 + URL + 진행률 바 (0/N 파일)
-    - 파일 목록: 각 파일 `pending` 상태 (회색 점)
-  - [ ] `progress` 이벤트로 파일별 상태 업데이트: `pending → analyzing → done | cached | failed`
-    - 파일별: 상태 아이콘 + 소요 시간
-    - 그룹별: 완료 파일 수 증가 → 진행률 바 채움
-  - [ ] 파일 클릭 → Monaco Editor 해당 파일 열기 (`line: 1` 기본, 향후 취약점 라인 연동)
-  - [ ] "선택 분석" 모드: API 그룹별 체크박스 → "선택한 API만 분석" 버튼 클릭 시 `fileFilter` 포함해서 세션 생성
+  - [x] `api_plan` 이벤트 수신 시: API 그룹별 아코디언 렌더링
+  - [x] `progress` 이벤트로 파일별 상태 업데이트: `pending → analyzing → done | cached | failed`
+  - [x] 파일 클릭 → Monaco Editor 해당 파일 열기 (`line: 1` 기본)
+  - [x] "선택 분석" 모드: API 그룹별 체크박스 → `fileFilter` 포함 세션 생성
 
 - **테스트 체크리스트**
-  - [ ] 🧪 `api_discovery_node`: Spring Boot `AuthController.java` 파싱 → `AuthService`, `AuthServiceImpl`, `AuthRepository` 그룹 포함 확인
-  - [ ] 🧪 `scan_files_node`: `fileFilter` 제공 시 해당 파일만 `files_to_scan`에 포함
-  - [ ] ✅ 분석 시작 직후 Progress Panel에 API 그룹 목록 렌더링 확인
-  - [ ] ✅ 파일별 상태가 `progress` 이벤트에 따라 실시간 업데이트 확인
-  - [ ] ✅ 파일 클릭 시 Monaco Editor에서 해당 파일 열림 확인
-  - [ ] ✅ API 그룹 2개 선택 해제 → 해당 파일 제외 후 분석 재시작 확인
-  - [x] 파일 클릭 → Monaco Editor 해당 파일 열기 (`line: 1` 기본, 향후 취약점 라인 연동)
-  - [x] "선택 분석" 모드: API 그룹별 체크박스 → "선택한 API만 분석" 버튼 클릭 시 `fileFilter` 포함해서 세션 생성
-
-- **테스트 체크리스트**
-  - [x] 🧪 `api_discovery_node`: Spring Boot `AuthController.java` 파싱 → `AuthService`, `AuthServiceImpl`, `AuthRepository` 그룹 포함 확인
+  - [x] 🧪 `api_discovery_node`: Spring Boot `AuthController.java` 파싱 → `AuthService`/`AuthServiceImpl`/`AuthRepository` 그룹 포함
   - [x] 🧪 `scan_files_node`: `fileFilter` 제공 시 해당 파일만 `files_to_scan`에 포함
-  - [x] ✅ 분석 시작 직후 Progress Panel에 API 그룹 목록 렌더링 확인
-  - [x] ✅ 파일별 상태가 `progress` 이벤트에 따라 실시간 업데이트 확인
-  - [x] ✅ 파일 클릭 시 Monaco Editor에서 해당 파일 열림 확인
-  - [x] ✅ API 그룹 2개 선택 해제 → 해당 파일 제외 후 분석 재시작 확인
+  - [x] ✅ 분석 시작 직후 Progress Panel에 API 그룹 목록 렌더링
+  - [x] ✅ 파일별 상태가 `progress` 이벤트에 따라 실시간 업데이트
+  - [x] ✅ 파일 클릭 시 Monaco Editor에서 해당 파일 열림
+  - [x] ✅ API 그룹 2개 선택 해제 → 해당 파일 제외 후 분석 재시작
 
 ---
 
@@ -1021,15 +1007,15 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **중요도**: 🔴 Critical | **순서**: 4번째 | **사이즈**: L | **상태**: 12D COST-3(provider 인지 확장)로 완료 — token_usage(V054)·PricingTable·세션종료 콜백·월100% 403(BYOK 제외)·`GET /me/token-usage`·TokenUsageChart. 🔬 실콜백/대시보드 수동검증. 상세 `docs/sprints/sprint-12.md` §Stage2.
 - **배경**: 코드베이스 grep 결과 `tokenCount/inputTokens/outputTokens` 추적 코드 0개. 사용자 한도 제어 불가 — 토큰 폭주 시 비용 폭탄 위험.
 - **하위 할일**
-  - [ ] AI Engine: Claude API 응답의 `usage.input_tokens` / `output_tokens`를 Backend로 콜백 (`POST /internal/v1/sessions/{id}/token-usage`)
-  - [ ] **V054** (잠정): `token_usage` 테이블 — **12D COST-3로 흡수**(provider 인지 확장). V052는 1202b가 선점. (session_id, user_id, provider, model, input/output_tokens, cost_usd, occurred_at)
-  - [ ] `TokenUsageService.java`: 월별 집계 + 플랜별 한도 비교
-  - [ ] `EmailService.sendTokenLimitWarning()`: 80% 도달 시 경고 메일, 100% 도달 시 분석 일시 차단
-  - [ ] 대시보드 위젯 `TokenUsageChart.tsx`: 일별 사용량 + 예상 월 비용
+  - [x] AI Engine: `usage.input_tokens`/`output_tokens` Backend 콜백 (`POST /api/v1/internal/sessions/{id}/token-usage`, `backend_api_client.report_token_usage`)
+  - [x] **V054** `token_usage` 테이블 (session_id, user_id, provider, model, input/output_tokens, cost_usd, occurred_at)
+  - [x] `TokenUsageService.java`: 월별 집계 + 한도 비교 (`isMonthlyLimitExceeded`)
+  - [ ] `EmailService.sendTokenLimitWarning()`: 80% 경고 메일 / 100% 차단 — ⚠️ 100% 403 차단은 구현, **80% 경고 메일 미구현**(`sendTokenLimitWarning` 부재) → 잔여
+  - [x] 대시보드 위젯 `TokenUsageChart.tsx` (+ `useTokenUsage`)
 - **테스트 체크리스트**
-  - [ ] 🧪 토큰 사용량 누적 정확성 (10건 호출 후 합산값 검증)
-  - [ ] 🔬 한도 도달 시 다음 분석 요청 403 반환 + 안내 메시지
-  - [ ] 🛡️ 다른 사용자 token_usage 직접 조회 403
+  - [x] 🧪 토큰 사용량 누적 정확성 (`TokenUsageServiceTest.record_*`)
+  - [ ] 🔬 한도 도달 시 다음 분석 요청 403 반환 + 안내 메시지 (실콜백 수동검증)
+  - [ ] 🛡️ 다른 사용자 token_usage 직접 조회 403 (테스트 미확인 — `/me` 자기범위 엔드포인트라 설계상 차단)
 
 ### TASK-1205 🟠 자동 백업 스케줄러 + S3 업로드
 - **중요도**: 🟠 High | **순서**: 5번째 | **사이즈**: M
@@ -1206,7 +1192,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **배경**: TASK-1401(자동 PR 생성)이 활성화된 상태에서 잘못된 패치가 main에 머지될 경우 즉시 복구 수단 필요. 자동 롤백 없이 PR 자동화는 운영 리스크가 너무 크다.
 - **하위 할일**
   - [ ] `PatchApplication` 테이블에 `applied_commit_sha`, `revert_commit_sha`, `revert_reason` 컬럼 추가 (V061)
-  - [ ] GitHub Webhook `workflow_run.completed` 수신 — 패치 PR 머지 후 CI 실패 시 트리거
+  - [x] GitHub Webhook `workflow_run.completed` 수신 — 패치 PR 머지 후 CI 실패 시 트리거
   - [ ] `PatchRollbackService`: GitHub API `git revert` 커밋 자동 생성 + PR 개설
   - [ ] Slack 알림 — "Patch X auto-reverted due to CI failure"
   - [ ] 사용자 설정: "Auto-revert on CI failure" 토글 (Settings 페이지)
@@ -1214,6 +1200,45 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [ ] 🔬 패치 적용 후 CI 의도적 실패 → 5분 이내 Revert PR 생성 확인
   - [ ] 🛡️ Revert PR 생성 시 Slack 알림 + 감사 로그 기록
   - [ ] 🔬 토글 비활성 사용자 → 자동 롤백 발동 안 함
+
+---
+
+## Sprint 14B — AI Engine Architecture V2 (EPIC-AI-V2)
+> Week 30 | 목표: 다중 페르소나, 비용 예측, 교차 검증, CTI 확장을 위한 엔진 구조 고도화
+
+### TASK-1411 🔴 다중 페르소나 (Persona) 시스템 구축
+- **중요도**: 🔴 Critical | **순서**: 1번째
+- **하위 할일**
+  - [ ] apps/ai_engine/agent/prompts/personas/*.md 4종(Security Architect, Vulnerability Analyst, Remediation Engineer, Security QA) 파일 생성
+  - [ ] apps/ai_engine/agent/prompts/persona_loader.py 마크다운 로더 구현
+  - [ ] planning_node.py 및 patch_node.py 등에 세분화된 페르소나 프롬프트 적용
+- **테스트 체크리스트**
+  - [ ] 🧪 페르소나 프롬프트 정상 로드 확인
+
+### TASK-1412 🟠 비용 예측 (Cost Estimation) 단계 추가
+- **중요도**: 🟠 High | **순서**: 2번째
+- **하위 할일**
+  - [ ] planning_node.py에서 파일 길이를 바탕으로 한 토큰 수 및 예상 비용 계산 로직 추가
+  - [ ] 계산된 estimated_cost_usd를 State에 저장
+- **테스트 체크리스트**
+  - [ ] 🧪 비용 예측 계산식 단위 테스트
+
+### TASK-1413 🟠 다중 모델 교차 검증 (Cross-Model Validation)
+- **중요도**: 🟠 High | **순서**: 3번째
+- **하위 할일**
+  - [ ] apps/ai_engine/agent/nodes/review_patch_node.py 추가
+  - [ ] 다른 모델(Gemini)을 활용해 patch_node가 생성한 Diff의 유효성 검증 로직 구현
+  - [ ] graph_builder.py에서 patch_node → review_patch_node 체인 연결
+- **테스트 체크리스트**
+  - [ ] 🔬 리뷰 노드 교차 모델 호출 및 응답 파싱 확인
+
+### TASK-1414 🟡 CTI 확장을 위한 상태(State) 리팩토링
+- **중요도**: 🟡 Medium | **순서**: 4번째
+- **하위 할일**
+  - [ ] apps/ai_engine/agent/agent_state.py 내 AgentState를 BaseState와 SecurityAuditState(BaseState) 구조로 분리
+  - [ ] 상속을 활용한 타입 안정성 유지 및 모든 노드 호환성 검증
+- **테스트 체크리스트**
+  - [ ] 🔬 State 리팩토링 이후 전체 그래프 정상 동작 확인
 
 ---
 
@@ -1362,7 +1387,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [ ] 리드 등록 시 Slack `#sales-leads` 채널 즉시 알림 (Sprint 9 SlackWebhookAdapter 재사용)
   - [ ] SEO 메타 태그 + OG 이미지 추가
 - **테스트 체크리스트**
-  - [ ] 🔬 리드 등록 → DB 저장 + Slack 알림 확인
+  - [x] 🔬 리드 등록 → DB 저장 + Slack 알림 확인
   - [ ] 🛡️ reCAPTCHA v3 적용 — 봇 차단
 
 ### TASK-1706 🟢 Enterprise 런치 소개 화면 (`/enterprise/launch`) — EnterpriseLaunch.jsx
@@ -1550,7 +1575,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [ ] 🔬 그래프 전체 경로 통과(screen→sast→validate→persist)
 - **수동 검증**
   - [ ] ✅ cascade on/off 동일 코퍼스 스캔 → "탐지율 유지 + 토큰 X% 절감" 수치 확보
-  - [ ] ✅ VAL-3 검증 레이어와 순서 충돌 없이 동작(의심 finding이 validate까지 도달)
+  - [x] ✅ VAL-3 검증 레이어와 순서 충돌 없이 동작(의심 finding이 validate까지 도달)
 - **리스크**: 1차 cheap 모델이 진짜 취약점을 놓치면 영구 누락 → **불확실 시 deep 폴백**(VAL-3 원칙 재사용). VAL-3 노드와 같은 sast↔validate 구간 → 그래프 회귀 주의(노드 분리로 완화).
 
 ### TASK-1334 스캔 1건(세션) 원가 계측 + 노출

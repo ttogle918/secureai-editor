@@ -52,7 +52,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 ## 현재 위치 (Status) — 2026-06-21 갱신
 
-- **진행 위치**: **Sprint 14 Stage 1 완료**(VAL-4 proven_exploitable 하니스 + TASK-1401 패치 자동 PR, `bcf3804`, 2026-06-22 · Reviewer PASS). **다음 = Stage 1 수동검증(WebGoat proven 실증·실 PR 등록) → `/stage 2`(TASK-1402)**. (Sprint 13 전체 완료: Stage 1 `15cd49a` + Stage 2 VAL-2 `908c7eb`, 2026-06-18.)
+- **진행 위치**: **Sprint 14 코드 완료** — Stage 1(VAL-4 + TASK-1401, `bcf3804`) + Stage 2(TASK-1402, `11510ac`), 2026-06-22 · 각 Reviewer PASS. **다음 = 런타임 수동검증 일괄(스프린트 말, 사용자 결정) → `/done`**. 이월: 1403/VAL-5·VAL-8·VAL-9·VAL-13·VAL-16. (Sprint 13 전체 완료: `15cd49a`+`908c7eb`.)
   - ⚠️ VAL-2 잔여(비차단): `eval/baseline.json`이 LIMIT=5 시드라 대표 런(LIMIT≥100/풀런, API 키 필요)으로 갱신해야 게이트가 실효(sprint-13.md #baseline 한계).
 
 - **📹 시연/배포 2트랙 (2026-06-21 확정 — 데모는 빠르게, 배포는 안정적으로)**
@@ -1190,15 +1190,16 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [x] 🧪 단위 12개(PatchPrService 9 + Controller 3) — 브랜치명·PR 바디·소유검증·400·토큰 비로그
   - [ ] 🔬 패치 적용 완료 시 GitHub 저장소에 PR 코멘트와 함께 실제 PR이 등록되는지 검증 (실 레포 수동검증)
 
-### TASK-1402 🟠 패치 검증 자동화 (VC Feedback Loop)
-- **중요도**: 🟠 High | **순서**: 2번째
+### TASK-1402 🟠 패치 검증 자동화 (VC Feedback Loop) — 🟢 Stage 2 코드완료(`11510ac`)·Docker 실증 수동검증 대기
+- **중요도**: 🟠 High | **순서**: 2번째 | **스코프**: Python+pytest 한정(다언어 후속 이월)
 - **하위 할일**
-  - [ ] AI가 제안한 패치 코드를 컴파일하고 검증할 임시 테스트 코드를 Claude API로 동시 생성하는 모듈 구현
-  - [ ] 임시 격리된 Docker 샌드박스 컨테이너 내부에서 패치 코드를 적용한 뒤 테스트를 실행하고 pass 여부를 수집 (FEAT-AI-005)
-  - [ ] 테스트를 성공적으로 통과한 검증된 패치만 `patchSuggestions.verificationStatus`에 Verified로 표기하여 사용자에게 추천
+  - [x] AI가 제안한 패치 코드를 컴파일하고 검증할 임시 테스트 코드를 Claude API로 동시 생성 (`patch_verify_node`)
+  - [x] 임시 격리(`dast-isolated-net`) Docker 샌드박스에서 패치+pytest 실행·pass 수집 (FEAT-AI-005) (`sandbox/patch_test_runner`)
+  - [x] 통과 패치만 `verificationStatus=VERIFIED` 표기 — V061 컬럼 + `POST /internal/patches/{id}/verification`(X-Internal-Key) + FE 배지
 - **테스트 체크리스트**
-  - [ ] 🔬 문법 에러가 있거나 기존 테스트를 깨뜨리는 패치 제안은 검증 상태가 Failed로 분류되는지 확인
-  - [ ] 🔬 정상 컴파일되고 취약점이 조치된 경우에만 Verified 상태로 업데이트되는지 확인
+  - [x] 🧪 단위 ai 42 + backend(상태전이·비Python→PENDING·격리 assert·타임아웃)
+  - [ ] 🔬 문법 에러/기존 테스트 깨뜨리는 패치 → Failed (integration, Docker 수동검증)
+  - [ ] 🔬 정상 컴파일+취약점 조치 시에만 Verified (integration, Docker 수동검증)
 
 ### TASK-1403 🔴 패치 자동 롤백 및 이력 관리 (안전장치)
 - **중요도**: 🔴 Critical | **순서**: 3번째 | **출처**: FEAT-AI-006

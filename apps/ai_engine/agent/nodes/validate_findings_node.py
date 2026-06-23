@@ -28,10 +28,11 @@ from infrastructure.backend_api_client import save_vulnerabilities
 logger = logging.getLogger(__name__)
 
 # Prometheus 카운터 — 할루시네이션 차단 건수 (VC 숫자)
+# session_id를 라벨로 두지 않는다: 세션마다 시계열이 무한 증가하는
+# 고카디널리티 안티패턴이기 때문. 세션별 추적은 구조화 로그로 한다.
 _discarded_counter = Counter(
     "secureai_hallucination_discarded_total",
     "Number of findings discarded by the AST hallucination guard",
-    ["session_id"],
 )
 
 # 확장자 → 언어명 매핑 (ast_verifier 언어 파라미터)
@@ -114,7 +115,7 @@ async def validate_findings_node(state: AgentState) -> dict:
 
     discarded_count = len(discarded)
     if discarded_count > 0:
-        _discarded_counter.labels(session_id=session_id).inc(discarded_count)
+        _discarded_counter.inc(discarded_count)
         logger.info(
             "[validate_findings] session=%s file=%s discarded=%d verified=%d",
             session_id, file_path, discarded_count, len(validated),

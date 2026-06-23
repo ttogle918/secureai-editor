@@ -199,18 +199,23 @@ public class PatchPrService {
     }
 
     /**
-     * 패치된 파일 내용을 결정한다.
-     * patchedSnippet 우선, 없으면 unifiedDiff 사용.
+     * 커밋할 파일 내용을 결정한다.
+     *
+     * putFileContents는 파일 전체를 덮어쓰므로 반드시 "파일 전체 내용"이 와야 한다.
+     * unifiedDiff(diff 텍스트)를 fallback으로 쓰면 diff 원문이 파일에 그대로
+     * 기록돼 파일이 깨진다 — 그래서 fallback을 제거했다.
+     *
+     * 주의: patchedSnippet은 현재 AI 엔진에서 "취약 구간 스니펫"으로 생성된다
+     * (patch_generation 프롬프트). 따라서 이 값을 파일 전체로 커밋하면 파일이
+     * 스니펫으로 치환된다. 전체 파일 재구성(원본 fetch + 구간 치환)은 별도 과제다.
+     * (TASK-1401 후속 — 이 메서드는 "전체 파일 내용"을 받는다는 계약만 강제한다.)
      */
     private String resolvePatchedContent(PatchSuggestion patch) {
         if (patch.getPatchedSnippet() != null && !patch.getPatchedSnippet().isBlank()) {
             return patch.getPatchedSnippet();
         }
-        if (patch.getUnifiedDiff() != null && !patch.getUnifiedDiff().isBlank()) {
-            return patch.getUnifiedDiff();
-        }
         throw new BusinessException(ErrorCode.PATCH_NOT_FOUND,
-                "패치 내용(patchedSnippet/unifiedDiff)이 없습니다.");
+                "커밋할 패치 내용(patchedSnippet)이 없습니다.");
     }
 
     /**

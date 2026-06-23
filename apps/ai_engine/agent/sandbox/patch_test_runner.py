@@ -11,6 +11,11 @@
 - Python+pytest 단일 언어. 비-Python 언어는 호출자에서 PENDING 유지 처리.
 - 다언어 확장(Java/JUnit, JS/Jest)은 이후 스프린트에서 이미지 추가.
 
+사전 빌드 (필수 — 격리 네트워크는 PyPI 도달 불가):
+    docker build -f agent/sandbox/Dockerfile.patch-verify \
+      -t secureai-patch-verify:latest agent/sandbox
+    # 다른 이미지를 쓰려면 PATCH_VERIFY_IMAGE 환경변수로 오버라이드.
+
 통합 테스트 실행 방법 (실제 Docker 필요):
     python -m pytest tests/sandbox/ -m integration -v
     또는 직접 임포트 후 asyncio.run(run(patched_code, test_code)) 호출.
@@ -28,9 +33,12 @@ logger = logging.getLogger(__name__)
 # 격리 네트워크명 — CLAUDE.md 보안 규칙 (docker-compose.yml external:true)
 _REQUIRED_NETWORK: str = os.environ.get("DAST_NETWORK", "dast-isolated-net")
 
-# Python+pytest 검증용 Docker 이미지 (단일 언어 한정)
+# Python+pytest 검증용 Docker 이미지 (단일 언어 한정).
+# 기본값은 pytest를 미리 구운 secureai-patch-verify 이미지다.
+# dast-isolated-net은 PyPI에 도달할 수 없어 런타임 pip install이 불가하므로
+# pytest가 박힌 이미지를 써야 한다(Dockerfile.patch-verify 참고 — 사전 빌드 필요).
 _PYTEST_IMAGE: str = os.environ.get(
-    "PATCH_VERIFY_IMAGE", "python:3.12-slim"
+    "PATCH_VERIFY_IMAGE", "secureai-patch-verify:latest"
 )
 
 # 컨테이너 실행 타임아웃 (초)
@@ -119,16 +127,20 @@ async def _run_in_container(
     patched_b64 = base64.b64encode(patched_code.encode()).decode()
     test_b64 = base64.b64encode(test_code.encode()).decode()
 
-    # pytest 이미지에 pytest 미리 설치된 이미지 사용 권장.
-    # 없으면 pip install pytest 선행.
+    # 루트 파일시스템이 --read-only이므로 pytest를 기본 site-packages에 설치할 수 없다.
+    # 따라서 쓰기 가능한 tmpfs(/tmp)에 --target으로 설치하고 PYTHONPATH로 로드한다.
+    # pytest가 이미 설치된 이미지(PATCH_VERIFY_IMAGE 오버라이드)면 설치를 건너뛴다.
+    # 파이프(| tail)로 pip 종료코드를 삼키지 않는다 — 설치 실패가 곧 FAILED로 드러나야 한다.
     inline_script = (
+        "set -e; "
         "python -c \""
         "import base64, pathlib; "
         f"pathlib.Path('/tmp/module.py').write_bytes(base64.b64decode('{patched_b64}')); "
-        f"pathlib.Path('/tmp/test_patch.py').write_bytes(base64.b64decode('{test_b64}')); "
-        "\" && "
-        "pip install pytest --quiet --no-cache-dir 2>&1 | tail -1 && "
-        "cd /tmp && python -m pytest test_patch.py -x --tb=short 2>&1"
+        f"pathlib.Path('/tmp/test_patch.py').write_bytes(base64.b64decode('{test_b64}'))"
+        "\"; "
+        "python -c 'import pytest' 2>/dev/null || "
+        "pip install pytest --quiet --no-cache-dir --target=/tmp/pylibs; "
+        "cd /tmp && PYTHONPATH=/tmp/pylibs python -m pytest test_patch.py -x --tb=short"
     )
 
     cmd = [

@@ -1,0 +1,20 @@
+# 패치 검증 샌드박스 이미지 — pytest 선설치 (TASK-1402)
+#
+# 왜 이 이미지가 필요한가:
+#   패치 검증 컨테이너는 dast-isolated-net(외부 인터넷 도달 불가, postgres/redis 격리)
+#   에서 실행된다. 따라서 런타임에 `pip install pytest`로 PyPI에 접근할 수 없다.
+#   pytest를 이미지에 미리 구워 둬야 격리 네트워크에서 검증이 동작한다.
+#
+# 빌드:
+#   docker build -f apps/ai_engine/agent/sandbox/Dockerfile.patch-verify \
+#     -t secureai-patch-verify:latest apps/ai_engine/agent/sandbox
+#
+# 사용 (기본값이므로 별도 설정 불필요. 다른 태그를 쓰려면):
+#   export PATCH_VERIFY_IMAGE=secureai-patch-verify:latest
+FROM python:3.12-slim
+
+# pytest는 순수 파이썬이라 read-only 루트 + noexec /tmp 에서도 import 가능하다.
+RUN pip install --no-cache-dir pytest
+
+# 컨테이너는 patch_test_runner가 `sh -c <script>`로 호출한다.
+CMD ["python", "-c", "import pytest; print(pytest.__version__)"]

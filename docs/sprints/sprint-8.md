@@ -215,7 +215,7 @@
 - [x] **스케줄러 안정**: ShedLock으로 중복 실행 방지 (6개 Job)
 - [x] **Circuit Breaker**: 모든 외부 호출(AI Agent / NVD / DNS) 장애 격리
 - [ ] **성능 목표 달성**: p95 < 500ms, 캐시 히트율 > 80% (k6 인프라 실행 필요)
-- [ ] **보안 기본선**: OWASP ZAP Critical 0건 (수동 스캔 필요)
+- [ ] **보안 기본선**: OWASP ZAP Critical 0건 — ⏳ 수동 ZAP 스캔 미실행(TASK-1203b 하니스 구축됨, `make zap-scan` 실행·청산 대기). 코드검증 불가.
 - [x] **2FA**: TOTP 기반 2단계 인증 동작 (복구 코드 포함)
 - [x] **IP Allowlist**: CIDR 범위 기반 차단 + Spoofing 방어
 - [x] **OpenTelemetry**: Backend → AI Engine 분산 트레이싱 전체 연결

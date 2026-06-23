@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     # audit_provider:   AUDIT 모드(빠른 스캔) 에 사용할 프로바이더
     # pipeline_provider: PIPELINE 모드(정밀 분석) 에 사용할 프로바이더
     default_provider: str = Field("anthropic", alias="DEFAULT_PROVIDER")
-    audit_provider: str = Field("gemini", alias="AUDIT_PROVIDER")
+    audit_provider: str = Field("anthropic", alias="AUDIT_PROVIDER")
     pipeline_provider: str = Field("anthropic", alias="PIPELINE_PROVIDER")
 
     # LangSmith tracing

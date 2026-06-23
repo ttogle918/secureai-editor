@@ -56,10 +56,11 @@ public class PatchPrService {
      * 1. patchId 조회 + 소유 검증 (요청자 userId와 세션의 userId 비교)
      * 2. GitHub App Installation Token 취득 (레포 기반)
      * 3. base HEAD SHA 조회 (baseBranch 또는 기본 브랜치)
-     * 4. secureai/patch-{short} 브랜치 ref 생성
-     * 5. patchedSnippet/unifiedDiff → 파일 커밋 (putFileContents)
-     * 6. PR 생성 (auto-merge 절대 금지)
-     * 7. PR 코멘트 — 패치 설명 (민감 정보 제외)
+     * 4. 원본 파일 fetch + 취약 구간 치환으로 "전체 파일 내용" 재구성 (실패 시 여기서 중단 — 부작용 없음)
+     * 5. secureai/patch-{short} 브랜치 ref 생성
+     * 6. 재구성한 전체 파일 커밋 (putFileContents)
+     * 7. PR 생성 (auto-merge 절대 금지)
+     * 8. PR 코멘트 — 패치 설명 (민감 정보 제외)
      *
      * @param userId    요청자 사용자 ID (소유 검증용)
      * @param patchId   패치 제안 ID
@@ -96,7 +97,19 @@ public class PatchPrService {
                 : resolveDefaultBranch(owner, repo, appToken);
         String headSha = gitHubRestClient.getDefaultBranchSha(owner, repo, resolvedBase, appToken);
 
-        // ── Step 4: 브랜치 생성 ─────────────────────────────────────────────────
+        // ── Step 4: 패치 파일 내용 재구성 (브랜치 생성 전 — 실패 시 고아 브랜치 방지) ──
+        // 원본 파일(base 기준)을 받아 취약 구간(originalSnippet)만 patchedSnippet으로 치환해
+        // "전체 파일 내용"을 재구성한다. (putFileContents는 파일 전체를 덮어쓴다)
+        // 안전하게 치환할 수 없으면 여기서 예외 → 아직 브랜치를 만들지 않았으므로 부작용 없음.
+        String filePath = patch.getFilePath();
+        String commitMessage = String.format(COMMIT_MESSAGE_TEMPLATE, patch.getVulnType());
+
+        GitHubRestClient.FileContent original =
+                gitHubRestClient.getFileContent(owner, repo, filePath, resolvedBase, appToken);
+        String patchedContent = buildPatchedFileContent(patch, original);
+        String existingFileSha = (original != null) ? original.sha() : null;
+
+        // ── Step 5: 브랜치 생성 ─────────────────────────────────────────────────
         String branchName = buildBranchName(patchId);
         try {
             gitHubRestClient.createBranchRef(owner, repo, branchName, headSha, appToken);
@@ -111,21 +124,14 @@ public class PatchPrService {
             }
         }
 
-        // ── Step 5: 파일 커밋 ───────────────────────────────────────────────────
-        String filePath = patch.getFilePath();
-        String patchedContent = resolvePatchedContent(patch);
-        String commitMessage = String.format(COMMIT_MESSAGE_TEMPLATE, patch.getVulnType());
-
-        // 기존 파일 SHA 조회 (update 모드용). 실패하면 null(신규 파일 create 모드)
-        String existingFileSha = resolveExistingFileSha(owner, repo, filePath, branchName, appToken);
-
+        // ── Step 6: 파일 커밋 (base의 파일 SHA == 새 브랜치의 파일 SHA — 브랜치가 base 복제) ──
         gitHubRestClient.putFileContents(
                 owner, repo, filePath,
                 commitMessage, patchedContent,
                 branchName, existingFileSha, appToken
         );
 
-        // ── Step 6: PR 생성 (auto-merge 절대 금지) ──────────────────────────────
+        // ── Step 7: PR 생성 (auto-merge 절대 금지) ──────────────────────────────
         String prTitle = buildPrTitle(patch);
         String prBody = buildPrBody(patch);
 
@@ -133,7 +139,7 @@ public class PatchPrService {
                 owner, repo, prTitle, prBody, branchName, resolvedBase, appToken
         );
 
-        // ── Step 7: PR 코멘트 (패치 설명 — 민감 정보 제외) ──────────────────────
+        // ── Step 8: PR 코멘트 (패치 설명 — 민감 정보 제외) ──────────────────────
         String commentBody = buildCommentBody(patch);
         try {
             gitHubRestClient.createPrComment(owner, repo, prResponse.prNumber(), commentBody, appToken);
@@ -199,38 +205,44 @@ public class PatchPrService {
     }
 
     /**
-     * 커밋할 파일 내용을 결정한다.
+     * 커밋할 "파일 전체 내용"을 만든다.
      *
-     * putFileContents는 파일 전체를 덮어쓰므로 반드시 "파일 전체 내용"이 와야 한다.
-     * unifiedDiff(diff 텍스트)를 fallback으로 쓰면 diff 원문이 파일에 그대로
-     * 기록돼 파일이 깨진다 — 그래서 fallback을 제거했다.
+     * patchedSnippet은 AI 엔진이 "취약 구간 스니펫"으로 생성한다(patch_generation 프롬프트).
+     * 따라서 이를 파일 전체로 커밋하면 파일이 스니펫으로 치환돼 손상된다.
+     * 원본 파일을 받아 originalSnippet 구간만 patchedSnippet으로 치환해 전체 파일을 재구성한다.
      *
-     * 주의: patchedSnippet은 현재 AI 엔진에서 "취약 구간 스니펫"으로 생성된다
-     * (patch_generation 프롬프트). 따라서 이 값을 파일 전체로 커밋하면 파일이
-     * 스니펫으로 치환된다. 전체 파일 재구성(원본 fetch + 구간 치환)은 별도 과제다.
-     * (TASK-1401 후속 — 이 메서드는 "전체 파일 내용"을 받는다는 계약만 강제한다.)
+     * 안전 우선: 원본 파일 부재 / 원본 스니펫 미일치 / 구간 중복 등으로 안전하게 치환할 수
+     * 없으면 파일을 망가뜨리는 대신 PATCH_CONTENT_UNAVAILABLE 예외를 던진다.
      */
-    private String resolvePatchedContent(PatchSuggestion patch) {
-        if (patch.getPatchedSnippet() != null && !patch.getPatchedSnippet().isBlank()) {
-            return patch.getPatchedSnippet();
+    String buildPatchedFileContent(PatchSuggestion patch, GitHubRestClient.FileContent original) {
+        String patched = patch.getPatchedSnippet();
+        if (patched == null || patched.isBlank()) {
+            throw new BusinessException(ErrorCode.PATCH_NOT_FOUND,
+                    "커밋할 패치 내용(patchedSnippet)이 없습니다.");
         }
-        throw new BusinessException(ErrorCode.PATCH_NOT_FOUND,
-                "커밋할 패치 내용(patchedSnippet)이 없습니다.");
-    }
+        if (original == null || original.content() == null) {
+            throw new BusinessException(ErrorCode.PATCH_CONTENT_UNAVAILABLE,
+                    "원본 파일 내용을 가져올 수 없어 패치를 적용할 수 없습니다.");
+        }
+        String originalSnippet = patch.getOriginalSnippet();
+        if (originalSnippet == null || originalSnippet.isBlank()) {
+            throw new BusinessException(ErrorCode.PATCH_CONTENT_UNAVAILABLE,
+                    "원본 코드 구간(originalSnippet) 정보가 없어 안전하게 치환할 수 없습니다.");
+        }
 
-    /**
-     * 기존 파일 SHA를 조회한다.
-     *
-     * GitHubRestClient.getFileSha()를 호출하여 파일이 존재하면 SHA를 반환하고,
-     * 없으면 null을 반환한다 (신규 파일 create 모드).
-     * 이로써 기존 파일 업데이트 시 GitHub 409 오류를 방지한다.
-     * (Stage 1 Reviewer 권고 #1 해소 — TASK-1402에서 구현)
-     *
-     * @return 파일 SHA(파일 존재 시) 또는 null(신규 파일)
-     */
-    private String resolveExistingFileSha(String owner, String repo, String filePath,
-                                          String branch, String appToken) {
-        return gitHubRestClient.getFileSha(owner, repo, filePath, branch, appToken);
+        String fileContent = original.content();
+        int first = fileContent.indexOf(originalSnippet);
+        if (first < 0) {
+            throw new BusinessException(ErrorCode.PATCH_CONTENT_UNAVAILABLE,
+                    "원본 코드 구간을 파일에서 찾지 못했습니다(원격 파일이 변경되었을 수 있음).");
+        }
+        if (fileContent.indexOf(originalSnippet, first + originalSnippet.length()) >= 0) {
+            throw new BusinessException(ErrorCode.PATCH_CONTENT_UNAVAILABLE,
+                    "원본 코드 구간이 파일에 여러 번 존재해 안전하게 치환할 수 없습니다.");
+        }
+
+        return fileContent.substring(0, first) + patched
+                + fileContent.substring(first + originalSnippet.length());
     }
 
     /**

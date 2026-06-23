@@ -116,6 +116,9 @@ secureai:
   slack:
     webhook-url: ${SECUREAI_SLACK_WEBHOOK_URL:}
   email:
+    # 이메일 발송 프로바이더: smtp(기본, 실제 발송) | log(개발 전용, 메일을 로그로만 출력).
+    # 로컬/데모에서 SMTP 자격증명 없이 인증 링크를 확인하려면 EMAIL_PROVIDER=log 로 설정.
+    provider: ${EMAIL_PROVIDER:smtp}
     # 바운스/스팸 신고 웹훅 수신 시 X-Webhook-Secret 헤더 검증용 공유 시크릿.
     # 운영 환경에서 반드시 강력한 무작위 값으로 설정할 것.
     # 미설정 시 개발/CI 환경에서 서명 검증을 건너뜀 (경고 로그 출력).

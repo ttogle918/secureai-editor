@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -54,6 +55,15 @@ class PatchPrServiceTest {
     private AnalysisSession session;
     private User owner;
 
+    // 원격 원본 파일 — originalSnippet을 정확히 1회 포함한다 (구간 치환 검증용).
+    private static final String ORIGINAL_SNIPPET =
+            "String query = \"SELECT * FROM users WHERE id = \" + id;";
+    private static final String PATCHED_SNIPPET =
+            "PreparedStatement ps = conn.prepareStatement(\"SELECT * FROM users WHERE id = ?\");\nps.setString(1, id);";
+    private static final String ORIGINAL_FILE_BODY =
+            "package com.example;\n\npublic class Dao {\n    public User find(String id) {\n        "
+            + ORIGINAL_SNIPPET + "\n        return jdbc.query(query);\n    }\n}\n";
+
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
@@ -71,8 +81,8 @@ class PatchPrServiceTest {
                 .session(session)
                 .filePath("src/main/java/Dao.java")
                 .vulnType("SQL_INJECTION")
-                .originalSnippet("String query = \"SELECT * FROM users WHERE id = \" + id;")
-                .patchedSnippet("PreparedStatement ps = conn.prepareStatement(\"SELECT * FROM users WHERE id = ?\");\nps.setString(1, id);")
+                .originalSnippet(ORIGINAL_SNIPPET)
+                .patchedSnippet(PATCHED_SNIPPET)
                 .unifiedDiff("--- a/src/main/java/Dao.java\n+++ b/src/main/java/Dao.java\n@@ -1 +1 @@\n-old\n+safe\n")
                 .explanation("Used PreparedStatement to prevent SQL Injection.")
                 .build();
@@ -141,6 +151,8 @@ class PatchPrServiceTest {
         when(gitHubRestClient.getDefaultBranchSha("octocat", "my-repo", "main", "mock-installation-token"))
                 .thenReturn("abc123sha");
         doNothing().when(gitHubRestClient).createBranchRef(anyString(), anyString(), anyString(), anyString(), anyString());
+        when(gitHubRestClient.getFileContent(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(new GitHubRestClient.FileContent("existing-sha", ORIGINAL_FILE_BODY));
         doNothing().when(gitHubRestClient).putFileContents(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), any(), anyString());
         when(gitHubRestClient.createPullRequest(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(new GitHubRestClient.PullRequestResponse(42, "https://github.com/octocat/my-repo/pull/42"));
@@ -154,6 +166,21 @@ class PatchPrServiceTest {
         assertThat(response.prNumber()).isEqualTo(42);
         assertThat(response.prUrl()).isEqualTo("https://github.com/octocat/my-repo/pull/42");
         assertThat(response.branchName()).startsWith("secureai/patch-");
+
+        // 커밋된 내용은 "전체 파일"이어야 한다 — 원본 컨텍스트 유지 + 취약 구간만 치환.
+        // (스니펫을 통째로 커밋해 파일을 깨뜨리던 버그 회귀 방지)
+        ArgumentCaptor<String> contentCaptor = ArgumentCaptor.forClass(String.class);
+        verify(gitHubRestClient).putFileContents(anyString(), anyString(), anyString(), anyString(),
+                contentCaptor.capture(), anyString(), any(), anyString());
+        String committed = contentCaptor.getValue();
+        assertThat(committed).contains("package com.example;");      // 원본 컨텍스트 보존
+        assertThat(committed).contains("PreparedStatement ps");      // 패치 반영
+        assertThat(committed).doesNotContain(ORIGINAL_SNIPPET);      // 취약 구간 제거
+        assertThat(committed).isNotEqualTo(PATCHED_SNIPPET);         // 스니펫 통째 커밋 아님
+
+        // 기존 파일 업데이트 모드 — 조회한 sha가 putFileContents에 전달되어야 함
+        verify(gitHubRestClient).putFileContents(anyString(), anyString(), anyString(), anyString(),
+                anyString(), anyString(), eq("existing-sha"), anyString());
 
         // auto-merge 메서드가 호출되지 않아야 함 — PR 생성만 (GitHubRestClient에 auto-merge 메서드 없음)
         verify(gitHubRestClient, times(1)).createPullRequest(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
@@ -220,6 +247,8 @@ class PatchPrServiceTest {
                 .doNothing()
                 .when(gitHubRestClient).createBranchRef(anyString(), anyString(), anyString(), anyString(), anyString());
 
+        when(gitHubRestClient.getFileContent(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(new GitHubRestClient.FileContent("existing-sha", ORIGINAL_FILE_BODY));
         doNothing().when(gitHubRestClient).putFileContents(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), any(), anyString());
         when(gitHubRestClient.createPullRequest(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(new GitHubRestClient.PullRequestResponse(7, "https://github.com/octocat/my-repo/pull/7"));
@@ -265,6 +294,8 @@ class PatchPrServiceTest {
         when(gitHubRestClient.getDefaultBranchSha("octocat", "my-repo", "develop", "mock-token"))
                 .thenReturn("sha-develop");
         doNothing().when(gitHubRestClient).createBranchRef(anyString(), anyString(), anyString(), anyString(), anyString());
+        when(gitHubRestClient.getFileContent(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(new GitHubRestClient.FileContent("existing-sha", ORIGINAL_FILE_BODY));
         doNothing().when(gitHubRestClient).putFileContents(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), any(), anyString());
         when(gitHubRestClient.createPullRequest(
                 eq("octocat"), eq("my-repo"), anyString(), anyString(),
@@ -278,5 +309,66 @@ class PatchPrServiceTest {
         assertThat(response.prNumber()).isEqualTo(5);
         // resolveDefaultBranch는 호출되지 않아야 함 (baseBranch 지정 시)
         verify(gitHubRestClient, never()).resolveDefaultBranch(anyString(), anyString(), anyString());
+    }
+
+    // -----------------------------------------------------------------------
+    // TC-10: createPr — 원본 파일을 가져오지 못하면 PATCH_CONTENT_UNAVAILABLE (파일 손상 방지)
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("createPr — 원본 파일 내용을 못 가져오면 PATCH_CONTENT_UNAVAILABLE로 안전 중단하고 커밋하지 않는다")
+    void createPr_originalFileUnavailable_throwsContentUnavailable() {
+        when(patchRepository.findById(patchId)).thenReturn(Optional.of(patch));
+        when(gitHubAppAuthService.getInstallationTokenForRepo("octocat", "my-repo"))
+                .thenReturn("mock-token");
+        when(gitHubRestClient.resolveDefaultBranch("octocat", "my-repo", "mock-token"))
+                .thenReturn("main");
+        when(gitHubRestClient.getDefaultBranchSha("octocat", "my-repo", "main", "mock-token"))
+                .thenReturn("sha1");
+        // 원본 파일 조회 실패(예: 404) → null
+        when(gitHubRestClient.getFileContent(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(null);
+
+        CreatePatchPrRequest request = new CreatePatchPrRequest("octocat", "my-repo", null);
+
+        assertThatThrownBy(() -> patchPrService.createPr(userId, patchId, request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.PATCH_CONTENT_UNAVAILABLE));
+
+        // 안전 중단 — 브랜치 생성/파일 커밋/PR 생성 없음 (고아 브랜치 방지)
+        verify(gitHubRestClient, never()).createBranchRef(anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(gitHubRestClient, never()).putFileContents(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), any(), anyString());
+        verify(gitHubRestClient, never()).createPullRequest(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    // -----------------------------------------------------------------------
+    // TC-11: createPr — 원본 스니펫이 파일에 없으면 PATCH_CONTENT_UNAVAILABLE (드리프트)
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("createPr — 원본 코드 구간이 원격 파일에 없으면 PATCH_CONTENT_UNAVAILABLE로 안전 중단한다")
+    void createPr_originalSnippetNotFound_throwsContentUnavailable() {
+        when(patchRepository.findById(patchId)).thenReturn(Optional.of(patch));
+        when(gitHubAppAuthService.getInstallationTokenForRepo("octocat", "my-repo"))
+                .thenReturn("mock-token");
+        when(gitHubRestClient.resolveDefaultBranch("octocat", "my-repo", "mock-token"))
+                .thenReturn("main");
+        when(gitHubRestClient.getDefaultBranchSha("octocat", "my-repo", "main", "mock-token"))
+                .thenReturn("sha1");
+        // 원격 파일이 변경되어 originalSnippet이 존재하지 않는 내용
+        when(gitHubRestClient.getFileContent(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(new GitHubRestClient.FileContent("drift-sha", "public class Dao { /* refactored, snippet gone */ }"));
+
+        CreatePatchPrRequest request = new CreatePatchPrRequest("octocat", "my-repo", null);
+
+        assertThatThrownBy(() -> patchPrService.createPr(userId, patchId, request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.PATCH_CONTENT_UNAVAILABLE));
+
+        // 안전 중단 — 고아 브랜치 방지
+        verify(gitHubRestClient, never()).createBranchRef(anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(gitHubRestClient, never()).putFileContents(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), any(), anyString());
     }
 }

@@ -487,17 +487,28 @@ public class GitHubRestClient {
      * @param appToken Installation Token (로그 출력 금지)
      * @return 파일 SHA (파일 없으면 null)
      */
-    @SuppressWarnings("unchecked")
     public String getFileSha(String owner, String repo, String path, String ref, String appToken) {
-        // appToken 로그 출력 금지
-        try {
-            String uri = (ref != null && !ref.isBlank())
-                    ? "/repos/{owner}/{repo}/contents/{path}?ref={ref}"
-                    : "/repos/{owner}/{repo}/contents/{path}";
+        FileContent fc = getFileContent(owner, repo, path, ref, appToken);
+        return fc != null ? fc.sha() : null;
+    }
 
+    /**
+     * 파일의 SHA와 디코드된 전체 내용을 contents API 한 번 호출로 가져온다.
+     *
+     * 파일이 없으면(404) null을 반환한다 (신규 파일 create 모드).
+     * 1MB 초과 등으로 내용을 인라인으로 못 받으면 content=null로 반환한다(호출자가 판단).
+     *
+     * @return FileContent(sha, content) 또는 null(파일 없음)
+     */
+    @SuppressWarnings("unchecked")
+    public FileContent getFileContent(String owner, String repo, String path, String ref, String appToken) {
+        // appToken 로그 출력 금지
+        // 404 처리: onStatus 핸들러가 throw하지 않으면 RestClient는 body(Map.class)로
+        // 에러 JSON을 역직렬화한다 → "sha" 키가 없어 아래에서 null 반환(신규 파일 모드).
+        try {
             Map<String, Object> response = (ref != null && !ref.isBlank())
                     ? restClient.get()
-                            .uri(uri, owner, repo, path, ref)
+                            .uri("/repos/{owner}/{repo}/contents/{path}?ref={ref}", owner, repo, path, ref)
                             .headers(headers -> {
                                 headers.setBearerAuth(appToken);
                                 headers.set("Accept", "application/vnd.github+json");
@@ -525,18 +536,40 @@ public class GitHubRestClient {
                 return null;
             }
             String sha = (String) response.get("sha");
-            log.info("[github-client] getFileSha 완료 owner={} repo={} path={}", owner, repo, path);
-            return sha;
+            String decoded = decodeContent(response);
+            log.info("[github-client] getFileContent 완료 owner={} repo={} path={} hasContent={}",
+                    owner, repo, path, decoded != null);
+            return new FileContent(sha, decoded);
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
             // 파일 없음(404) 포함 예외 → null 반환 (신규 파일 create 모드)
-            log.debug("[github-client] getFileSha not found owner={} repo={} path={} err={}", owner, repo, path, e.getMessage());
+            log.debug("[github-client] getFileContent not found owner={} repo={} path={} err={}", owner, repo, path, e.getMessage());
             return null;
         }
     }
 
+    /**
+     * contents API 응답에서 base64 내용을 디코드한다.
+     * base64 인코딩이 아니거나(대용량 파일 등) 내용이 비면 null을 반환한다.
+     */
+    private String decodeContent(Map<String, Object> response) {
+        Object encoding = response.get("encoding");
+        Object content = response.get("content");
+        if (!"base64".equals(encoding) || !(content instanceof String raw) || raw.isBlank()) {
+            return null;
+        }
+        // GitHub은 base64를 일정 길이마다 개행으로 감싼다 → MimeDecoder가 개행을 허용
+        byte[] bytes = Base64.getMimeDecoder().decode(raw);
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
     // ─── Inner DTOs ──────────────────────────────────────────────────────────
+
+    /**
+     * 파일 내용 조회 응답 DTO (contents API). content는 디코드된 전체 파일 내용(없으면 null).
+     */
+    public record FileContent(String sha, String content) {}
 
     /**
      * Check Run 생성 응답 DTO.

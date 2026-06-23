@@ -67,6 +67,7 @@ public enum ErrorCode {
     PATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "패치 제안을 찾을 수 없습니다."),
     PATCH_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 패치에 대한 접근 권한이 없습니다."),
     PATCH_BRANCH_CONFLICT(HttpStatus.CONFLICT, "동일한 브랜치명이 이미 존재합니다."),
+    PATCH_CONTENT_UNAVAILABLE(HttpStatus.UNPROCESSABLE_ENTITY, "패치를 안전하게 적용할 수 없습니다. 원본 코드 구간을 찾지 못했습니다."),
 
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "리포트를 찾을 수 없습니다."),
     SECURITY_DOC_NOT_FOUND(HttpStatus.NOT_FOUND, "보안 문서 요청을 찾을 수 없습니다."),

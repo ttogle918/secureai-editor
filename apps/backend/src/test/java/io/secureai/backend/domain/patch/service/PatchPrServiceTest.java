@@ -371,4 +371,41 @@ class PatchPrServiceTest {
         verify(gitHubRestClient, never()).createBranchRef(anyString(), anyString(), anyString(), anyString(), anyString());
         verify(gitHubRestClient, never()).putFileContents(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), any(), anyString());
     }
+
+    // -----------------------------------------------------------------------
+    // TC-12: createPr — patchedSnippet이 비어 있으면 PATCH_NOT_FOUND (커밋할 내용 없음)
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("createPr — patchedSnippet이 비어 있으면 PATCH_NOT_FOUND로 중단하고 커밋하지 않는다")
+    void createPr_blankPatchedSnippet_throwsPatchNotFound() {
+        UUID blankPatchId = UUID.randomUUID();
+        PatchSuggestion blankPatch = PatchSuggestion.builder()
+                .session(session)
+                .filePath("src/main/java/Dao.java")
+                .vulnType("SQL_INJECTION")
+                .originalSnippet(ORIGINAL_SNIPPET)
+                // patchedSnippet 미설정(null) — 커밋할 내용 없음
+                .build();
+        ReflectionTestUtils.setField(blankPatch, "id", blankPatchId);
+
+        when(patchRepository.findById(blankPatchId)).thenReturn(Optional.of(blankPatch));
+        when(gitHubAppAuthService.getInstallationTokenForRepo("octocat", "my-repo"))
+                .thenReturn("mock-token");
+        when(gitHubRestClient.resolveDefaultBranch("octocat", "my-repo", "mock-token"))
+                .thenReturn("main");
+        when(gitHubRestClient.getDefaultBranchSha("octocat", "my-repo", "main", "mock-token"))
+                .thenReturn("sha1");
+
+        CreatePatchPrRequest request = new CreatePatchPrRequest("octocat", "my-repo", null);
+
+        assertThatThrownBy(() -> patchPrService.createPr(userId, blankPatchId, request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.PATCH_NOT_FOUND));
+
+        // 안전 중단 — 브랜치/커밋 없음
+        verify(gitHubRestClient, never()).createBranchRef(anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(gitHubRestClient, never()).putFileContents(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), any(), anyString());
+    }
 }

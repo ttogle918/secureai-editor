@@ -12,6 +12,7 @@
 | V3 | 2026-04 (Sprint 5/6) | DAST API 추가 (도메인 소유권 확인, 샌드박스 실행, SSE 스트리밍). GitHub Webhook API |
 | V4 | 2026-05-21 (Sprint 8) | 2FA API, IP Allowlist API, GDPR Export/Delete API, 보안 문서 생성 API (CISO/ISMS-P/행안부), SBOM 경로 변경(`/projects/{id}/sbom/components`) |
 | **V5 (현재)** | 2026-05-22 (Sprint 10) | 위젯 리포트 Export, 팀 대시보드(Gamification·MTTR·ROI), 스캔 모드 선택, 야간 자동 스캔 스케줄링 API 추가, SBOM CycloneDX 내보내기(`GET /projects/{id}/sbom/cyclonedx`), 스케줄 Upsert 패턴으로 변경(`GET+PUT /projects/{id}/schedule` 단수형) |
+| V5.1 | 2026-06-24 (Sprint 14) | 트리아지 API 등재(단건 `PATCH /vulnerabilities/{id}/triage`, 벌크 `PATCH /vulnerabilities/bulk-triage`), DAST 스캔 시작/배치 API 등재(`POST /dast/start`, `POST /dast/batch`) |
 
 ---
 
@@ -25,6 +26,7 @@
 6. [SSE 스트림 명세](#6-sse-스트림-명세)
 7. [Chat API](#7-chat-api)
 8. [Patches API](#8-patches-api)
+8A. [Triage API](#8a-triage-api-취약점-상태-전이)
 9. [Workspace API](#9-workspace-api-인증-불필요)
 10. [Progress API](#10-progress-api)
 11. [AI Engine API (내부)](#11-ai-engine-api-내부)
@@ -1167,6 +1169,98 @@ Authorization: Bearer {accessToken}
 
 ---
 
+## 8A. Triage API (취약점 상태 전이)
+
+인증: `Authorization: Bearer {accessToken}` 필수
+
+취약점에 대해 분석가가 내리는 판정(트리아지)을 반영한다. `action` 화이트리스트는
+`CONFIRM`(확인 — 실제 취약점), `DISMISS`(기각 — 오탐), `ACCEPT_PATCH`(패치 채택)이며
+각각 취약점 상태를 `open` / `false_positive` / `fixed` 로 전이시킨다.
+
+> **입력 검증**은 Controller 레이어에서만 수행한다(`action` @Pattern 화이트리스트, `reason` @Size 1000자).
+> `reason` 은 민감정보를 포함할 수 있어 **로그에 절대 출력하지 않는다**.
+
+### 8A.1 트리아지 (단건)
+
+```http
+PATCH /api/v1/vulnerabilities/{vulnId}/triage
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+```
+
+**Request**
+```json
+{
+  "action": "DISMISS",
+  "reason": "테스트 픽스처 코드라 실제 노출 경로 없음 (선택, 최대 1000자)"
+}
+```
+
+**Response** `200 OK` — 전이된 취약점 단건
+```json
+{
+  "success": true,
+  "data": {
+    "vulnId": "uuid",
+    "status": "false_positive",
+    "severity": "HIGH",
+    "vulnType": "SQL_INJECTION"
+  }
+}
+```
+
+**에러 케이스**
+
+| 상황 | 코드 | HTTP |
+|------|------|------|
+| action 화이트리스트 위반 / reason 길이 초과 | `INVALID_INPUT` | 400 |
+| 취약점 없음 또는 접근 권한 없음 | `VULNERABILITY_NOT_FOUND` | 404 |
+
+---
+
+### 8A.2 트리아지 (벌크)
+
+같은 유형의 취약점을 여러 파일에서 한 번에 정리하는 UX용 배치 엔드포인트.
+**소유하지 않았거나 존재하지 않는 취약점은 조용히 skip** 되며 `skipped` 로 집계된다
+(타 사용자의 취약점 존재 여부를 노출하지 않기 위함). 프론트는 `appliedVulnIds` 로 낙관적 갱신을 동기화한다.
+
+```http
+PATCH /api/v1/vulnerabilities/bulk-triage
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+```
+
+**Request** (`vulnIds` 1~200건, 중복은 제거됨)
+```json
+{
+  "vulnIds": ["uuid-1", "uuid-2", "uuid-3"],
+  "action": "DISMISS",
+  "reason": "공통 오탐 사유 (선택, 최대 1000자)"
+}
+```
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "requested": 3,
+    "applied": 2,
+    "skipped": 1,
+    "newStatus": "false_positive",
+    "appliedVulnIds": ["uuid-1", "uuid-2"]
+  }
+}
+```
+
+**에러 케이스**
+
+| 상황 | 코드 | HTTP |
+|------|------|------|
+| vulnIds 비어있음 / 200건 초과 / action 위반 | `INVALID_INPUT` | 400 |
+
+---
+
 ## 9. Workspace API (인증 불필요)
 
 Base path: `/api/workspace`  
@@ -1547,6 +1641,114 @@ Authorization: Bearer {accessToken}
   }
 }
 ```
+
+---
+
+### 12.3 DAST 스캔 시작 (단건)
+
+지정한 취약점 1건에 대해 DAST 익스플로잇을 시작한다. 도메인 소유권 확인 + Rate Limit +
+분산 락을 통과한 뒤 AI Engine 에 위임하며, 진행/결과는 SSE 로 스트리밍된다.
+
+```http
+POST /api/v1/dast/start
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+```
+
+**Request**
+```json
+{
+  "sessionId": "uuid",
+  "vulnId": "uuid",
+  "domain": "target.example.com",
+  "consentGiven": true,
+  "vulnType": "SQL_INJECTION",
+  "targetUrl": "https://target.example.com",
+  "endpoint": "/api/login",
+  "params": { "username": "admin" }
+}
+```
+
+> `targetUrl`·`params` 는 **로그에 출력하지 않는다**. `consentGiven` 이 `false` 면 즉시 거부한다.
+> `localhost`/`127.0.0.1` 은 개발·데모 환경으로 간주해 도메인 소유권 검증을 생략한다.
+
+**Response** `202 Accepted` (본문 없음 — 결과는 SSE 구독)
+
+**SSE 구독** — AI Engine 채널을 통해 결과를 받는다(`type: dast_result` 에서 종료).
+
+**에러 케이스**
+
+| 상황 | 코드 | HTTP |
+|------|------|------|
+| consentGiven=false | `DAST_CONSENT_REQUIRED` | 403 |
+| 도메인 소유권 미검증 | `DAST_DOMAIN_NOT_VERIFIED` | 403 |
+| AI Engine 호출 실패 | `AI_AGENT_UNAVAILABLE` | 503 |
+
+---
+
+### 12.4 배치 DAST 스캔 (다건) — Sprint 14 신규
+
+여러 취약점을 한 번의 요청으로 묶어 실행한다. 도메인 소유권과 `consentGiven` 은 배치 전체에
+공유된다(도메인 검증 1회). AI Engine 은 `vuln_type` 별로 타깃을 그룹핑해 **그룹당 지침을 1회만
+로드**하고, **Semaphore(동시 4)** 로 Docker 과부하를 막으며, **개별 타깃 실패는 skip & log**
+처리한다(배치 전체 중단 없음). 결과는 **단일 SSE 스트림**으로 받는다.
+
+```http
+POST /api/v1/dast/batch
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+```
+
+**Request** (`targets` 1~50건)
+```json
+{
+  "sessionId": "uuid",
+  "domain": "target.example.com",
+  "consentGiven": true,
+  "targets": [
+    {
+      "vulnId": "uuid-1",
+      "vulnType": "SQL_INJECTION",
+      "targetUrl": "https://target.example.com",
+      "endpoint": "/api/login",
+      "params": { "username": "admin" }
+    },
+    {
+      "vulnId": "uuid-2",
+      "vulnType": "XSS",
+      "targetUrl": "https://target.example.com",
+      "endpoint": "/api/search",
+      "params": { "q": "<script>" }
+    }
+  ]
+}
+```
+
+**Response** `202 Accepted` (본문 없음 — 결과는 SSE 구독)
+
+**SSE 구독** — 단건과 같은 채널을 쓰되 **배치 모드(`?batch=true`)로 구독**한다. 각 타깃 완료 시
+`type: dast_result`(vuln_id 포함) 이벤트가 순차 발행되고, **전체 완료 시 종료 이벤트**가 온다:
+
+```json
+{ "type": "dast_batch_complete", "total": 2, "succeeded": 1, "skipped": 1 }
+```
+
+> 배치 모드 SSE 는 개별 `dast_result` 로 스트림을 종료하지 않고 `dast_batch_complete`
+> (또는 치명 `dast_error`)에서만 종료한다. 클라이언트는 `vuln_id` 로 결과를 구분한다.
+
+**내부 위임** — Backend 는 `POST /agent/dast/batch` (AI Engine, `X-Internal-Key` 인증)로 위임한다.
+공개 엔드포인트의 입력 검증은 Backend Bean Validation(`@NotEmpty`·`@Size(max=50)`)이 담당하므로
+잘못된 `targets` 는 AI Engine 에 도달하기 전에 **400** 으로 거부된다. AI Engine 내부 가드
+(`/agent/dast/batch`)는 방어적으로 동일 조건에서 FastAPI 검증과 동일한 **422** 를 반환한다(정상 흐름에선 도달하지 않음).
+
+**에러 케이스** (공개 엔드포인트 `POST /api/v1/dast/batch` 기준)
+
+| 상황 | 코드 | HTTP |
+|------|------|------|
+| consentGiven=false | `DAST_CONSENT_REQUIRED` | 403 |
+| 도메인 소유권 미검증 | `DAST_DOMAIN_NOT_VERIFIED` | 403 |
+| targets 비어있음 / 50건 초과 (Backend Bean Validation) | `INVALID_INPUT` | 400 |
+| AI Engine 호출 실패 | `AI_AGENT_UNAVAILABLE` | 503 |
 
 ---
 

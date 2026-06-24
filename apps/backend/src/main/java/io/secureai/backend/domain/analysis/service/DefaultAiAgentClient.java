@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.secureai.backend.domain.analysis.dto.CommitScanRequest;
+import io.secureai.backend.domain.dast.dto.DastBatchTarget;
 import io.secureai.backend.global.exception.BusinessException;
 import io.secureai.backend.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
@@ -238,6 +239,45 @@ public class DefaultAiAgentClient implements AiAgentClient {
                                    Throwable t) {
         log.warn("[circuit] startDast fallback triggered sessionId={} cause={}", sessionId, t.getMessage());
         throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);
+    }
+
+    @Override
+    @CircuitBreaker(name = CB_NAME, fallbackMethod = "startDastBatchFallback")
+    public void startDastBatch(UUID sessionId, List<DastBatchTarget> targets) {
+        List<Map<String, Object>> targetPayloads = buildBatchTargetPayloads(targets);
+        Map<String, Object> body = new HashMap<>();
+        body.put("session_id", sessionId.toString());
+        body.put("targets", targetPayloads);
+
+        restClient.post()
+                .uri("/agent/dast/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
+
+        // target_url, params 는 보안 정책상 로그에 출력하지 않는다.
+        log.info("[agent-client] startDastBatch sessionId={} targetCount={}", sessionId, targets.size());
+    }
+
+    @SuppressWarnings("unused")
+    private void startDastBatchFallback(UUID sessionId, List<DastBatchTarget> targets, Throwable t) {
+        log.warn("[circuit] startDastBatch fallback triggered sessionId={} cause={}", sessionId, t.getMessage());
+        throw new BusinessException(ErrorCode.AI_AGENT_UNAVAILABLE);
+    }
+
+    private List<Map<String, Object>> buildBatchTargetPayloads(List<DastBatchTarget> targets) {
+        return targets.stream()
+                .map(t -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("vuln_id", t.vulnId().toString());
+                    m.put("vuln_type", t.vulnType());
+                    m.put("target_url", t.targetUrl());
+                    m.put("endpoint", t.endpoint() != null ? t.endpoint() : "");
+                    m.put("params", t.params() != null ? t.params() : Map.of());
+                    return m;
+                })
+                .toList();
     }
 
     @Override

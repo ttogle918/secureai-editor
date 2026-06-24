@@ -1,6 +1,7 @@
 package io.secureai.backend.domain.analysis.service;
 
 import io.secureai.backend.domain.analysis.dto.CommitScanRequest;
+import io.secureai.backend.domain.dast.dto.DastBatchTarget;
 
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,9 @@ public interface AiAgentClient {
     /** DAST 분석을 AI Engine에 위임한다. */
     void startDast(UUID sessionId, UUID vulnId, String vulnType,
                    String targetUrl, String endpoint, Map<String, Object> params);
+
+    /** 배치 DAST 분석을 AI Engine에 위임한다. target_url, params 는 로그 출력 금지. */
+    void startDastBatch(UUID sessionId, List<DastBatchTarget> targets);
 
     /** 커밋 시크릿 스캔을 AI Engine에 위임한다. githubToken은 로그 출력 금지. */
     void startCommitScan(UUID sessionId, UUID projectId, CommitScanRequest req, String githubToken);

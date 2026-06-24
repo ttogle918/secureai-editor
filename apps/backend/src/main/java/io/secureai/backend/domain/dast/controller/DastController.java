@@ -1,5 +1,6 @@
 package io.secureai.backend.domain.dast.controller;
 
+import io.secureai.backend.domain.dast.dto.DastBatchRequest;
 import io.secureai.backend.domain.dast.dto.DastExecuteRequest;
 import io.secureai.backend.domain.dast.dto.DastExecuteResponse;
 import io.secureai.backend.domain.dast.dto.DastResultDto;
@@ -62,6 +63,42 @@ public class DastController {
     }
 
     // ── 공개 엔드포인트 (Frontend → Backend) ─────────────────────────────────
+
+    /**
+     * 배치 DAST 스캔 시작 요청.
+     * 단건과 동일한 보안 게이트(consentGiven, 도메인 소유권)를 적용한다.
+     * 도메인 검증은 공유 domain 필드로 1회 수행한다.
+     * consentGiven 이 false 이면 즉시 403을 반환한다.
+     */
+    @AuditLog(action = "DAST_BATCH_START", resource = "dast")
+    @PostMapping("/dast/batch")
+    public ResponseEntity<Void> startDastBatch(
+            @AuthenticationPrincipal UUID userId,
+            @Valid @RequestBody DastBatchRequest req,
+            HttpServletRequest httpReq
+    ) {
+        if (!req.consentGiven()) {
+            throw new BusinessException(ErrorCode.DAST_CONSENT_REQUIRED,
+                    "consentGiven 이 true 여야 합니다.");
+        }
+
+        String clientIp = resolveClientIp(httpReq);
+        boolean isLocalhost = LOCALHOST_DOMAINS.contains(req.domain());
+
+        log.info("DAST batch start requested: sessionId={} domain={} targetCount={}",
+                req.sessionId(), req.domain(), req.targets().size());
+
+        // localhost/127.0.0.1 은 개발/데모 환경 — 도메인 소유권 검증 생략
+        if (!isLocalhost) {
+            if (userId == null) {
+                throw new BusinessException(ErrorCode.USER_NOT_FOUND, "인증 정보가 유효하지 않습니다.");
+            }
+            domainVerificationService.assertDastAllowed(userId, req.domain(), clientIp);
+        }
+
+        dastExecutionService.initiateBatchDastScan(req);
+        return ResponseEntity.accepted().build();
+    }
 
     /**
      * DAST 스캔 시작 요청.

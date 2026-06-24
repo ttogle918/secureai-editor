@@ -1,5 +1,7 @@
 package io.secureai.backend.domain.dast.controller;
 
+import io.secureai.backend.domain.dast.dto.DastBatchRequest;
+import io.secureai.backend.domain.dast.dto.DastBatchTarget;
 import io.secureai.backend.domain.dast.dto.DastExecuteRequest;
 import io.secureai.backend.domain.dast.dto.DastExecuteResponse;
 import io.secureai.backend.domain.dast.dto.DastStartRequest;
@@ -193,6 +195,83 @@ class DastControllerTest {
         assertThat(response.getBody().getData()).isEmpty();
     }
 
+    // ── 공개 엔드포인트: startDastBatch ──────────────────────────────────────
+
+    @Test
+    @DisplayName("startDastBatch - consentGiven=false 이면 BusinessException(DAST_CONSENT_REQUIRED) 발생")
+    void startDastBatch_whenConsentNotGiven_throwsBusinessException() {
+        // given
+        DastBatchRequest req = buildBatchRequest("example.com", false);
+        MockHttpServletRequest httpReq = new MockHttpServletRequest();
+
+        // when / then
+        assertThatThrownBy(() -> controller.startDastBatch(null, req, httpReq))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(ErrorCode.DAST_CONSENT_REQUIRED);
+                });
+
+        verify(domainVerificationService, never()).assertDastAllowed(any(), any(), any());
+        verify(dastExecutionService, never()).initiateBatchDastScan(any());
+    }
+
+    @Test
+    @DisplayName("startDastBatch - consentGiven=true 이면 assertDastAllowed 호출 후 202 반환")
+    void startDastBatch_whenConsentGiven_callsVerificationAndReturns202() {
+        // given
+        UUID userId = UUID.randomUUID();
+        DastBatchRequest req = buildBatchRequest("example.com", true);
+        MockHttpServletRequest httpReq = new MockHttpServletRequest();
+        httpReq.setRemoteAddr("10.0.0.1");
+
+        doNothing().when(domainVerificationService).assertDastAllowed(eq(userId), eq("example.com"), any());
+
+        // when
+        ResponseEntity<Void> response = controller.startDastBatch(userId, req, httpReq);
+
+        // then
+        assertThat(response.getStatusCode().value()).isEqualTo(202);
+        verify(domainVerificationService).assertDastAllowed(eq(userId), eq("example.com"), any());
+        verify(dastExecutionService).initiateBatchDastScan(req);
+    }
+
+    @Test
+    @DisplayName("startDastBatch - localhost 도메인은 도메인 소유권 검증을 건너뛴다")
+    void startDastBatch_whenLocalhostDomain_skipsVerification() {
+        // given
+        DastBatchRequest req = buildBatchRequest("localhost", true);
+        MockHttpServletRequest httpReq = new MockHttpServletRequest();
+
+        // when
+        ResponseEntity<Void> response = controller.startDastBatch(null, req, httpReq);
+
+        // then
+        assertThat(response.getStatusCode().value()).isEqualTo(202);
+        verify(domainVerificationService, never()).assertDastAllowed(any(), any(), any());
+        verify(dastExecutionService).initiateBatchDastScan(req);
+    }
+
+    @Test
+    @DisplayName("startDastBatch - DomainNotVerifiedException 발생 시 그대로 전파")
+    void startDastBatch_whenDomainNotVerified_propagatesException() {
+        // given
+        UUID userId = UUID.randomUUID();
+        DastBatchRequest req = buildBatchRequest("example.com", true);
+        MockHttpServletRequest httpReq = new MockHttpServletRequest();
+
+        doThrow(new BusinessException(ErrorCode.DAST_DOMAIN_NOT_VERIFIED))
+                .when(domainVerificationService).assertDastAllowed(any(), any(), any());
+
+        // when / then
+        assertThatThrownBy(() -> controller.startDastBatch(userId, req, httpReq))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(ErrorCode.DAST_DOMAIN_NOT_VERIFIED);
+                });
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private DastStartRequest buildStartRequest(String domain, boolean consent) {
@@ -200,5 +279,12 @@ class DastControllerTest {
                 SESSION_ID, VULN_ID, domain, consent,
                 "SQL_INJECTION", "https://target.example.com", "/api/login", Map.of()
         );
+    }
+
+    private DastBatchRequest buildBatchRequest(String domain, boolean consent) {
+        DastBatchTarget target = new DastBatchTarget(
+                VULN_ID, "SQL_INJECTION", "https://target.example.com", "/api/login", Map.of()
+        );
+        return new DastBatchRequest(SESSION_ID, domain, consent, List.of(target));
     }
 }

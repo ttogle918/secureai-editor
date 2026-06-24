@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.secureai.backend.domain.analysis.service.AiAgentClient;
+import io.secureai.backend.domain.dast.dto.DastBatchRequest;
 import io.secureai.backend.domain.dast.dto.DastExecuteRequest;
 import io.secureai.backend.domain.dast.dto.DastExecuteResponse;
 import io.secureai.backend.domain.dast.dto.DastStartRequest;
@@ -73,6 +74,19 @@ public class DastExecutionService {
                 req.params()
         );
         log.info("DAST scan delegated to AI Engine: sessionId={} vulnType={}", req.sessionId(), req.vulnType());
+    }
+
+    /**
+     * 배치 DAST 분석을 AI Engine에 위임한다.
+     * 도메인 소유권·동의 검증은 Controller 가 수행하므로 여기서는 위임만 한다.
+     * target_url, params 는 로그에 출력하지 않는다.
+     *
+     * @throws BusinessException AI_AGENT_UNAVAILABLE — AI Engine 호출 실패
+     */
+    public void initiateBatchDastScan(DastBatchRequest req) {
+        aiAgentClient.startDastBatch(req.sessionId(), req.targets());
+        log.info("Batch DAST scan delegated to AI Engine: sessionId={} targetCount={}",
+                req.sessionId(), req.targets().size());
     }
 
     /**

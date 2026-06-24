@@ -1,6 +1,7 @@
 # SecureAI Editor — 구현된 기능 목록
 
-> 코드베이스 직접 분석 기준 (2026-06-17). 실제 동작하는 기능만 포함.
+> 코드베이스 직접 분석 기준 (2026-06-17, **2026-06-24 델타 갱신**). 실제 동작하는 기능만 포함.
+> 2026-06-17 이후 추가분(Sprint 13~14 + 후속)은 **§22**에 정리. UI 공백은 §22 표의 ❌ 표기 참조.
 
 ---
 
@@ -505,6 +506,65 @@ sequenceDiagram
 
 ---
 
+## 22. 2026-06-17 이후 추가 기능 (Sprint 13~14 + 후속)
+
+> 코드 실측(git 이력 + 신규 파일) 기준. **백엔드/AI는 완료**이나 일부는 **프론트 UI 미구현(❌)** — 디자인 핸드오프(`docs/design/claude-design-handoff/`)의 ★공백 항목과 일치.
+
+---
+
+- **기능명**: AST 할루시네이션 가드 (VAL-3)
+- **한 줄 요약**: AI가 보고한 file:line·source→sink를 AST로 실재 검증해 가짜 취약점을 자동 폐기
+- **동작 설명**: `validate_findings_node`가 SAST findings를 AST로 교차검증하여 존재하지 않는 라인/공백/주석 대상 오탐을 `discarded_findings`로 폐기한다. `ast_pre_filter`(AST_PRE_FILTER_ENABLED 플래그)로 LLM 호출 전 결정론적 사전필터도 지원한다. (UI: 로그 수준, 표면 노출 미미)
+- **핵심 파일**: `apps/ai_engine/agent/nodes/validate_findings_node.py`, `apps/ai_engine/agent/validation/ast_pre_filter.py`
+
+---
+
+- **기능명**: 취약점 트리아지 (단건 + 벌크) — MOAT-1
+- **한 줄 요약**: 취약점을 확인(CONFIRM)/기각(DISMISS)/패치채택(ACCEPT_PATCH)으로 판정, 단건·다건 일괄
+- **동작 설명**: 단건 `PATCH /api/v1/vulnerabilities/{id}/triage`, 벌크 `PATCH /api/v1/vulnerabilities/bulk-triage`(1~200건). action에 따라 상태가 open/false_positive/fixed로 전이. 소유X/미존재는 조용히 skip 집계. 기각 사유는 `triage_feedback`(append-only)에 리랭커 학습자산으로 적재. **단건 UI는 있음, 벌크 UI는 ❌ 미구현.**
+- **핵심 파일**: `VulnerabilityController.java`(triage/bulk-triage), `BulkTriageRequest/Response.java`, FE `VulnDetailPanel.tsx`(단건)
+
+---
+
+- **기능명**: 패치 자동 PR 생성 (TASK-1401)
+- **한 줄 요약**: 검증된 패치를 GitHub 새 브랜치+PR로 자동 오픈 (PR-only, auto-merge 금지)
+- **동작 설명**: `POST /api/v1/patches/{id}/pull-request`로 `GitHubRestClient`가 `secureai/patch-*` 브랜치를 만들고 PR을 생성한다. originalSnippet 구간만 치환(파일 손상 방지). 권한/App 미등록 시 `GITHUB_AUTH_REQUIRED` 경고. **UI: 있음**(PatchManagerPage PR 생성 버튼).
+- **핵심 파일**: `PatchPrService.java`, `CreatePatchPrRequest/PatchPrResponse.java`, FE `PatchManagerPage.tsx`
+
+---
+
+- **기능명**: 패치 자가검증 (TASK-1402)
+- **한 줄 요약**: AI 패치를 Docker pytest 샌드박스에서 실행해 VERIFIED/FAILED 판정
+- **동작 설명**: `patch_verify_node`가 Claude로 pytest 검증코드를 생성하고 `dast-isolated-net` 격리 컨테이너에서 실행 → `verification_status`(PENDING/VERIFIED/FAILED). Python+pytest 단일 언어 한정. **UI: 있음**(PatchManagerPage 배지 그린/레드).
+- **핵심 파일**: `apps/ai_engine/agent/nodes/patch_verify_node.py`, `PatchVerificationRequest.java`, FE `PatchManagerPage.tsx`(VerificationBadge)
+
+---
+
+- **기능명**: SAST→DAST proven_exploitable 하니스 (VAL-4)
+- **한 줄 요약**: SAST 의심 취약점을 격리 샌드박스에서 실제 익스플로잇해 "증명됨" 라벨링 + 스코어카드
+- **동작 설명**: `benchmarks/proven_exploit/runner`가 WebGoat/Juice Shop 대상에 SAST→DAST 익스플로잇을 시도하고 `proven_scorecard.md`/`proven_exploitable.csv`를 산출한다(`dast-isolated-net` 격리 필수). 벤치 하니스(프로덕션 DB 미수정 — 프로덕션 라벨링은 VAL-18로 이월).
+- **핵심 파일**: `apps/ai_engine/benchmarks/proven_exploit/runner.py`, `mapping.py`
+
+---
+
+- **기능명**: 배치 DAST (다건 일괄 익스플로잇)
+- **한 줄 요약**: 여러 취약점을 한 요청으로 묶어 동적 검증 — vuln_type 그룹핑·동시성 제어·단일 SSE
+- **동작 설명**: `POST /api/v1/dast/batch`(targets 1~50) → ai_engine `POST /agent/dast/batch`. vuln_type별 지침 1회 로드, `Semaphore(4)` 동시성, 개별 실패 skip&log. 단일 SSE(`?batch=true`)로 각 `dast_result` + 최종 `dast_batch_complete` 구독. consent/도메인 게이트 단건 재사용. **프론트 UI는 ❌ 미구현.**
+- **핵심 파일**: `DastController.java`(batch), `DastBatchRequest/Target.java`, `apps/ai_engine/api/routes/dast.py`
+
+---
+
+- **기능명**: 멀티 프로바이더 모델 선택 확장
+- **한 줄 요약**: Claude/Gemini/OpenAI 세부 모델을 UI에서 선택 (BYOK 확장)
+- **동작 설명**: 프로바이더별 선택 가능한 모델 목록을 프론트 상수로 정의해 분석 요청 시 세부 모델을 지정한다. **UI: 있음**(설정/모델 선택).
+- **핵심 파일**: FE `apps/frontend/src/lib/constants/models.ts`
+
+---
+
+- **(내부 개선, UI 무관)**: API-허브 우선 읽기(`api_discovery_node` 허브 파일 우선), path-aware 스택 탐지(`sast_node`), 평가 CI 회귀 게이트(VAL-2, eval-check), Audit 기본 프로바이더 anthropic 전환.
+
+---
+
 ## 전체 기능 요약 표
 
 | 기능명 | 분류 | 상태 |
@@ -536,3 +596,11 @@ sequenceDiagram
 | Monaco 기반 코드 에디터 + 분석 통합 UI | Frontend | ✅ 구현 |
 | Android 모바일 앱 | Mobile | ✅ 구현 |
 | 토큰 사용량 기반 크레딧 차감 | 과금 | ✅ 구현 |
+| AST 할루시네이션 가드 (VAL-3) | 핵심 분석 | ✅ 구현 (§22) |
+| 취약점 트리아지 — 단건 | 트리아지 | ✅ 구현 (§22) |
+| 취약점 트리아지 — 벌크 | 트리아지 | ⚠️ 백엔드만 (FE UI 미구현, §22) |
+| 패치 자동 PR 생성 (TASK-1401) | 패치·DevSecOps | ✅ 구현 (§22) |
+| 패치 자가검증 (TASK-1402, VERIFIED/FAILED) | 패치 | ✅ 구현 (§22) |
+| SAST→DAST proven_exploitable 하니스 (VAL-4) | 검증 | ✅ 구현(벤치) (§22) |
+| 배치 DAST (다건 일괄 익스플로잇) | 핵심 분석 | ⚠️ 백엔드만 (FE UI 미구현, §22) |
+| 멀티 프로바이더 모델 선택 확장 | 핵심 분석 | ✅ 구현 (§22) |

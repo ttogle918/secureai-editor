@@ -448,3 +448,54 @@ List<Object[]> findVulnTypeSummaryByProjectId(@Param("projectId") UUID projectId
 
 두 내부 엔드포인트는 `InternalKeyAuthFilter`로 보호된다 (`X-Internal-Key` 헤더 검증).  
 `SecurityConfig`의 `/api/v1/internal/**` 패턴에 포함되어 JWT 없이 내부키만으로 접근된다.
+
+---
+
+## ADR-017 — SAST 분석 산출 강화 + 프로덕션 SAST→DAST 핸드오프
+
+> 의논 맥락: 2026-06-24 세션. "SAST는 '왜 위험한가'까지 결론을 내는데, 그 추론 중 생성되는 정보 대부분이 출력 스키마에 없어서 버려진다. DAST에 넘길 것/사용자 참고자료로 줄 것이 더 있지 않나?"에 대한 코드 실측 후 합의.
+
+### 배경 — 현재 SAST가 실제로 산출하는 것
+
+`agent/claude_client.py`의 SAST 시스템 프롬프트가 강제하는 JSON 스키마는 취약점당 **8개 필드뿐**이다:
+
+```
+type · severity · category · cwe · owasp · line · description · code_snippet
+```
+
+`response_parser.parse_sast_response`는 이 필드를 그대로 통과시키고(`file_path`만 부착), 백엔드 `Vulnerability` 엔티티도 동일 집합만 영속화한다(+ status·source·dedup_hash). **수정안("이렇게 바꿔라")은 SAST 노드가 아니라 별도 `patch_node`(aggregate→patch→patch_verify)에서만**, 그것도 patch 단계까지 도달한 finding에 한해 생성된다.
+
+### 문제
+
+1. **추론은 풍부하나 스키마가 최소** — 모델은 공격 시나리오·taint 흐름(source→sink)·주입 파라미터·참고자료까지 내부적으로 추론하지만, 출력 스키마에 없어 **폐기**된다.
+2. **SAST→DAST 핸드오프가 실데이터가 아님** — `api_discovery_node`가 `api_groups`(url+method 힌트)를 만들지만 **취약점에 연결·영속화되지 않는다**. 백엔드 `Vulnerability`에 endpoint/method/params 컬럼이 없어, 프론트(`vulnUtils.deriveEndpoint`/`deriveApiGroup`, DVWA 하드코딩 포함)가 **휴리스틱 재추론**하고 DAST 워크스페이스 Request Builder는 사실상 **수동 입력**이다. (VAL-4의 프로덕션 proven 라벨링이 S14+로 이월된 것과 동일 선상의 미결 갭.)
+
+### 결정
+
+SAST 출력 스키마를 **선별 확장**하고, 그 결과를 취약점에 **영속화**하여 DAST 입력과 사용자 참고자료의 단일 출처로 삼는다. "전부 캡처"가 아니라 **DAST/사용자 가치가 분명한 필드만** 추가한다.
+
+**(1) SAST 출력 스키마 확장** (`claude_client.py` 프롬프트 + 파서 + 엔티티/마이그레이션):
+
+| 추가 필드 | 용도 | 비고 |
+|---|---|---|
+| `tainted_parameter` | DAST가 *어느 파라미터를 퍼징할지* 결정 | code_snippet에 묻혀 있던 것을 구조화 |
+| `attack_scenario` | 사용자 참고자료 + DAST 증거 프레이밍 | "공격자가 이 입력으로 …" 1~2문장 |
+| `data_flow`(source→sink, 선택) | 재현성·이해도 + AST 가드(VAL-3) 교차검증 | 비용 큰 필드 — 후순위/옵션 |
+| `references`(파생) | 사용자 참고자료 | **신규 토큰 비용 없음** — 기존 `cwe`/`owasp` ID로 링크 렌더만 |
+
+**(2) 프로덕션 SAST→DAST 핸드오프**: `api_discovery`의 `api_groups`를 `vuln.filePath+line`과 매칭해 취약점에 `api_endpoint`/`http_method`를 부여·영속화한다. 프론트 휴리스틱(`vulnUtils`)을 제거하고, DAST 시작 폼을 prefill한다(실행은 **여전히 user-triggered + 동의 게이트 유지** — 자동 연결 아님).
+
+**(3) 자동 그래프 연결은 하지 않는다** — SAST 종료 즉시 DAST 자동 실행은 `consentGiven`·도메인 소유권 게이트를 우회하므로 금지. 핸드오프는 "데이터 전달 + prefill"까지이고 트리거는 사용자가 누른다.
+
+### 트레이드오프 (정직하게)
+
+- **출력 토큰↑** → 단위 원가 상승(EPIC-ECON과 충돌). ⇒ 필드를 최소 선별, `references`처럼 무비용 항목 우선.
+- **환각 위험↑** → 없는 파라미터/흐름을 지어낼 수 있음. ⇒ `tainted_parameter`·`data_flow`는 **AST 가드(VAL-3)로 실재 검증** 후 채택, 불일치 시 해당 필드만 폐기.
+- **검증 부담↑** → 스키마 확장은 파서·엔티티·마이그레이션·테스트 동반.
+
+### 영향
+
+- `apps/ai_engine/agent/claude_client.py`(프롬프트 스키마), `response_parser.py`(파서), `agent/nodes/sast_node.py`·`api_discovery_node.py`(엔드포인트 바인딩).
+- 백엔드 `Vulnerability` 엔티티 + Flyway 마이그레이션(신규 컬럼: `tainted_parameter`·`attack_scenario`·`api_endpoint`·`http_method`), `VulnerabilityResponse` DTO.
+- 프론트 `vulnUtils.ts` 휴리스틱 제거 → 실데이터 사용, 취약점 카드에 SAST 의심 + DAST proven + 참고링크 통합 뷰.
+- **백로그**: `VAL-18`로 태스크화(07_SPRINT_BACKLOG_V4). VAL-3(AST 가드)·VAL-4(proven 라벨)와 의존. 실제 편성은 `/sprint`(PM)에서.

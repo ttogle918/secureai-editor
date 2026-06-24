@@ -50,10 +50,12 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 ---
 
-## 현재 위치 (Status) — 2026-06-21 갱신
+## 현재 위치 (Status) — 2026-06-24 갱신
 
-- **진행 위치**: **Sprint 14 코드 완료** — Stage 1(VAL-4 + TASK-1401, `bcf3804`) + Stage 2(TASK-1402, `11510ac`), 2026-06-22 · 각 Reviewer PASS. **다음 = 런타임 수동검증 일괄(스프린트 말, 사용자 결정) → `/done`**. 이월: 1403/VAL-5·VAL-8·VAL-9·VAL-13·VAL-16. (Sprint 13 전체 완료: `15cd49a`+`908c7eb`.)
+- **진행 위치**: **Sprint 14 완료** — Stage 1(VAL-4 + TASK-1401, `bcf3804`) + Stage 2(TASK-1402, `11510ac`), 각 Reviewer PASS. 이월: 1403/VAL-5·VAL-8·VAL-9·VAL-13·VAL-16. (Sprint 13 전체 완료: `15cd49a`+`908c7eb`.)
   - ⚠️ VAL-2 잔여(비차단): `eval/baseline.json`이 LIMIT=5 시드라 대표 런(LIMIT≥100/풀런, API 키 필요)으로 갱신해야 게이트가 실효(sprint-13.md #baseline 한계).
+  - **2026-06-24 후속 세션**: 벌크 트리아지(`a4cfe9e`) + **배치 DAST 엔드포인트**(`6123d60` 머지) + triage/DAST **API 문서화** 완료(전부 로컬 main, **미푸시**). **신규 `VAL-18`(SAST 산출 강화 + 프로덕션 SAST→DAST 핸드오프, ADR-017) 백로그 등재** — VAL-4가 이월한 프로덕션 proven 라벨링을 정식 태스크화.
+  - **Sprint 14 재계획 불필요**(완료·이월 의도적 기록됨). 이월분(1403/VAL-5·8·9·13·16) + **VAL-18**은 **`/sprint 15`(PM)** 에서 편성 — 회고적 14 수정 아님.
 
 - **📹 시연/배포 2트랙 (2026-06-21 확정 — 데모는 빠르게, 배포는 안정적으로)**
 
@@ -571,6 +573,33 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - 🔬 통합/실행: VAL-1(+VAL-7) 결과 입력 → 언어 매트릭스 생성.
   - ✅ 수동/산출물: `language_coverage_matrix.md`에 **"N개 언어, 언어별 탐지율" 헤드라인** + 언어×탐지율 표.
 - **사이즈·배치·선행**: S · **S13** · VAL-1 결과(VAL-7 코퍼스 있으면 언어 폭 확장).
+
+---
+
+#### VAL-18 🔴 — SAST 분석 산출 강화 + 프로덕션 SAST→DAST 핸드오프 (탐지→증명 데이터 파이프)
+> 근거: **ADR-017**. 2026-06-24 세션 합의. VAL-4(벤치 proven)가 S14+로 이월한 **프로덕션 proven 라벨링/핸드오프**를 정식 태스크화하고, SAST 출력 스키마 폐기 문제까지 함께 해소한다.
+- **목적(무엇을 해결)**: SAST 추론 중 생성되나 8필드 스키마(`type·severity·category·cwe·owasp·line·description·code_snippet`)에 없어 **폐기되던 정보**를 선별 캡처하고, `api_discovery`의 엔드포인트를 취약점에 영속화해 **DAST 입력 + 사용자 참고자료의 단일 출처**를 만든다. 프론트 휴리스틱(`vulnUtils.deriveEndpoint`/`deriveApiGroup`)을 실데이터로 대체.
+- **한 줄 가치**: *"SAST가 '왜 위험한가'에 더해 '어디를 어떻게 공격당하나(파라미터·시나리오·엔드포인트)'까지 구조화 → DAST 원클릭 + 사용자엔 공격 시나리오·참고자료 제공."*
+- **스코프 원칙**: "전부 캡처" 금지 — **DAST/사용자 가치가 분명한 필드만**. `references`처럼 무비용(기존 ID 렌더)부터, 비용 큰 `data_flow`는 옵션/후순위.
+- **변경 파일**:
+  - `apps/ai_engine/agent/claude_client.py` — SAST 프롬프트 JSON 스키마에 `tainted_parameter`·`attack_scenario` 추가(+옵션 `data_flow`).
+  - `apps/ai_engine/agent/response_parser.py` — 신규 필드 통과/기본값 보장(누락 시 빈값, 회귀 0).
+  - `apps/ai_engine/agent/nodes/api_discovery_node.py` + `sast_node.py`(또는 `aggregate_node.py`) — `api_groups`(url+method)를 `vuln.filePath+line`과 매칭해 `api_endpoint`/`http_method` 부여(매핑 윈도우 ±N라인).
+  - 백엔드 `Vulnerability` 엔티티 + Flyway 마이그레이션(신규 컬럼 `tainted_parameter`·`attack_scenario`·`api_endpoint`·`http_method`, 전부 nullable) + `VulnerabilityResponse` DTO + 내부 저장 경로(`SaveVulnerabilitiesRequest`).
+  - 프론트 `apps/frontend/src/lib/vulnUtils.ts`(휴리스틱 제거→실데이터), `VulnDetailPanel.tsx`(공격 시나리오·참고링크 렌더), `DastWorkspacePage.tsx`(start 폼 prefill: endpoint/method/param).
+- **핵심 로직(단계)**:
+  1. **스키마 확장(무비용 우선)**: 프롬프트에 `tainted_parameter`(주입 파라미터명)·`attack_scenario`(1~2문장) 추가. `references`는 토큰 없이 기존 `cwe`/`owasp` ID → CWE/OWASP 치트시트 URL 렌더(프론트).
+  2. **엔드포인트 바인딩**: api_discovery 결과를 취약점에 연결(filePath+line 근접 매칭) → `api_endpoint`/`http_method` 영속화.
+  3. **DAST prefill**: DAST 시작 폼을 `api_endpoint`/`http_method`/`tainted_parameter`로 채움. **실행은 user-triggered + consent/도메인 게이트 유지(자동 연결 아님, ADR-017 (3)).**
+  4. **환각 가드**: `tainted_parameter`·`data_flow`는 **VAL-3(AST 가드)로 실재 검증** 후 채택, 불일치 필드만 폐기.
+- **예외/엣지**: 신규 필드 누락은 빈값으로 통과(기존 8필드 동작 회귀 0). api_group 매칭 실패 시 endpoint 미부여(프론트는 수동입력 폴백 유지). 마이그레이션 컬럼 전부 nullable(기존 row 영향 0).
+- **준수 규칙**: ADR-017 트레이드오프(토큰비용·환각·검증부담) — 필드 최소 선별. CLAUDE.md 보안(민감값 로그 금지·SQL 파라미터 바인딩·Controller 입력검증). 자동 DAST 트리거 금지(동의 게이트 보존).
+- **산출물/DoD**:
+  - 🧪 단위: 파서 신규 필드 통과·기본값, api_group↔vuln 매핑(±N라인) 로직, prefill 매핑.
+  - 🔬 통합/실행: 1개 취약 레포 SAST → 취약점에 endpoint/tainted_parameter 부여 확인 → DAST 폼 prefill E2E.
+  - ✅ 수동/산출물: VulnDetailPanel에 공격 시나리오+참고링크 노출, DAST 워크스페이스 prefill 시연. 프론트 `vulnUtils` 휴리스틱 제거 확인.
+- **사이즈·배치·선행**: **L** · **S15 후보** · 선행 VAL-3(AST 가드, 환각 검증)·VAL-4(proven 라벨 인접). EPIC-ECON과 토큰비용 트레이드오프 협의.
+- **분할 가능(권장)**: (a) 스키마 확장+참고링크(M, 저위험) → (b) 엔드포인트 영속화+prefill(M) → (c) data_flow+AST교차검증(S, 옵션). 단계별 독립 배포 가능.
 
 ---
 

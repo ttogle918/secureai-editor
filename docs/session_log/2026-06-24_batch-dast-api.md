@@ -78,6 +78,123 @@
 
 ---
 
+## 2.1 연장 세션: SAST 산출 강화 설계 + 데모 전략 결정
+
+### 배경 및 질문
+- **핵심 사용자 질문**: SAST가 탐지하고 "왜 위험한가" 결론까지 내는데, 그 추론 중간 정보가 산출물에 담기지 않는 것 아닌가? 
+  - DAST에 더 넘길 정보는? 
+  - 사용자에 참고 자료로 줄 것은? 
+  - 문제코드 위치·스니펫·수정안까진 나오지 않나?
+
+### 코드 실측 결과 (근거: `agent/claude_client.py` + `response_parser.py` + `Vulnerability` 엔티티)
+
+1. **SAST 출력 스키마 제한**
+   - System prompt가 강제하는 8필드만: `type·severity·category·cwe·owasp·line·description·code_snippet`
+   - `response_parser.parse_sast_response`가 그대로 통과, `file_path`만 추가 부착
+   - **사용자 가정 일부만 맞음**: 수정안(patch_suggestion)은 sast_node가 아닌 **별도 patch_node**(aggregate→patch→patch_verify)에서만, patch 단계까지 도달한 finding에 한해서만 생성됨 → SAST 결과 자체에는 없음
+
+2. **SAST→DAST 엔드포인트 핸드오프 실상**
+   - `api_discovery_node`가 `api_groups`(url+method) 생성하나 취약점 엔티티와 연결·영속화 안 됨
+   - Backend `Vulnerability` 엔티티에 endpoint/method/params 컬럼 **없음**
+   - Frontend `vulnUtils.deriveEndpoint`/`deriveApiGroup` (DVWA 하드코딩 포함)가 휴리스틱 재추론
+   - DAST 워크스페이스 Request Builder 실제 운영 = 사실상 수동입력
+
+### 설계 결정: 선별 확장 + 영속화 + prefill (자동연결 금지)
+
+**목표**: SAST 산출 품질 ↑(참고자료+추론근거) / 사용자 DAST 진입장벽 ↓(prefill) / 환각↑·토큰비용↑ 트레이드오프 수용
+
+**결정 내용**:
+1. **출력 스키마 선별 확장** (전부 캡처 금지, 기존 8필드 + 신규 선택)
+   - 신규 추가 필드 후보: `references` (무비용, CWE/OWASP ID 렌더), `tainted_parameters` (AST 근거), `data_flow_summary` (추론 요약 1줄)
+   - 근거: 기존 cwe/owasp는 URL만 제공, 상세 설명·개선방안 없음 → references + tainted로 보강
+   - 수정안(patch_suggestion): SAST에서 추진 X (patch_node 전담 유지)
+
+2. **취약점-엔드포인트 영속화** (backend Vulnerability 스키마 확장)
+   - filePath+line을 api_discovery 결과의 api_group.files와 매칭 → endpoint/method/params 부여
+   - 게이트: consent + assertDastAllowed(도메인 소유권 검증) 유지 (자동 DAST 실행은 금지)
+
+3. **DAST 시작폼 prefill** (user-triggered, 자동 실행 아님)
+   - 취약점 카드 [DAST 테스트] 버튼 → prefill된 Request Builder 제시
+   - target_url/method/params 사전입력 / 사용자 확인·수정 후 실행
+
+4. **토큰·환각 트레이드오프**
+   - tainted_parameters/data_flow는 VAL-3 AST 교차검증으로 환각 억제
+   - references는 무비용(CWE/OWASP 구조화 ID 렌더링)
+
+### 산출 문서 (커밋 `5f8f5eb`)
+
+#### ADR-017 (Architecture Decision Record)
+- 파일: `docs/00_ARCHITECTURE_DECISIONS.md` → 신규 ADR-017
+- 내용: 
+  - **배경**: SAST 산출이 추론 근거를 유실하고 DAST 핸드오프가 휴리스틱/목업에 의존
+  - **문제**: 사용자가 수정안 없음, 참고자료 부실로 신뢰↓ / DAST prefill 수동 재입력
+  - **결정**: 스키마 확장(references+tainted+data_flow) + 엔드포인트 영속화 + prefill (자동연결 금지)
+  - **트레이드오프**: 토큰비용↑ / 환각↑(→AST 교차검증으로 완화)
+  - **영향**: Sprint 15 VAL-18로 구현, frontend/backend/ai_engine 3계층
+
+#### VAL-18 (EPIC-VAL 상세명세 등재)
+- 파일: `docs/07_SPRINT_BACKLOG_V4_260523.md` → VAL-18 섹션 추가
+- 내용:
+  - **타이틀**: SAST 산출 강화(references+tainted+data_flow) + 엔드포인트 영속화 + prefill
+  - **변경파일**: `response_parser.py`, `Vulnerability` 엔티티, `VulnerabilityController`, frontend `VulnPanel.tsx`
+  - **단계로직**:
+    - **Stage 1**: Claude prompt 재설계 + output schema 확장 (references/tainted) + unit test
+    - **Stage 2**: Backend Vulnerability 스키마 확장 + api_discovery 매칭 로직 + API spec 업데이트
+    - **Stage 3**: Frontend prefill UI + 데이터 플로우 + E2E 검증
+  - **DoD**: SAST 산출 8필드→11필드, references 링크 클릭가능, prefill form 완성도, AST 교차검증 활성화
+  - **사이즈**: **L** (3계층, 신규 필드 5개, E2E 검증 필요)
+  - **우선순위**: Sprint 15 후보 (데모 이후 착수, VAL-4/ECON 메인 경로 블로킹 아님)
+  - **선행조건**: VAL-4 런타임 수동검증(proven 라벨링) — VAL-18의 AST 교차검증 기초
+
+### Sprint 14 재계획 여부 (결론: 불필요)
+
+**사용자 질문**: Sprint 14 계획에 백로그 항목 안 넣은 게 있나? 재계획 필요?
+
+**확인 결과**:
+- 누락이 아니라 **의도적 이월** (근거: sprint-14.md에 기록)
+  - **VAL-5**: 자동롤백(PR-only), 프로덕션 조건 불성립
+  - **VAL-8/13/16**: 데모·평가 필수 아님, 이월 우선순위 낮음
+  - **VAL-9**: 선행조건 VAL-4 미완료
+
+**결론**: 완료 스프린트 소급수정 부적절 → 이월분 + VAL-18을 **/sprint 15**로 편성 권고
+
+### 데모 타이밍 & 스코프 결정 (결론: Sprint 15 기다리지 말 것)
+
+**데모 클라이맥스**:
+- 핵심 시연 흐름 = "탐지(SAST) → 증명(proven) → 패치 → 원가절감" = **Sprint 14 + EPIC-ECON 묶음**
+- Sprint 15(EPIC-WEDGE 컴플라이언스)는 VC 마일스톤 ①(ISMS-P)인데 Sprint 8 보안문서로 이미 시연 가능 → 데모 핵심에 거의 보탬 없고 촬영만 지연
+
+**실제 게이트 (필수 vs 최적)**:
+1. **(필수) 시연 선행조건 4종**:
+   - `python scripts/sync_guidelines.py` 실행(기가이드 최신화)
+   - patch-verify 이미지 빌드
+   - `dast-isolated-net` 도커 네트워크 확인
+   - `EMAIL_PROVIDER=log` 환경변수 설정
+   
+2. **(필수) VAL-4 런타임 수동검증**:
+   - WebGoat proven 실증 (exploit 성공, proven 라벨 확인)
+   - scorecard (impact·cost 계산) 동작 확인
+   
+3. **(최적) EPIC-ECON 당겨 원가 숫자**:
+   - AI/인프라 비용 감소율 정량화 → 데모 ROI 극대화
+
+**VAL-18의 위치**:
+- 데모 폴리시(공격시나리오 노출 + DAST prefill 편의)의 한 부분
+- 블로커 아님 → 데모 v1 촬영 후 Sprint 15에서 구현
+- VAL-18 없이도 현재 기능(SAST 탐지+DAST 수동 시작)으로 데모 핵심 시연 가능
+
+**Frontend 스코프 확인** (사용자 질문: "frontend만 수정하면 되지?"):
+- **이번 커밋까지 완료된 것**:
+  - 배치 DAST API (backend + ai_engine 완료)
+  - SAST 설계 논의 (backend entity 확장 미정)
+- **남은 frontend 스코프**:
+  - 벌크 트리아지 UI (`VulnPanel.tsx` 멀티셀렉트 + 배너) — frontend-only, 이월
+  - 배치 DAST 실행 UI 연동 — frontend-only, 이월
+  - VAL-18 prefill form — cross-stack(frontend만으로 불가, backend entity+API 필요)
+- **데모 v1 결론**: 코드보다 **인프라 선행조건 + VAL-4 런타임 검증**이 게이트. Frontend 벌크/배치 UI 없이도 postman/curl로 시연 가능
+
+---
+
 ## 3. 테스트 결과
 
 ### AI Engine
@@ -105,26 +222,50 @@
 
 ## 5. 다음 세션에서 할 것
 
-### 직전 §4 이월분 (미착수)
+### 우선순위 1 — 데모 시연 (v1, Sprint 14 완성도)
+- [ ] **시연 선행조건 4종 셋업** (필수, 현재 상태 미확인)
+  - `python scripts/sync_guidelines.py` 실행
+  - patch-verify 이미지 빌드 (`docker build -t patch-verify ...`)
+  - `dast-isolated-net` 도커 네트워크 생성 확인
+  - `EMAIL_PROVIDER=log` 환경변수 설정
+  
+- [ ] **VAL-4 런타임 수동검증** (필수, WebGoat 기반)
+  - exploit 성공 + proven 라벨 확인
+  - scorecard 동작 확인 (impact·cost 계산)
+  
+- [ ] **EPIC-ECON 당겨 원가 숫자** (선택, 데모 최적화)
+  - AI/인프라 비용 감소율 정량화
+
+- [ ] **데모 v1 촬영** (Sprint 14 기능만 사용)
+  - 흐름: 코드업로드 → SAST 탐지 → proven 확인 → DAST(수동) → 패치 → 원가
+
+### 우선순위 2 — Frontend 이월 스코프 (데모 v1 불필요, 추후)
 - [ ] **프론트 벌크 트리아지 UI**
   - `VulnPanel.tsx` 멀티셀렉트 + "이 유형 N건 선택" 배너 + 벌크 액션바
   - `useSecureStore` optimistic/rollback
-- [ ] **시연 전 선행조건** (필수)
-  - `python scripts/sync_guidelines.py` 실행
-  - 이미지 빌드, 포트/네트워크 확인
-  - `EMAIL_PROVIDER=log` 설정
-- [ ] **SAST→DAST 핸드오프 설계** (보류, 논의 후)
-  - 권장안 (A)/(B)/(C) 중 우선순위 확정
-  - 스코프 평가
+  
+- [ ] **배치 DAST UI 연동**
+  - 벌크 선택 → [DAST 배치 실행] 버튼 → 결과 스트림
+
+### 우선순위 3 — Sprint 15 설계 (데모 이후)
+- [ ] **VAL-18 (SAST 산출 강화) Sprint 15 편성**
+  - `/sprint 15` 명령 → VAL-18 + 이월분 편성
+  - 3단계 분할: schema 확장 → 엔드포인트 영속화 → prefill UI
+  - AST 교차검증 기초 마련
 
 ### 형상관리
-- [ ] **푸시 여부 결정** (현재 3커밋 로컬 미푸시)
-  - origin/main과 비교 후 push 또는 보류
+- [ ] **5커밋 푸시 여부 결정** (현재 로컬 미푸시)
+  - `20d3240` (배치 DAST 기능)
+  - `38e8683` (API 문서)
+  - `6123d60` (배치 DAST 머지)
+  - `02daad6` (벌크 트리아지 API)
+  - `5f8f5eb` (ADR-017 + VAL-18 설계)
 
 ---
 
-**최종 상태**:
-- 배치 DAST API 구현 + 문서화 완료
-- Reviewer PASS (코드 변경 필요 없음)
-- 테스트 그린
-- 로컬 main 준비 완료, 푸시 대기
+**현재 상태 (2026-06-24 연장 세션 종료 시점)**:
+- 배치 DAST API 구현 + 테스트 완료
+- SAST 산출 강화 설계 + ADR-017 + VAL-18 명세 완료
+- Sprint 14 → Sprint 15 이월 경계 명확화 (재계획 불필요)
+- 데모 우선순위 결정 (Sprint 15 기다리지 말 것, v1 촬영 시작)
+- 5커밋 로컬 준비 완료, 푸시 대기

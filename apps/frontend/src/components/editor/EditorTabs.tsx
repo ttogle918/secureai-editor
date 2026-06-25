@@ -1,5 +1,5 @@
 // components/editor/EditorTabs.tsx
-// 열린 파일 탭 바 — 취약점 dot 표시
+// 열린 파일 탭 바 — 취약점 dot 표시 + drag-to-split 지원
 'use client';
 import { X } from 'lucide-react';
 import { SeverityDot } from '@/components/ui/SeverityDot';
@@ -17,9 +17,13 @@ interface EditorTabsProps {
   activeTab?: string;
   onSelect: (path: string) => void;
   onClose?: (path: string) => void;
+  /** drag-to-split: 드래그 시작 시 파일 경로 전달 */
+  onDragStart?: (path: string) => void;
+  /** drag-to-split: 드래그 종료 시 호출 */
+  onDragEnd?: () => void;
 }
 
-export function EditorTabs({ tabs, activeTab, onSelect, onClose }: EditorTabsProps) {
+export function EditorTabs({ tabs, activeTab, onSelect, onClose, onDragStart, onDragEnd }: EditorTabsProps) {
   return (
     <div
       role="tablist"
@@ -42,7 +46,14 @@ export function EditorTabs({ tabs, activeTab, onSelect, onClose }: EditorTabsPro
             role="tab"
             aria-selected={isActive}
             id={`tab-${tab.path.replace(/\//g, '-')}`}
+            draggable={Boolean(onDragStart)}
+            title={onDragStart ? '드래그해서 분할' : undefined}
             onClick={() => onSelect(tab.path)}
+            onDragStart={onDragStart ? (e) => {
+              e.dataTransfer.effectAllowed = 'move';
+              onDragStart(tab.path);
+            } : undefined}
+            onDragEnd={onDragEnd}
             style={{
               display: 'flex',
               alignItems: 'center',

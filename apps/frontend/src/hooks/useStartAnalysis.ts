@@ -38,6 +38,8 @@ export function useStartAnalysis() {
     planningMode?: PlanningMode,
     confirmGate?: boolean,
   ) => {
+    // FEAT-BILLING-2: 키 사용 모드(BYOK/PLATFORM). localStorage 설정값을 전달, AUTO/미설정이면 생략.
+    const keyMode = typeof window !== 'undefined' ? localStorage.getItem('keyMode') : null;
     const res = await apiClient.post<{ data: SessionData }>(
       '/analysis/sessions',
       {
@@ -45,6 +47,7 @@ export function useStartAnalysis() {
         ...(fileFilter && fileFilter.length ? { fileFilter } : {}),
         ...(planningMode ? { planningMode } : {}),
         ...(confirmGate !== undefined ? { confirmGate } : {}),
+        ...(keyMode === 'PLATFORM' || keyMode === 'BYOK' ? { keyMode } : {}),
       },
     );
     setSseSessionId(res.data.id);

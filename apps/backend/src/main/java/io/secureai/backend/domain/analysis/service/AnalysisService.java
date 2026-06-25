@@ -49,8 +49,10 @@ public class AnalysisService {
         // COST-3: 월 토큰 한도 가드 — BYOK 세션은 제외
         // BYOK 판정: user_provider_keys 또는 legacy anthropic_api_key 보유 시 플랫폼 과금 없음
         UserService.UserAnalysisSettings settings = userService.getAnalysisSettings(userId);
-        boolean isByok = providerKeyService.resolveKeyForAnalysis(
-                userId, settings.preferredProvider()).apiKey() != null;
+        // FEAT-BILLING-2: PLATFORM 모드면 BYOK 키가 있어도 플랫폼 과금(크레딧) 적용 → isByok=false
+        boolean isByok = !request.isPlatformMode()
+                && providerKeyService.resolveKeyForAnalysis(
+                        userId, settings.preferredProvider()).apiKey() != null;
         if (!isByok && tokenUsageService.isMonthlyLimitExceeded(userId)) {
             log.warn("[analysis] monthly token limit exceeded userId={}", userId);
             throw new BusinessException(ErrorCode.TOKEN_LIMIT_EXCEEDED);
@@ -95,7 +97,10 @@ public class AnalysisService {
         ProviderKeyService.ResolvedKey resolved =
                 providerKeyService.resolveKeyForAnalysis(userId, settings.preferredProvider());
         String resolvedProvider = resolved.provider();
-        String resolvedApiKey   = resolved.apiKey() != null ? resolved.apiKey() : settings.apiKey();
+        // FEAT-BILLING-2: PLATFORM 모드면 등록된 BYOK 키를 무시하고 플랫폼 키 사용
+        String resolvedApiKey   = (request.isPlatformMode() || resolved.apiKey() == null)
+                ? settings.apiKey()
+                : resolved.apiKey();
 
         // COST-3: userId를 body에 포함하여 세션 종료 시 토큰 사용량 콜백에 활용
         // DefaultAiAgentClient.startAnalysisWithUser 를 직접 캐스팅하여 호출한다.

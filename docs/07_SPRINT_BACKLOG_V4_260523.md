@@ -56,6 +56,9 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - ⚠️ VAL-2 잔여(비차단): `eval/baseline.json`이 LIMIT=5 시드라 대표 런(LIMIT≥100/풀런, API 키 필요)으로 갱신해야 게이트가 실효(sprint-13.md #baseline 한계).
   - **2026-06-24 후속 세션**: 벌크 트리아지(`a4cfe9e`) + **배치 DAST 엔드포인트**(`6123d60` 머지) + triage/DAST **API 문서화** 완료(전부 로컬 main, **미푸시**). **신규 `VAL-18`(SAST 산출 강화 + 프로덕션 SAST→DAST 핸드오프, ADR-017) 백로그 등재** — VAL-4가 이월한 프로덕션 proven 라벨링을 정식 태스크화.
   - **Sprint 14 재계획 불필요**(완료·이월 의도적 기록됨). 이월분(1403/VAL-5·8·9·13·16) + **VAL-18**은 **`/sprint 15`(PM)** 에서 편성 — 회고적 14 수정 아님.
+  - **2026-06-26 FE 데모 UI 세션**: Claude Design 시안 구현 — 벌크 트리아지(실제 패널 `VulnDetailPanel`로 이식, 행클릭=멀티셀렉트)·배치 DAST·**B IA 사이드바 재편**(묻힌 기능 진입점)·**C 대시보드+헤더**(크레딧 실데이터·자동화 빠른액션)·**D 드래그-스플릿 에디터** 전부 머지·푸시(각 Reviewer PASS·132 FE테스트). design-sync(claude.ai/design 업로드)는 이 레포가 앱(비라이브러리)이라 컨버터 불가 → 접고 시안 직접구현으로 전환. 파일트리 폴더접기는 기존 동작 확인.
+    - ⚠️ **데모 시나리오 갭 2건(코드결함 아닌 표현 불일치)**: Scene4 `proven_scorecard` 팝업은 **CLI 벤치(`benchmarks/proven_exploit/runner.py`)뿐, 제품 UI 없음** → DAST 워크스페이스 라이브 익스플로잇(SSE)으로 대체 or 영상에 터미널 별도 삽입. Scene5 패치검증은 **파이프라인 자동(`patch_verify_node`), 수동 "검증 버튼" 없음** → 패치가 VERIFIED 배지 단 채 도착 → PR 생성 클릭. (mock 데이터 없음·토큰 사용량 SSE→FE 표시 OK 확인.)
+    - **신규 FE 백로그(데모 후, /sprint 편성 대상)**: `FEAT-FE-SAVE`(에디터 Ctrl+S 저장·삭제 — Tauri fs / 웹 워크스페이스 폴백, 환경 분기) · `FEAT-FE-GIT`(Git 소스컨트롤 패널 — GitHub API(웹)/shell(데스크톱)) · `VAL-18 UI`(taintedParam/attackScenario/proven 슬롯 — VAL-18 백엔드 의존) · `FEAT-FE-AUTOMATION`(PR자동리뷰·예약스캔·도메인모니터링 FE 페이지 — 현재 사이드바 "준비 중" 비활성) · `proven_exploit 프로덕션 UI`(Scene4 갭, VAL-18 일부) · `useCredits` Context/SWR 통합(헤더+대시보드 이중 페치).
 
 - **📹 시연/배포 2트랙 (2026-06-21 확정 — 데모는 빠르게, 배포는 안정적으로)**
 

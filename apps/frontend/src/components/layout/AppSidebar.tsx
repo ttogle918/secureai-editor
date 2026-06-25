@@ -3,10 +3,11 @@ import { motion } from 'framer-motion';
 import {
   Shield, LayoutDashboard, Code2,
   FolderOpen, FolderCode, Loader2, ChevronDown, ChevronRight, Clock, AlertTriangle, X,
-  CheckCircle, Download, Github, Key, Rocket,
-  ShieldAlert, Package, History, Users, Settings, ChevronLeft,
+  CheckCircle, Download, Github, Rocket,
+  ShieldAlert, Package, History, Users, Settings,
+  Link2, FileText, ClipboardList, Clock3, Activity, UserCog, FileSearch,
 } from 'lucide-react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSecureStore } from '@/store/useSecureStore';
@@ -19,9 +20,23 @@ import { useProjects, type ProjectSummary } from '@/hooks/useProjects';
 import { deriveApiGroup } from '@/lib/vulnUtils';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTranslation } from '@/hooks/useTranslation';
+import { PdfReportModal } from '@/components/analysis/PdfReportModal';
+import { SecurityDocPage } from '@/components/analysis/SecurityDocPage';
 
 const VALID_SEV: Severity[] = ['critical', 'high', 'medium', 'low'];
 const VALID_CAT: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
+
+// ── 그룹 테마 색상 상수 ──────────────────────────────────────────
+const GROUP_COLORS = {
+  core:       'rgba(255,255,255,0.3)',
+  security:   '#569cd6',
+  automation: '#a78bfa',
+  reports:    '#34d399',
+  settings:   'rgba(255,255,255,0.25)',
+} as const;
+
+const NEW_BADGE_BG    = 'rgba(245,158,11,0.12)';
+const NEW_BADGE_COLOR = '#f59e0b';
 
 const FileTree = dynamic(() => import('@/components/editor/FileTree').then((m) => m.FileTree), {
   ssr: false,
@@ -349,16 +364,19 @@ function SlimRail({
     : '??';
 
   const baseNavItems = [
-    { icon: <FolderOpen size={16} />, label: '파일',     active: true, badge: openTabCount },
-    { icon: <ShieldAlert size={16} />, label: '취약점',  active: false, badge: vulnCount > 0 ? vulnCount : 0 },
-    { icon: <Package size={16} />,    label: 'SBOM',    active: false, badge: 0 },
-    { icon: <History size={16} />,    label: '이력',    active: false, badge: 0 },
-    { icon: <Users size={16} />,      label: '팀',      active: false, badge: 0 },
-    { icon: <Settings size={16} />,   label: '설정',    active: false, badge: 0 },
+    { icon: <FolderOpen size={16} />, label: '파일',        active: true,  badge: openTabCount },
+    { icon: <ShieldAlert size={16} />, label: '취약점',     active: false, badge: vulnCount > 0 ? vulnCount : 0 },
+    { icon: <Package size={16} />,    label: 'SBOM',        active: false, badge: 0 },
+    { icon: <History size={16} />,    label: '이력',        active: false, badge: 0 },
+    { icon: <Link2 size={16} />,      label: '시크릿 스캔', active: false, badge: 0 },
+    { icon: <ClipboardList size={16} />, label: '컴플라이언스', active: false, badge: 0 },
+    { icon: <FileText size={16} />,   label: '보고서',      active: false, badge: 0 },
+    { icon: <Users size={16} />,      label: '팀',          active: false, badge: 0 },
+    { icon: <Settings size={16} />,   label: '설정',        active: false, badge: 0 },
   ];
   // 페르소나별 메뉴 분기 (TASK-1102) — 보안 담당은 보안 관점(취약점·SBOM)을 상단 강조
   const navItems = authUser?.workspaceMode === 'SECURITY_MANAGER'
-    ? [baseNavItems[1], baseNavItems[2], baseNavItems[0], baseNavItems[3], baseNavItems[4], baseNavItems[5]]
+    ? [baseNavItems[1], baseNavItems[2], baseNavItems[4], baseNavItems[5], baseNavItems[6], baseNavItems[0], baseNavItems[3], baseNavItems[7], baseNavItems[8]]
     : baseNavItems;
 
   return (
@@ -469,9 +487,127 @@ function SlimRail({
   );
 }
 
+// ── 네비 그룹 구분선 ──────────────────────────────────────────────
+function NavGroupLabel({ label, color, isNew }: { label: string; color: string; isNew?: boolean }) {
+  return (
+    <div style={{
+      padding: '10px 14px 3px',
+      display: 'flex', alignItems: 'center', gap: 6,
+      borderTop: '1px solid rgba(255,255,255,0.06)',
+      marginTop: 4,
+    }}>
+      <span style={{
+        fontSize: 9, fontWeight: 700, color,
+        fontFamily: 'var(--font-mono)', letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+      }}>
+        {label}
+      </span>
+      {isNew && (
+        <span style={{
+          fontSize: 8, padding: '1px 4px', borderRadius: 2,
+          background: NEW_BADGE_BG, color: NEW_BADGE_COLOR,
+          fontFamily: 'var(--font-mono)', fontWeight: 700,
+        }}>
+          NEW
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ── 네비 항목 (버튼/링크 공통) ────────────────────────────────────
+interface NavItemProps {
+  icon: React.ReactNode;
+  label: string;
+  badge?: number;
+  active?: boolean;
+  disabled?: boolean;
+  disabledTooltip?: string;
+  onClick?: () => void;
+  color?: string;
+  /** 태그 배지 (예: CISO) */
+  tag?: string;
+}
+
+function NavItem({ icon, label, badge, active, disabled, disabledTooltip, onClick, color, tag }: NavItemProps) {
+  const [hovered, setHovered] = useState(false);
+
+  const handleClick = () => {
+    if (disabled) return;
+    onClick?.();
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={disabled}
+      aria-disabled={disabled}
+      title={disabled ? (disabledTooltip ?? '준비 중') : label}
+      aria-label={disabled ? `${label} — ${disabledTooltip ?? '준비 중'}` : label}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 9,
+        padding: '7px 14px',
+        background: active ? 'rgba(249,115,22,0.08)' : hovered && !disabled ? 'rgba(255,255,255,0.04)' : 'transparent',
+        border: 'none',
+        borderLeft: active ? '2px solid #f97316' : '2px solid transparent',
+        cursor: disabled ? 'default' : 'pointer',
+        textAlign: 'left',
+        opacity: disabled ? 0.4 : 1,
+        transition: 'background 0.1s',
+        marginBottom: 0,
+      }}
+    >
+      <span style={{ color: disabled ? 'rgba(255,255,255,0.3)' : (color ?? 'var(--text-secondary)'), flexShrink: 0, display: 'flex' }}>
+        {icon}
+      </span>
+      <span style={{
+        fontSize: 12, color: active ? '#f97316' : disabled ? 'rgba(255,255,255,0.3)' : 'var(--text-secondary)',
+        fontWeight: active ? 600 : 400,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1,
+      }}>
+        {label}
+      </span>
+      {tag && (
+        <span style={{
+          fontSize: 9, padding: '1px 5px', borderRadius: 3,
+          background: 'rgba(86,156,214,0.1)', color: '#569cd6',
+          fontFamily: 'var(--font-mono)', marginLeft: 'auto', flexShrink: 0,
+        }}>
+          {tag}
+        </span>
+      )}
+      {badge !== undefined && badge > 0 && (
+        <span style={{
+          fontSize: 9, fontWeight: 700, minWidth: 16, height: 16,
+          borderRadius: 8, background: 'var(--critical, #f04141)',
+          color: '#fff', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', padding: '0 4px', flexShrink: 0,
+        }}>
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
+      {disabled && hovered && (
+        <span style={{
+          fontSize: 9, padding: '1px 5px', borderRadius: 3,
+          background: NEW_BADGE_BG, color: NEW_BADGE_COLOR,
+          fontFamily: 'var(--font-mono)', flexShrink: 0,
+        }}>
+          준비 중
+        </span>
+      )}
+    </button>
+  );
+}
+
 // ── 메인 사이드바 ─────────────────────────────────────────────────
 export function AppSidebar() {
   const { t }                = useTranslation();
+  const router               = useRouter();
   const user                 = useAuthStore((s) => s.user);
   const sidebarOpen          = useSecureStore((s) => s.sidebarOpen);
   const setSidebarOpen       = useSecureStore((s) => s.setSidebarOpen);
@@ -504,6 +640,8 @@ export function AppSidebar() {
   const [primaryExpanded, setPrimaryExpanded]     = useState(true);
   const [extraExpanded, setExtraExpanded]         = useState<Record<string, boolean>>({});
   const [ctxMenu, setCtxMenu]                     = useState<CtxMenu | null>(null);
+  const [showPdfModal, setShowPdfModal]           = useState(false);
+  const [showSecurityDoc, setShowSecurityDoc]     = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // 드롭다운 외부 클릭 시 닫기
@@ -846,6 +984,138 @@ export function AppSidebar() {
         )}
       </div>
 
+      {/* ── 그룹 네비 ── */}
+      <div style={{ flexShrink: 0, borderTop: '1px solid rgba(255,255,255,0.06)', overflowY: 'auto', maxHeight: '45vh' }}>
+
+        {/* ── CORE 그룹 ── */}
+        <NavGroupLabel label="CORE" color={GROUP_COLORS.core} />
+        <NavItem
+          icon={<Code2 size={13} />}
+          label={t('header.editor', '코드 에디터')}
+          active={viewMode === 'editor'}
+          onClick={() => setViewMode('editor')}
+        />
+        <NavItem
+          icon={<LayoutDashboard size={13} />}
+          label={t('header.dashboard', '대시보드')}
+          active={viewMode === 'dashboard'}
+          onClick={() => setViewMode('dashboard')}
+        />
+        <NavItem
+          icon={<ShieldAlert size={13} />}
+          label="DAST 워크스페이스"
+          active={viewMode === 'dast'}
+          onClick={() => setViewMode('dast')}
+          badge={0}
+        />
+
+        {/* ── SECURITY 그룹 ── */}
+        <NavGroupLabel label="SECURITY" color={GROUP_COLORS.security} isNew />
+        <NavItem
+          icon={<Link2 size={13} />}
+          label="시크릿 스캔 (커밋)"
+          color={GROUP_COLORS.security}
+          onClick={() => router.push('/commit-scan')}
+        />
+        <NavItem
+          icon={<Github size={13} />}
+          label="GitHub 스캔"
+          color={GROUP_COLORS.security}
+          onClick={() => router.push('/github-scan')}
+        />
+        <NavItem
+          icon={<Package size={13} />}
+          label="SBOM & CVE"
+          color={GROUP_COLORS.security}
+          onClick={() => {
+            if (projectId) {
+              router.push(`/projects/${projectId}/sbom`);
+            } else {
+              // projectId 없으면 에디터 내 SBOM 탭으로
+              setViewMode('editor');
+            }
+          }}
+        />
+        <NavItem
+          icon={<ClipboardList size={13} />}
+          label="컴플라이언스"
+          color={GROUP_COLORS.security}
+          disabled={!projectId}
+          disabledTooltip="프로젝트를 선택하면 활성화됩니다"
+          onClick={() => {
+            if (projectId) router.push(`/projects/${projectId}/compliance`);
+          }}
+        />
+        {/* 관리자 항목 — admin 역할일 때만 노출 */}
+        {user?.isAdmin && (
+          <NavItem
+            icon={<UserCog size={13} />}
+            label="관리자"
+            color={GROUP_COLORS.security}
+            onClick={() => router.push('/admin/users')}
+          />
+        )}
+
+        {/* ── AUTOMATION 그룹 ── */}
+        <NavGroupLabel label="AUTOMATION" color={GROUP_COLORS.automation} isNew />
+        <NavItem
+          icon={<Github size={13} />}
+          label="PR 자동 리뷰"
+          color={GROUP_COLORS.automation}
+          disabled
+          disabledTooltip="준비 중 — 백엔드 API는 구현됨"
+        />
+        <NavItem
+          icon={<Clock3 size={13} />}
+          label="예약 자동 스캔"
+          color={GROUP_COLORS.automation}
+          disabled
+          disabledTooltip="준비 중 — 백엔드 API는 구현됨"
+        />
+        <NavItem
+          icon={<Activity size={13} />}
+          label="도메인 모니터링"
+          color={GROUP_COLORS.automation}
+          disabled
+          disabledTooltip="준비 중 — 백엔드 API는 구현됨"
+        />
+
+        {/* ── REPORTS 그룹 ── */}
+        <NavGroupLabel label="REPORTS" color={GROUP_COLORS.reports} isNew />
+        <NavItem
+          icon={<FileText size={13} />}
+          label="보고서 생성"
+          color={GROUP_COLORS.reports}
+          onClick={() => setShowPdfModal(true)}
+        />
+        <NavItem
+          icon={<FileSearch size={13} />}
+          label="규제 문서"
+          color={GROUP_COLORS.reports}
+          tag="CISO"
+          onClick={() => setShowSecurityDoc(true)}
+        />
+
+        {/* ── 설정 / 기타 ── */}
+        <NavGroupLabel label="SETTINGS" color={GROUP_COLORS.settings} />
+        <NavItem
+          icon={<Users size={13} />}
+          label="팀 / 조직"
+          onClick={() => router.push('/team')}
+        />
+        <NavItem
+          icon={<Rocket size={13} />}
+          label="온보딩"
+          onClick={() => router.push('/onboarding')}
+        />
+        <NavItem
+          icon={<Settings size={13} />}
+          label="설정"
+          onClick={() => router.push('/settings')}
+        />
+        <div style={{ height: 8 }} />
+      </div>
+
       {/* ── 컨텍스트 메뉴 ── */}
       {ctxMenu && (
         <ProjectContextMenu
@@ -856,60 +1126,57 @@ export function AppSidebar() {
         />
       )}
 
-      {/* ── 하단 액션 ── */}
-      <div style={{
-        padding: 12, borderTop: '1px solid rgba(255,255,255,0.12)',
-        background: 'rgba(255,255,255,0.01)',
-        boxShadow: '0 -4px 12px rgba(0,0,0,0.2)',
-        flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4,
-      }}>
-        <button
-          onClick={() => setViewMode((v) => (v === 'editor' ? 'dashboard' : 'editor'))}
-          style={{
-            width: '100%', padding: '7px 0',
-            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 7, color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 600,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-            whiteSpace: 'nowrap', wordBreak: 'keep-all',
-          }}
-        >
-          {viewMode === 'editor'
-            ? <><LayoutDashboard size={11} /> {t('header.dashboard', '대시보드')}</>
-            : <><Code2 size={11} /> {t('header.editor', '에디터')}</>}
-        </button>
+      {/* ── 모달: PDF 보고서 ── */}
+      {showPdfModal && (
+        <PdfReportModal onClose={() => setShowPdfModal(false)} />
+      )}
 
-        {/* 사이드바 하단 페이지 링크 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
-          {([
-            { href: '/github-scan',  Icon: Github,  label: 'GitHub 스캔' },
-            { href: '/commit-scan',  Icon: Key,     label: '커밋 스캔' },
-            { href: '/onboarding',   Icon: Rocket,  label: '온보딩' },
-          ] as const).map(({ href, Icon, label }) => (
-            <Link
-              key={href}
-              href={href}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 7,
-                padding: '6px 10px', borderRadius: 6, textDecoration: 'none',
-                color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: 500,
-                background: 'transparent', transition: 'background 0.12s, color 0.12s',
-                whiteSpace: 'nowrap', wordBreak: 'keep-all',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(255,255,255,0.05)';
-                (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.7)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.background = 'transparent';
-                (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.35)';
-              }}
-            >
-              <Icon size={12} />
-              {label}
-            </Link>
-          ))}
+      {/* ── 모달: 규제 문서 (SecurityDocPage — 오버레이 래퍼) ── */}
+      {showSecurityDoc && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="규제 문서 생성"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSecurityDoc(false); }}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowSecurityDoc(false); }}
+        >
+          <div style={{
+            background: '#141414', borderRadius: 12,
+            border: '1px solid rgba(255,255,255,0.1)',
+            width: 'min(760px, 92vw)', maxHeight: '88vh',
+            overflowY: 'auto', position: 'relative',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.6)',
+          }}>
+            <div style={{
+              position: 'sticky', top: 0, zIndex: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 20px',
+              background: '#141414',
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
+            }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#e8e8ee' }}>규제 문서 생성</span>
+              <button
+                onClick={() => setShowSecurityDoc(false)}
+                aria-label="닫기"
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'rgba(255,255,255,0.4)', display: 'flex', padding: 4, borderRadius: 4,
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ padding: '16px 20px' }}>
+              <SecurityDocPage />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </motion.aside>
   );
 }

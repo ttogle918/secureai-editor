@@ -1,7 +1,7 @@
 // components/analysis/VulnDetailPanel.tsx
 // 취약점 상세 아코디언 패널 — FilterBar 내장, useVulnFilter 훅 사용
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle,
   Zap, Info, Layers, RefreshCw, Play, Server, Shield, XCircle, Check,
@@ -17,6 +17,83 @@ import type { Vulnerability, VulnStatus } from '@/lib/mockData';
 import { isVulnResolved } from '@/lib/mockData';
 import { deriveEndpoint } from '@/lib/vulnUtils';
 import { BASE_URL, getAccessToken, apiClient } from '@/lib/api/client';
+import { bulkTriageVulns, type BulkTriageAction } from '@/lib/api/vulnerabilities';
+
+// ── 벌크 트리아지 상수 ────────────────────────────────────────────────────────
+
+/** action → 낙관적 갱신에 사용할 VulnStatus 매핑. 최종값은 백엔드 응답 newStatus를 신뢰. */
+const BULK_ACTION_TO_STATUS: Record<BulkTriageAction, VulnStatus> = {
+  CONFIRM:      'open',
+  DISMISS:      'false_positive',
+  ACCEPT_PATCH: 'fixed',
+};
+
+const DISMISS_REASON_MAX_LEN = 1000;
+
+/**
+ * skip된 항목만 이전 status로 복원하는 스냅샷을 계산한다.
+ * appliedVulnIds에 없는 id를 prevSnapshot에서 찾아 반환한다.
+ */
+function buildSkippedSnapshot(
+  allIds: string[],
+  appliedVulnIds: string[],
+  prevSnapshot: Record<string, VulnStatus>,
+): Record<string, VulnStatus> {
+  const appliedSet = new Set(appliedVulnIds);
+  const skipped: Record<string, VulnStatus> = {};
+  for (const id of allIds) {
+    if (!appliedSet.has(id) && id in prevSnapshot) {
+      skipped[id] = prevSnapshot[id];
+    }
+  }
+  return skipped;
+}
+
+// ── DISMISS 사유 입력 모달 ────────────────────────────────────────────────────
+interface DismissModalProps {
+  count: number;
+  onConfirm: (reason: string) => void;
+  onCancel: () => void;
+}
+
+function DismissReasonModal({ count, onConfirm, onCancel }: DismissModalProps) {
+  const [reason, setReason] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { textareaRef.current?.focus(); }, []);
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 9100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}
+      onClick={onCancel}
+      onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
+      role="presentation"
+    >
+      <div
+        style={{ width: 400, background: 'var(--bg-2)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 10, padding: 20, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>기각 사유 입력</div>
+          <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{count}건을 기각합니다. 사유는 선택 입력이지만 리랭커 학습에 활용됩니다.</div>
+        </div>
+        <textarea
+          ref={textareaRef}
+          value={reason}
+          onChange={(e) => setReason(e.target.value.slice(0, DISMISS_REASON_MAX_LEN))}
+          placeholder="기각 사유를 입력하세요 (선택)"
+          rows={4}
+          style={{ width: '100%', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 12, padding: '8px 10px', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+        />
+        <div style={{ textAlign: 'right', fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>{reason.length}/{DISMISS_REASON_MAX_LEN}</div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+          <button onClick={onCancel} style={{ fontSize: 12, padding: '5px 14px', borderRadius: 5, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer' }}>취소</button>
+          <button onClick={() => onConfirm(reason)} style={{ fontSize: 12, fontWeight: 700, padding: '5px 14px', borderRadius: 5, background: 'rgba(245,158,11,0.15)', border: '0.5px solid rgba(245,158,11,0.4)', color: '#f59e0b', cursor: 'pointer' }}>기각 확정</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── 트리아지 액션 타입 ─────────────────────────────────────────
 type TriageAction = 'CONFIRM' | 'DISMISS' | 'ACCEPT_PATCH';
@@ -383,7 +460,13 @@ const SEV_COLOR: Record<string, string> = {
 };
 
 // ── 개별 취약점 카드 ───────────────────────────────────────────
-function VulnCard({ vuln }: { vuln: Vulnerability }) {
+interface VulnCardProps {
+  vuln: Vulnerability;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
+}
+
+function VulnCard({ vuln, isSelected, onToggleSelect }: VulnCardProps) {
   const expandedVulnId    = useSecureStore((s) => s.expandedVulnId);
   const dastExploitResults = useSecureStore((s) => s.dastExploitResults);
   const exploitResult      = dastExploitResults[vuln.id];
@@ -443,18 +526,17 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
         borderTop:    isOpen ? '0.5px solid rgba(255,255,255,0.15)' : '0.5px solid rgba(255,255,255,0.06)',
         borderRight:  isOpen ? '0.5px solid rgba(255,255,255,0.15)' : '0.5px solid rgba(255,255,255,0.06)',
         borderBottom: isOpen ? '0.5px solid rgba(255,255,255,0.15)' : '0.5px solid rgba(255,255,255,0.06)',
-        borderLeft:   `2px solid ${patchApplied ? '#4caf50' : sColor}`,
+        borderLeft:   `2px solid ${isSelected ? 'var(--orange)' : patchApplied ? '#4caf50' : sColor}`,
         borderRadius: 10,
-        background:   '#141414',
+        background:   isSelected ? 'var(--orange-dim)' : '#141414',
         overflow:     'hidden',
-        transition:   'border-color 0.2s',
+        transition:   'border-color 0.2s, background 0.15s',
         flexShrink:   0,
       }}
     >
-      {/* 아코디언 헤더 — 닫힌 상태 고정 높이 52px */}
-      <button
-        onClick={handleToggle}
-        aria-expanded={isOpen}
+      {/* 아코디언 헤더 행 — 클릭 시 멀티셀렉트 토글 */}
+      <div
+        role="row"
         style={{
           width: '100%',
           height: 52,
@@ -462,14 +544,37 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
           alignItems: 'center',
           gap: 10,
           padding: '0 14px',
-          background: 'none',
-          border: 'none',
           cursor: 'pointer',
           textAlign: 'left',
           flexShrink: 0,
           overflow: 'hidden',
         }}
+        onClick={() => onToggleSelect(vuln.id)}
       >
+        {/* 체크박스 시각 표시 */}
+        <span
+          role="checkbox"
+          aria-checked={isSelected}
+          tabIndex={0}
+          onClick={(e) => { e.stopPropagation(); onToggleSelect(vuln.id); }}
+          onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onToggleSelect(vuln.id); } }}
+          style={{
+            width: 14,
+            height: 14,
+            borderRadius: 3,
+            border: `1.5px solid ${isSelected ? 'var(--orange)' : 'rgba(255,255,255,0.2)'}`,
+            background: isSelected ? 'var(--orange)' : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            transition: 'background 0.15s, border-color 0.15s',
+            cursor: 'pointer',
+          }}
+        >
+          {isSelected && <Check size={9} color="#fff" />}
+        </span>
+
         {/* 심각도 배지 */}
         <span
           style={{
@@ -584,10 +689,28 @@ function VulnCard({ vuln }: { vuln: Vulnerability }) {
           </div>
         </div>
 
-        {isOpen
-          ? <ChevronDown  size={14} color="rgba(255,255,255,0.2)" style={{ flexShrink: 0 }} />
-          : <ChevronRight size={14} color="rgba(255,255,255,0.2)" style={{ flexShrink: 0 }} />}
-      </button>
+        {/* chevron — 상세 펼치기/접기 전용 버튼. 행 클릭(선택 토글)과 독립적. */}
+        <button
+          aria-expanded={isOpen}
+          aria-label={isOpen ? '상세 접기' : '상세 펼치기'}
+          onClick={(e) => { e.stopPropagation(); handleToggle(); }}
+          style={{
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 2,
+            borderRadius: 3,
+          }}
+        >
+          {isOpen
+            ? <ChevronDown  size={14} color="rgba(255,255,255,0.2)" />
+            : <ChevronRight size={14} color="rgba(255,255,255,0.2)" />}
+        </button>
+      </div>
 
       {/* 아코디언 상세 */}
       {isOpen && (
@@ -833,7 +956,92 @@ function SectionLabel({ icon, text }: { icon: React.ReactNode; text: string }) {
 
 // ── 메인 패널 ─────────────────────────────────────────────────
 export default function VulnDetailPanel() {
-  const filteredVulns = useVulnFilter();
+  const filteredVulns                  = useVulnFilter();
+  const optimisticUpdateManyVulnStatus = useSecureStore((s) => s.optimisticUpdateManyVulnStatus);
+  const rollbackManyVulnStatus         = useSecureStore((s) => s.rollbackManyVulnStatus);
+  const addToast                       = useToastStore((s) => s.addToast);
+
+  const [selectedIds,      setSelectedIds]      = useState<Set<string>>(new Set());
+  const [showDismissModal, setShowDismissModal] = useState(false);
+  const [isBulkLoading,    setIsBulkLoading]   = useState(false);
+
+  // ── 멀티셀렉트 헬퍼 ────────────────────────────────────────
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const selectAllOfType = useCallback((type: string) => {
+    const ids = filteredVulns.filter((v) => v.type === type).map((v) => v.id);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }, [filteredVulns]);
+
+  // ── 스마트 배너: 같은 type 2건 이상 선택 시 ─────────────────
+  // 선택된 id 중 가장 많이 선택된 type을 반환한다
+  const smartBanner = useCallback((): {
+    topType: string;
+    selectedOfType: number;
+    totalOfType: number;
+  } | null => {
+    if (selectedIds.size === 0) return null;
+    const typeCount: Record<string, number> = {};
+    Array.from(selectedIds).forEach((id) => {
+      const v = filteredVulns.find((vv) => vv.id === id);
+      if (v) typeCount[v.type] = (typeCount[v.type] ?? 0) + 1;
+    });
+    let topType = '';
+    let topCount = 0;
+    Object.entries(typeCount).forEach(([t, c]) => {
+      if (c > topCount) { topType = t; topCount = c; }
+    });
+    if (topCount < 2) return null;
+    const totalOfType = filteredVulns.filter((v) => v.type === topType).length;
+    return { topType, selectedOfType: topCount, totalOfType };
+  }, [selectedIds, filteredVulns]);
+
+  // ── 벌크 트리아지 API 호출 ────────────────────────────────────
+  const executeBulkTriage = useCallback(async (action: BulkTriageAction, reason?: string) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const optimisticStatus = BULK_ACTION_TO_STATUS[action];
+    const prevSnapshot = optimisticUpdateManyVulnStatus(ids, optimisticStatus);
+
+    setIsBulkLoading(true);
+    clearSelection();
+
+    try {
+      const result = await bulkTriageVulns({ vulnIds: ids, action, reason });
+
+      const skippedSnapshot = buildSkippedSnapshot(ids, result.appliedVulnIds, prevSnapshot);
+      if (Object.keys(skippedSnapshot).length > 0) {
+        rollbackManyVulnStatus(skippedSnapshot);
+      }
+
+      if (result.skipped > 0) {
+        addToast(`${result.applied}건 처리 완료, ${result.skipped}건 건너뜀 (권한 없음/미존재)`, 'warning');
+      } else {
+        addToast(`${result.applied}건 처리 완료`, 'info');
+      }
+    } catch {
+      rollbackManyVulnStatus(prevSnapshot);
+      addToast('벌크 트리아지 실패 — 잠시 후 다시 시도하세요', 'error');
+    } finally {
+      setIsBulkLoading(false);
+    }
+  }, [selectedIds, optimisticUpdateManyVulnStatus, rollbackManyVulnStatus, addToast, clearSelection]);
+
+  const showBulkBar = selectedIds.size > 0;
+  const banner = smartBanner();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
@@ -849,23 +1057,97 @@ export default function VulnDetailPanel() {
           display: 'flex',
           flexDirection: 'column',
           gap: 6,
+          // 벌크 액션바 높이만큼 패딩 확보 — 마지막 카드가 바 뒤에 안 잘림
+          paddingBottom: showBulkBar ? 96 : 10,
         }}
       >
         {filteredVulns.length === 0 ? (
-          <div
-            style={{
-              padding: 20,
-              textAlign: 'center',
-              color: 'rgba(255,255,255,0.2)',
-              fontSize: 12,
-            }}
-          >
+          <div style={{ padding: 20, textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>
             필터 조건에 맞는 취약점이 없습니다.
           </div>
         ) : (
-          filteredVulns.map((v) => <VulnCard key={v.id} vuln={v} />)
+          filteredVulns.map((v) => (
+            <VulnCard
+              key={v.id}
+              vuln={v}
+              isSelected={selectedIds.has(v.id)}
+              onToggleSelect={toggleSelect}
+            />
+          ))
         )}
       </div>
+
+      {/* ── 벌크 액션바 ─────────────────────────────────────────── */}
+      {showBulkBar && (
+        <div style={{ borderTop: '1px solid rgba(249,115,22,0.3)', background: 'var(--bg-0)', padding: '8px 10px', flexShrink: 0 }}>
+          {/* 스마트 배너 — 같은 type 2건 이상 선택 시 */}
+          {banner && (
+            <div style={{ marginBottom: 8, padding: '6px 9px', borderRadius: 6, background: 'rgba(249,115,22,0.08)', border: '0.5px solid var(--orange-glow)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Zap size={12} color="#f97316" />
+              <span style={{ fontSize: 11, color: '#f97316', flex: 1 }}>
+                <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{banner.topType}</span>{' '}유형 {banner.selectedOfType}건 선택됨
+              </span>
+              {banner.selectedOfType < banner.totalOfType && (
+                <button
+                  onClick={() => selectAllOfType(banner.topType)}
+                  style={{ fontSize: 10, fontWeight: 700, color: '#f97316', background: 'rgba(249,115,22,0.12)', border: '0.5px solid rgba(249,115,22,0.3)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}
+                >
+                  전체 {banner.totalOfType}건 선택 →
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 액션 행 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 22, height: 22, borderRadius: 5, background: '#ea580c', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+              {selectedIds.size}
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>건 선택됨</span>
+            <div style={{ flex: 1 }} />
+            <button
+              disabled={isBulkLoading}
+              onClick={() => { void executeBulkTriage('CONFIRM'); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '4px 9px', borderRadius: 5, background: 'rgba(34,197,94,0.12)', border: '0.5px solid rgba(34,197,94,0.35)', color: '#22c55e', cursor: isBulkLoading ? 'not-allowed' : 'pointer', opacity: isBulkLoading ? 0.5 : 1 }}
+            >
+              <Check size={10} />확인
+            </button>
+            <button
+              disabled={isBulkLoading}
+              onClick={() => setShowDismissModal(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '4px 9px', borderRadius: 5, background: 'rgba(245,158,11,0.1)', border: '0.5px solid rgba(245,158,11,0.3)', color: '#f59e0b', cursor: isBulkLoading ? 'not-allowed' : 'pointer', opacity: isBulkLoading ? 0.5 : 1 }}
+            >
+              <XCircle size={10} />기각
+            </button>
+            <button
+              disabled={isBulkLoading}
+              onClick={() => { void executeBulkTriage('ACCEPT_PATCH'); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '4px 9px', borderRadius: 5, background: 'rgba(249,115,22,0.12)', border: '0.5px solid rgba(249,115,22,0.35)', color: '#f97316', cursor: isBulkLoading ? 'not-allowed' : 'pointer', opacity: isBulkLoading ? 0.5 : 1 }}
+            >
+              <Zap size={10} />패치채택
+            </button>
+            <button
+              onClick={clearSelection}
+              title="모두 해제"
+              style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', borderRadius: 4 }}
+            >
+              <XCircle size={12} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── DISMISS 사유 모달 ─────────────────────────────────────── */}
+      {showDismissModal && (
+        <DismissReasonModal
+          count={selectedIds.size}
+          onConfirm={(reason) => {
+            setShowDismissModal(false);
+            void executeBulkTriage('DISMISS', reason || undefined);
+          }}
+          onCancel={() => setShowDismissModal(false)}
+        />
+      )}
     </div>
   );
 }

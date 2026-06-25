@@ -34,6 +34,7 @@ import { apiClient } from '@/lib/api/client';
 import type { Severity, VulnCategory, Vulnerability, PatchSuggestion } from '@/lib/mockData';
 import { deriveApiGroup } from '@/lib/vulnUtils';
 import { calcCostUsd, DEFAULT_MODEL_ID } from '@/lib/constants/models';
+import { useCredits } from '@/hooks/useCredits';
 
 const SEV_FILTERS: Array<'critical' | 'high' | 'medium' | 'low'> = ['critical', 'high', 'medium', 'low'];
 const VALID_CATS: VulnCategory[] = ['SECURITY', 'CODE_QUALITY'];
@@ -83,6 +84,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const { startAnalysis, isAnalyzing } = useStartAnalysis();
   const { fetchAndStore: fetchStageVulns } = useVulnerabilitiesByFiles();
   const { t }                = useTranslation();
+  const { data: creditsData } = useCredits();
 
   const [sseStatus,         setSseStatus]         = useState<SseStatus>('idle');
   const [showHistory,       setShowHistory]       = useState(false);
@@ -696,21 +698,63 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           </>
         )}
 
+        {/* ── 크레딧 칩 — 실제 balance 표시, 클릭 시 /settings ── */}
+        {creditsData && (
+          <button
+            onClick={() => router.push('/settings')}
+            title={`크레딧 잔액: ${creditsData.balance.toLocaleString()} · 플랜: ${creditsData.plan.displayName ?? creditsData.plan.name}`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '4px 9px', borderRadius: 6,
+              background: 'var(--bg-2)', border: '1px solid var(--border)',
+              cursor: 'pointer', marginLeft: 4,
+            }}
+          >
+            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--orange)', fontFamily: 'var(--font-mono)' }}>
+              ⚡
+            </span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', fontFamily: 'var(--font-mono)' }}>
+              {creditsData.balance.toLocaleString()}
+            </span>
+            <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>크레딧</span>
+          </button>
+        )}
+
+        {/* ── 조직 선택기 — 조직 목록은 /team 페이지에서 관리 ── */}
+        <Link
+          href="/team"
+          title="조직 / 팀 관리"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px 9px', height: 28, borderRadius: 6,
+            background: 'var(--bg-2)', border: '1px solid var(--border)',
+            color: 'var(--text-secondary)', fontSize: 11, fontWeight: 500,
+            textDecoration: 'none', marginLeft: 4,
+            transition: 'border-color 0.15s, color 0.15s',
+          }}
+        >
+          <Users size={12} />
+          <span>{authUser?.plan === 'team' ? (authUser.username ?? '팀') : '조직'}</span>
+          <ChevronDown size={10} style={{ opacity: 0.5 }} />
+        </Link>
+
+        {/* ── ADMIN 배지 — isAdmin일 때 강조 배지 형태로 표시 ── */}
         {authUser?.isAdmin && (
           <Link
             href="/admin/users"
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: '5px 10px', borderRadius: 6,
-              fontSize: 11, fontWeight: 700,
-              color: 'var(--orange)',
-              background: 'var(--orange-dim)',
-              border: '1px solid rgba(234,88,12,0.25)',
+              padding: '3px 8px', borderRadius: 4,
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+              color: '#f04141',
+              background: 'rgba(240,65,65,0.10)',
+              border: '0.5px solid rgba(240,65,65,0.30)',
               textDecoration: 'none', marginLeft: 4,
+              fontFamily: 'var(--font-mono)',
             }}
             title="Admin Console"
           >
-            Admin
+            ADMIN
           </Link>
         )}
 

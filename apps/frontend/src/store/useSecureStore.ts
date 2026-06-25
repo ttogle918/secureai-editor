@@ -1,5 +1,5 @@
 // ============================================================
-// Zustand 단일 스토어 — SecureAI
+// Zustand 단일 스토어 — Kkebi
 // ============================================================
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';

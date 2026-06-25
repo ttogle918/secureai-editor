@@ -1,11 +1,11 @@
 import { LegalPageShell, legalH2 } from '@/components/legal/LegalPageShell';
 
-export const metadata = { title: '쿠키 정책 — SecureAI' };
+export const metadata = { title: '쿠키 정책 — Kkebi' };
 
 export default function CookiePage() {
   return (
     <LegalPageShell title="쿠키 정책" updated="2026-05-30">
-      <p>SecureAI는 서비스 제공과 개선을 위해 쿠키 및 유사 기술을 사용합니다. 첫 방문 시 표시되는 배너에서 동의 범위를 선택할 수 있습니다.</p>
+      <p>Kkebi는 서비스 제공과 개선을 위해 쿠키 및 유사 기술을 사용합니다. 첫 방문 시 표시되는 배너에서 동의 범위를 선택할 수 있습니다.</p>
 
       <h2 style={legalH2}>1. 필수 쿠키</h2>
       <p>인증 세션 유지, 보안(CSRF 방지) 등 서비스 작동에 반드시 필요한 쿠키로, 동의 없이 사용되며 거부할 수 없습니다.</p>

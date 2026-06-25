@@ -30,7 +30,7 @@ function PrefShell({ children, footer }: { children: React.ReactNode; footer: Re
           gap: 8,
         }}>
           <span style={{ color: 'var(--orange)' }}>⬡</span>
-          <span style={{ color: 'var(--text-active)' }}>Pagori</span>
+          <span style={{ color: 'var(--text-active)' }}>Kkebi</span>
         </div>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>언제든지 설정에서 변경 가능</span>
@@ -46,7 +46,7 @@ function PrefShell({ children, footer }: { children: React.ReactNode; footer: Re
             marginBottom: 10,
             color: 'var(--text-active)',
           }}>
-            Pagori 사용 환경을 설정해주세요
+            Kkebi 사용 환경을 설정해주세요
           </h1>
           <p style={{
             fontSize: 14,

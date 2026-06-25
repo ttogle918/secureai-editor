@@ -101,7 +101,7 @@ export default function InviteAcceptPage() {
       {/* 로고 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48 }}>
         <Shield size={28} color="#ea580c" />
-        <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color: '#e8e8ee' }}>SecureAI</span>
+        <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color: '#e8e8ee' }}>Kkebi</span>
       </div>
 
       <div style={{

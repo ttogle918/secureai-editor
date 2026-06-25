@@ -173,7 +173,7 @@ export default function EditorPage() {
   const exportJSON = useCallback(() => {
     const blob = new Blob(
       [JSON.stringify(
-        { project: 'SecureAI Audit', timestamp: new Date().toISOString(), vulnerabilities: vulns },
+        { project: 'Kkebi Audit', timestamp: new Date().toISOString(), vulnerabilities: vulns },
         null, 2,
       )],
       { type: 'application/json' },

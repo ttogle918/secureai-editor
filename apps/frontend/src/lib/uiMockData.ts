@@ -5,7 +5,7 @@
 // ── 사용자 정보 ──────────────────────────────────────────────────────────────
 export const MOCK_USER = {
   id: 'demo-user',
-  email: 'demo@pagori.dev',
+  email: 'demo@kkebi.dev',
   name: '김지민',
   username: 'demo',
   displayName: '김지민',
@@ -45,9 +45,9 @@ export const MOCK_ORGS = [
 
 // ── 팀 멤버 ──────────────────────────────────────────────────────────────────
 export const MOCK_MEMBERS = [
-  { id: 'm1', name: '김지민', email: 'jimin@pagori.dev', role: 'OWNER', joinedAt: '2026-01-01' },
-  { id: 'm2', name: '이서현', email: 'seohyun@pagori.dev', role: 'ADMIN', joinedAt: '2026-02-01' },
-  { id: 'm3', name: '박민준', email: 'minjun@pagori.dev', role: 'MEMBER', joinedAt: '2026-03-01' },
+  { id: 'm1', name: '김지민', email: 'jimin@kkebi.dev', role: 'OWNER', joinedAt: '2026-01-01' },
+  { id: 'm2', name: '이서현', email: 'seohyun@kkebi.dev', role: 'ADMIN', joinedAt: '2026-02-01' },
+  { id: 'm3', name: '박민준', email: 'minjun@kkebi.dev', role: 'MEMBER', joinedAt: '2026-03-01' },
 ];
 
 // ── 크레딧 요약 ──────────────────────────────────────────────────────────────
@@ -75,19 +75,19 @@ export const MOCK_HISTORY = [
 // ── 관리자 유저 목록 ─────────────────────────────────────────────────────────
 export const MOCK_ADMIN_USERS = [
   {
-    id: 'u1', email: 'jimin@pagori.dev', username: 'jimin',
+    id: 'u1', email: 'jimin@kkebi.dev', username: 'jimin',
     displayName: '김지민', isActive: true, isAdmin: true,
     planId: 2, planName: 'pro', creditBalance: 1240,
     lastLoginAt: '2026-05-18T10:00:00Z', createdAt: '2026-01-01T00:00:00Z',
   },
   {
-    id: 'u2', email: 'seohyun@pagori.dev', username: 'seohyun',
+    id: 'u2', email: 'seohyun@kkebi.dev', username: 'seohyun',
     displayName: '이서현', isActive: true, isAdmin: false,
     planId: 1, planName: 'free', creditBalance: 0,
     lastLoginAt: '2026-05-17T08:30:00Z', createdAt: '2026-02-01T00:00:00Z',
   },
   {
-    id: 'u3', email: 'minjun@pagori.dev', username: 'minjun',
+    id: 'u3', email: 'minjun@kkebi.dev', username: 'minjun',
     displayName: '박민준', isActive: false, isAdmin: false,
     planId: 1, planName: 'free', creditBalance: 0,
     lastLoginAt: null, createdAt: '2026-03-01T00:00:00Z',

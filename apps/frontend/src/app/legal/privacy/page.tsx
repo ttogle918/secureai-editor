@@ -1,11 +1,11 @@
 import { LegalPageShell, legalH2 } from '@/components/legal/LegalPageShell';
 
-export const metadata = { title: '개인정보처리방침 — SecureAI' };
+export const metadata = { title: '개인정보처리방침 — Kkebi' };
 
 export default function PrivacyPage() {
   return (
     <LegalPageShell title="개인정보처리방침" updated="2026-05-30">
-      <p>SecureAI는 「개인정보 보호법」(PIPA) 제30조 및 GDPR 제13조에 따라 다음과 같이 개인정보 처리방침을 수립·공개합니다.</p>
+      <p>Kkebi는 「개인정보 보호법」(PIPA) 제30조 및 GDPR 제13조에 따라 다음과 같이 개인정보 처리방침을 수립·공개합니다.</p>
 
       <h2 style={legalH2}>1. 수집하는 개인정보 항목</h2>
       <p>이메일, 사용자명, 표시 이름, (선택) GitHub 연동 정보, 분석 대상 코드 메타데이터, 서비스 이용 기록·IP·기기 정보.</p>

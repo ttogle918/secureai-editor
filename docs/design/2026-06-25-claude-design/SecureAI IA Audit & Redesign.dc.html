@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./_ds/secureai-design-system-fcc773f7-bd6b-4f60-b465-2c6c6e7a4242/colors_and_type.css">
+  <script src="./_ds/secureai-design-system-fcc773f7-bd6b-4f60-b465-2c6c6e7a4242/_ds_bundle.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg-0); font-family: var(--font-sans); color: var(--text-primary); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulseDot { 0%,100%{opacity:1}50%{opacity:0.3} }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-1); }
+    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #404050; }
+    * { scrollbar-width: thin; scrollbar-color: var(--border-2) var(--bg-1); }
+    *:focus-visible { outline: 2px solid #ea580c; outline-offset: 2px; border-radius: 4px; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+  </style>
+</helmet>
+
+<!-- ═══════════════════════════════════ FIXED HEADER ═══ -->
+<div style="position:fixed;top:0;left:0;right:0;z-index:200;background:var(--bg-1);border-bottom:1px solid var(--border)">
+  <!-- Row 1: Brand + Stats -->
+  <div style="height:48px;display:flex;align-items:center;padding:0 20px;border-bottom:1px solid rgba(255,255,255,0.04);gap:16px">
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 2L3 5.5v4.5c0 3.87 2.98 7.25 7 8 4.02-.75 7-4.13 7-8V5.5L10 2z" fill="rgba(249,115,22,0.15)" stroke="#f97316" stroke-width="1.5"></path>
+        <path d="M7 10l2 2 4-4" stroke="#f97316" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <span style="font-size:14px;font-weight:700;letter-spacing:-0.01em">SecureAI</span>
+      <span style="color:var(--border-2);font-size:16px;font-weight:300">·</span>
+      <span style="font-size:13px;color:var(--text-secondary);font-weight:500">IA 감사 &amp; 재설계</span>
+      <span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(249,115,22,0.12);color:#f97316;font-family:var(--font-mono);font-weight:700;letter-spacing:0.05em">2026-06</span>
+    </div>
+    <div style="width:1px;height:20px;background:var(--border);flex-shrink:0"></div>
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+      <span style="font-size:11px;padding:2px 9px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.3);font-family:var(--font-mono);font-weight:700">✅ {{ cntOk }}건</span>
+      <span style="font-size:11px;padding:2px 9px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;border:0.5px solid rgba(245,158,11,0.3);font-family:var(--font-mono);font-weight:700">⚠️ {{ cntWarn }}건</span>
+      <span style="font-size:11px;padding:2px 9px;border-radius:4px;background:rgba(240,65,65,0.1);color:#f04141;border:0.5px solid rgba(240,65,65,0.3);font-family:var(--font-mono);font-weight:700">❌ {{ cntErr }}건</span>
+    </div>
+    <div style="flex:1"></div>
+    <span style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)">35개 기능 인벤토리</span>
+  </div>
+  <!-- Row 2: Tabs -->
+  <div style="height:38px;display:flex;align-items:stretch;padding:0 12px;overflow-x:auto;gap:2px">
+    <button style="{{ ts1 }}" onClick="{{ tabStep1 }}">STEP 1 — 기능·UI 감사</button>
+    <button style="{{ ts2 }}" onClick="{{ tabStep2 }}">STEP 2 — IA 사이트맵</button>
+    <button style="{{ ts3a }}" onClick="{{ tabStep3a }}">STEP 3-a · 벌크 트리아지 ❌</button>
+    <button style="{{ ts3b }}" onClick="{{ tabStep3b }}">STEP 3-b · 배치 DAST ❌</button>
+    <button style="{{ ts3c }}" onClick="{{ tabStep3c }}">STEP 3-c · 내비 재설계 ⚠️</button>
+    <button style="{{ tsTok }}" onClick="{{ tabTokens }}">토큰 매핑</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ BODY ════════ -->
+<div style="margin-top:86px;min-height:calc(100vh - 86px)">
+
+<!-- ──────────────────── STEP 1: 감사표 ─────────────────── -->
+<sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ true }}">
+  <div style="padding:32px 28px;max-width:1440px;margin:0 auto">
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(249,115,22,0.15);color:#f97316;font-family:var(--font-mono);letter-spacing:0.1em">STEP 01</span>
+        <h1 style="font-size:20px;font-weight:700;letter-spacing:-0.02em">기능 → UI 매핑 감사표</h1>
+      </div>
+      <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;max-width:760px">35개 구현 기능의 현재 UI 위치, 도달 경로, 상태를 분류. ❌ UI 없음(FE 미구현) vs ⚠️ 있으나 묻힘(내비에서 발견 어려움)을 명확히 구분한다.</p>
+    </div>
+
+    <!-- Table -->
+    <div style="border-radius:10px;border:1px solid var(--border);overflow:hidden;background:var(--bg-2)">
+      <!-- Header row -->
+      <div style="display:grid;grid-template-columns:34px 1.8fr 78px 1.3fr 1.5fr 148px 1.8fr;background:var(--bg-3);border-bottom:1px solid var(--border)">
+        <div style="padding:8px 10px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em">#</div>
+        <div style="padding:8px 10px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;border-left:1px solid var(--border)">기능명</div>
+        <div style="padding:8px 8px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;border-left:1px solid var(--border)">분류</div>
+        <div style="padding:8px 10px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;border-left:1px solid var(--border)">현재 UI 위치</div>
+        <div style="padding:8px 10px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;border-left:1px solid var(--border)">도달 경로</div>
+        <div style="padding:8px 8px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;border-left:1px solid var(--border)">상태</div>
+        <div style="padding:8px 10px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;border-left:1px solid var(--border)">배정할 화면·내비</div>
+      </div>
+      <sc-for list="{{ auditRows }}" as="row" hint-placeholder-count="35">
+        <div style="{{ row.gridRowStyle }}">
+          <div style="padding:9px 10px;font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);display:flex;align-items:center">{{ row.id }}</div>
+          <div style="padding:9px 10px;font-size:13px;font-weight:500;color:var(--text-primary);border-left:1px solid var(--border);display:flex;align-items:center">{{ row.nm }}</div>
+          <div style="padding:9px 8px;border-left:1px solid var(--border);display:flex;align-items:center">
+            <span style="{{ row.catStyle }}">{{ row.cat }}</span>
+          </div>
+          <div style="padding:9px 10px;font-size:11px;color:var(--text-secondary);border-left:1px solid var(--border);display:flex;align-items:center;font-family:var(--font-mono);line-height:1.5">{{ row.loc }}</div>
+          <div style="padding:9px 10px;font-size:11px;color:var(--text-tertiary);border-left:1px solid var(--border);display:flex;align-items:center;font-family:var(--font-mono);line-height:1.5">{{ row.path }}</div>
+          <div style="padding:9px 8px;border-left:1px solid var(--border);display:flex;align-items:center">
+            <span style="{{ row.badgeStyle }}">{{ row.stL }}</span>
+          </div>
+          <div style="padding:9px 10px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border);display:flex;align-items:center;line-height:1.5">{{ row.tgt }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- Legend -->
+    <div style="margin-top:14px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--text-tertiary)">범례</span>
+      <span style="font-size:11px;color:#22c55e;display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span>✅ 있음 — UI 발견·도달 가능</span>
+      <span style="font-size:11px;color:#f59e0b;display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block"></span>⚠️ 있으나 묻힘 — 내비에서 발견 어려움, 진입점 개선 필요</span>
+      <span style="font-size:11px;color:#f04141;display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#f04141;display:inline-block"></span>❌ UI 없음 — 백엔드 API 완료, 프론트 미구현 → 신규 설계</span>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ──────────────────── STEP 2: IA 사이트맵 ─────────────── -->
+<sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
+  <div style="padding:32px 28px;max-width:1320px;margin:0 auto">
+    <div style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(249,115,22,0.15);color:#f97316;font-family:var(--font-mono);letter-spacing:0.1em">STEP 02</span>
+        <h1 style="font-size:20px;font-weight:700;letter-spacing:-0.02em">IA 재설계 — 모든 기능에 "집" 주기</h1>
+      </div>
+      <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;max-width:780px">페르소나 2모드(개발자/보안담당)를 1차 축으로. 26+개 기능을 좌측 내비 그룹·대시보드 카드·설정 탭으로 그룹핑해 전부 도달 가능하게 한다. 한 화면에 욱여넣지 않고 점진적으로 노출.</p>
+    </div>
+
+    <!-- Persona axis -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <!-- Developer Mode -->
+      <div style="border-radius:10px;border:1px solid rgba(99,102,241,0.3);background:rgba(99,102,241,0.04);overflow:hidden">
+        <div style="padding:14px 16px 10px;background:rgba(99,102,241,0.1);border-bottom:1px solid rgba(99,102,241,0.2)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:16px">👨‍💻</span>
+            <span style="font-size:14px;font-weight:700;color:#818cf8">개발자 모드</span>
+            <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(99,102,241,0.2);color:#818cf8;font-family:var(--font-mono)">/editor</span>
+          </div>
+          <p style="font-size:11px;color:var(--text-tertiary)">코드·취약점·패치·DAST가 하나의 작업공간</p>
+        </div>
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+          <!-- Code Editor group -->
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#818cf8;font-family:var(--font-mono);letter-spacing:0.06em;margin-bottom:6px;text-transform:uppercase">코드 에디터</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">Monaco 에디터 ✅</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">SAST 분석 시작 ✅</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;border:0.5px solid rgba(245,158,11,0.25)">GitHub 원격 SAST ⚠️</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">SSE 진행 스트립 ✅</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;border:0.5px solid rgba(245,158,11,0.25)">BYOK 프로바이더 ⚠️</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">AST 가드 배지 ✅</span>
+            </div>
+          </div>
+          <!-- Vuln Panel group -->
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#818cf8;font-family:var(--font-mono);letter-spacing:0.06em;margin-bottom:6px;text-transform:uppercase">취약점 패널</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">단건 트리아지 ✅</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(240,65,65,0.12);color:#f04141;border:0.5px solid rgba(240,65,65,0.35);font-weight:700">벌크 트리아지 ❌ NEW</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">심각도·DAST 필터 ✅</span>
+            </div>
+          </div>
+          <!-- DAST group -->
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#818cf8;font-family:var(--font-mono);letter-spacing:0.06em;margin-bottom:6px;text-transform:uppercase">DAST 워크스페이스</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;border:0.5px solid rgba(245,158,11,0.25)">단건 DAST ⚠️ 명확화</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(240,65,65,0.12);color:#f04141;border:0.5px solid rgba(240,65,65,0.35);font-weight:700">배치 DAST ❌ NEW</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">proven 배지 ✅</span>
+            </div>
+          </div>
+          <!-- Patch group -->
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#818cf8;font-family:var(--font-mono);letter-spacing:0.06em;margin-bottom:6px;text-transform:uppercase">패치 매니저</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">AI 패치 생성 ✅</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">자가검증 VERIFIED ✅</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">PR 자동 생성 ✅</span>
+            </div>
+          </div>
+          <!-- AI Chat -->
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#818cf8;font-family:var(--font-mono);letter-spacing:0.06em;margin-bottom:6px;text-transform:uppercase">AI 채팅</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">ChatFAB ✅</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">SSE 스트리밍 ✅</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security Mode -->
+      <div style="border-radius:10px;border:1px solid rgba(34,197,94,0.3);background:rgba(34,197,94,0.03);overflow:hidden">
+        <div style="padding:14px 16px 10px;background:rgba(34,197,94,0.08);border-bottom:1px solid rgba(34,197,94,0.2)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:16px">🔒</span>
+            <span style="font-size:14px;font-weight:700;color:#22c55e">보안담당 모드</span>
+            <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(34,197,94,0.2);color:#22c55e;font-family:var(--font-mono)">/dashboard</span>
+          </div>
+          <p style="font-size:11px;color:var(--text-tertiary)">통계·컴플라이언스·조직·ROI가 중심인 대시보드</p>
+        </div>
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#22c55e;font-family:var(--font-mono);letter-spacing:0.06em;margin-bottom:6px;text-transform:uppercase">대시보드 1차 화면</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">KPI 카드 ✅</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">보안 점수 트렌드 ✅</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">OWASP 커버리지 ✅</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">파일 히트맵 ✅</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:0.5px solid rgba(34,197,94,0.25)">PR 리뷰 이력 ✅</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#22c55e;font-family:var(--font-mono);letter-spacing:0.06em;margin-bottom:6px;text-transform:uppercase">대시보드 카드 추가 노출 ⚠️→노출</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;border:0.5px solid rgba(245,158,11,0.25)">컴플라이언스 매핑 카드 ⚠️</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;border:0.5px solid rgba(245,158,11,0.25)">도메인 모니터링 카드 ⚠️</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;border:0.5px solid rgba(245,158,11,0.25)">크레딧 잔액 칩 ⚠️</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#22c55e;font-family:var(--font-mono);letter-spacing:0.06em;margin-bottom:6px;text-transform:uppercase">보고서 (사이드바→ 모달)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;border:0.5px solid rgba(245,158,11,0.25)">PDF 보안 보고서 ⚠️</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;border:0.5px solid rgba(245,158,11,0.25)">CISO/HANAFOS/ISMS ⚠️</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;border:0.5px solid rgba(245,158,11,0.25)">ROI 보고서 ⚠️</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- New Sidebar Groups row -->
+    <div style="margin-bottom:8px;display:flex;align-items:center;gap:10px">
+      <div style="height:1px;flex:1;background:var(--border)"></div>
+      <span style="font-size:10px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;padding:0 8px">NEW SIDEBAR GROUPS — ⚠️ 묻힌 기능에 진입점 부여</span>
+      <div style="height:1px;flex:1;background:var(--border)"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px">
+      <!-- Security Tools -->
+      <div style="border-radius:10px;border:1px solid rgba(86,156,214,0.3);background:rgba(86,156,214,0.04);overflow:hidden">
+        <div style="padding:10px 14px;background:rgba(86,156,214,0.1);border-bottom:1px solid rgba(86,156,214,0.2);display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#569cd6" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          <span style="font-size:12px;font-weight:700;color:#569cd6">SECURITY</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,0.15);color:#f59e0b;font-family:var(--font-mono);font-weight:700">NEW 사이드바</span>
+        </div>
+        <div style="padding:12px 14px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:6px;background:rgba(245,158,11,0.08);border:0.5px solid rgba(245,158,11,0.2)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
+            <span style="font-size:12px;color:var(--text-primary)">시크릿 스캔</span>
+            <span style="font-size:9px;color:#f59e0b;font-family:var(--font-mono);margin-left:auto">⚠️</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:6px;background:rgba(245,158,11,0.08);border:0.5px solid rgba(245,158,11,0.2)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
+            <span style="font-size:12px;color:var(--text-primary)">SBOM &amp; CVE</span>
+            <span style="font-size:9px;color:#f59e0b;font-family:var(--font-mono);margin-left:auto">⚠️</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:6px;background:rgba(245,158,11,0.08);border:0.5px solid rgba(245,158,11,0.2)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
+            <span style="font-size:12px;color:var(--text-primary)">컴플라이언스</span>
+            <span style="font-size:9px;color:#f59e0b;font-family:var(--font-mono);margin-left:auto">⚠️</span>
+          </div>
+        </div>
+      </div>
+      <!-- Automation -->
+      <div style="border-radius:10px;border:1px solid rgba(167,139,250,0.3);background:rgba(167,139,250,0.03);overflow:hidden">
+        <div style="padding:10px 14px;background:rgba(167,139,250,0.08);border-bottom:1px solid rgba(167,139,250,0.2);display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"></path></svg>
+          <span style="font-size:12px;font-weight:700;color:#a78bfa">AUTOMATION</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,0.15);color:#f59e0b;font-family:var(--font-mono);font-weight:700">NEW 사이드바</span>
+        </div>
+        <div style="padding:12px 14px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:6px;background:rgba(245,158,11,0.08);border:0.5px solid rgba(245,158,11,0.2)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
+            <span style="font-size:12px;color:var(--text-primary)">PR 자동 리뷰</span>
+            <span style="font-size:9px;color:#f59e0b;font-family:var(--font-mono);margin-left:auto">⚠️</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:6px;background:rgba(245,158,11,0.08);border:0.5px solid rgba(245,158,11,0.2)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
+            <span style="font-size:12px;color:var(--text-primary)">예약 자동 스캔</span>
+            <span style="font-size:9px;color:#f59e0b;font-family:var(--font-mono);margin-left:auto">⚠️</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:6px;background:rgba(245,158,11,0.08);border:0.5px solid rgba(245,158,11,0.2)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
+            <span style="font-size:12px;color:var(--text-primary)">도메인 모니터링</span>
+            <span style="font-size:9px;color:#f59e0b;font-family:var(--font-mono);margin-left:auto">⚠️</span>
+          </div>
+        </div>
+      </div>
+      <!-- Reports -->
+      <div style="border-radius:10px;border:1px solid rgba(52,211,153,0.3);background:rgba(52,211,153,0.03);overflow:hidden">
+        <div style="padding:10px 14px;background:rgba(52,211,153,0.08);border-bottom:1px solid rgba(52,211,153,0.2);display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14,2 14,8 20,8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+          <span style="font-size:12px;font-weight:700;color:#34d399">REPORTS</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,0.15);color:#f59e0b;font-family:var(--font-mono);font-weight:700">NEW 사이드바</span>
+        </div>
+        <div style="padding:12px 14px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:6px;background:rgba(245,158,11,0.08);border:0.5px solid rgba(245,158,11,0.2)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
+            <span style="font-size:12px;color:var(--text-primary)">PDF 보안 보고서</span>
+            <span style="font-size:9px;color:#f59e0b;font-family:var(--font-mono);margin-left:auto">⚠️</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:6px;background:rgba(245,158,11,0.08);border:0.5px solid rgba(245,158,11,0.2)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
+            <span style="font-size:12px;color:var(--text-primary)">CISO / HANAFOS</span>
+            <span style="font-size:9px;color:#f59e0b;font-family:var(--font-mono);margin-left:auto">⚠️</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:6px;background:rgba(245,158,11,0.08);border:0.5px solid rgba(245,158,11,0.2)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
+            <span style="font-size:12px;color:var(--text-primary)">ISMS-P 문서</span>
+            <span style="font-size:9px;color:#f59e0b;font-family:var(--font-mono);margin-left:auto">⚠️</span>
+          </div>
+        </div>
+      </div>
+      <!-- Settings -->
+      <div style="border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.02);overflow:hidden">
+        <div style="padding:10px 14px;background:rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span style="font-size:12px;font-weight:700;color:var(--text-secondary)">SETTINGS</span>
+        </div>
+        <div style="padding:12px 14px;display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:11px;color:var(--text-primary);padding:3px 8px;border-radius:4px">계정·세션·프로필 <span style="color:#f59e0b">⚠️</span></div>
+          <div style="font-size:11px;color:var(--text-primary);padding:3px 8px;border-radius:4px">AI 프로바이더·BYOK <span style="color:#f59e0b">⚠️</span></div>
+          <div style="font-size:11px;color:var(--text-primary);padding:3px 8px;border-radius:4px">보안·2FA <span style="color:#f59e0b">⚠️</span></div>
+          <div style="font-size:11px;color:var(--text-primary);padding:3px 8px;border-radius:4px">조직·팀 관리 <span style="color:#f59e0b">⚠️</span></div>
+          <div style="font-size:11px;color:var(--text-primary);padding:3px 8px;border-radius:4px">통합 (GitHub App) <span style="color:#f59e0b">⚠️</span></div>
+          <div style="font-size:11px;color:var(--text-primary);padding:3px 8px;border-radius:4px">개인정보·GDPR <span style="color:#f59e0b">⚠️</span></div>
+          <div style="font-size:11px;color:var(--text-primary);padding:3px 8px;border-radius:4px">크레딧·과금 <span style="color:#f59e0b">⚠️</span></div>
+          <div style="font-size:11px;color:var(--text-primary);padding:3px 8px;border-radius:4px">관리자 (ADMIN role) <span style="color:#f59e0b">⚠️</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ────────────── STEP 3a: 벌크 트리아지 ──────────────── -->
+<sc-if value="{{ isStep3a }}" hint-placeholder-val="{{ false }}">
+  <div style="padding:32px 28px;max-width:1320px;margin:0 auto">
+    <div style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(240,65,65,0.15);color:#f04141;font-family:var(--font-mono);letter-spacing:0.1em">❌ STEP 3-a · 신규 설계</span>
+        <h1 style="font-size:20px;font-weight:700;letter-spacing:-0.02em">벌크 트리아지 — VulnPanel 다중선택 + 배너 + 액션바</h1>
+      </div>
+      <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;max-width:760px">체크박스로 N건을 동시에 선택 → "이 유형 N건" 스마트 배너 → <code style="font-family:var(--font-mono);font-size:12px;background:var(--bg-3);padding:1px 6px;border-radius:3px">PATCH /bulk-triage</code> 호출. 기각 사유는 리랭커 학습자산으로 적재.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: start; position: relative">
+      <!-- Left: Interactive VulnPanel Mockup -->
+      <div style="border-radius:10px;border:1px solid var(--border);background:var(--bg-1);overflow:hidden;display:flex;flex-direction:column">
+        <!-- Panel header -->
+        <div style="padding:8px 10px;background:var(--bg-2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;font-weight:700;color:var(--text-primary)">취약점</span>
+          <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(240,65,65,0.12);color:#f04141;font-family:var(--font-mono);font-weight:700">{{ selCount }}건 선택</span>
+          <div style="flex:1"></div>
+          <sc-if value="{{ showBulkBar }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ clearSel }}" style="font-size:10px;color:var(--text-tertiary);background:transparent;border:none;cursor:pointer;padding:2px 6px">모두 해제</button>
+          </sc-if>
+        </div>
+        <!-- Filter chips (static decoration) -->
+        <div style="padding:6px 8px 4px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+          <span style="font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);width:32px;flex-shrink:0">심각도</span>
+          <span style="font-size:9px;padding:2px 7px;border-radius:4px;background:rgba(240,65,65,0.12);color:#f04141;border:0.5px solid rgba(240,65,65,0.3);font-weight:700">CRITICAL(3)</span>
+          <span style="font-size:9px;padding:2px 7px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;border:0.5px solid rgba(245,158,11,0.2);font-weight:600">HIGH(2)</span>
+          <span style="font-size:9px;padding:2px 7px;border-radius:4px;color:rgba(255,255,255,0.3);border:0.5px solid rgba(255,255,255,0.08)">MEDIUM(2)</span>
+        </div>
+        <!-- Vuln list -->
+        <div style="max-height:340px;overflow-y:auto">
+          <sc-for list="{{ mockVulns }}" as="v" hint-placeholder-count="8">
+            <div onClick="{{ v.toggle }}" style="padding:9px 10px 9px 32px;border-bottom:1px solid var(--border);cursor:pointer;position:relative;transition:background 0.1s;background: {{ v.rowBg }};border-left: {{ v.rowBl }}">
+              <!-- Checkbox -->
+              <div onClick="{{ v.toggle }}" style="{{ v.chkStyle }};position:absolute;top:10px;left:10px;display:flex;align-items:center;justify-content:center">
+                <sc-if value="{{ v.sel }}" hint-placeholder-val="{{ false }}">
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                </sc-if>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+                <span style="font-size:12px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">{{ v.type }}</span>
+                <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background: {{ v.sevB }};color: {{ v.sevC }};border:0.5px solid {{ v.sevBd }};white-space:nowrap;font-family:var(--font-mono)">{{ v.sevLabel }}</span>
+              </div>
+              <!-- file · cwe + VAL-18: httpMethod + apiEndpoint -->
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
+                <span style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)">{{ v.file }}:{{ v.line }} · {{ v.cwe }}</span>
+                <sc-if value="{{ v.hasEndpoint }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;font-family:var(--font-mono);background:{{ v.methodStyle.bg }};color:{{ v.methodStyle.color }};border:0.5px solid {{ v.methodStyle.border }}">{{ v.httpMethod }}</span>
+                  <span style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">{{ v.apiEndpoint }}</span>
+                </sc-if>
+              </div>
+              <!-- VAL-18: taintedParam -->
+              <sc-if value="{{ v.taintedParam }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                  <span style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono)">tainted:</span>
+                  <span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:3px;background:rgba(249,115,22,0.1);color:#f97316;border:0.5px solid rgba(249,115,22,0.25);font-family:var(--font-mono)">{{ v.taintedParam }}</span>
+                </div>
+              </sc-if>
+              <!-- VAL-18: attackScenario -->
+              <sc-if value="{{ v.attackScenario }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:10px;color:var(--text-tertiary);line-height:1.4;margin-bottom:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">{{ v.attackScenario }}</div>
+              </sc-if>
+              <!-- proven badge -->
+              <sc-if value="{{ v.proven }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:8px;font-weight:800;padding:1px 5px;border-radius:3px;background:rgba(240,65,65,0.12);color:#f04141;border:0.5px solid rgba(240,65,65,0.35);font-family:var(--font-mono);display:inline-block">● DAST · EXPLOITED</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- Bulk action bar — static footer below list -->
+        <sc-if value="{{ showBulkBar }}" hint-placeholder-val="{{ false }}">
+          <div style="border-top:1px solid rgba(249,115,22,0.3);background:var(--bg-0);padding:8px 10px;animation:fadeUp 0.15s ease-out">
+            <!-- Same-type banner -->
+            <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-bottom:8px;padding:6px 9px;border-radius:6px;background:rgba(249,115,22,0.08);border:0.5px solid rgba(249,115,22,0.25);display:flex;align-items:center;gap:8px">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                <span style="font-size:11px;color:#f97316;flex:1"><span style="font-weight:700;font-family:var(--font-mono)">{{ topType }}</span> 유형 {{ topTypeCount }}건 선택됨</span>
+                <button onClick="{{ selectAllOfType }}" style="font-size:10px;font-weight:700;color:#f97316;background:rgba(249,115,22,0.12);border:0.5px solid rgba(249,115,22,0.3);border-radius:4px;padding:2px 8px;cursor:pointer">전체 {{ totalOfTopType }}건 선택 →</button>
+              </div>
+            </sc-if>
+            <!-- Action row -->
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:22px;height:22px;border-radius:5px;background:#ea580c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--font-mono);flex-shrink:0">{{ selCount }}</div>
+              <span style="font-size:12px;font-weight:600;color:var(--text-primary)">건 선택됨</span>
+              <div style="flex:1"></div>
+              <button onClick="{{ bulkConfirm }}" style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:5px;background:rgba(34,197,94,0.12);border:0.5px solid rgba(34,197,94,0.35);color:#22c55e;cursor:pointer">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"></path></svg>확인
+              </button>
+              <button onClick="{{ bulkDismiss }}" style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:5px;background:rgba(245,158,11,0.1);border:0.5px solid rgba(245,158,11,0.3);color:#f59e0b;cursor:pointer">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>기각
+              </button>
+              <button onClick="{{ bulkPatch }}" style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:5px;background:rgba(249,115,22,0.12);border:0.5px solid rgba(249,115,22,0.35);color:#f97316;cursor:pointer">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>패치채택
+              </button>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- Toast -->
+        <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:8px;left:8px;right:8px;border-radius:8px;background:#0d0d0f;border:1px solid rgba(34,197,94,0.4);padding:10px 14px;animation:fadeUp 0.2s ease-out;z-index:20;display:flex;align-items:center;gap:10px;box-shadow:0 4px 24px rgba(0,0,0,0.5)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            <span style="font-size:13px;font-weight:600;color:var(--text-primary)">{{ toast.count }}건 <span style="color:#22c55e">{{ toast.label }}</span> 처리 완료</span>
+            <span style="font-size:10px;color:var(--text-tertiary);margin-left:auto;font-family:var(--font-mono)">PATCH /bulk-triage →</span>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- Right: Design annotations -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="padding:16px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border)">
+          <div style="font-size:11px;font-weight:700;color:#f04141;font-family:var(--font-mono);letter-spacing:0.08em;margin-bottom:8px">❌ 현재 갭</div>
+          <p style="font-size:13px;color:var(--text-secondary);line-height:1.6">VulnPanel에 체크박스 UI는 이미 존재하나, 하단 액션바가 <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg-3);padding:1px 4px;border-radius:3px">/bulk-triage</code> API와 연결되어 있지 않다. 단순 "패치 적용" 만 가능.</p>
+        </div>
+        <div style="padding:16px;border-radius:8px;background:var(--bg-2);border:1px solid rgba(249,115,22,0.25)">
+          <div style="font-size:11px;font-weight:700;color:#f97316;font-family:var(--font-mono);letter-spacing:0.08em;margin-bottom:10px">★ 신규 설계 포인트 3가지</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <span style="width:20px;height:20px;border-radius:50%;background:rgba(249,115,22,0.15);color:#f97316;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">1</span>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:2px">이 유형 N건 스마트 배너</div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.5">같은 type의 취약점이 2건 이상 선택되면 "전체 유형 선택 →" 버튼이 든 배너가 나타남. 동일 패턴을 일괄 처리하도록 유도.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <span style="width:20px;height:20px;border-radius:50%;background:rgba(249,115,22,0.15);color:#f97316;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">2</span>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:2px">CONFIRM / DISMISS / ACCEPT_PATCH 트리아지 액션</div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.5">기존 "패치·무시" 대신 API 스펙과 1:1 매칭되는 액션 레이블. 기각(DISMISS) 사유는 append-only triage_feedback에 적재.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <span style="width:20px;height:20px;border-radius:50%;background:rgba(249,115,22,0.15);color:#f97316;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">3</span>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:2px">낙관적 갱신 + skip 토스트</div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.5">서버 응답의 appliedVulnIds로 즉시 상태 반영. 소유X/미존재 건은 skip — UI에 "N건 처리, M건 skip" 토스트로 피드백.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:14px 16px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border)">
+          <div style="font-size:11px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.08em;margin-bottom:8px">API 매핑</div>
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);line-height:2">
+            <div><span style="color:#f97316">PATCH</span> /api/v1/vulnerabilities/bulk-triage</div>
+            <div style="color:var(--text-tertiary);font-size:11px;margin-left:16px">{ ids[], action: CONFIRM|DISMISS|ACCEPT_PATCH }</div>
+            <div style="color:var(--text-tertiary);font-size:11px;margin-left:16px">→ { requested, applied, skipped, appliedVulnIds[] }</div>
+          </div>
+        </div>
+        <div style="padding:12px 14px;border-radius:8px;background:rgba(34,197,94,0.05);border:0.5px solid rgba(34,197,94,0.2)">
+          <div style="font-size:11px;color:#22c55e;font-weight:600">← 왼쪽 패널이 실제 인터랙티브 시안입니다. 체크박스를 클릭해 동작을 확인하세요.</div>
+        </div>
+      </div>
+    <!-- bulk bar moved into panel footer -->
+            <!-- Same-type banner -->
+            <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-bottom:8px;padding:6px 9px;border-radius:6px;background:rgba(249,115,22,0.08);border:0.5px solid rgba(249,115,22,0.25);display:flex;align-items:center;gap:8px">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                <span style="font-size:11px;color:#f97316;flex:1"><span style="font-weight:700;font-family:var(--font-mono)">{{ topType }}</span> 유형 {{ topTypeCount }}건 선택됨</span>
+                <button onClick="{{ selectAllOfType }}" style="font-size:10px;font-weight:700;color:#f97316;background:rgba(249,115,22,0.12);border:0.5px solid rgba(249,115,22,0.3);border-radius:4px;padding:2px 8px;cursor:pointer">전체 {{ totalOfTopType }}건 선택 →</button>
+              </div>
+            </sc-if>
+            <!-- Action row -->
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:22px;height:22px;border-radius:5px;background:#ea580c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--font-mono);flex-shrink:0">{{ selCount }}</div>
+              <span style="font-size:12px;font-weight:600;color:var(--text-primary)">건 선택됨</span>
+              <div style="flex:1"></div>
+              <button onClick="{{ bulkConfirm }}" style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:5px;background:rgba(34,197,94,0.12);border:0.5px solid rgba(34,197,94,0.35);color:#22c55e;cursor:pointer">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"></path></svg>확인
+              </button>
+              <button onClick="{{ bulkDismiss }}" style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:5px;background:rgba(245,158,11,0.1);border:0.5px solid rgba(245,158,11,0.3);color:#f59e0b;cursor:pointer">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>기각
+              </button>
+              <button onClick="{{ bulkPatch }}" style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:5px;background:rgba(249,115,22,0.12);border:0.5px solid rgba(249,115,22,0.35);color:#f97316;cursor:pointer">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>패치채택
+              </button>
+            </div>
+          </div></div>
+  </div>
+</sc-if>
+
+<!-- ──────────────────── STEP 3b: 배치 DAST ──────────────── -->
+<sc-if value="{{ isStep3b }}" hint-placeholder-val="{{ false }}">
+  <div style="padding:32px 28px;max-width:1320px;margin:0 auto">
+    <div style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(240,65,65,0.15);color:#f04141;font-family:var(--font-mono);letter-spacing:0.1em">❌ STEP 3-b · 신규 설계</span>
+        <h1 style="font-size:20px;font-weight:700;letter-spacing:-0.02em">배치 DAST — 다건 선택 + 단일 SSE + proven 집계</h1>
+      </div>
+      <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;max-width:760px"><code style="font-family:var(--font-mono);font-size:12px;background:var(--bg-3);padding:1px 6px;border-radius:3px">POST /dast/batch</code>로 1~50건을 묶어 동적 검증. vuln_type별 지침 1회 로드, Semaphore(4) 동시성. 단일 SSE로 각 dast_result + 최종 dast_batch_complete 수신.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start">
+      <!-- Left: checklist -->
+      <div style="border-radius:10px;border:1px solid var(--border);background:var(--bg-1);overflow:hidden">
+        <div style="padding:8px 12px;background:var(--bg-2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+          <span style="font-size:12px;font-weight:700;color:var(--text-primary)">DAST 대상 선택</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(240,65,65,0.12);color:#f04141;font-family:var(--font-mono);font-weight:700">CRITICAL+HIGH</span>
+        </div>
+        <div>
+          <sc-for list="{{ batchVulns }}" as="bv" hint-placeholder-count="5">
+            <div onClick="{{ bv.batchToggle }}" style="padding:9px 10px 9px 32px;border-bottom:1px solid var(--border);cursor:pointer;position:relative;transition:background 0.1s">
+              <div style="position:absolute;top:11px;left:10px;width:14px;height:14px;border-radius:3px;border:1.5px solid rgba(255,255,255,0.2);background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0"></div>
+              <sc-if value="{{ bv.batchSel }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;top:11px;left:10px;width:14px;height:14px;border-radius:3px;border:1.5px solid #ea580c;background:#ea580c;display:flex;align-items:center;justify-content:center">
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                </div>
+              </sc-if>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                <span style="font-size:12px;font-weight:600;color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ bv.type }}</span>
+                <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background: {{ bv.statusB }};color: {{ bv.statusC }};font-family:var(--font-mono)">
+                  <sc-if value="{{ bv.isRunning }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:inline-block;width:8px;height:8px;border:1.5px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.85s linear infinite;vertical-align:middle;margin-right:2px"></span>
+                  </sc-if>
+                  {{ bv.statusLabel }}
+                </span>
+              </div>
+              <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)">{{ bv.file }}:{{ bv.line }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:10px">
+          <sc-if value="{{ showBatchStart }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ startBatch }}" style="width:100%;padding:8px;border-radius:7px;background:#ea580c;border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 3px 12px rgba(234,88,12,0.35)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              {{ batchSelCount }}건 배치 DAST 실행
+            </button>
+          </sc-if>
+          <sc-if value="{{ batchRunning }}" hint-placeholder-val="{{ false }}">
+            <div style="width:100%;padding:8px;border-radius:7px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.25);display:flex;align-items:center;justify-content:center;gap:8px">
+              <span style="display:inline-block;width:12px;height:12px;border:2px solid #f97316;border-top-color:transparent;border-radius:50%;animation:spin 0.85s linear infinite"></span>
+              <span style="font-size:12px;color:#f97316;font-weight:600;animation:pulseDot 1.2s ease-in-out infinite">배치 실행 중...</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ batchDone }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="padding:10px;border-radius:7px;background:var(--bg-2);border:1px solid var(--border)">
+                <div style="font-size:10px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.08em;margin-bottom:6px">배치 완료</div>
+                <div style="display:flex;gap:12px">
+                  <div style="text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#f04141;font-family:var(--font-mono)">{{ batchSucceeded }}</div>
+                    <div style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono)">EXPLOITED</div>
+                  </div>
+                  <div style="width:1px;background:var(--border)"></div>
+                  <div style="text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#22c55e;font-family:var(--font-mono)">{{ batchSafe }}</div>
+                    <div style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono)">SAFE</div>
+                  </div>
+                </div>
+              </div>
+              <button onClick="{{ resetBatch }}" style="width:100%;padding:6px;border-radius:6px;background:transparent;border:1px solid var(--border-2);color:var(--text-secondary);font-size:12px;cursor:pointer">초기화</button>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <!-- Right: progress + terminal -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <!-- Progress cards -->
+        <div style="border-radius:10px;border:1px solid var(--border);background:var(--bg-1);overflow:hidden">
+          <div style="padding:8px 14px;background:var(--bg-2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+            <span style="font-size:12px;font-weight:700;color:var(--text-primary)">실행 진행 현황</span>
+            <span style="font-size:10px;color:var(--text-tertiary);margin-left:auto;font-family:var(--font-mono)">SSE: /agent/dast/logs?batch=true</span>
+          </div>
+          <div style="padding:12px;display:flex;flex-direction:column;gap:6px;min-height:80px">
+            <sc-for list="{{ batchVulns }}" as="bv" hint-placeholder-count="5">
+              <sc-if value="{{ bv.batchSel }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:8px 12px;border-radius:7px;background:var(--bg-2);border:1px solid var(--border);display:flex;align-items:center;gap:10px">
+                  <span style="width:8px;height:8px;border-radius:50%;background: {{ bv.statusC }};flex-shrink:0;transition:background 0.3s">
+                    <sc-if value="{{ bv.isRunning }}" hint-placeholder-val="{{ false }}">
+                      <span style="display:block;width:8px;height:8px;border-radius:50%;background:#f97316;animation:pulseDot 0.8s ease-in-out infinite"></span>
+                    </sc-if>
+                  </span>
+                  <span style="font-size:12px;font-weight:600;color:var(--text-primary);flex:1;font-family:var(--font-mono)">{{ bv.type }}</span>
+                  <span style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)">{{ bv.file }}:{{ bv.line }}</span>
+                  <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;background: {{ bv.statusB }};color: {{ bv.statusC }};font-family:var(--font-mono)">
+                    <sc-if value="{{ bv.isRunning }}" hint-placeholder-val="{{ false }}">
+                      <span style="display:inline-block;width:8px;height:8px;border:1.5px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.85s linear infinite;vertical-align:middle;margin-right:3px"></span>
+                    </sc-if>
+                    {{ bv.statusLabel }}
+                  </span>
+                </div>
+              </sc-if>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- SSE Terminal log -->
+        <div style="border-radius:10px;border:1px solid var(--border);background:var(--bg-1);overflow:hidden">
+          <div style="padding:7px 14px;background:var(--bg-2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#f04141"></span>
+            <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>
+            <span style="width:8px;height:8px;border-radius:50%;background:#22c55e"></span>
+            <span style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);margin-left:8px">SSE LOG — dast_result events</span>
+          </div>
+          <div style="padding:12px;font-family:var(--font-mono);font-size:11px;line-height:1.7;min-height:120px;max-height:180px;overflow-y:auto;background:var(--bg-0)">
+            <sc-if value="{{ batchRunning }}" hint-placeholder-val="{{ false }}">
+              <div style="color:var(--text-tertiary)">
+                <sc-for list="{{ logLines }}" as="ll" hint-placeholder-count="3">
+                  <div style="color: {{ ll.lc }}">{{ ll.text }}</div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ batchDone }}" hint-placeholder-val="{{ false }}">
+              <sc-for list="{{ logLines }}" as="ll" hint-placeholder-count="6">
+                <div style="color: {{ ll.lc }}">{{ ll.text }}</div>
+              </sc-for>
+            </sc-if>
+            <sc-if value="{{ showBatchStart }}" hint-placeholder-val="{{ false }}">
+              <div style="color:var(--text-disabled)">배치 실행 전 — 대상 선택 후 실행 버튼을 누르세요</div>
+            </sc-if>
+          </div>
+        </div>
+
+        <!-- Design annotations -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="padding:12px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border)">
+            <div style="font-size:10px;font-weight:700;color:#f97316;font-family:var(--font-mono);letter-spacing:0.08em;margin-bottom:6px">동시성 제어</div>
+            <p style="font-size:12px;color:var(--text-secondary);line-height:1.5">Semaphore(4)로 최대 4건 동시 실행. 각 dast_result 이벤트가 오면 해당 행 상태 실시간 업데이트.</p>
+          </div>
+          <div style="padding:12px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border)">
+            <div style="font-size:10px;font-weight:700;color:#f97316;font-family:var(--font-mono);letter-spacing:0.08em;margin-bottom:6px">단일 SSE 구독</div>
+            <p style="font-size:12px;color:var(--text-secondary);line-height:1.5">?batch=true 파라미터로 단일 스트림. 개별 dast_result 후 마지막에만 dast_batch_complete로 종료.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ──────────────────── STEP 3c: 내비 재설계 ─────────────── -->
+<sc-if value="{{ isStep3c }}" hint-placeholder-val="{{ false }}">
+  <div style="padding:32px 28px;max-width:1200px;margin:0 auto">
+    <div style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(245,158,11,0.15);color:#f59e0b;font-family:var(--font-mono);letter-spacing:0.1em">⚠️ STEP 3-c · 진입점 노출</span>
+        <h1 style="font-size:20px;font-weight:700;letter-spacing:-0.02em">내비게이션 재설계 — ⚠️ 묻힌 기능에 집 주기</h1>
+      </div>
+      <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;max-width:760px">기존 사이드바에 없던 기능 그룹을 추가. 페이지를 신설하지 않고 기존 설정·대시보드를 진입점으로 활용해 점진적으로 노출.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <!-- BEFORE sidebar -->
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(240,65,65,0.1);color:#f04141;font-family:var(--font-mono)">BEFORE</span>
+          <span style="font-size:12px;color:var(--text-secondary)">현재 사이드바 — 기능 일부만 노출</span>
+        </div>
+        <div style="border-radius:10px;border:1px solid rgba(240,65,65,0.2);background:var(--bg-1);overflow:hidden;width:240px">
+          <!-- project header -->
+          <div style="padding:10px 12px;background:var(--bg-2);border-bottom:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:700;color:var(--text-primary)">my-project</div>
+            <div style="font-size:10px;color:var(--text-tertiary)">마지막 분석: 1시간 전</div>
+          </div>
+          <!-- Nav items -->
+          <div style="padding:8px 0">
+            <div style="padding:7px 14px;display:flex;align-items:center;gap:10px;background:rgba(249,115,22,0.08);border-left:2px solid #f97316">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+              <span style="font-size:12px;font-weight:600;color:#f97316">코드 에디터</span>
+            </div>
+            <div style="padding:7px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">AI 채팅</span>
+            </div>
+            <div style="padding:7px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">대시보드</span>
+            </div>
+            <div style="padding:7px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">분석 히스토리</span>
+            </div>
+          </div>
+          <div style="padding:10px 14px;border-top:1px solid var(--border)">
+            <div style="font-size:10px;color:rgba(240,65,65,0.7);font-family:var(--font-mono)">⚠️ 시크릿스캔·SBOM·컴플라이언스·</div>
+            <div style="font-size:10px;color:rgba(240,65,65,0.7);font-family:var(--font-mono)">모니터링·예약스캔·PR리뷰 등</div>
+            <div style="font-size:10px;color:rgba(240,65,65,0.7);font-family:var(--font-mono)">접근 불가</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AFTER sidebar -->
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;font-family:var(--font-mono)">AFTER</span>
+          <span style="font-size:12px;color:var(--text-secondary)">재설계 — 모든 기능 도달 가능</span>
+        </div>
+        <div style="border-radius:10px;border:1px solid rgba(34,197,94,0.2);background:var(--bg-1);overflow:hidden;width:240px">
+          <div style="padding:10px 12px;background:var(--bg-2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+            <div style="flex:1">
+              <div style="font-size:11px;font-weight:700;color:var(--text-primary)">my-project</div>
+              <div style="font-size:10px;color:var(--text-tertiary)">마지막 분석: 1시간 전</div>
+            </div>
+            <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(249,115,22,0.12);color:#f97316;font-family:var(--font-mono);font-weight:700">PRO</span>
+          </div>
+          <div style="padding:6px 0;overflow-y:auto;max-height:440px">
+            <!-- CORE group -->
+            <div style="padding:4px 12px 2px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;text-transform:uppercase">CORE</div>
+            <div style="padding:6px 14px;display:flex;align-items:center;gap:10px;background:rgba(249,115,22,0.08);border-left:2px solid #f97316">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+              <span style="font-size:12px;font-weight:600;color:#f97316">코드 에디터</span>
+            </div>
+            <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">DAST 워크스페이스</span>
+            </div>
+            <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round"><path d="M9 12l2 2 4-4"></path><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.52 0 2.95.38 4.2 1.05"></path></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">패치 매니저</span>
+            </div>
+            <!-- SECURITY group -->
+            <div style="padding:10px 12px 2px;font-size:9px;font-weight:700;color:#569cd6;font-family:var(--font-mono);letter-spacing:0.1em;text-transform:uppercase;display:flex;align-items:center;gap:6px">
+              SECURITY
+              <span style="font-size:8px;padding:1px 4px;border-radius:2px;background:rgba(245,158,11,0.15);color:#f59e0b;font-weight:700">NEW</span>
+            </div>
+            <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#569cd6" stroke-width="2" stroke-linecap="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">시크릿 스캔</span>
+            </div>
+            <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#569cd6" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">SBOM &amp; CVE</span>
+            </div>
+            <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#569cd6" stroke-width="2" stroke-linecap="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">컴플라이언스</span>
+            </div>
+            <!-- AUTOMATION group -->
+            <div style="padding:10px 12px 2px;font-size:9px;font-weight:700;color:#a78bfa;font-family:var(--font-mono);letter-spacing:0.1em;text-transform:uppercase;display:flex;align-items:center;gap:6px">
+              AUTOMATION
+              <span style="font-size:8px;padding:1px 4px;border-radius:2px;background:rgba(245,158,11,0.15);color:#f59e0b;font-weight:700">NEW</span>
+            </div>
+            <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">PR 자동 리뷰</span>
+            </div>
+            <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">예약 자동 스캔</span>
+            </div>
+            <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">도메인 모니터링</span>
+            </div>
+            <!-- REPORTS group -->
+            <div style="padding:10px 12px 2px;font-size:9px;font-weight:700;color:#34d399;font-family:var(--font-mono);letter-spacing:0.1em;text-transform:uppercase;display:flex;align-items:center;gap:6px">
+              REPORTS
+              <span style="font-size:8px;padding:1px 4px;border-radius:2px;background:rgba(245,158,11,0.15);color:#f59e0b;font-weight:700">NEW</span>
+            </div>
+            <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">보고서 생성</span>
+            </div>
+            <div style="padding:6px 14px;display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span style="font-size:12px;color:var(--text-secondary)">규제 문서</span>
+            </div>
+            <!-- Settings -->
+            <div style="margin-top:6px;padding:6px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              <span style="font-size:12px;color:var(--text-tertiary)">설정</span>
+              <span style="font-size:9px;color:var(--text-disabled);margin-left:auto">계정·AI·조직·어드민</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- What changed callouts -->
+    <div style="margin-top:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div style="padding:14px;border-radius:8px;background:var(--bg-2);border:1px solid rgba(86,156,214,0.2)">
+        <div style="font-size:10px;font-weight:700;color:#569cd6;font-family:var(--font-mono);margin-bottom:6px;letter-spacing:0.08em">SECURITY 그룹 (신규)</div>
+        <p style="font-size:12px;color:var(--text-secondary);line-height:1.5">시크릿스캔 · SBOM&amp;CVE · 컴플라이언스를 독립 진입점으로 노출. 기존 사이드바에서 발견 불가능했던 3개 기능이 1-click 도달 가능.</p>
+      </div>
+      <div style="padding:14px;border-radius:8px;background:var(--bg-2);border:1px solid rgba(167,139,250,0.2)">
+        <div style="font-size:10px;font-weight:700;color:#a78bfa;font-family:var(--font-mono);margin-bottom:6px;letter-spacing:0.08em">AUTOMATION 그룹 (신규)</div>
+        <p style="font-size:12px;color:var(--text-secondary);line-height:1.5">PR자동리뷰 · 예약스캔 · 도메인모니터링. 기존 설정 깊숙이 묻혀있던 자동화 기능을 에디터에서 1-click 도달.</p>
+      </div>
+      <div style="padding:14px;border-radius:8px;background:var(--bg-2);border:1px solid rgba(52,211,153,0.2)">
+        <div style="font-size:10px;font-weight:700;color:#34d399;font-family:var(--font-mono);margin-bottom:6px;letter-spacing:0.08em">REPORTS 그룹 (신규)</div>
+        <p style="font-size:12px;color:var(--text-secondary);line-height:1.5">PDF보고서 · CISO/HANAFOS/ISMS 규제문서. 히스토리 모달 안에 숨어있던 보고서 생성을 독립 사이드바 항목으로 승격.</p>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ──────────────────── TOKEN MAPPING ────────────────────── -->
+<sc-if value="{{ isTokens }}" hint-placeholder-val="{{ false }}">
+  <div style="padding:32px 28px;max-width:1100px;margin:0 auto">
+    <div style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(249,115,22,0.15);color:#f97316;font-family:var(--font-mono);letter-spacing:0.1em">TOKEN MAP</span>
+        <h1 style="font-size:20px;font-weight:700;letter-spacing:-0.02em">신규 컴포넌트 디자인 토큰 매핑</h1>
+      </div>
+      <p style="font-size:13px;color:var(--text-secondary);line-height:1.6">각 신규 UI 컴포넌트에 적용되는 디자인 토큰. 색·간격·타이포는 colors_and_type.css의 var(--*) 변수만 사용.</p>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <!-- Bulk Triage tokens -->
+      <div style="border-radius:10px;border:1px solid var(--border);overflow:hidden;background:var(--bg-2)">
+        <div style="padding:10px 16px;background:var(--bg-3);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+          <span style="font-size:11px;font-weight:700;color:#f04141;font-family:var(--font-mono);letter-spacing:0.06em">❌ 벌크 트리아지 신규 토큰</span>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border);background:var(--bg-3)">
+          <div style="padding:7px 12px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em">컴포넌트</div>
+          <div style="padding:7px 12px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;border-left:1px solid var(--border)">토큰</div>
+          <div style="padding:7px 12px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;border-left:1px solid var(--border)">용도</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">선택된 행 배경</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#f97316;border-left:1px solid var(--border)">--orange-dim</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">rgba(249,115,22,0.12) — 선택 상태 시각화</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">선택된 행 좌측 border</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#f97316;border-left:1px solid var(--border)">severity color</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">--critical / --high / --medium / --low</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">체크박스 활성 배경</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#f97316;border-left:1px solid var(--border)">--orange-2</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">#ea580c — resting accent</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">이 유형 N건 배너</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#f97316;border-left:1px solid var(--border)">--orange-dim / --orange</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">배경 + 텍스트 + 0.5px border</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">벌크 액션바 외곽</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#f97316;border-left:1px solid var(--border)">--bg-0 + --orange border</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">플로팅 카드 구분</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">CONFIRM 버튼</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#22c55e;border-left:1px solid var(--border)">--low-dim + --low</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">"확인됨" — 안전 의미의 초록</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">DISMISS 버튼</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#f59e0b;border-left:1px solid var(--border)">--high-dim + --high</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">"기각" — 판단 유보 의미의 앰버</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">ACCEPT_PATCH 버튼</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#f97316;border-left:1px solid var(--border)">--orange-dim + --orange</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">"패치채택" — 주요 액션 오렌지</div>
+        </div>
+      </div>
+
+      <!-- Batch DAST tokens -->
+      <div style="border-radius:10px;border:1px solid var(--border);overflow:hidden;background:var(--bg-2)">
+        <div style="padding:10px 16px;background:var(--bg-3);border-bottom:1px solid var(--border)">
+          <span style="font-size:11px;font-weight:700;color:#f04141;font-family:var(--font-mono);letter-spacing:0.06em">❌ 배치 DAST 신규 토큰</span>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border);background:var(--bg-3)">
+          <div style="padding:7px 12px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em">컴포넌트</div>
+          <div style="padding:7px 12px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;border-left:1px solid var(--border)">토큰</div>
+          <div style="padding:7px 12px;font-size:9px;font-weight:700;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:0.1em;border-left:1px solid var(--border)">용도</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">배치 실행 버튼</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#f97316;border-left:1px solid var(--border)">--orange-2 + --orange-shadow</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">#ea580c bg + 0 3px 12px rgba(234,88,12,0.35) shadow</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">실행 중 상태</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#f97316;border-left:1px solid var(--border)">--orange + pulseDot animation</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">진행 중 시각화 — spin 0.85s + pulseDot</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">EXPLOITED 결과</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#f04141;border-left:1px solid var(--border)">--critical / --critical-dim</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">"정말 뚫림" — 붉은 딱지 원칙</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">SAFE 결과</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#22c55e;border-left:1px solid var(--border)">--low / --low-dim</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">"검증됨·안전" — 초록</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:0">
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-primary)">SSE 터미널 배경</div>
+          <div style="padding:9px 12px;font-size:11px;font-family:var(--font-mono);color:#f97316;border-left:1px solid var(--border)">--bg-0 / --font-mono / --text-sm</div>
+          <div style="padding:9px 12px;font-size:12px;color:var(--text-secondary);border-left:1px solid var(--border)">#080809 bg + JetBrains Mono 11px + 1.7lh</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: 1440, &quot;height&quot;: 900 }
+}">
+class Component extends DCLogic {
+  state = {
+    tab: 'step1',
+    selIds: [],
+    toast: null,
+    batchIds: [],
+    batchRunning: false,
+    batchRes: {},
+    batchDone: false,
+    logLines: [],
+  };
+
+  auditData = [
+    { id: 1, nm: '이메일·패스워드 로그인', cat: '인증', loc: '/auth/login 직접', path: '직접 접근', st: 'ok', tgt: '인증 페이지 (현행 유지)' },
+    { id: 2, nm: 'GitHub OAuth 로그인', cat: '인증', loc: '/auth/login GitHub 버튼', path: '직접 접근', st: 'ok', tgt: '인증 페이지 (현행 유지)' },
+    { id: 3, nm: 'TOTP 2단계 인증 (2FA)', cat: '인증', loc: '설정 > 보안 탭', path: '사용자메뉴 → 설정 → 보안', st: 'warn', tgt: '설정 > 보안 탭 + 헤더 2FA 미설정 경고 배지' },
+    { id: 4, nm: 'SAST 분석 (LangGraph 파이프라인)', cat: '핵심분석', loc: '/editor 상단 분석 버튼', path: '에디터 진입 → 분석 버튼', st: 'ok', tgt: '현행 유지' },
+    { id: 5, nm: 'GitHub 원격 SAST', cat: '핵심분석', loc: '분석 모달 소스타입 드롭다운', path: '에디터 → 분석시작 → 소스타입', st: 'warn', tgt: '분석 설정 패널 "GitHub 원격" 탭 1차 노출' },
+    { id: 6, nm: 'SSE 분석 실시간 스트리밍', cat: '핵심분석', loc: '에디터 상단 진행 스트립', path: '분석 시작 시 자동 표시', st: 'ok', tgt: '현행 유지' },
+    { id: 7, nm: '멀티 AI 프로바이더 (BYOK)', cat: '핵심분석', loc: '설정 > AI 프로바이더 탭', path: '사용자메뉴 → 설정 → AI', st: 'warn', tgt: '설정 > AI 탭 + 에디터 헤더 빠른 전환 칩' },
+    { id: 8, nm: 'DAST 단건 익스플로잇', cat: 'DAST', loc: 'DAST탭 / 취약점 컨텍스트메뉴', path: '에디터 → 취약점 우클릭 → DAST (발견 어려움)', st: 'warn', tgt: 'DAST 워크스페이스 단건 모드 진입점 명확화' },
+    { id: 9, nm: 'GitHub 커밋 시크릿 스캔', cat: '보안', loc: '사이드바 숨은 항목', path: '에디터 사이드바 탐색 필요', st: 'warn', tgt: '사이드바 SECURITY 그룹 → 시크릿 스캔' },
+    { id: 10, nm: 'AI 자동 패치 코드 생성', cat: '패치', loc: '에디터 우측 패치 탭', path: '에디터 → 패치 탭', st: 'ok', tgt: '현행 유지' },
+    { id: 11, nm: 'SBOM 분석·CVE 매칭', cat: '보안', loc: '사이드바 (불명확)', path: '에디터 사이드바 탐색 필요', st: 'warn', tgt: '사이드바 SECURITY 그룹 → SBOM & CVE' },
+    { id: 12, nm: '보안 AI 채팅 (SSE 스트리밍)', cat: 'AI', loc: '에디터 우하단 ChatFAB', path: '에디터 → 우하단 버튼', st: 'ok', tgt: '현행 유지' },
+    { id: 13, nm: 'PDF 보안 보고서', cat: '보고서', loc: '히스토리 모달 내 버튼', path: '에디터 → 히스토리 → 모달 → 보고서', st: 'warn', tgt: '사이드바 REPORTS 그룹 → 보고서 생성' },
+    { id: 14, nm: '보안 문서 (CISO/HANAFOS/ISMS)', cat: '보고서', loc: 'SecurityDocPage (진입 불명)', path: '경로 없음', st: 'warn', tgt: '사이드바 REPORTS 그룹 → 규제 문서' },
+    { id: 15, nm: '컴플라이언스 매핑 (ISO27001/NIST)', cat: '컴플라이언스', loc: '대시보드 일부 (스크롤)', path: '대시보드 → 아래 스크롤 탐색', st: 'warn', tgt: '대시보드 컴플라이언스 카드 + 사이드바 직접 진입' },
+    { id: 16, nm: 'GitHub PR 보안 자동 리뷰', cat: 'DevSecOps', loc: '설정 > 통합 탭', path: '사용자메뉴 → 설정 → 통합', st: 'warn', tgt: '사이드바 AUTOMATION 그룹 → PR 자동 리뷰' },
+    { id: 17, nm: '프로젝트 CRUD', cat: '프로젝트', loc: '사이드바 프로젝트 목록', path: '사이드바 상단', st: 'ok', tgt: '현행 유지' },
+    { id: 18, nm: '예약 자동 스캔 스케줄', cat: '자동화', loc: '설정 깊숙이 (경로 불명)', path: '경로 불명확', st: 'warn', tgt: '사이드바 AUTOMATION 그룹 → 예약 자동 스캔' },
+    { id: 19, nm: '도메인 HTTPS/SSL 지속 모니터링', cat: '모니터링', loc: '없음 / 설정 일부', path: '경로 불명확', st: 'warn', tgt: '대시보드 모니터링 카드 + 사이드바 AUTOMATION 그룹' },
+    { id: 20, nm: '조직·팀 관리 (초대/역할)', cat: '조직', loc: '설정 > 조직 탭', path: '사용자메뉴 → 설정 → 조직', st: 'warn', tgt: '설정 > 조직 탭 + 헤더 조직 선택기' },
+    { id: 21, nm: '사용자 프로필·세션 관리', cat: '사용자', loc: '설정 > 계정 탭', path: '사용자메뉴 → 설정 → 계정', st: 'warn', tgt: '설정 > 계정 탭 (헤더 빠른 접근 개선)' },
+    { id: 22, nm: 'GDPR 데이터 이동권·삭제권', cat: '규정', loc: '설정 > 계정 탭 하단', path: '사용자메뉴 → 설정 → 계정 → 스크롤 하단', st: 'warn', tgt: '설정 > 개인정보 탭 (독립 분리)' },
+    { id: 23, nm: '관리자 대시보드 (Admin Panel)', cat: '어드민', loc: '/admin (메뉴 미노출)', path: '직접 URL 입력만', st: 'warn', tgt: '헤더 어드민 메뉴 (ADMIN 역할만 표시)' },
+    { id: 24, nm: 'MCP Server (AI 도구 허브)', cat: '인프라', loc: '내부 동작 (UI 불필요)', path: '자동 동작', st: 'ok', tgt: '설정 > 인프라 탭 (읽기전용 상태)' },
+    { id: 25, nm: 'Monaco 기반 코드 에디터 UI', cat: '에디터', loc: '/editor 메인', path: '직접 접근', st: 'ok', tgt: '현행 유지' },
+    { id: 26, nm: 'Android 모바일 앱', cat: '모바일', loc: '별도 앱 (Play Store)', path: '별도 플랫폼', st: 'ok', tgt: '현행 유지 (별도 앱)' },
+    { id: 27, nm: '토큰 사용량 기반 크레딧', cat: '과금', loc: '헤더 일부 (상세 없음)', path: '헤더 잔액 → 상세 없음', st: 'warn', tgt: '헤더 크레딧 칩 클릭 → 크레딧 상세 모달' },
+    { id: 28, nm: 'AST 할루시네이션 가드 (VAL-3)', cat: '내부', loc: '분석 내부 자동 처리', path: '자동 동작 (결과에 간접 노출)', st: 'ok', tgt: '분석 완료 시 "AST 가드됨 N건" 인라인 배지' },
+    { id: 29, nm: '취약점 트리아지 — 단건', cat: '트리아지', loc: 'VulnDetailPanel', path: '에디터 → 취약점 클릭 → 상세 패널', st: 'ok', tgt: '현행 유지' },
+    { id: 30, nm: '취약점 트리아지 — 벌크', cat: '트리아지', loc: '없음 (체크박스 UI만 존재)', path: 'API 완료, FE UI 미연결', st: 'err', tgt: '★ VulnPanel 벌크 액션바 신규 설계 (STEP 3-a)' },
+    { id: 31, nm: '패치 자동 PR 생성 (TASK-1401)', cat: 'DevSecOps', loc: 'PatchManagerPage PR 버튼', path: '에디터 → 패치 탭 → PR 생성', st: 'ok', tgt: '현행 유지' },
+    { id: 32, nm: '패치 자가검증 (VERIFIED/FAILED)', cat: '패치', loc: 'PatchManagerPage 배지', path: '에디터 → 패치 탭', st: 'ok', tgt: '현행 유지' },
+    { id: 33, nm: 'SAST→DAST proven 하니스 (VAL-4)', cat: 'DAST', loc: '벤치마크 (내부 실행)', path: '자동 (proven 배지 표시)', st: 'ok', tgt: '취약점 카드 proven 배지 (현행 유지)' },
+    { id: 34, nm: '배치 DAST (다건 일괄 익스플로잇)', cat: 'DAST', loc: '없음', path: 'API 완료, FE UI 미구현', st: 'err', tgt: '★ DAST 워크스페이스 배치 모드 신규 설계 (STEP 3-b)' },
+    { id: 35, nm: '멀티 프로바이더 모델 선택 확장', cat: '핵심분석', loc: '설정 > AI 프로바이더', path: '설정', st: 'ok', tgt: '현행 유지 + 에디터 헤더 빠른 전환 추가' },
+  ];
+
+  mockVulnData = [
+    { id: 'v1', type: 'SQL_INJECTION', sev: 'critical', file: 'UserRepository.java', line: 42, cwe: 'CWE-89', proven: true,  attackScenario: "공격자가 userId 파라미터에 ' OR 1=1-- 을 주입해 전체 사용자 레코드 열람 가능", taintedParam: 'userId', httpMethod: 'GET', apiEndpoint: '/api/v1/users' },
+    { id: 'v2', type: 'SQL_INJECTION', sev: 'critical', file: 'OrderService.java', line: 118, cwe: 'CWE-89', proven: false, attackScenario: "주문 검색 API의 keyword 파라미터를 통한 UNION 기반 데이터 추출", taintedParam: 'keyword', httpMethod: 'POST', apiEndpoint: '/api/v1/orders/search' },
+    { id: 'v3', type: 'SQL_INJECTION', sev: 'critical', file: 'ProductController.java', line: 67, cwe: 'CWE-89', proven: false, attackScenario: "categoryId를 통한 Blind SQL Injection으로 DB 스키마 탐색 가능", taintedParam: 'categoryId', httpMethod: 'GET', apiEndpoint: '/api/v1/products' },
+    { id: 'v4', type: 'XSS', sev: 'high', file: 'CommentView.tsx', line: 23, cwe: 'CWE-79', proven: true,  attackScenario: "댓글 content 필드에 스크립트 태그 삽입 시 다른 사용자의 세션 쿠키 탈취", taintedParam: 'content', httpMethod: 'POST', apiEndpoint: '/api/v1/comments' },
+    { id: 'v5', type: 'XSS', sev: 'high', file: 'SearchPage.tsx', line: 89, cwe: 'CWE-79', proven: false, attackScenario: "검색어 q가 innerHTML로 반영되어 DOM 기반 XSS 실행 가능", taintedParam: 'q', httpMethod: 'GET', apiEndpoint: '/api/v1/search' },
+    { id: 'v6', type: 'PATH_TRAVERSAL', sev: 'medium', file: 'FileService.java', line: 156, cwe: 'CWE-22', proven: false, attackScenario: "../ 시퀀스로 서버 내부 설정 파일(/etc/passwd 등) 읽기 시도 가능", taintedParam: 'filename', httpMethod: 'GET', apiEndpoint: '/api/v1/files/download' },
+    { id: 'v7', type: 'SECRET_EXPOSURE', sev: 'critical', file: 'application.properties', line: 12, cwe: 'CWE-312', proven: true,  attackScenario: "GitHub 커밋 이력에 AWS_SECRET_ACCESS_KEY가 평문 노출, 자격증명 탈취 즉시 가능", taintedParam: 'AWS_SECRET_ACCESS_KEY', httpMethod: null, apiEndpoint: null },
+    { id: 'v8', type: 'CSRF', sev: 'medium', file: 'AuthController.java', line: 34, cwe: 'CWE-352', proven: false, attackScenario: "비밀번호 변경 엔드포인트에 CSRF 토큰 미검증으로 타 사이트 폼으로 계정 탈취 가능", taintedParam: 'newPassword', httpMethod: 'POST', apiEndpoint: '/api/v1/auth/change-password' },
+  ];
+
+  renderVals() {
+    const { tab, selIds, toast, batchIds, batchRunning, batchRes, batchDone, logLines } = this.state;
+
+    const SEVC = { critical: '#f04141', high: '#f59e0b', medium: '#eab308', low: '#22c55e' };
+    const SEVB = { critical: 'rgba(240,65,65,0.1)', high: 'rgba(245,158,11,0.1)', medium: 'rgba(234,179,8,0.1)', low: 'rgba(34,197,94,0.1)' };
+    const SEVBD = { critical: 'rgba(240,65,65,0.28)', high: 'rgba(245,158,11,0.28)', medium: 'rgba(234,179,8,0.28)', low: 'rgba(34,197,94,0.28)' };
+    const SEVL = { critical: 'CRITICAL', high: 'HIGH', medium: 'MEDIUM', low: 'LOW' };
+
+    const mkTab = (active) => ({
+      padding: '0 13px', height: '38px', background: 'transparent', border: 'none',
+      borderBottom: active ? '2px solid #f97316' : '2px solid transparent',
+      color: active ? '#e8e8ee' : '#9494a0', cursor: 'pointer', fontSize: '12px',
+      fontWeight: active ? 600 : 400, fontFamily: "'Space Grotesk', system-ui, sans-serif",
+      whiteSpace: 'nowrap', transition: 'all 0.15s ease-out', flexShrink: 0,
+    });
+
+    const auditRows = this.auditData.map((r) => {
+      const sc = r.st === 'ok' ? '#22c55e' : r.st === 'warn' ? '#f59e0b' : '#f04141';
+      const sb = r.st === 'ok' ? 'rgba(34,197,94,0.1)' : r.st === 'warn' ? 'rgba(245,158,11,0.1)' : 'rgba(240,65,65,0.1)';
+      const sborder = r.st === 'ok' ? 'rgba(34,197,94,0.28)' : r.st === 'warn' ? 'rgba(245,158,11,0.28)' : 'rgba(240,65,65,0.28)';
+      return {
+        ...r,
+        stL: r.st === 'ok' ? '✅ 있음' : r.st === 'warn' ? '⚠️ 있으나 묻힘' : '❌ UI 없음',
+        gridRowStyle: {
+          display: 'grid',
+          gridTemplateColumns: '34px 1.8fr 78px 1.3fr 1.5fr 148px 1.8fr',
+          borderBottom: '1px solid #1f1f24',
+          background: r.st === 'err' ? 'rgba(240,65,65,0.025)' : 'transparent',
+        },
+        badgeStyle: {
+          display: 'inline-flex', alignItems: 'center', padding: '2px 7px',
+          borderRadius: '4px', fontSize: '11px', fontWeight: 600,
+          fontFamily: "'JetBrains Mono', monospace",
+          background: sb, color: sc, border: `1px solid ${sborder}`, whiteSpace: 'nowrap',
+        },
+        catStyle: {
+          fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '3px',
+          background: 'rgba(249,115,22,0.1)', color: '#f97316',
+          fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap',
+          border: '0.5px solid rgba(249,115,22,0.2)',
+        },
+      };
+    });
+
+    const cntOk = this.auditData.filter(r => r.st === 'ok').length;
+    const cntWarn = this.auditData.filter(r => r.st === 'warn').length;
+    const cntErr = this.auditData.filter(r => r.st === 'err').length;
+
+    const selectedVulns = this.mockVulnData.filter(v => selIds.includes(v.id));
+    const typeMap = {};
+    selectedVulns.forEach(v => { typeMap[v.type] = (typeMap[v.type] || 0) + 1; });
+    const sorted = Object.entries(typeMap).sort((a, b) => b[1] - a[1]);
+    const topType = sorted[0];
+    const showBanner = !!(topType && topType[1] >= 2);
+    const totalOfTopType = topType ? this.mockVulnData.filter(v => v.type === topType[0]).length : 0;
+
+    const mockVulns = this.mockVulnData.map(v => ({
+      ...v,
+      sel: selIds.includes(v.id),
+      sevC: SEVC[v.sev] || '#9494a0',
+      sevB: SEVB[v.sev] || 'transparent',
+      sevBd: SEVBD[v.sev] || 'transparent',
+      sevLabel: SEVL[v.sev] || v.sev.toUpperCase(),
+      rowBg: selIds.includes(v.id) ? 'rgba(249,115,22,0.06)' : 'transparent',
+      rowBl: selIds.includes(v.id) ? `2px solid ${SEVC[v.sev]}` : '2px solid transparent',
+      chkStyle: selIds.includes(v.id)
+        ? { width: '14px', height: '14px', borderRadius: '3px', border: '1.5px solid #ea580c', background: '#ea580c', cursor: 'pointer', flexShrink: 0, position: 'absolute', top: '10px', left: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+        : { width: '14px', height: '14px', borderRadius: '3px', border: '1.5px solid rgba(255,255,255,0.18)', background: 'transparent', cursor: 'pointer', flexShrink: 0, position: 'absolute', top: '10px', left: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      toggle: () => {
+        const s = this.state.selIds;
+        this.setState({ selIds: s.includes(v.id) ? s.filter(x => x !== v.id) : [...s, v.id] });
+      },
+      // VAL-18 예정 필드
+      taintedParam: v.taintedParam || null,
+      attackScenario: v.attackScenario || null,
+      httpMethod: v.httpMethod || null,
+      apiEndpoint: v.apiEndpoint || null,
+      hasEndpoint: !!(v.httpMethod && v.apiEndpoint),
+      methodStyle: {
+        GET: { bg: 'rgba(86,156,214,0.1)', color: '#569cd6', border: 'rgba(86,156,214,0.25)' },
+        POST: { bg: 'rgba(34,197,94,0.1)', color: '#22c55e', border: 'rgba(34,197,94,0.25)' },
+        PUT: { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: 'rgba(245,158,11,0.25)' },
+        DELETE: { bg: 'rgba(240,65,65,0.1)', color: '#f04141', border: 'rgba(240,65,65,0.25)' },
+      }[v.httpMethod] || { bg: 'rgba(255,255,255,0.06)', color: '#9494a0', border: 'rgba(255,255,255,0.1)' },
+    }));
+
+    const batchVulns = this.mockVulnData.filter(v => v.sev === 'critical' || v.sev === 'high').map(v => {
+      const bst = batchRes[v.id] || 'idle';
+      const stC = { idle: '#555560', running: '#f97316', exploited: '#f04141', safe: '#22c55e' }[bst];
+      const stB = { idle: 'transparent', running: 'rgba(249,115,22,0.1)', exploited: 'rgba(240,65,65,0.1)', safe: 'rgba(34,197,94,0.1)' }[bst];
+      return {
+        ...v,
+        batchSel: batchIds.includes(v.id),
+        batchStatus: bst,
+        isRunning: bst === 'running',
+        statusLabel: { idle: '대기', running: '실행 중', exploited: 'EXPLOITED', safe: 'SAFE' }[bst],
+        statusC: stC,
+        statusB: stB,
+        sevC: SEVC[v.sev] || '#9494a0',
+        batchToggle: () => {
+          const b = this.state.batchIds;
+          if (this.state.batchRunning || this.state.batchDone) return;
+          this.setState({ batchIds: b.includes(v.id) ? b.filter(x => x !== v.id) : [...b, v.id] });
+        },
+      };
+    });
+
+    const logLinesComputed = logLines.map((text, i) => {
+      const lc = text.startsWith('[EXPLOIT]') ? '#f04141'
+        : text.startsWith('[SAFE]') ? '#22c55e'
+        : text.startsWith('[COMPLETE]') ? '#f97316'
+        : '#9494a0';
+      return { text, i, lc };
+    });
+
+    const doTriage = (action, label) => {
+      const count = this.state.selIds.length;
+      this.setState({ toast: { action, label, count }, selIds: [] });
+      setTimeout(() => this.setState({ toast: null }), 3500);
+    };
+
+    return {
+      ts1: mkTab(tab === 'step1'), ts2: mkTab(tab === 'step2'),
+      ts3a: mkTab(tab === 'step3a'), ts3b: mkTab(tab === 'step3b'),
+      ts3c: mkTab(tab === 'step3c'), tsTok: mkTab(tab === 'tokens'),
+      tabStep1: () => this.setState({ tab: 'step1' }),
+      tabStep2: () => this.setState({ tab: 'step2' }),
+      tabStep3a: () => this.setState({ tab: 'step3a' }),
+      tabStep3b: () => this.setState({ tab: 'step3b' }),
+      tabStep3c: () => this.setState({ tab: 'step3c' }),
+      tabTokens: () => this.setState({ tab: 'tokens' }),
+      isStep1: tab === 'step1', isStep2: tab === 'step2',
+      isStep3a: tab === 'step3a', isStep3b: tab === 'step3b',
+      isStep3c: tab === 'step3c', isTokens: tab === 'tokens',
+
+      auditRows, cntOk, cntWarn, cntErr,
+
+      mockVulns, selCount: selIds.length,
+      showBulkBar: selIds.length > 0, toast, showBanner,
+      topType: topType ? topType[0] : '',
+      topTypeCount: topType ? topType[1] : 0,
+      totalOfTopType,
+      selectAllOfType: () => {
+        if (!topType) return;
+        this.setState({ selIds: this.mockVulnData.filter(v => v.type === topType[0]).map(v => v.id) });
+      },
+      clearSel: () => this.setState({ selIds: [], toast: null }),
+      bulkConfirm: () => doTriage('CONFIRM', '확인(CONFIRM)'),
+      bulkDismiss: () => doTriage('DISMISS', '기각(DISMISS)'),
+      bulkPatch: () => doTriage('ACCEPT_PATCH', '패치채택'),
+
+      batchVulns, batchSelCount: batchIds.length,
+      batchRunning, batchDone,
+      batchSucceeded: Object.values(batchRes).filter(s => s === 'exploited').length,
+      batchSafe: Object.values(batchRes).filter(s => s === 'safe').length,
+      showBatchStart: batchIds.length > 0 && !batchRunning && !batchDone,
+      logLines: logLinesComputed,
+      startBatch: () => {
+        const ids = this.state.batchIds;
+        if (!ids.length || this.state.batchRunning) return;
+        const init = [
+          '[INFO] 배치 DAST 시작: ' + ids.length + '건',
+          '[INFO] vuln_type별 공격 지침 로드...',
+          '[INFO] Semaphore(4) 동시성 제어 활성화',
+        ];
+        this.setState({ batchRunning: true, batchRes: {}, batchDone: false, logLines: init });
+        const delay = ms => new Promise(r => setTimeout(r, ms));
+        const go = async () => {
+          const results = {};
+          for (const id of ids) {
+            results[id] = 'running';
+            this.setState({ batchRes: { ...results } });
+            await delay(900 + Math.random() * 700);
+            const ok = Math.random() > 0.42;
+            results[id] = ok ? 'exploited' : 'safe';
+            const v = this.mockVulnData.find(x => x.id === id);
+            const line = ok
+              ? `[EXPLOIT] ${v.file}:${v.line} — ${v.type} ✓ payload accepted`
+              : `[SAFE] ${v.file}:${v.line} — ${v.type} × blocked`;
+            this.setState(s => ({ batchRes: { ...results }, logLines: [...s.logLines, line] }));
+          }
+          const succ = Object.values(results).filter(v => v === 'exploited').length;
+          this.setState(s => ({
+            batchRunning: false, batchDone: true, batchRes: results,
+            logLines: [...s.logLines, `[COMPLETE] ${succ}건 EXPLOITED / ${ids.length - succ}건 SAFE — dast_batch_complete`],
+          }));
+        };
+        go();
+      },
+      resetBatch: () => this.setState({ batchIds: [], batchRes: {}, batchRunning: false, batchDone: false, logLines: [] }),
+    };
+  }
+}
+</script>
+</body>
+</html>

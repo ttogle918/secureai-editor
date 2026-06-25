@@ -33,7 +33,7 @@ export function CookieConsentBanner() {
       boxShadow: '0 8px 32px rgba(0,0,0,0.4)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12,
     }}>
       <p style={{ flex: 1, minWidth: 240, fontSize: 13, color: 'var(--text-secondary, #b4b4be)', lineHeight: 1.5, margin: 0 }}>
-        SecureAI는 서비스 제공에 필요한 필수 쿠키와, 동의 시 분석용 쿠키를 사용합니다.{' '}
+        Kkebi는 서비스 제공에 필요한 필수 쿠키와, 동의 시 분석용 쿠키를 사용합니다.{' '}
         <Link href="/legal/cookie" style={{ color: 'var(--orange, #f97316)', textDecoration: 'underline' }}>쿠키 정책</Link>
       </p>
       <div style={{ display: 'flex', gap: 8 }}>

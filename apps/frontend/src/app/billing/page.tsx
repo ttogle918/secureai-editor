@@ -12,11 +12,11 @@ import { useToastStore } from '@/hooks/useToast';
 const ACCENT = '#f97316';
 
 // ── 크레딧 패키지 (예시 단가 — PG 연동 시 확정) ──
-interface CreditPack { id: string; name: string; credits: number; priceKrw: number; popular?: boolean; }
+interface CreditPack { id: string; name: string; credits: number; priceUsd: number; popular?: boolean; }
 const CREDIT_PACKS: CreditPack[] = [
-  { id: 'starter', name: '스타터', credits: 5_000,   priceKrw: 9_900 },
-  { id: 'pro',     name: '프로',   credits: 30_000,  priceKrw: 49_000, popular: true },
-  { id: 'team',    name: '팀',     credits: 120_000, priceKrw: 149_000 },
+  { id: 'starter', name: '스타터', credits: 5_000,   priceUsd: 9 },
+  { id: 'pro',     name: '프로',   credits: 30_000,  priceUsd: 49, popular: true },
+  { id: 'team',    name: '팀',     credits: 120_000, priceUsd: 149 },
 ];
 
 // ── 요금제 티어 ──
@@ -217,7 +217,7 @@ export default function BillingPage() {
                 <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', color: ACCENT }}>
                   {pack.credits.toLocaleString()}<span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}> cr</span>
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>₩{pack.priceKrw.toLocaleString()}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>${pack.priceUsd}</div>
                 {isSel && <Check size={16} color={ACCENT} style={{ position: 'absolute', bottom: 14, right: 14 }} aria-hidden="true" />}
               </div>
             );

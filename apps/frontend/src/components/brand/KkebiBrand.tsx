@@ -1,19 +1,19 @@
-// components/brand/PagoriBrand.tsx
-// Pagori 마크 + 워드마크 lockup — 에디터/대시보드/온보딩 헤더에 모두 사용
+// components/brand/KkebiBrand.tsx
+// Kkebi 마크 + 워드마크 lockup — 에디터/대시보드/온보딩 헤더에 모두 사용
 'use client';
 import Image from 'next/image';
 import type { WorkspaceMode } from '@/store/useAuthStore';
 
-interface PagoriMarkProps {
+interface KkebiMarkProps {
   size?: number;
   className?: string;
 }
 
-export function PagoriMark({ size = 24, className }: PagoriMarkProps) {
+export function KkebiMark({ size = 24, className }: KkebiMarkProps) {
   return (
     <Image
-      src="/pagori-mark.png"
-      alt="Pagori"
+      src="/kkebi-mark.jpeg"
+      alt="Kkebi"
       width={size}
       height={size}
       priority
@@ -23,7 +23,7 @@ export function PagoriMark({ size = 24, className }: PagoriMarkProps) {
   );
 }
 
-interface PagoriLockupProps {
+interface KkebiLockupProps {
   size?: number;
   subtitle?: string;
   color?: string;
@@ -76,10 +76,10 @@ export function ModeIndicator({ mode, compact = false }: ModeIndicatorProps) {
  * Mark + wordmark lockup. Pass `subtitle` to add the "security audit agent" tagline
  * (used on the onboarding header).
  */
-export function PagoriLockup({ size = 22, subtitle, color = 'var(--text-primary)' }: PagoriLockupProps) {
+export function KkebiLockup({ size = 22, subtitle, color = 'var(--text-primary)' }: KkebiLockupProps) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <PagoriMark size={size} />
+      <KkebiMark size={size} />
       <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
         <span
           style={{
@@ -90,7 +90,7 @@ export function PagoriLockup({ size = 22, subtitle, color = 'var(--text-primary)
             fontFamily: 'var(--font-sans)',
           }}
         >
-          pagori
+          kkebi
         </span>
         {subtitle && (
           <span

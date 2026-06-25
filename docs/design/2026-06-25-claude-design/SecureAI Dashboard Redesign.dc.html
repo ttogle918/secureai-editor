@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="./_ds/secureai-design-system-fcc773f7-bd6b-4f60-b465-2c6c6e7a4242/colors_and_type.css">
+  <script src="./_ds/secureai-design-system-fcc773f7-bd6b-4f60-b465-2c6c6e7a4242/_ds_bundle.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg-0); font-family: var(--font-sans); color: var(--text-primary); height: 100%; overflow: hidden; }
+    @keyframes glowPulse { 0%,100%{opacity:1}50%{opacity:0.55} }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)} }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-1); }
+    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #404050; }
+    * { scrollbar-width: thin; scrollbar-color: var(--border-2) var(--bg-1); }
+    *:focus-visible { outline: 2px solid #ea580c; outline-offset: 2px; border-radius: 4px; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+  </style>
+</helmet>
+
+<!-- ══════════════════ FIXED HEADER 48px ══════════════════ -->
+<div style="position:fixed;top:0;left:0;right:0;z-index:100;height:48px;background:var(--bg-1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px">
+  <!-- Logo -->
+  <div style="display:flex;align-items:center;gap:8px;padding-right:16px;border-right:1px solid var(--border);flex-shrink:0">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <path d="M10 2L3 5.5v4.5c0 3.87 2.98 7.25 7 8 4.02-.75 7-4.13 7-8V5.5L10 2z" fill="rgba(249,115,22,0.15)" stroke="#f97316" stroke-width="1.5"/>
+      <path d="M7 10l2 2 4-4" stroke="#f97316" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span style="font-size:14px;font-weight:700;letter-spacing:-0.01em">SecureAI</span>
+  </div>
+  <!-- Org selector -->
+  <div style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;background:var(--bg-2);border:1px solid var(--border);cursor:pointer">
+    <div style="width:18px;height:18px;border-radius:4px;background:rgba(249,115,22,0.2);display:flex;align-items:center;justify-content:center">
+      <span style="font-size:9px;font-weight:700;color:#f97316;font-family:var(--font-mono)">PA</span>
+    </div>
+    <span style="font-size:12px;font-weight:500;color:var(--text-primary)">Pagori Inc.</span>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div style="flex:1"></div>
+  <!-- Credit chip -->
+  <div style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;background:var(--bg-2);border:1px solid var(--border);cursor:pointer" style-hover="border-color:var(--border-2)">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+    <span style="font-size:12px;font-weight:600;color:#f97316;font-family:var(--font-mono)">8,420</span>
+    <span style="font-size:11px;color:var(--text-tertiary)">크레딧</span>
+  </div>
+  <!-- Admin badge (role-gated) -->
+  <div style="padding:3px 9px;border-radius:4px;background:rgba(240,65,65,0.1);border:0.5px solid rgba(240,65,65,0.3);cursor:pointer">
+    <span style="font-size:10px;font-weight:700;color:#f04141;font-family:var(--font-mono);letter-spacing:0.06em">ADMIN</span>
+  </div>
+  <!-- User -->
+  <div style="width:28px;height:28px;border-radius:50%;background:rgba(249,115,22,0.2);border:1.5px solid rgba(249,115,22,0.4);display:flex;align-items:center;justify-content:center;cursor:pointer">
+    <span style="font-size:10px;font-weight:700;color:#f97316;font-family:var(--font-mono)">김</span>
+  </div>
+</div>
+
+<!-- ══════════════════ BODY LAYOUT ══════════════════════════ -->
+<div style="display:flex;height:100vh;padding-top:48px">
+
+  <!-- ─── LEFT SIDEBAR 240px ─── -->
+  <div style="width:240px;flex-shrink:0;background:var(--bg-1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;height:100%">
+    <!-- Project header -->
+    <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><path d="M3 3h18v18H3z M9 3v18 M15 3v18 M3 9h18 M3 15h18"/></svg>
+        <span style="font-size:12px;font-weight:600;color:var(--text-primary)">secureai-editor</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <span style="width:5px;height:5px;border-radius:50%;background:#22c55e;display:inline-block;animation:glowPulse 2s ease-in-out infinite"></span>
+        <span style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)">SAST 마지막: 2시간 전</span>
+      </div>
+    </div>
+
+    <!-- Nav groups -->
+    <div style="flex:1;padding:8px 0">
+
+      <!-- CORE -->
+      <div style="padding:6px 14px 3px;font-size:9px;font-weight:700;color:var(--text-disabled);font-family:var(--font-mono);letter-spacing:0.12em">CORE</div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">코드 에디터</span>
+      </div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;background:rgba(249,115,22,0.08);border-left:2px solid #f97316;cursor:pointer">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+        <span style="font-size:12px;font-weight:600;color:#f97316;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">대시보드</span>
+      </div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">DAST 워크스페이스</span>
+      </div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">패치 매니저</span>
+      </div>
+
+      <!-- SECURITY (NEW) -->
+      <div style="padding:10px 14px 3px;display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;font-weight:700;color:#569cd6;font-family:var(--font-mono);letter-spacing:0.12em">SECURITY</span>
+        <span style="font-size:8px;padding:1px 4px;border-radius:2px;background:rgba(245,158,11,0.12);color:#f59e0b;font-family:var(--font-mono);font-weight:700">NEW</span>
+      </div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#569cd6" stroke-width="2" stroke-linecap="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">시크릿 스캔</span>
+      </div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#569cd6" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">SBOM &amp; CVE</span>
+      </div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#569cd6" stroke-width="2" stroke-linecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">컴플라이언스</span>
+      </div>
+
+      <!-- AUTOMATION (NEW) -->
+      <div style="padding:10px 14px 3px;display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;font-weight:700;color:#a78bfa;font-family:var(--font-mono);letter-spacing:0.12em">AUTOMATION</span>
+        <span style="font-size:8px;padding:1px 4px;border-radius:2px;background:rgba(245,158,11,0.12);color:#f59e0b;font-family:var(--font-mono);font-weight:700">NEW</span>
+      </div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">PR 자동 리뷰</span>
+      </div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">예약 자동 스캔</span>
+      </div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">도메인 모니터링</span>
+      </div>
+
+      <!-- REPORTS (NEW) -->
+      <div style="padding:10px 14px 3px;display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;font-weight:700;color:#34d399;font-family:var(--font-mono);letter-spacing:0.12em">REPORTS</span>
+        <span style="font-size:8px;padding:1px 4px;border-radius:2px;background:rgba(245,158,11,0.12);color:#f59e0b;font-family:var(--font-mono);font-weight:700">NEW</span>
+      </div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">보고서 생성</span>
+      </div>
+      <div style="padding:7px 14px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">규제 문서</span>
+        <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(86,156,214,0.1);color:#569cd6;font-family:var(--font-mono);margin-left:auto">CISO</span>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div style="padding:8px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 0.1s" style-hover="background:var(--bg-3)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span style="font-size:12px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">설정</span>
+      <span style="font-size:9px;color:var(--text-disabled);margin-left:auto;font-family:var(--font-mono)">계정·AI·조직</span>
+    </div>
+  </div>
+
+  <!-- ─── MAIN CONTENT ─── -->
+  <div style="flex:1;overflow-y:auto;padding:24px 28px;background:var(--bg-0)">
+
+    <!-- Page header -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px">
+      <div>
+        <h1 style="font-size:22px;font-weight:700;letter-spacing:-0.02em;margin-bottom:4px">보안 대시보드</h1>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">secureai-editor</span>
+          <span style="font-size:12px;color:var(--text-disabled)">·</span>
+          <span style="font-size:12px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">마지막 분석: 2시간 전 (Sprint 14)</span>
+          <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;animation:glowPulse 2s ease-in-out infinite"></span>
+        </div>
+      </div>
+      <button style="display:flex;align-items:center;gap:7px;padding:8px 16px;border-radius:7px;background:#ea580c;border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font-sans);box-shadow:0 3px 12px rgba(234,88,12,0.3)" style-hover="background:#f97316">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        전체 프로젝트 분석
+      </button>
+    </div>
+
+    <!-- ── ROW 1: KPI Cards ── -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+      <!-- Security Score -->
+      <div style="padding:16px;border-radius:10px;background:var(--bg-2);border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.06em">보안 점수</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px">
+          <span style="font-size:36px;font-weight:700;color:#f59e0b;font-family:var(--font-mono);line-height:1">62</span>
+          <span style="font-size:14px;color:var(--text-tertiary)">/100</span>
+        </div>
+        <!-- Score bar -->
+        <div style="height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden">
+          <div style="height:100%;width:62%;background:linear-gradient(90deg,#f59e0b,#f97316);border-radius:2px"></div>
+        </div>
+        <div style="margin-top:6px;font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)">▲ 4pt 지난 분석 대비</div>
+      </div>
+      <!-- Vuln summary -->
+      <div style="padding:16px;border-radius:10px;background:var(--bg-2);border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.06em">취약점</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div style="font-size:32px;font-weight:700;font-family:var(--font-mono);line-height:1;margin-bottom:8px">28</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(240,65,65,0.1);color:#f04141;font-family:var(--font-mono);font-weight:700">C·5</span>
+          <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(245,158,11,0.1);color:#f59e0b;font-family:var(--font-mono);font-weight:700">H·12</span>
+          <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(234,179,8,0.1);color:#eab308;font-family:var(--font-mono);font-weight:700">M·8</span>
+          <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(34,197,94,0.1);color:#22c55e;font-family:var(--font-mono);font-weight:700">L·3</span>
+        </div>
+      </div>
+      <!-- Patch rate -->
+      <div style="padding:16px;border-radius:10px;background:var(--bg-2);border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.06em">패치율</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:8px">
+          <span style="font-size:36px;font-weight:700;color:#22c55e;font-family:var(--font-mono);line-height:1">73</span>
+          <span style="font-size:16px;color:var(--text-tertiary)">%</span>
+        </div>
+        <div style="height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden">
+          <div style="height:100%;width:73%;background:#22c55e;border-radius:2px"></div>
+        </div>
+        <div style="margin-top:6px;font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)">20/28건 패치 적용됨</div>
+      </div>
+      <!-- DAST proven -->
+      <div style="padding:16px;border-radius:10px;background:var(--bg-2);border:1px solid rgba(240,65,65,0.2)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.06em">DAST Proven</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f04141" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:8px">
+          <span style="font-size:36px;font-weight:700;color:#f04141;font-family:var(--font-mono);line-height:1;text-shadow:0 0 20px rgba(240,65,65,0.4)">3</span>
+          <span style="font-size:14px;color:var(--text-tertiary)">/ 9건 실행</span>
+        </div>
+        <div style="font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(240,65,65,0.1);color:#f04141;font-family:var(--font-mono);font-weight:700;display:inline-block">EXPLOITED 확인됨</div>
+      </div>
+    </div>
+
+    <!-- ── ROW 2: ⚠️ 신규 노출 기능 카드 ── -->
+    <div style="margin-bottom:6px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:11px;font-weight:700;color:#f59e0b;font-family:var(--font-mono);letter-spacing:0.06em">⚠️ 신규 노출 기능</span>
+      <div style="flex:1;height:1px;background:rgba(245,158,11,0.15)"></div>
+      <span style="font-size:10px;color:var(--text-disabled)">기존에 내비에서 도달 불가했던 기능들</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+
+      <!-- Compliance Card -->
+      <div style="padding:16px;border-radius:10px;background:var(--bg-2);border:1px solid rgba(86,156,214,0.2);animation:fadeUp 0.3s ease-out">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:28px;height:28px;border-radius:7px;background:rgba(86,156,214,0.12);display:flex;align-items:center;justify-content:center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#569cd6" stroke-width="2" stroke-linecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <span style="font-size:13px;font-weight:600;color:var(--text-primary)">컴플라이언스 매핑</span>
+          </div>
+          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,0.1);color:#f59e0b;font-family:var(--font-mono);font-weight:700">⚠️ 신규</span>
+        </div>
+        <!-- ISO27001 -->
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:11px;color:var(--text-secondary);font-family:var(--font-mono)">ISO 27001</span>
+            <span style="font-size:12px;font-weight:700;color:#569cd6;font-family:var(--font-mono)">78%</span>
+          </div>
+          <div style="height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden">
+            <div style="height:100%;width:78%;background:#569cd6;border-radius:2px"></div>
+          </div>
+        </div>
+        <!-- NIST CSF -->
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:11px;color:var(--text-secondary);font-family:var(--font-mono)">NIST CSF</span>
+            <span style="font-size:12px;font-weight:700;color:#a78bfa;font-family:var(--font-mono)">65%</span>
+          </div>
+          <div style="height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden">
+            <div style="height:100%;width:65%;background:#a78bfa;border-radius:2px"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <span style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(240,65,65,0.1);color:#f04141;font-family:var(--font-mono)">미충족 7개 항목</span>
+          <button style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(86,156,214,0.1);color:#569cd6;border:0.5px solid rgba(86,156,214,0.25);cursor:pointer;font-family:var(--font-mono)">전체 보기 →</button>
+        </div>
+      </div>
+
+      <!-- Domain Monitoring Card -->
+      <div style="padding:16px;border-radius:10px;background:var(--bg-2);border:1px solid rgba(167,139,250,0.2);animation:fadeUp 0.35s ease-out">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:28px;height:28px;border-radius:7px;background:rgba(167,139,250,0.12);display:flex;align-items:center;justify-content:center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            </div>
+            <span style="font-size:13px;font-weight:600;color:var(--text-primary)">도메인 모니터링</span>
+          </div>
+          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,0.1);color:#f59e0b;font-family:var(--font-mono);font-weight:700">⚠️ 신규</span>
+        </div>
+        <!-- Domain list -->
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:var(--bg-3)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>
+            <span style="font-size:11px;font-family:var(--font-mono);color:var(--text-primary);flex:1">api.pagori.io</span>
+            <span style="font-size:10px;color:#22c55e;font-family:var(--font-mono)">SSL D+142</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:rgba(245,158,11,0.06);border:0.5px solid rgba(245,158,11,0.2)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0;animation:glowPulse 1.5s ease-in-out infinite"></span>
+            <span style="font-size:11px;font-family:var(--font-mono);color:var(--text-primary);flex:1">staging.pagori.io</span>
+            <span style="font-size:10px;color:#f59e0b;font-family:var(--font-mono);font-weight:700">SSL D+18 경고</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:var(--bg-3)">
+            <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>
+            <span style="font-size:11px;font-family:var(--font-mono);color:var(--text-primary);flex:1">localhost</span>
+            <span style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)">검증 생략</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;font-family:var(--font-mono);font-weight:700">SSL 갱신 필요 1건</span>
+          <button style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(167,139,250,0.1);color:#a78bfa;border:0.5px solid rgba(167,139,250,0.25);cursor:pointer;font-family:var(--font-mono)">설정 →</button>
+        </div>
+      </div>
+
+      <!-- Credit Card -->
+      <div style="padding:16px;border-radius:10px;background:var(--bg-2);border:1px solid rgba(249,115,22,0.2);animation:fadeUp 0.4s ease-out">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:28px;height:28px;border-radius:7px;background:rgba(249,115,22,0.12);display:flex;align-items:center;justify-content:center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+            </div>
+            <span style="font-size:13px;font-weight:600;color:var(--text-primary)">크레딧 현황</span>
+          </div>
+          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,0.1);color:#f59e0b;font-family:var(--font-mono);font-weight:700">⚠️ 신규</span>
+        </div>
+        <!-- Credit bar -->
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+            <span style="font-size:24px;font-weight:700;color:#f97316;font-family:var(--font-mono)">8,420</span>
+            <span style="font-size:12px;color:var(--text-tertiary);align-self:flex-end;font-family:var(--font-mono)">/ 10,000</span>
+          </div>
+          <div style="height:5px;border-radius:3px;background:var(--bg-3);overflow:hidden">
+            <div style="height:100%;width:84.2%;background:linear-gradient(90deg,#ea580c,#f97316);border-radius:3px"></div>
+          </div>
+        </div>
+        <!-- Usage breakdown -->
+        <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px">
+            <span style="color:var(--text-tertiary)">SAST 분석 (claude-sonnet-4)</span>
+            <span style="color:var(--text-secondary);font-family:var(--font-mono)">−1,240</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px">
+            <span style="color:var(--text-tertiary)">DAST + 패치 생성</span>
+            <span style="color:var(--text-secondary);font-family:var(--font-mono)">−340</span>
+          </div>
+        </div>
+        <button style="width:100%;padding:5px;border-radius:6px;background:rgba(249,115,22,0.1);border:0.5px solid rgba(249,115,22,0.25);color:#f97316;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-sans)">크레딧 충전 →</button>
+      </div>
+    </div>
+
+    <!-- ── ROW 3: Quick-access Automation ── -->
+    <div style="margin-bottom:6px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:11px;font-weight:700;color:#a78bfa;font-family:var(--font-mono);letter-spacing:0.06em">자동화 빠른 액션</span>
+      <div style="flex:1;height:1px;background:rgba(167,139,250,0.15)"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+      <!-- Secret scan -->
+      <div style="padding:14px;border-radius:9px;background:var(--bg-2);border:1px solid var(--border);cursor:pointer;transition:border-color 0.15s" style-hover="border-color:var(--border-2)">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(86,156,214,0.1);display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#569cd6" stroke-width="2" stroke-linecap="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:3px">시크릿 스캔</div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:10px">GitHub 커밋 diff에서 AWS Key·JWT 등 탐지</div>
+        <div style="font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(240,65,65,0.1);color:#f04141;font-family:var(--font-mono);display:inline-block">최근 발견 2건</div>
+      </div>
+      <!-- SBOM -->
+      <div style="padding:14px;border-radius:9px;background:var(--bg-2);border:1px solid var(--border);cursor:pointer;transition:border-color 0.15s" style-hover="border-color:var(--border-2)">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(86,156,214,0.1);display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#569cd6" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:3px">SBOM &amp; CVE</div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:10px">pom.xml·package.json → CVE 매칭 + CycloneDX</div>
+        <div style="font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(245,158,11,0.1);color:#f59e0b;font-family:var(--font-mono);display:inline-block">CVE 미확인 12건</div>
+      </div>
+      <!-- PR Auto-review -->
+      <div style="padding:14px;border-radius:9px;background:var(--bg-2);border:1px solid var(--border);cursor:pointer;transition:border-color 0.15s" style-hover="border-color:var(--border-2)">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(167,139,250,0.1);display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:3px">PR 자동 리뷰</div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:10px">PR 오픈 시 SAST 자동 실행 + 코멘트 게시</div>
+        <div style="display:flex;gap:5px;align-items:center">
+          <span style="width:5px;height:5px;border-radius:50%;background:#22c55e;display:inline-block"></span>
+          <span style="font-size:10px;color:#22c55e;font-family:var(--font-mono)">GitHub App 연결됨</span>
+        </div>
+      </div>
+      <!-- Scheduled scan -->
+      <div style="padding:14px;border-radius:9px;background:var(--bg-2);border:1px solid var(--border);cursor:pointer;transition:border-color 0.15s" style-hover="border-color:var(--border-2)">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(167,139,250,0.1);display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:3px">예약 자동 스캔</div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:10px">야간 자동 GitHub 레포지토리 분석 크론</div>
+        <div style="font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(167,139,250,0.1);color:#a78bfa;font-family:var(--font-mono);display:inline-block">매일 02:00 KST</div>
+      </div>
+    </div>
+
+    <!-- ── ROW 4: Charts placeholder ── -->
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:12px">
+      <!-- Security trend chart placeholder -->
+      <div style="padding:16px;border-radius:10px;background:var(--bg-2);border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <span style="font-size:13px;font-weight:600;color:var(--text-primary)">보안 점수 트렌드</span>
+          <div style="display:flex;gap:4px">
+            <button style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(249,115,22,0.12);color:#f97316;border:0.5px solid rgba(249,115,22,0.25);cursor:pointer;font-family:var(--font-mono)">7일</button>
+            <button style="font-size:10px;padding:2px 8px;border-radius:4px;background:transparent;color:var(--text-tertiary);border:0.5px solid var(--border);cursor:pointer;font-family:var(--font-mono)">30일</button>
+          </div>
+        </div>
+        <!-- Simulated sparkline -->
+        <svg viewBox="0 0 400 80" preserveAspectRatio="none" style="width:100%;height:80px;display:block">
+          <defs>
+            <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#f97316" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#f97316" stop-opacity="0.0"/>
+            </linearGradient>
+          </defs>
+          <path d="M0,65 C40,60 80,58 120,52 C160,46 200,50 240,44 C280,38 320,30 360,20 L400,18 L400,80 L0,80 Z" fill="url(#trendGrad)"/>
+          <path d="M0,65 C40,60 80,58 120,52 C160,46 200,50 240,44 C280,38 320,30 360,20 L400,18" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="400" cy="18" r="4" fill="#f97316"/>
+        </svg>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <span style="font-size:9px;color:var(--text-disabled);font-family:var(--font-mono)">06-18</span>
+          <span style="font-size:9px;color:var(--text-disabled);font-family:var(--font-mono)">06-21</span>
+          <span style="font-size:9px;color:var(--text-disabled);font-family:var(--font-mono)">06-24</span>
+        </div>
+      </div>
+      <!-- OWASP coverage -->
+      <div style="padding:16px;border-radius:10px;background:var(--bg-2);border:1px solid var(--border)">
+        <div style="margin-bottom:14px">
+          <span style="font-size:13px;font-weight:600;color:var(--text-primary)">OWASP Top 10 커버리지</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:9px;font-family:var(--font-mono);color:var(--text-tertiary);width:52px;flex-shrink:0">A01:2021</span>
+            <div style="flex:1;height:5px;border-radius:3px;background:var(--bg-3);overflow:hidden"><div style="height:100%;width:90%;background:#f04141;border-radius:3px"></div></div>
+            <span style="font-size:9px;font-family:var(--font-mono);color:#f04141;width:28px;text-align:right">90%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:9px;font-family:var(--font-mono);color:var(--text-tertiary);width:52px;flex-shrink:0">A02:2021</span>
+            <div style="flex:1;height:5px;border-radius:3px;background:var(--bg-3);overflow:hidden"><div style="height:100%;width:75%;background:#f59e0b;border-radius:3px"></div></div>
+            <span style="font-size:9px;font-family:var(--font-mono);color:#f59e0b;width:28px;text-align:right">75%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:9px;font-family:var(--font-mono);color:var(--text-tertiary);width:52px;flex-shrink:0">A03:2021</span>
+            <div style="flex:1;height:5px;border-radius:3px;background:var(--bg-3);overflow:hidden"><div style="height:100%;width:100%;background:#f04141;border-radius:3px"></div></div>
+            <span style="font-size:9px;font-family:var(--font-mono);color:#f04141;width:28px;text-align:right">100%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:9px;font-family:var(--font-mono);color:var(--text-tertiary);width:52px;flex-shrink:0">A04:2021</span>
+            <div style="flex:1;height:5px;border-radius:3px;background:var(--bg-3);overflow:hidden"><div style="height:100%;width:45%;background:#eab308;border-radius:3px"></div></div>
+            <span style="font-size:9px;font-family:var(--font-mono);color:#eab308;width:28px;text-align:right">45%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:9px;font-family:var(--font-mono);color:var(--text-tertiary);width:52px;flex-shrink:0">A06:2021</span>
+            <div style="flex:1;height:5px;border-radius:3px;background:var(--bg-3);overflow:hidden"><div style="height:100%;width:60%;background:#f59e0b;border-radius:3px"></div></div>
+            <span style="font-size:9px;font-family:var(--font-mono);color:#f59e0b;width:28px;text-align:right">60%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:9px;font-family:var(--font-mono);color:var(--text-tertiary);width:52px;flex-shrink:0">A07:2021</span>
+            <div style="flex:1;height:5px;border-radius:3px;background:var(--bg-3);overflow:hidden"><div style="height:100%;width:80%;background:#22c55e;border-radius:3px"></div></div>
+            <span style="font-size:9px;font-family:var(--font-mono);color:#22c55e;width:28px;text-align:right">80%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: 1440, &quot;height&quot;: 900 }
+}">
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

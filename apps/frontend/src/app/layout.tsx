@@ -23,10 +23,10 @@ const spaceGrotesk = Space_Grotesk({
 
 // ── SEO Metadata ─────────────────────────────────────────
 export const metadata: Metadata = {
-  title: 'SecureAI — AI 보안 감사 에이전트',
+  title: 'Kkebi — AI 보안 감사 에이전트',
   description:
     'AI 기반 차세대 보안 감사 플랫폼 · SAST/DAST 3-Layer 자동 분석 · MCP + Claude AI',
-  keywords: ['보안', 'SAST', 'DAST', 'AI', 'SecureAI', '취약점', 'DevSecOps'],
+  keywords: ['보안', 'SAST', 'DAST', 'AI', 'Kkebi', '취약점', 'DevSecOps'],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

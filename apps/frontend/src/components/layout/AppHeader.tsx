@@ -1,7 +1,7 @@
 // components/layout/AppHeader.tsx
-// Pagori 앱 상단 헤더 — V4 Hybrid 디자인 적용판
+// Kkebi 앱 상단 헤더 — V4 Hybrid 디자인 적용판
 // 변경점:
-//   • SecureAI 텍스트 로고 → Pagori lockup (assets/pagori-mark.png)
+//   • Kkebi 텍스트 로고 → Kkebi lockup (assets/kkebi-mark.png)
 //   • Editor/Dashboard 버튼 토글 → segmented control
 //   • CMD+K 검색 버튼 자리 추가
 //   • 알림 벨 (count 배지 포함, 추후 NotificationCenter 연결)
@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PagoriMark, ModeIndicator } from '@/components/brand/PagoriBrand';
+import { KkebiLockup, ModeIndicator } from '@/components/brand/KkebiBrand';
 import { CommitSecretScanModal } from '@/components/analysis/CommitSecretScanModal';
 import { AnalysisHistoryModal } from '@/components/analysis/AnalysisHistoryModal';
 import { PlanConfirmModal } from '@/components/analysis/PlanConfirmModal';
@@ -330,7 +330,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         overflow: 'hidden',
       }}
     >
-      {/* ── Left: sidebar toggle + Pagori brand + breadcrumb ── */}
+      {/* ── Left: sidebar toggle + Kkebi brand + breadcrumb ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1, whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
         <button
           onClick={() => setSidebarOpen((v) => !v)}
@@ -348,7 +348,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
         </button>
 
-        <PagoriMark size={22} />
+        <KkebiLockup size={22} />
 
         <ModeIndicator mode={workspaceMode} compact />
 

@@ -17,7 +17,7 @@ import {
   Play, Code, Plus, X, Sparkles, AlertTriangle, Filter,
   Code2, Shield, Terminal, PieChart, FileText, Download, Check,
 } from 'lucide-react';
-import { PagoriLockup } from '@/components/brand/PagoriBrand';
+import { KkebiLockup } from '@/components/brand/KkebiBrand';
 import { apiClient } from '@/lib/api/client';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSecureStore, type WorkspaceMode } from '@/store/useSecureStore';
@@ -1052,7 +1052,7 @@ export default function OnboardingPage() {
         background: 'var(--bg-1)',
         display: 'flex', alignItems: 'center', padding: '0 24px',
       }}>
-        <PagoriLockup size={26} subtitle="security audit agent" />
+        <KkebiLockup size={26} subtitle="security audit agent" />
         <div style={{ flex: 1 }} />
         <button
           onClick={() => router.push('/editor')}

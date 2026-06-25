@@ -14,7 +14,7 @@ export function LegalFooter() {
       <span aria-hidden>·</span>
       <Link href="/legal/cookie" style={linkStyle}>쿠키 정책</Link>
       <span aria-hidden>·</span>
-      <span>© {new Date().getFullYear()} SecureAI</span>
+      <span>© {new Date().getFullYear()} Kkebi</span>
     </footer>
   );
 }

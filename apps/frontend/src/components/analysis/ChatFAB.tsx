@@ -155,7 +155,7 @@ function ChatPopup({
           <Sparkles size={11} color="var(--orange)" />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-active)' }}>Pagori 보안 에이전트</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-active)' }}>Kkebi 보안 에이전트</div>
           <div style={{ fontSize: 9, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>AI 채팅</div>
         </div>
         <button
@@ -355,7 +355,7 @@ export function DockedChatPanel({ onUndock }: { onUndock: () => void }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>AI 채팅 · 도크됨</div>
-          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-mono)' }}>Pagori 보안 에이전트</div>
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-mono)' }}>Kkebi 보안 에이전트</div>
         </div>
         <button
           onClick={handleClose}

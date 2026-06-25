@@ -331,7 +331,7 @@ function StatsBar() {
 function Footer() {
   return (
     <footer style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>
-      © 2026 SecureAI · 바이브코딩 시대의 보안 파트너
+      © 2026 Kkebi · 바이브코딩 시대의 보안 파트너
     </footer>
   );
 }

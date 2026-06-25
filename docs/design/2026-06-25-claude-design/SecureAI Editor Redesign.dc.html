@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./_ds/secureai-design-system-fcc773f7-bd6b-4f60-b465-2c6c6e7a4242/colors_and_type.css">
+  <script src="./_ds/secureai-design-system-fcc773f7-bd6b-4f60-b465-2c6c6e7a4242/_ds_bundle.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;overflow:hidden;background:#080809;color:#e8e8ee;font-family:'Space Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes glow{0%,100%{opacity:1}50%{opacity:.45}}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    ::-webkit-scrollbar{width:5px;height:5px}
+    ::-webkit-scrollbar-track{background:#0d0d0f}
+    ::-webkit-scrollbar-thumb{background:#2a2a30;border-radius:3px}
+    ::-webkit-scrollbar-thumb:hover{background:#404050}
+    *{scrollbar-width:thin;scrollbar-color:#2a2a30 #0d0d0f}
+    *:focus-visible{outline:2px solid #ea580c;outline-offset:2px;border-radius:4px}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  </style>
+</helmet>
+
+<!-- ══════════════ ROOT: flex column 100vh ══════════════ -->
+<div style="display:flex;flex-direction:column;height:100vh">
+
+<!-- ─────────────────── HEADER 48px ─────────────────── -->
+<header style="height:48px;flex-shrink:0;background:#0d0d0f;border-bottom:1px solid #1f1f24;display:flex;align-items:center;padding:0 14px;gap:10px;z-index:30">
+  <!-- sidebar toggle + logo -->
+  <button onClick="{{ toggleSidebar }}" style="background:none;border:none;color:#555560;cursor:pointer;padding:5px;border-radius:5px;display:flex;flex-shrink:0" title="사이드바 토글">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+  </button>
+  <div style="display:flex;align-items:center;gap:6px;padding-right:12px;border-right:1px solid #1f1f24;flex-shrink:0">
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 2L3 5.5v4.5c0 3.87 2.98 7.25 7 8 4.02-.75 7-4.13 7-8V5.5L10 2z" fill="rgba(249,115,22,0.15)" stroke="#f97316" stroke-width="1.5"/><path d="M7 10l2 2 4-4" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#ea580c">SecureAI</span>
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#555560" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    <span style="font-size:12px;font-weight:500;color:#e8e8ee">{{ breadcrumb }}</span>
+  </div>
+  <!-- pipeline pills -->
+  <div style="display:flex;gap:5px;flex-shrink:0">
+    <button onClick="{{ goEditor }}" title="코드 에디터 — SAST 분석" style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.12);color:#22c55e;border:.5px solid rgba(34,197,94,0.35);cursor:pointer;transition:background .12s" style-hover="background:rgba(34,197,94,0.22)">SAST</button>
+    <button onClick="{{ goDast }}" title="DAST 워크스페이스 — 동적 익스플로잇" style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;background:rgba(249,115,22,0.10);color:#f97316;border:.5px solid rgba(249,115,22,0.30);cursor:pointer;transition:background .12s" style-hover="background:rgba(249,115,22,0.20)">DAST</button>
+    <button onClick="{{ goPatch }}" title="패치 매니저 — AI 자동 패치" style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;background:rgba(99,102,241,0.10);color:#818cf8;border:.5px solid rgba(99,102,241,0.30);cursor:pointer;transition:background .12s" style-hover="background:rgba(99,102,241,0.20)">PATCH</button>
+  </div>
+  <div style="flex:1"></div>
+  <!-- severity filters (editor only) -->
+  <sc-if value="{{ isEditor }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;gap:3px;flex-shrink:0">
+      <button onClick="{{ setSevAll }}" style="{{ sevStyleAll }}">ALL</button>
+      <button onClick="{{ setSevCritical }}" style="{{ sevStyleCritical }}">CRITICAL</button>
+      <button onClick="{{ setSevHigh }}" style="{{ sevStyleHigh }}">HIGH</button>
+      <button onClick="{{ setSevMedium }}" style="{{ sevStyleMedium }}">MEDIUM</button>
+    </div>
+  </sc-if>
+  <!-- analyze -->
+  <button onClick="{{ doAnalyze }}" style="{{ analyzeBtn }}">
+    <sc-if value="{{ analyzing }}" hint-placeholder-val="{{ false }}">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin .85s linear infinite"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>
+    </sc-if>
+    <sc-if value="{{ notAnalyzing }}" hint-placeholder-val="{{ false }}">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+    </sc-if>
+    {{ analyzeBtnLabel }}
+  </button>
+  <!-- credit chip -->
+  <div style="display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:5px;background:#111114;border:1px solid #1f1f24;cursor:pointer;flex-shrink:0">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:#f97316">8,420</span>
+    <span style="font-size:10px;color:#555560">cr</span>
+  </div>
+  <!-- user -->
+  <div style="width:26px;height:26px;border-radius:50%;background:rgba(249,115,22,0.2);border:1.5px solid rgba(249,115,22,0.4);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+    <span style="font-size:9px;font-weight:700;color:#f97316;font-family:'JetBrains Mono',monospace">김</span>
+  </div>
+</header>
+
+<!-- ─────────────────── BODY: flex row ─────────────────── -->
+<div style="flex:1;display:flex;overflow:hidden">
+
+  <!-- ════════ SIDEBAR ════════ -->
+  <div style="{{ sidebarStyle }}">
+    <!-- brand header -->
+    <div style="padding:10px 14px 8px;border-bottom:1px solid #1f1f24;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+        <div style="width:20px;height:20px;border-radius:5px;background:rgba(249,115,22,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        </div>
+        <span style="font-size:12px;font-weight:600;color:#e8e8ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">secureai-editor</span>
+        <span style="margin-left:auto;font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(249,115,22,0.12);color:#f97316;font-family:'JetBrains Mono',monospace;font-weight:700;flex-shrink:0">PRO</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <span style="width:5px;height:5px;border-radius:50%;background:#22c55e;display:inline-block;animation:glow 2s ease-in-out infinite"></span>
+        <span style="font-size:10px;color:#555560;font-family:'JetBrains Mono',monospace">Sprint 14 · 2시간 전</span>
+      </div>
+    </div>
+
+    <!-- scrollable nav -->
+    <div style="flex:1;overflow-y:auto;padding:6px 0">
+
+      <!-- CORE -->
+      <div style="padding:5px 14px 3px;font-size:9px;font-weight:700;color:#404048;font-family:'JetBrains Mono',monospace;letter-spacing:.12em;text-transform:uppercase">CORE</div>
+
+      <button onClick="{{ goEditor }}" style="{{ ns.editor.st }}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{ ns.editor.ic }}" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <span style="font-size:12px;font-weight:500;color:{{ ns.editor.lc }};white-space:nowrap">코드 에디터</span>
+      </button>
+
+      <button onClick="{{ goDast }}" style="{{ ns.dast.st }}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{ ns.dast.ic }}" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <span style="font-size:12px;font-weight:500;color:{{ ns.dast.lc }};white-space:nowrap">DAST 워크스페이스</span>
+      </button>
+
+      <button onClick="{{ goPatch }}" style="{{ ns.patch.st }}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{ ns.patch.ic }}" stroke-width="2" stroke-linecap="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        <span style="font-size:12px;font-weight:500;color:{{ ns.patch.lc }};white-space:nowrap">패치 매니저</span>
+      </button>
+
+      <!-- SECURITY — compact icon row -->
+      <div style="padding:7px 14px 3px;display:flex;align-items:center;gap:7px">
+        <span style="font-size:9px;font-weight:700;color:#569cd6;font-family:'JetBrains Mono',monospace;letter-spacing:.12em;text-transform:uppercase">SECURITY</span>
+        <div style="flex:1;height:1px;background:#1f1f24"></div>
+      </div>
+      <div onMouseLeave="{{ hoverLeave }}">
+        <div style="display:flex;gap:5px;padding:3px 14px 0">
+          <button onClick="{{ goSecretScan }}" onMouseEnter="{{ hoverSecretScan }}" style="{{ iconSecretScan }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{ ns.secretScan.ic }}" stroke-width="2" stroke-linecap="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <span style="position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:#f04141;pointer-events:none"></span>
+          </button>
+          <button onClick="{{ goSbom }}" onMouseEnter="{{ hoverSbom }}" style="{{ iconSbom }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{ ns.sbom.ic }}" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            <span style="position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:#f59e0b;pointer-events:none"></span>
+          </button>
+          <button onClick="{{ goCompliance }}" onMouseEnter="{{ hoverCompliance }}" style="{{ iconCompliance }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{ ns.compliance.ic }}" stroke-width="2" stroke-linecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </button>
+        </div>
+        <sc-if value="{{ showSecurityTip }}" hint-placeholder-val="{{ false }}">
+          <div style="margin:3px 14px 5px;padding:5px 8px;border-radius:5px;background:rgba(86,156,214,0.07);border:.5px solid rgba(86,156,214,0.2);animation:fadeUp .1s ease-out">
+            <span style="font-size:11px;color:#9494a0;line-height:1.4">{{ currentTipText }}</span>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- AUTOMATION — compact icon row -->
+      <div style="padding:7px 14px 3px;display:flex;align-items:center;gap:7px">
+        <span style="font-size:9px;font-weight:700;color:#a78bfa;font-family:'JetBrains Mono',monospace;letter-spacing:.12em;text-transform:uppercase">AUTOMATION</span>
+        <div style="flex:1;height:1px;background:#1f1f24"></div>
+      </div>
+      <div onMouseLeave="{{ hoverLeave }}">
+        <div style="display:flex;gap:5px;padding:3px 14px 0">
+          <button onClick="{{ goPrReview }}" onMouseEnter="{{ hoverPrReview }}" style="{{ iconPrReview }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{ ns.prReview.ic }}" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+            <span style="position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:#22c55e;pointer-events:none;animation:glow 2s ease-in-out infinite"></span>
+          </button>
+          <button onClick="{{ goScheduled }}" onMouseEnter="{{ hoverScheduled }}" style="{{ iconScheduled }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{ ns.scheduled.ic }}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </button>
+          <button onClick="{{ goMonitoring }}" onMouseEnter="{{ hoverMonitoring }}" style="{{ iconMonitoring }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{ ns.monitoring.ic }}" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <span style="position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:#f59e0b;pointer-events:none;animation:glow 1.5s ease-in-out infinite"></span>
+          </button>
+        </div>
+        <sc-if value="{{ showAutomationTip }}" hint-placeholder-val="{{ false }}">
+          <div style="margin:3px 14px 5px;padding:5px 8px;border-radius:5px;background:rgba(167,139,250,0.07);border:.5px solid rgba(167,139,250,0.2);animation:fadeUp .1s ease-out">
+            <span style="font-size:11px;color:#9494a0;line-height:1.4">{{ currentTipText }}</span>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- REPORTS — compact icon row -->
+      <div style="padding:7px 14px 3px;display:flex;align-items:center;gap:7px">
+        <span style="font-size:9px;font-weight:700;color:#34d399;font-family:'JetBrains Mono',monospace;letter-spacing:.12em;text-transform:uppercase">REPORTS</span>
+        <div style="flex:1;height:1px;background:#1f1f24"></div>
+      </div>
+      <div onMouseLeave="{{ hoverLeave }}">
+        <div style="display:flex;gap:5px;padding:3px 14px 0">
+          <button onClick="{{ goReports }}" onMouseEnter="{{ hoverReports }}" style="{{ iconReports }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{ ns.reports.ic }}" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </button>
+          <button onClick="{{ goRegulatory }}" onMouseEnter="{{ hoverRegulatory }}" style="{{ iconRegulatory }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{ ns.regulatory.ic }}" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+        <sc-if value="{{ showReportsTip }}" hint-placeholder-val="{{ false }}">
+          <div style="margin:3px 14px 5px;padding:5px 8px;border-radius:5px;background:rgba(52,211,153,0.07);border:.5px solid rgba(52,211,153,0.2);animation:fadeUp .1s ease-out">
+            <span style="font-size:11px;color:#9494a0;line-height:1.4">{{ currentTipText }}</span>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- FILE TREE (editor only) -->
+      <sc-if value="{{ isEditor }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:8px;border-top:1px solid rgba(255,255,255,0.04)">
+          <button onClick="{{ toggleFileTree }}" style="width:100%;display:flex;align-items:center;gap:5px;padding:7px 14px;background:none;border:none;cursor:pointer">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#555560" stroke-width="2">
+              <sc-if value="{{ fileTreeOpen }}" hint-placeholder-val="{{ true }}"><polyline points="6 9 12 15 18 9"/></sc-if>
+              <sc-if value="{{ fileTreeClosed }}" hint-placeholder-val="{{ false }}"><polyline points="9 18 15 12 9 6"/></sc-if>
+            </svg>
+            <span style="font-size:9px;font-weight:700;color:#555560;font-family:'JetBrains Mono',monospace;letter-spacing:.12em;text-transform:uppercase">프로젝트 파일</span>
+          </button>
+          <sc-if value="{{ fileTreeOpen }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:2px 0">
+              <sc-for list="{{ treeNodes }}" as="tn" hint-placeholder-count="7">
+                <!-- dir node -->
+                <sc-if value="{{ tn.isDir }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ tn.onDirToggle }}" style="{{ tn.dirSt }}">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#555560" stroke-width="2.5" style="flex-shrink:0">
+                      <sc-if value="{{ tn.expanded }}" hint-placeholder-val="{{ true }}"><polyline points="6 9 12 15 18 9"/></sc-if>
+                      <sc-if value="{{ tn.notExpanded }}" hint-placeholder-val="{{ false }}"><polyline points="9 18 15 12 9 6"/></sc-if>
+                    </svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="1.5" style="flex-shrink:0;stroke:#9494a0"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    <span style="font-size:11px;color:#9494a0;font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tn.name }}</span>
+                  </button>
+                </sc-if>
+                <!-- file node -->
+                <sc-if value="{{ tn.isFile }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ tn.onFileClick }}" style="{{ tn.fileSt }}">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9494a0" stroke-width="2" style="flex-shrink:0"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                    <span style="font-size:11px;font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;color:{{ tn.nameColor }}">{{ tn.name }}</span>
+                    <sc-if value="{{ tn.hasVulns }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size:8px;padding:1px 4px;border-radius:2px;background:{{ tn.sevBg }};color:{{ tn.sevColor }};font-family:'JetBrains Mono',monospace;font-weight:700;flex-shrink:0">{{ tn.vulns }}</span>
+                    </sc-if>
+                  </button>
+                </sc-if>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- bottom CTA -->
+    <div style="padding:10px;border-top:1px solid #1f1f24;flex-shrink:0;display:flex;flex-direction:column;gap:5px">
+      <button onClick="{{ doAnalyze }}" style="width:100%;padding:7px 0;background:#ea580c;border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;box-shadow:0 3px 12px rgba(234,88,12,0.3);font-family:'Space Grotesk',system-ui,sans-serif">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+        전체 프로젝트 분석
+      </button>
+      <button onClick="{{ goSettings }}" style="{{ ns.settings.st }}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{ ns.settings.ic }}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span style="font-size:12px;color:{{ ns.settings.lc }};white-space:nowrap">설정</span>
+        <span style="font-size:9px;color:#404048;margin-left:auto;white-space:nowrap;font-family:'JetBrains Mono',monospace">계정·AI·조직</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════ MAIN CONTENT ════════ -->
+  <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;background:#080809">
+
+    <!-- ── EDITOR VIEW ── -->
+    <sc-if value="{{ isEditor }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;display:flex;overflow:hidden">
+        <!-- code + terminal column -->
+        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0">
+          <!-- file tabs -->
+          <div style="height:34px;flex-shrink:0;background:#0d0d0f;border-bottom:1px solid #1f1f24;display:flex;align-items:stretch;overflow-x:auto">
+            <button onClick="{{ selectUserAuth }}" draggable="true" onDragStart="{{ dragStartUserauth }}" onDragEnd="{{ dragEndTab }}" style="{{ tabStyleUserauth }}" title="드래그해서 분할">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f04141" stroke-width="2" style="flex-shrink:0"><path d="M13 2H6a2 2 0 0 0-2 2v16h16V9z"/></svg>
+              <span style="font-size:11px;color:{{ tabNameUserauth }};font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">UserAuth.java</span>
+              <span style="width:5px;height:5px;border-radius:50%;background:#f04141;display:inline-block;flex-shrink:0;animation:glow 2s ease-in-out infinite"></span>
+            </button>
+            <button onClick="{{ selectOrder }}" draggable="true" onDragStart="{{ dragStartOrder }}" onDragEnd="{{ dragEndTab }}" style="{{ tabStyleOrder }}" title="드래그해서 분할">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f04141" stroke-width="2" style="flex-shrink:0"><path d="M13 2H6a2 2 0 0 0-2 2v16h16V9z"/></svg>
+              <span style="font-size:11px;color:{{ tabNameOrder }};font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">OrderService.java</span>
+              <span style="width:5px;height:5px;border-radius:50%;background:#f04141;display:inline-block;flex-shrink:0"></span>
+            </button>
+          </div>
+          <!-- code area: drag-to-split -->
+          <div style="{{ splitContainerSt }}" onDragOver="{{ editorDragOver }}" onDrop="{{ editorDrop }}" onDragLeave="{{ editorDragLeave }}">
+            <!-- PRIMARY PANE -->
+            <div style="{{ primaryPaneSt }}">
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">1</span><span style="color:#569cd6">public</span><span style="color:#e8e8ee"> </span><span style="color:#569cd6">class</span><span style="color:#e8e8ee"> </span><span style="color:#22c55e">UserAuth</span><span style="color:#e8e8ee"> {</span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">2</span><span style="color:#555560">  // TODO: 환경변수로 이동 필요</span></div>
+              <div style="display:flex;min-width:0;background:rgba(240,65,65,0.05);border-left:2px solid #f04141"><span style="width:40px;text-align:right;padding-right:12px;color:#f04141;user-select:none;flex-shrink:0">3</span><span style="color:#e8e8ee">  </span><span style="color:#569cd6">private static final</span><span style="color:#e8e8ee"> String SECRET = </span><span style="color:#f59e0b">"abc123secret_key_prod"</span><span style="color:#e8e8ee">;</span><span style="margin-left:8px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(240,65,65,0.12);color:#f04141;border:.5px solid rgba(240,65,65,0.35);align-self:center;white-space:nowrap">SECRET_EXPOSURE · CWE-312</span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">4</span><span></span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">5</span><span style="color:#569cd6">  public</span><span style="color:#e8e8ee"> User </span><span style="color:#22c55e">authenticate</span><span style="color:#e8e8ee">(String username) {</span></div>
+              <div style="display:flex;min-width:0;background:rgba(240,65,65,0.05);border-left:2px solid #f04141"><span style="width:40px;text-align:right;padding-right:12px;color:#f04141;user-select:none;flex-shrink:0">6</span><span style="color:#e8e8ee">    String q = </span><span style="color:#f59e0b">"SELECT * FROM users WHERE name='"</span><span style="color:#e8e8ee"> + username + </span><span style="color:#f59e0b">"'"</span><span style="color:#e8e8ee">;</span><span style="margin-left:8px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(240,65,65,0.12);color:#f04141;border:.5px solid rgba(240,65,65,0.35);align-self:center;white-space:nowrap">SQL_INJECTION · CWE-89 · PROVEN</span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">7</span><span style="color:#569cd6">    return</span><span style="color:#e8e8ee"> db.query(q).first();</span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">8</span><span style="color:#e8e8ee">  }</span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">9</span><span></span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">10</span><span style="color:#569cd6">  public</span><span style="color:#e8e8ee"> </span><span style="color:#569cd6">boolean</span><span style="color:#e8e8ee"> </span><span style="color:#22c55e">verifySession</span><span style="color:#e8e8ee">(String token) {</span></div>
+              <div style="display:flex;min-width:0;background:rgba(245,158,11,0.04);border-left:2px solid #f59e0b"><span style="width:40px;text-align:right;padding-right:12px;color:#f59e0b;user-select:none;flex-shrink:0">11</span><span style="color:#569cd6">    return</span><span style="color:#e8e8ee"> token </span><span style="color:#f59e0b">==</span><span style="color:#e8e8ee"> sessionStore.getToken();</span><span style="margin-left:8px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,0.1);color:#f59e0b;border:.5px solid rgba(245,158,11,0.3);align-self:center;white-space:nowrap">BROKEN_AUTH · CWE-287</span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">12</span><span style="color:#e8e8ee">  }</span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">13</span><span></span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">14</span><span style="color:#569cd6">  public</span><span style="color:#e8e8ee"> </span><span style="color:#569cd6">void</span><span style="color:#e8e8ee"> </span><span style="color:#22c55e">resetPassword</span><span style="color:#e8e8ee">(HttpServletRequest req) {</span></div>
+              <div style="display:flex;min-width:0;background:rgba(234,179,8,0.04);border-left:2px solid #eab308"><span style="width:40px;text-align:right;padding-right:12px;color:#eab308;user-select:none;flex-shrink:0">15</span><span style="color:#e8e8ee">    String pwd = req.getParameter(</span><span style="color:#f59e0b">"newPassword"</span><span style="color:#e8e8ee">);</span><span style="margin-left:8px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(234,179,8,0.1);color:#eab308;border:.5px solid rgba(234,179,8,0.3);align-self:center;white-space:nowrap">CSRF · CWE-352</span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">16</span><span style="color:#e8e8ee">    userRepo.updatePassword(pwd);</span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">17</span><span style="color:#e8e8ee">  }</span></div>
+              <div style="display:flex;min-width:0"><span style="width:40px;text-align:right;padding-right:12px;color:#2a2a30;user-select:none;flex-shrink:0">18</span><span style="color:#e8e8ee">}</span></div>
+            </div>
+            <!-- SECONDARY PANE -->
+            <sc-if value="{{ hasSplit }}" hint-placeholder-val="{{ false }}">
+              <div style="{{ splitDivSt }}">
+                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5">
+                  <button onClick="{{ closeSplit }}" style="width:18px;height:18px;border-radius:50%;background:#2a2a30;border:1px solid #404050;color:#9494a0;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0">×</button>
+                </div>
+              </div>
+              <div style="{{ secondaryPaneSt }}">
+                <div style="height:28px;flex-shrink:0;background:#0d0d0f;border-bottom:1px solid #1f1f24;display:flex;align-items:center;padding:0 10px;gap:6px">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f04141" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16h16V9z"/></svg>
+                  <span style="font-size:11px;color:#9494a0;font-family:'JetBrains Mono',monospace">{{ splitFileLabel }}</span>
+                  <div style="flex:1"></div>
+                  <button onClick="{{ closeSplit }}" style="background:none;border:none;color:#555560;cursor:pointer;font-size:14px;line-height:1;padding:2px">×</button>
+                </div>
+                <div style="flex:1;overflow-y:auto;padding:8px 0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.75">
+                  <div style="display:flex;min-width:0"><span style="width:36px;text-align:right;padding-right:10px;color:#2a2a30;user-select:none;flex-shrink:0">1</span><span style="color:#569cd6">public</span><span style="color:#e8e8ee"> </span><span style="color:#569cd6">class</span><span style="color:#e8e8ee"> </span><span style="color:#22c55e">OrderService</span><span style="color:#e8e8ee"> {</span></div>
+                  <div style="display:flex;min-width:0"><span style="width:36px;text-align:right;padding-right:10px;color:#2a2a30;user-select:none;flex-shrink:0">2</span><span></span></div>
+                  <div style="display:flex;min-width:0"><span style="width:36px;text-align:right;padding-right:10px;color:#2a2a30;user-select:none;flex-shrink:0">3</span><span style="color:#569cd6">  public</span><span style="color:#e8e8ee"> List&lt;Order&gt; </span><span style="color:#22c55e">search</span><span style="color:#e8e8ee">(String keyword) {</span></div>
+                  <div style="display:flex;min-width:0;background:rgba(240,65,65,0.05);border-left:2px solid #f04141"><span style="width:36px;text-align:right;padding-right:10px;color:#f04141;user-select:none;flex-shrink:0">4</span><span style="color:#e8e8ee">    String q = </span><span style="color:#f59e0b">"SELECT * FROM orders WHERE status='"</span><span style="color:#e8e8ee"> + keyword + </span><span style="color:#f59e0b">"'"</span><span style="color:#e8e8ee">;</span><span style="margin-left:6px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(240,65,65,0.12);color:#f04141;border:.5px solid rgba(240,65,65,0.35);align-self:center;white-space:nowrap">SQL_INJECTION · CWE-89</span></div>
+                  <div style="display:flex;min-width:0"><span style="width:36px;text-align:right;padding-right:10px;color:#2a2a30;user-select:none;flex-shrink:0">5</span><span style="color:#569cd6">    return</span><span style="color:#e8e8ee"> db.query(q).list();</span></div>
+                  <div style="display:flex;min-width:0"><span style="width:36px;text-align:right;padding-right:10px;color:#2a2a30;user-select:none;flex-shrink:0">6</span><span style="color:#e8e8ee">  }</span></div>
+                  <div style="display:flex;min-width:0"><span style="width:36px;text-align:right;padding-right:10px;color:#2a2a30;user-select:none;flex-shrink:0">7</span><span></span></div>
+                  <div style="display:flex;min-width:0"><span style="width:36px;text-align:right;padding-right:10px;color:#2a2a30;user-select:none;flex-shrink:0">8</span><span style="color:#569cd6">  public</span><span style="color:#e8e8ee"> Order </span><span style="color:#22c55e">getById</span><span style="color:#e8e8ee">(Long id) {</span></div>
+                  <div style="display:flex;min-width:0;background:rgba(240,65,65,0.05);border-left:2px solid #f04141"><span style="width:36px;text-align:right;padding-right:10px;color:#f04141;user-select:none;flex-shrink:0">9</span><span style="color:#e8e8ee">    String q = </span><span style="color:#f59e0b">"SELECT * FROM orders WHERE id="</span><span style="color:#e8e8ee"> + id;</span><span style="margin-left:6px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(240,65,65,0.12);color:#f04141;border:.5px solid rgba(240,65,65,0.35);align-self:center;white-space:nowrap">SQL_INJECTION · CWE-89</span></div>
+                  <div style="display:flex;min-width:0"><span style="width:36px;text-align:right;padding-right:10px;color:#2a2a30;user-select:none;flex-shrink:0">10</span><span style="color:#569cd6">    return</span><span style="color:#e8e8ee"> db.query(q).first();</span></div>
+                  <div style="display:flex;min-width:0"><span style="width:36px;text-align:right;padding-right:10px;color:#2a2a30;user-select:none;flex-shrink:0">11</span><span style="color:#e8e8ee">  }</span></div>
+                  <div style="display:flex;min-width:0"><span style="width:36px;text-align:right;padding-right:10px;color:#2a2a30;user-select:none;flex-shrink:0">12</span><span style="color:#e8e8ee">}</span></div>
+                </div>
+              </div>
+            </sc-if>
+            <!-- DRAG ZONE OVERLAYS -->
+            <sc-if value="{{ isDragging }}" hint-placeholder-val="{{ false }}">
+              <div style="{{ zoneLeftSt }}"></div>
+              <div style="{{ zoneRightSt }}"></div>
+              <div style="{{ zoneTopSt }}"></div>
+              <div style="{{ zoneBottomSt }}"></div>
+              <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;pointer-events:none">
+                <div style="font-size:10px;color:rgba(249,115,22,0.85);font-family:'JetBrains Mono',monospace;background:rgba(0,0,0,0.82);padding:5px 13px;border-radius:5px;white-space:nowrap;border:.5px solid rgba(249,115,22,0.3)">← 좌 / 우 / 상 / 하에 드롭해서 분할</div>
+              </div>
+            </sc-if>
+          </div>
+          <!-- DAST terminal bar -->
+          <div style="flex-shrink:0;border-top:1px solid #1f1f24;background:#0a0a0b">
+            <div style="height:28px;display:flex;align-items:center;padding:0 10px;gap:8px;cursor:pointer" onClick="{{ toggleDast }}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <span style="font-size:10px;font-weight:700;color:#f97316;font-family:'JetBrains Mono',monospace;letter-spacing:.06em">DAST TERMINAL</span>
+              <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(240,65,65,0.1);color:#f04141;font-family:'JetBrains Mono',monospace">EXPLOITED · 1건</span>
+              <div style="flex:1"></div>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#555560" stroke-width="2">
+                <sc-if value="{{ dastOpen }}" hint-placeholder-val="{{ true }}"><polyline points="6 9 12 15 18 9"/></sc-if>
+                <sc-if value="{{ dastClosed }}" hint-placeholder-val="{{ false }}"><polyline points="18 15 12 9 6 15"/></sc-if>
+              </svg>
+            </div>
+            <sc-if value="{{ dastOpen }}" hint-placeholder-val="{{ true }}">
+              <div style="height:100px;overflow-y:auto;padding:6px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.8;background:#080809">
+                <div style="color:#555560">[INFO] DAST 에이전트 시작 — UserAuth.java 대상</div>
+                <div style="color:#555560">[INFO] 공격 지침 로드: SQL_INJECTION / CWE-89</div>
+                <div style="color:#f59e0b">[PROBE] POST /api/users/authenticate — username=' OR 1=1--</div>
+                <div style="color:#f04141;font-weight:600">[EXPLOIT] 200 OK · DB 레코드 15건 노출 · payload accepted</div>
+                <div style="color:#22c55e">[SAFE] BROKEN_AUTH — 직접 악용 불가 (참조 동일성 문제)</div>
+                <div style="color:#555560">[INFO] dast_result: SQL_INJECTION → EXPLOITED | BROKEN_AUTH → SAFE</div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+
+        <!-- right panel: vuln list + bulk triage -->
+        <div style="width:310px;flex-shrink:0;background:#0d0d0f;border-left:1px solid #1f1f24;display:flex;flex-direction:column;overflow:hidden">
+          <!-- tabs -->
+          <div style="height:34px;flex-shrink:0;display:flex;align-items:stretch;background:#0d0d0f;border-bottom:1px solid #1f1f24">
+            <button onClick="{{ setRightVulns }}" style="{{ rightTabStyleVulns }}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              취약점 <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;padding:0 4px;border-radius:3px;background:rgba(240,65,65,0.12);color:#f04141;margin-left:3px">4</span>
+            </button>
+            <button onClick="{{ setRightChat }}" style="{{ rightTabStyleChat }}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              AI 채팅
+            </button>
+          </div>
+
+          <!-- vuln list -->
+          <sc-if value="{{ isRightVulns }}" hint-placeholder-val="{{ true }}">
+            <div style="flex:1;overflow-y:auto;min-height:0">
+              <sc-for list="{{ vulns }}" as="v" hint-placeholder-count="4">
+                <div onClick="{{ v.toggle }}" style="padding:9px 10px 9px 30px;border-bottom:1px solid #1f1f24;cursor:pointer;position:relative;transition:background .1s;background:{{ v.rowBg }};border-left:{{ v.rowBl }}">
+                  <!-- checkbox -->
+                  <div style="{{ v.chkSt }}">
+                    <sc-if value="{{ v.sel }}" hint-placeholder-val="{{ false }}">
+                      <svg width="8" height="8" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </sc-if>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                    <span style="font-size:11px;font-weight:600;color:#e8e8ee;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ v.type }}</span>
+                    <span style="font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;background:{{ v.sevB }};color:{{ v.sevC }};border:.5px solid {{ v.sevBd }};white-space:nowrap">{{ v.sevL }}</span>
+                  </div>
+                  <div style="font-size:10px;color:#555560;font-family:'JetBrains Mono',monospace;margin-bottom:2px">{{ v.file }}:{{ v.line }} · {{ v.cwe }}</div>
+                  <!-- VAL-18: tainted param -->
+                  <sc-if value="{{ v.tainted }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+                      <span style="font-size:9px;color:#555560;font-family:'JetBrains Mono',monospace">tainted:</span>
+                      <span style="font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;background:rgba(249,115,22,0.1);color:#f97316;border:.5px solid rgba(249,115,22,0.25);font-family:'JetBrains Mono',monospace">{{ v.tainted }}</span>
+                    </div>
+                  </sc-if>
+                  <!-- proven badge -->
+                  <sc-if value="{{ v.proven }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:8px;font-weight:800;padding:1px 5px;border-radius:3px;background:rgba(240,65,65,0.12);color:#f04141;border:.5px solid rgba(240,65,65,0.35);font-family:'JetBrains Mono',monospace;display:inline-block">● DAST · EXPLOITED</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+
+            <!-- bulk triage footer -->
+            <sc-if value="{{ showBulkBar }}" hint-placeholder-val="{{ false }}">
+              <div style="flex-shrink:0;border-top:1px solid rgba(249,115,22,0.3);background:#080809;padding:8px 10px;animation:fadeUp .15s ease-out">
+                <!-- smart banner -->
+                <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-bottom:7px;padding:5px 8px;border-radius:6px;background:rgba(249,115,22,0.07);border:.5px solid rgba(249,115,22,0.25);display:flex;align-items:center;gap:7px">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    <span style="font-size:11px;color:#f97316;flex:1"><span style="font-weight:700;font-family:'JetBrains Mono',monospace">{{ topType }}</span> {{ topTypeCount }}건</span>
+                    <button onClick="{{ selAllOfType }}" style="font-size:10px;font-weight:700;color:#f97316;background:rgba(249,115,22,0.12);border:.5px solid rgba(249,115,22,0.3);border-radius:4px;padding:2px 7px;cursor:pointer">전체 →</button>
+                  </div>
+                </sc-if>
+                <div style="display:flex;align-items:center;gap:5px">
+                  <div style="width:20px;height:20px;border-radius:4px;background:#ea580c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;flex-shrink:0">{{ selCount }}</div>
+                  <span style="font-size:11px;font-weight:600;color:#e8e8ee">건 선택</span>
+                  <div style="flex:1"></div>
+                  <button onClick="{{ bulkConfirm }}" style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:rgba(34,197,94,0.12);border:.5px solid rgba(34,197,94,0.35);color:#22c55e;cursor:pointer">확인</button>
+                  <button onClick="{{ bulkDismiss }}" style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:rgba(245,158,11,0.1);border:.5px solid rgba(245,158,11,0.3);color:#f59e0b;cursor:pointer">기각</button>
+                  <button onClick="{{ bulkPatch }}" style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:rgba(249,115,22,0.12);border:.5px solid rgba(249,115,22,0.35);color:#f97316;cursor:pointer">패치</button>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- toast -->
+            <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;top:8px;left:8px;right:8px;border-radius:7px;background:#0d0d0f;border:1px solid rgba(34,197,94,0.4);padding:8px 12px;display:flex;align-items:center;gap:9px;animation:fadeUp .2s ease-out;z-index:10;box-shadow:0 4px 20px rgba(0,0,0,.5)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <span style="font-size:12px;font-weight:600;color:#e8e8ee">{{ toast.n }}건 <span style="color:#22c55e">{{ toast.label }}</span></span>
+              </div>
+            </sc-if>
+          </sc-if>
+
+          <!-- chat tab -->
+          <sc-if value="{{ isRightChat }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+              <div style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px">
+                <div style="padding:9px 11px;border-radius:8px;background:#111114;font-size:12px;color:#9494a0;line-height:1.5">
+                  안녕하세요! SecureAI 보안 에이전트입니다.<br>분석할 파일을 선택하거나 궁금한 점을 질문해주세요.
+                </div>
+                <div style="display:flex;justify-content:flex-end">
+                  <div style="padding:8px 11px;border-radius:8px;background:rgba(249,115,22,0.1);border:.5px solid rgba(249,115,22,0.2);font-size:12px;color:#e8e8ee;max-width:90%">
+                    UserAuth.java 파일 분석해줘
+                  </div>
+                </div>
+                <div style="padding:9px 11px;border-radius:8px;background:#111114;font-size:12px;color:#9494a0;line-height:1.6">
+                  SAST 분석 완료! UserAuth.java에서 <span style="color:#f04141;font-weight:600">4건</span>을 발견했습니다.<br><br>
+                  <span style="color:#f04141">●</span> SQL_INJECTION (Line 6) — DAST PROVEN<br>
+                  <span style="color:#f04141">●</span> SECRET_EXPOSURE (Line 3)<br>
+                  <span style="color:#f59e0b">●</span> BROKEN_AUTH (Line 11)<br>
+                  <span style="color:#eab308">●</span> CSRF (Line 15)<br><br>
+                  SQL Injection부터 배치 DAST를 실행할까요?
+                </div>
+              </div>
+              <div style="padding:8px;border-top:1px solid #1f1f24;flex-shrink:0">
+                <div style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:7px;background:#111114;border:1px solid #1f1f24">
+                  <input type="text" placeholder="보안 에이전트에게 질문..." style="flex:1;background:transparent;border:none;color:#e8e8ee;font-size:12px;font-family:'Space Grotesk',system-ui,sans-serif;outline:none"/>
+                  <button style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:5px;background:#ea580c;border:none;cursor:pointer">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ── SECRET SCAN ── -->
+    <sc-if value="{{ isSecretScan }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:24px">
+        <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+              <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(86,156,214,0.15);color:#569cd6;font-family:'JetBrains Mono',monospace;letter-spacing:.08em">SECURITY</span>
+              <h2 style="font-size:18px;font-weight:700;letter-spacing:-.02em">시크릿 스캔</h2>
+            </div>
+            <p style="font-size:12px;color:#9494a0">GitHub 커밋 diff에서 AWS Key · JWT · DB 비밀번호 등 탐지. 발견 즉시 알림 발송.</p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button style="padding:6px 14px;border-radius:6px;background:rgba(240,65,65,0.1);border:.5px solid rgba(240,65,65,0.3);color:#f04141;font-size:12px;font-weight:600;cursor:pointer">전체 무효화</button>
+            <button style="padding:6px 14px;border-radius:6px;background:#ea580c;border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(234,88,12,.3)">지금 스캔</button>
+          </div>
+        </div>
+        <!-- stats row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+          <div style="padding:12px;border-radius:8px;background:#111114;border:1px solid #1f1f24;text-align:center">
+            <div style="font-size:28px;font-weight:700;color:#f04141;font-family:'JetBrains Mono',monospace">3</div>
+            <div style="font-size:10px;color:#555560;font-family:'JetBrains Mono',monospace;margin-top:3px">CRITICAL 발견</div>
+          </div>
+          <div style="padding:12px;border-radius:8px;background:#111114;border:1px solid #1f1f24;text-align:center">
+            <div style="font-size:28px;font-weight:700;color:#f59e0b;font-family:'JetBrains Mono',monospace">1</div>
+            <div style="font-size:10px;color:#555560;font-family:'JetBrains Mono',monospace;margin-top:3px">긴급 무효화 필요</div>
+          </div>
+          <div style="padding:12px;border-radius:8px;background:#111114;border:1px solid #1f1f24;text-align:center">
+            <div style="font-size:28px;font-weight:700;color:#22c55e;font-family:'JetBrains Mono',monospace">0</div>
+            <div style="font-size:10px;color:#555560;font-family:'JetBrains Mono',monospace;margin-top:3px">외부 노출 확인됨</div>
+          </div>
+          <div style="padding:12px;border-radius:8px;background:#111114;border:1px solid #1f1f24;text-align:center">
+            <div style="font-size:28px;font-weight:700;color:#569cd6;font-family:'JetBrains Mono',monospace">127</div>
+            <div style="font-size:10px;color:#555560;font-family:'JetBrains Mono',monospace;margin-top:3px">스캔된 커밋</div>
+          </div>
+        </div>
+        <!-- secrets table -->
+        <div style="border-radius:9px;border:1px solid #1f1f24;overflow:hidden;background:#0d0d0f">
+          <div style="display:grid;grid-template-columns:1.8fr 1fr 90px 90px 100px;background:#111114;border-bottom:1px solid #1f1f24">
+            <div style="padding:7px 12px;font-size:9px;font-weight:700;color:#555560;font-family:'JetBrains Mono',monospace;letter-spacing:.1em">파일 경로</div>
+            <div style="padding:7px 12px;font-size:9px;font-weight:700;color:#555560;font-family:'JetBrains Mono',monospace;letter-spacing:.1em;border-left:1px solid #1f1f24">시크릿 유형</div>
+            <div style="padding:7px 8px;font-size:9px;font-weight:700;color:#555560;font-family:'JetBrains Mono',monospace;letter-spacing:.1em;border-left:1px solid #1f1f24">심각도</div>
+            <div style="padding:7px 8px;font-size:9px;font-weight:700;color:#555560;font-family:'JetBrains Mono',monospace;letter-spacing:.1em;border-left:1px solid #1f1f24">상태</div>
+            <div style="padding:7px 8px;font-size:9px;font-weight:700;color:#555560;font-family:'JetBrains Mono',monospace;letter-spacing:.1em;border-left:1px solid #1f1f24">조치</div>
+          </div>
+          <!-- row 1 -->
+          <div style="display:grid;grid-template-columns:1.8fr 1fr 90px 90px 100px;border-bottom:1px solid #1f1f24;background:rgba(240,65,65,0.025)">
+            <div style="padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e8e8ee">application.properties<span style="color:#555560;font-size:10px">:12</span></div>
+            <div style="padding:10px 12px;border-left:1px solid #1f1f24;font-family:'JetBrains Mono',monospace;font-size:11px;color:#f97316">AWS_ACCESS_KEY</div>
+            <div style="padding:10px 8px;border-left:1px solid #1f1f24"><span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(240,65,65,0.1);color:#f04141;font-family:'JetBrains Mono',monospace;border:.5px solid rgba(240,65,65,0.3)">CRITICAL</span></div>
+            <div style="padding:10px 8px;border-left:1px solid #1f1f24"><span style="font-size:10px;color:#f59e0b;font-family:'JetBrains Mono',monospace">긴급 처리</span></div>
+            <div style="padding:10px 8px;border-left:1px solid #1f1f24;display:flex;gap:4px">
+              <button style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(240,65,65,0.1);border:.5px solid rgba(240,65,65,0.25);color:#f04141;cursor:pointer">무효화</button>
+            </div>
+          </div>
+          <!-- row 2 -->
+          <div style="display:grid;grid-template-columns:1.8fr 1fr 90px 90px 100px;border-bottom:1px solid #1f1f24">
+            <div style="padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e8e8ee">UserAuth.java<span style="color:#555560;font-size:10px">:3</span></div>
+            <div style="padding:10px 12px;border-left:1px solid #1f1f24;font-family:'JetBrains Mono',monospace;font-size:11px;color:#f97316">HARDCODED_SECRET</div>
+            <div style="padding:10px 8px;border-left:1px solid #1f1f24"><span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(240,65,65,0.1);color:#f04141;font-family:'JetBrains Mono',monospace;border:.5px solid rgba(240,65,65,0.3)">CRITICAL</span></div>
+            <div style="padding:10px 8px;border-left:1px solid #1f1f24"><span style="font-size:10px;color:#f59e0b;font-family:'JetBrains Mono',monospace">확인 필요</span></div>
+            <div style="padding:10px 8px;border-left:1px solid #1f1f24;display:flex;gap:4px">
+              <button style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(249,115,22,0.1);border:.5px solid rgba(249,115,22,0.25);color:#f97316;cursor:pointer">패치 적용</button>
+            </div>
+          </div>
+          <!-- row 3 -->
+          <div style="display:grid;grid-template-columns:1.8fr 1fr 90px 90px 100px">
+            <div style="padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e8e8ee">config.properties<span style="color:#555560;font-size:10px">:8</span></div>
+            <div style="padding:10px 12px;border-left:1px solid #1f1f24;font-family:'JetBrains Mono',monospace;font-size:11px;color:#f97316">JWT_SECRET</div>
+            <div style="padding:10px 8px;border-left:1px solid #1f1f24"><span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,0.1);color:#f59e0b;font-family:'JetBrains Mono',monospace;border:.5px solid rgba(245,158,11,0.3)">HIGH</span></div>
+            <div style="padding:10px 8px;border-left:1px solid #1f1f24"><span style="font-size:10px;color:#22c55e;font-family:'JetBrains Mono',monospace">환경변수 이동 완료</span></div>
+            <div style="padding:10px 8px;border-left:1px solid #1f1f24;display:flex;gap:4px">
+              <button style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(34,197,94,0.1);border:.5px solid rgba(34,197,94,0.25);color:#22c55e;cursor:pointer">완료</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ── COMPLIANCE ── -->
+    <sc-if value="{{ isCompliance }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:24px">
+        <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+              <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(86,156,214,0.15);color:#569cd6;font-family:'JetBrains Mono',monospace;letter-spacing:.08em">SECURITY</span>
+              <h2 style="font-size:18px;font-weight:700;letter-spacing:-.02em">컴플라이언스 매핑</h2>
+            </div>
+            <p style="font-size:12px;color:#9494a0">ISO 27001 · NIST CSF · ISMS-P 통제항목과 취약점을 자동 매핑</p>
+          </div>
+          <button style="padding:6px 14px;border-radius:6px;background:#ea580c;border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(234,88,12,.3)">보고서 생성</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;max-width:720px">
+          <!-- ISO 27001 -->
+          <div style="padding:16px;border-radius:9px;background:#0d0d0f;border:1px solid #1f1f24">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:13px;font-weight:700;color:#e8e8ee">ISO 27001</span>
+                <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(240,65,65,0.1);color:#f04141;font-family:'JetBrains Mono',monospace">미충족 14개</span>
+              </div>
+              <span style="font-size:20px;font-weight:700;color:#569cd6;font-family:'JetBrains Mono',monospace">78%</span>
+            </div>
+            <div style="height:6px;border-radius:3px;background:#161619;overflow:hidden"><div style="height:100%;width:78%;background:linear-gradient(90deg,#569cd6,#818cf8);border-radius:3px"></div></div>
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+              <span style="font-size:10px;color:#555560">A.9 접근통제 <span style="color:#f04141">✕</span></span>
+              <span style="font-size:10px;color:#555560">A.10 암호화 <span style="color:#f59e0b">△</span></span>
+              <span style="font-size:10px;color:#555560">A.14 시스템개발 <span style="color:#22c55e">✓</span></span>
+              <span style="font-size:10px;color:#555560">A.16 사고관리 <span style="color:#f04141">✕</span></span>
+            </div>
+          </div>
+          <!-- NIST CSF -->
+          <div style="padding:16px;border-radius:9px;background:#0d0d0f;border:1px solid #1f1f24">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:13px;font-weight:700;color:#e8e8ee">NIST CSF</span>
+                <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(240,65,65,0.1);color:#f04141;font-family:'JetBrains Mono',monospace">미충족 19개</span>
+              </div>
+              <span style="font-size:20px;font-weight:700;color:#a78bfa;font-family:'JetBrains Mono',monospace">65%</span>
+            </div>
+            <div style="height:6px;border-radius:3px;background:#161619;overflow:hidden"><div style="height:100%;width:65%;background:linear-gradient(90deg,#a78bfa,#818cf8);border-radius:3px"></div></div>
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+              <span style="font-size:10px;color:#555560">IDENTIFY <span style="color:#22c55e">✓</span></span>
+              <span style="font-size:10px;color:#555560">PROTECT <span style="color:#f04141">✕</span></span>
+              <span style="font-size:10px;color:#555560">DETECT <span style="color:#f59e0b">△</span></span>
+              <span style="font-size:10px;color:#555560">RESPOND <span style="color:#f04141">✕</span></span>
+            </div>
+          </div>
+          <!-- ISMS-P -->
+          <div style="padding:16px;border-radius:9px;background:#0d0d0f;border:1px solid #1f1f24">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:13px;font-weight:700;color:#e8e8ee">ISMS-P</span>
+                <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(234,179,8,0.1);color:#eab308;font-family:'JetBrains Mono',monospace">미충족 9개</span>
+              </div>
+              <span style="font-size:20px;font-weight:700;color:#34d399;font-family:'JetBrains Mono',monospace">82%</span>
+            </div>
+            <div style="height:6px;border-radius:3px;background:#161619;overflow:hidden"><div style="height:100%;width:82%;background:linear-gradient(90deg,#34d399,#22c55e);border-radius:3px"></div></div>
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+              <span style="font-size:10px;color:#555560">관리체계 <span style="color:#22c55e">✓</span></span>
+              <span style="font-size:10px;color:#555560">보호대책 <span style="color:#f59e0b">△</span></span>
+              <span style="font-size:10px;color:#555560">개인정보 <span style="color:#f04141">✕</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ── PR AUTO REVIEW ── -->
+    <sc-if value="{{ isPrReview }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:24px">
+        <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+              <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(167,139,250,0.15);color:#a78bfa;font-family:'JetBrains Mono',monospace;letter-spacing:.08em">AUTOMATION</span>
+              <h2 style="font-size:18px;font-weight:700;letter-spacing:-.02em">PR 자동 리뷰</h2>
+            </div>
+            <p style="font-size:12px;color:#9494a0">PR 오픈 시 SAST 자동 실행 + GitHub 코멘트 게시. 보안 통과 전 머지 차단.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;background:rgba(34,197,94,0.08);border:.5px solid rgba(34,197,94,0.25)">
+              <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;animation:glow 2s ease-in-out infinite"></span>
+              <span style="font-size:11px;color:#22c55e;font-weight:600">GitHub App 연결됨</span>
+            </div>
+            <button style="padding:6px 14px;border-radius:6px;background:#ea580c;border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(234,88,12,.3)">설정</button>
+          </div>
+        </div>
+        <!-- PR list -->
+        <div style="display:flex;flex-direction:column;gap:8px;max-width:800px">
+          <!-- PR 1 - FAILED -->
+          <div style="padding:14px 16px;border-radius:9px;background:#0d0d0f;border:1px solid rgba(240,65,65,0.2);display:flex;align-items:center;gap:12px">
+            <div style="flex-shrink:0;width:32px;height:32px;border-radius:8px;background:rgba(240,65,65,0.1);display:flex;align-items:center;justify-content:center">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f04141" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#555560">#142</span>
+                <span style="font-size:13px;font-weight:600;color:#e8e8ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">fix: SQL Injection 취약점 패치 적용</span>
+              </div>
+              <div style="font-size:11px;color:#555560">ttogle918 · 12분 전 · 4개 파일 변경</div>
+            </div>
+            <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(240,65,65,0.1);color:#f04141;border:.5px solid rgba(240,65,65,0.3);font-family:'JetBrains Mono',monospace;flex-shrink:0">FAILED · 취약점 3건</span>
+          </div>
+          <!-- PR 2 - PASS -->
+          <div style="padding:14px 16px;border-radius:9px;background:#0d0d0f;border:1px solid #1f1f24;display:flex;align-items:center;gap:12px">
+            <div style="flex-shrink:0;width:32px;height:32px;border-radius:8px;background:rgba(34,197,94,0.1);display:flex;align-items:center;justify-content:center">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#555560">#141</span>
+                <span style="font-size:13px;font-weight:600;color:#e8e8ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">feat: 결제 API 엔드포인트 추가</span>
+              </div>
+              <div style="font-size:11px;color:#555560">ttogle918 · 3시간 전 · 8개 파일 변경</div>
+            </div>
+            <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:.5px solid rgba(34,197,94,0.3);font-family:'JetBrains Mono',monospace;flex-shrink:0">PASS · 취약점 0건</span>
+          </div>
+          <!-- PR 3 - PASS -->
+          <div style="padding:14px 16px;border-radius:9px;background:#0d0d0f;border:1px solid #1f1f24;display:flex;align-items:center;gap:12px">
+            <div style="flex-shrink:0;width:32px;height:32px;border-radius:8px;background:rgba(34,197,94,0.1);display:flex;align-items:center;justify-content:center">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#555560">#139</span>
+                <span style="font-size:13px;font-weight:600;color:#e8e8ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">refactor: 인증 모듈 리팩토링</span>
+              </div>
+              <div style="font-size:11px;color:#555560">ttogle918 · 어제 · 12개 파일 변경</div>
+            </div>
+            <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;border:.5px solid rgba(34,197,94,0.3);font-family:'JetBrains Mono',monospace;flex-shrink:0">PASS · 취약점 0건</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ── REPORTS ── -->
+    <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:24px">
+        <div style="margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+            <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(52,211,153,0.15);color:#34d399;font-family:'JetBrains Mono',monospace;letter-spacing:.08em">REPORTS</span>
+            <h2 style="font-size:18px;font-weight:700;letter-spacing:-.02em">보고서 생성</h2>
+          </div>
+          <p style="font-size:12px;color:#9494a0">PDF · DOCX · JSON 형식으로 보안 보고서 생성. CISO·개발팀·감사용 맞춤 템플릿.</p>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:800px">
+          <!-- report card 1 -->
+          <div style="padding:18px;border-radius:9px;background:#0d0d0f;border:1px solid #1f1f24;cursor:pointer">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <div style="width:32px;height:32px;border-radius:8px;background:rgba(249,115,22,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#e8e8ee">보안 요약 보고서</div>
+                <div style="font-size:10px;color:#555560">6페이지 · 개발팀용</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#9494a0;margin-bottom:12px;line-height:1.5">취약점 현황·심각도 분포·패치율을 간결하게 요약.</div>
+            <div style="display:flex;gap:6px">
+              <button style="flex:1;padding:5px 0;border-radius:5px;background:#ea580c;border:none;color:#fff;font-size:11px;font-weight:700;cursor:pointer">PDF 생성</button>
+              <button style="padding:5px 10px;border-radius:5px;background:rgba(255,255,255,0.05);border:1px solid #1f1f24;color:#9494a0;font-size:11px;cursor:pointer">DOCX</button>
+            </div>
+          </div>
+          <!-- report card 2 -->
+          <div style="padding:18px;border-radius:9px;background:#0d0d0f;border:1px solid #1f1f24;cursor:pointer">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <div style="width:32px;height:32px;border-radius:8px;background:rgba(86,156,214,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#569cd6" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#e8e8ee">CISO 경영진 브리핑</div>
+                <div style="font-size:10px;color:#555560">12페이지 · 경영진용</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#9494a0;margin-bottom:12px;line-height:1.5">리스크·ROI·컴플라이언스 현황 경영진 보고용 요약.</div>
+            <div style="display:flex;gap:6px">
+              <button style="flex:1;padding:5px 0;border-radius:5px;background:#ea580c;border:none;color:#fff;font-size:11px;font-weight:700;cursor:pointer">PDF 생성</button>
+              <button style="padding:5px 10px;border-radius:5px;background:rgba(255,255,255,0.05);border:1px solid #1f1f24;color:#9494a0;font-size:11px;cursor:pointer">DOCX</button>
+            </div>
+          </div>
+          <!-- report card 3 -->
+          <div style="padding:18px;border-radius:9px;background:#0d0d0f;border:1px solid #1f1f24;cursor:pointer">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <div style="width:32px;height:32px;border-radius:8px;background:rgba(34,197,94,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#e8e8ee">전체 보안 감사 리포트</div>
+                <div style="font-size:10px;color:#555560">40+ 페이지 · 감사팀용</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#9494a0;margin-bottom:12px;line-height:1.5">모든 취약점 상세·DAST 증적·패치 이력 포함.</div>
+            <div style="display:flex;gap:6px">
+              <button style="flex:1;padding:5px 0;border-radius:5px;background:#ea580c;border:none;color:#fff;font-size:11px;font-weight:700;cursor:pointer">PDF 생성</button>
+              <button style="padding:5px 10px;border-radius:5px;background:rgba(255,255,255,0.05);border:1px solid #1f1f24;color:#9494a0;font-size:11px;cursor:pointer">JSON</button>
+            </div>
+          </div>
+          <!-- report card 4 -->
+          <div style="padding:18px;border-radius:9px;background:#0d0d0f;border:1px solid #1f1f24;cursor:pointer">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <div style="width:32px;height:32px;border-radius:8px;background:rgba(167,139,250,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#e8e8ee">ROI 분석 보고서</div>
+                <div style="font-size:10px;color:#555560">8페이지 · 관리자용</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#9494a0;margin-bottom:12px;line-height:1.5">자동 패치로 절감된 시간·비용·리스크 수치화.</div>
+            <div style="display:flex;gap:6px">
+              <button style="flex:1;padding:5px 0;border-radius:5px;background:#ea580c;border:none;color:#fff;font-size:11px;font-weight:700;cursor:pointer">PDF 생성</button>
+              <button style="padding:5px 10px;border-radius:5px;background:rgba(255,255,255,0.05);border:1px solid #1f1f24;color:#9494a0;font-size:11px;cursor:pointer">DOCX</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ── GENERIC PANELS (SBOM / Scheduled / Monitoring / Regulatory / DAST / Patch / Settings) ── -->
+    <sc-if value="{{ isGeneric }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:40px">
+        <div style="width:48px;height:48px;border-radius:12px;background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.2);display:flex;align-items:center;justify-content:center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:16px;font-weight:700;color:#e8e8ee;margin-bottom:6px">{{ genericTitle }}</div>
+          <div style="font-size:13px;color:#9494a0;max-width:380px;line-height:1.6">{{ genericDesc }}</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button style="padding:7px 18px;border-radius:7px;background:#ea580c;border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(234,88,12,.3)">설정하기</button>
+          <button style="padding:7px 18px;border-radius:7px;background:rgba(255,255,255,0.05);border:1px solid #2a2a30;color:#9494a0;font-size:13px;cursor:pointer">문서 보기</button>
+        </div>
+      </div>
+    </sc-if>
+
+  </div><!-- /main content -->
+</div><!-- /body -->
+</div><!-- /root -->
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: 1440, &quot;height&quot;: 900 }
+}">
+class Component extends DCLogic {
+  state = {
+    nav: 'editor',
+    sidebarOpen: true,
+    fileTreeOpen: true,
+    dastOpen: true,
+    rightTab: 'vulns',
+    activeFile: 'userauth',
+    sev: 'all',
+    selIds: [],
+    toast: null,
+    analyzing: false,
+    dirExpanded: { root: true, src: true, resources: false },
+    hoveredIcon: null,
+    split: null,
+    splitFile: null,
+    draggingTab: null,
+    dragZone: null,
+  };
+
+  navItem(id) {
+    const active = this.state.nav === id;
+    return {
+      st: {
+        width: '100%', display: 'flex', alignItems: 'center', gap: '9px',
+        padding: '7px 14px', border: 'none', textAlign: 'left', cursor: 'pointer',
+        background: active ? 'rgba(249,115,22,0.08)' : 'transparent',
+        borderLeft: active ? '2px solid #ea580c' : '2px solid transparent',
+        transition: 'background 0.12s', fontFamily: "'Space Grotesk',system-ui,sans-serif",
+      },
+      lc: active ? '#f97316' : '#9494a0',
+      ic: active ? '#f97316' : '#555560',
+    };
+  }
+
+  get VULNS() {
+    return [
+      { id: 'v1', type: 'SQL_INJECTION',     sev: 'critical', file: 'UserAuth.java',   line: 6,  cwe: 'CWE-89',  proven: true,  tainted: 'username', attackScenario: "' OR 1=1-- 페이로드로 DB 전체 열람" },
+      { id: 'v2', type: 'SECRET_EXPOSURE',   sev: 'critical', file: 'UserAuth.java',   line: 3,  cwe: 'CWE-312', proven: true,  tainted: 'SECRET',   attackScenario: 'Git 이력에 AWS 키 평문 노출' },
+      { id: 'v3', type: 'BROKEN_AUTH',       sev: 'high',     file: 'UserAuth.java',   line: 11, cwe: 'CWE-287', proven: false, tainted: 'token',    attackScenario: '== 참조 비교로 토큰 우회 가능' },
+      { id: 'v4', type: 'CSRF',              sev: 'medium',   file: 'UserAuth.java',   line: 15, cwe: 'CWE-352', proven: false, tainted: 'newPassword', attackScenario: 'CSRF 토큰 없어 외부 폼 공격 가능' },
+    ];
+  }
+
+  buildTree() {
+    const { dirExpanded, activeFile } = this.state;
+    const SEV_C = { critical:'#f04141', high:'#f59e0b', medium:'#eab308', low:'#22c55e' };
+    const SEV_B = { critical:'rgba(240,65,65,0.1)', high:'rgba(245,158,11,0.1)', medium:'rgba(234,179,8,0.1)', low:'rgba(34,197,94,0.1)' };
+    const nodes = [];
+
+    const addDir = (depth, id, name) => {
+      const exp = !!dirExpanded[id];
+      nodes.push({
+        isDir: true, isFile: false, depth, id, name, vulns: 0, hasVulns: false,
+        expanded: exp, notExpanded: !exp,
+        sevColor: 'transparent', sevBg: 'transparent', nameColor: '#9494a0',
+        dirSt: {
+          width: '100%', display: 'flex', alignItems: 'center', gap: '5px',
+          padding: ('4px 6px 4px ' + (8 + depth * 12) + 'px'),
+          background: 'transparent', border: 'none', cursor: 'pointer',
+          textAlign: 'left', fontFamily: "'Space Grotesk',system-ui,sans-serif",
+        },
+        fileSt: {},
+        onDirToggle: () => this.setState(s => ({ dirExpanded: { ...s.dirExpanded, [id]: !s.dirExpanded[id] } })),
+        onFileClick: () => {},
+      });
+    };
+
+    const addFile = (depth, id, name, vulns, sev) => {
+      const active = activeFile === id;
+      nodes.push({
+        isDir: false, isFile: true, depth, id, name, vulns,
+        hasVulns: vulns > 0,
+        expanded: false, notExpanded: true,
+        sevColor: SEV_C[sev] || 'transparent',
+        sevBg: SEV_B[sev] || 'transparent',
+        nameColor: active ? '#f97316' : '#c4c4cc',
+        dirSt: {},
+        fileSt: {
+          width: '100%', display: 'flex', alignItems: 'center', gap: '5px',
+          padding: ('3px 6px 3px ' + (8 + depth * 12) + 'px'),
+          background: active ? 'rgba(234,88,12,0.1)' : 'transparent',
+          border: 'none',
+          borderLeft: active ? '2px solid #ea580c' : '2px solid transparent',
+          cursor: 'pointer', textAlign: 'left',
+          fontFamily: "'Space Grotesk',system-ui,sans-serif",
+          transition: 'background .12s',
+        },
+        onFileClick: () => this.setState({ activeFile: id, nav: 'editor' }),
+        onDirToggle: () => {},
+      });
+    };
+
+    addDir(0, 'root', 'secureai-editor');
+    if (dirExpanded.root) {
+      addDir(1, 'src', 'src/main/java');
+      if (dirExpanded.src) {
+        addFile(2, 'userauth', 'UserAuth.java',    4, 'critical');
+        addFile(2, 'payment',  'PaymentSvc.java',  1, 'high');
+        addFile(2, 'order',    'OrderService.java', 3, 'critical');
+        addFile(2, 'file',     'FileUpload.java',  2, 'high');
+      }
+      addDir(1, 'resources', 'src/main/resources');
+      if (dirExpanded.resources) {
+        addFile(2, 'props', 'application.properties', 1, 'medium');
+      }
+    }
+    return nodes;
+  }
+
+  renderVals() {
+    const { nav, sidebarOpen, fileTreeOpen, dastOpen, rightTab, activeFile, sev, selIds, toast, analyzing, hoveredIcon, split, splitFile, draggingTab, dragZone } = this.state;
+
+    const SEVC = { critical: '#f04141', high: '#f59e0b', medium: '#eab308', low: '#22c55e' };
+    const SEVB = { critical: 'rgba(240,65,65,0.1)', high: 'rgba(245,158,11,0.1)', medium: 'rgba(234,179,8,0.1)', low: 'rgba(34,197,94,0.1)' };
+    const SEVBD = { critical: 'rgba(240,65,65,0.3)', high: 'rgba(245,158,11,0.3)', medium: 'rgba(234,179,8,0.3)', low: 'rgba(34,197,94,0.3)' };
+    const SEVL = { critical: 'CRITICAL', high: 'HIGH', medium: 'MEDIUM', low: 'LOW' };
+
+    // nav items
+    const navIds = ['editor','dast','patch','secretScan','sbom','compliance','prReview','scheduled','monitoring','reports','regulatory','settings'];
+    const ns = {};
+    navIds.forEach(id => { ns[id] = this.navItem(id); });
+
+    // vulns
+    const filtered = this.VULNS.filter(v => sev === 'all' || v.sev === sev);
+    const vulns = filtered.map(v => {
+      const sel = selIds.includes(v.id);
+      return {
+        ...v,
+        sevC: SEVC[v.sev], sevB: SEVB[v.sev], sevBd: SEVBD[v.sev], sevL: SEVL[v.sev],
+        sel,
+        rowBg: sel ? 'rgba(249,115,22,0.05)' : 'transparent',
+        rowBl: sel ? `2px solid ${SEVC[v.sev]}` : '2px solid transparent',
+        chkSt: {
+          position: 'absolute', top: '10px', left: '9px',
+          width: '13px', height: '13px', borderRadius: '3px', flexShrink: 0,
+          border: sel ? '1.5px solid #ea580c' : '1.5px solid rgba(255,255,255,0.15)',
+          background: sel ? '#ea580c' : 'transparent',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+        },
+        toggle: () => {
+          const s = this.state.selIds;
+          this.setState({ selIds: s.includes(v.id) ? s.filter(x => x !== v.id) : [...s, v.id] });
+        },
+      };
+    });
+
+    // bulk triage banner logic
+    const selVulns = this.VULNS.filter(v => selIds.includes(v.id));
+    const typeMap = {};
+    selVulns.forEach(v => { typeMap[v.type] = (typeMap[v.type] || 0) + 1; });
+    const sorted = Object.entries(typeMap).sort((a, b) => b[1] - a[1]);
+    const topType = sorted[0];
+    const showBanner = !!(topType && topType[1] >= 2);
+    const totalOfTopType = topType ? this.VULNS.filter(v => v.type === topType[0]).length : 0;
+
+    const doTriage = (label) => {
+      const n = selIds.length;
+      this.setState({ toast: { n, label }, selIds: [] });
+      setTimeout(() => this.setState({ toast: null }), 3000);
+    };
+
+    // generic panel data
+    const GENERIC = {
+      sbom:       { title: 'SBOM & CVE 분석',  desc: 'pom.xml · package.json 의존성에서 CVE를 탐지하고 CycloneDX SBOM을 생성합니다. GitHub Actions 연동으로 매 빌드 자동 실행.' },
+      scheduled:  { title: '예약 자동 스캔',    desc: '크론 스케줄로 GitHub 레포지토리를 자동 분석. 야간 02:00 KST 기본 설정. 결과는 Slack·이메일로 발송.' },
+      monitoring: { title: '도메인 모니터링',   desc: 'HTTPS/SSL 인증서 만료 감시 + 보안 헤더 검사. staging.pagori.io SSL 18일 후 만료 — 즉시 갱신 필요.' },
+      regulatory: { title: '규제 문서',          desc: 'ISMS-P 준비자료 · ISO 27001 감사 증적 · HANAFOS-M · 개인정보 영향평가 보조자료를 자동 생성합니다.' },
+      dast:       { title: 'DAST 워크스페이스',  desc: '취약점을 직접 선택해 동적 익스플로잇을 실행합니다. 단건 또는 배치(최대 50건) 모드. Semaphore(4) 동시성 제어.' },
+      patch:      { title: '패치 매니저',        desc: 'AI가 생성한 패치 코드를 검토·적용하고 자동으로 PR을 생성합니다. 자가검증(VERIFIED)으로 패치 품질을 보장.' },
+      settings:   { title: '설정',               desc: '계정·AI 프로바이더(BYOK)·조직·팀 관리·GitHub 통합·보안(2FA)·개인정보·크레딧 과금·관리자 패널.' },
+    };
+
+    const isGeneric = ['sbom','scheduled','monitoring','regulatory','dast','patch','settings'].includes(nav);
+    const genericInfo = GENERIC[nav] || {};
+
+    // sidebar style
+    const sidebarStyle = {
+      width: sidebarOpen ? '240px' : '0px',
+      flexShrink: 0,
+      background: '#0d0d0f',
+      borderRight: '1px solid #1f1f24',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      transition: 'width 0.18s cubic-bezier(0.4,0,0.2,1)',
+    };
+
+    const mkSevBtn = (id) => {
+      const c = { all: '#e8e8ee', critical: '#f04141', high: '#f59e0b', medium: '#eab308' }[id];
+      const active = sev === id;
+      return {
+        fontSize: '9px', fontWeight: 800, fontFamily: "'JetBrains Mono',monospace",
+        padding: '3px 8px', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.12s',
+        background: active ? (id === 'all' ? 'rgba(255,255,255,0.12)' : c) : `${c}22`,
+        color: active ? (id === 'all' ? '#e8e8ee' : '#fff') : c,
+        border: `1px solid ${active ? (id === 'all' ? 'rgba(255,255,255,0.2)' : c) : `${c}55`}`,
+      };
+    };
+
+    const fileStyle = (id) => ({
+      width: '100%', display: 'flex', alignItems: 'center', gap: '5px',
+      padding: '3px 14px 3px 22px', background: activeFile === id ? 'rgba(234,88,12,0.12)' : 'transparent',
+      border: 'none', borderLeft: activeFile === id ? '2px solid #ea580c' : '2px solid transparent',
+      cursor: 'pointer', transition: 'all 0.12s', textAlign: 'left',
+      fontFamily: "'Space Grotesk',system-ui,sans-serif",
+    });
+
+    const tabStyle = (id) => {
+      const active = activeFile === id;
+      return {
+        display: 'flex', alignItems: 'center', gap: '6px',
+        padding: '0 10px', height: '100%', flexShrink: 0, maxWidth: '160px',
+        background: active ? 'rgba(249,115,22,0.06)' : 'transparent',
+        border: 'none',
+        borderBottom: active ? '2px solid #f97316' : '2px solid transparent',
+        borderRight: '1px solid #1f1f24',
+        cursor: 'pointer',
+        fontFamily: "'Space Grotesk',system-ui,sans-serif",
+        transition: 'background 0.12s',
+      };
+    };
+
+    const rightTabStyle = (id) => ({
+      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+      background: 'transparent', border: 'none',
+      borderBottom: rightTab === id ? '2px solid #f97316' : '2px solid transparent',
+      color: rightTab === id ? '#e8e8ee' : '#9494a0', cursor: 'pointer', fontSize: '11px',
+      fontFamily: "'Space Grotesk',system-ui,sans-serif", transition: 'all 0.12s',
+    });
+
+    const breadcrumbMap = {
+      editor: 'UserAuth.java', dast: 'DAST 워크스페이스', patch: '패치 매니저',
+      secretScan: '시크릿 스캔', sbom: 'SBOM & CVE', compliance: '컴플라이언스',
+      prReview: 'PR 자동 리뷰', scheduled: '예약 자동 스캔', monitoring: '도메인 모니터링',
+      reports: '보고서 생성', regulatory: '규제 문서', settings: '설정',
+    };
+
+    const iconBtn = (id, color) => {
+      const active = nav === id;
+      return {
+        width: '34px', height: '32px', position: 'relative',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: '6px',
+        border: active ? ('1px solid ' + color + '50') : '1px solid #1f1f24',
+        background: active ? (color + '18') : '#111114',
+        cursor: 'pointer', transition: 'all .15s', flexShrink: 0,
+      };
+    };
+
+    return {
+      ns, sidebarStyle,
+      iconSecretScan:  iconBtn('secretScan',  '#569cd6'),
+      iconSbom:        iconBtn('sbom',        '#569cd6'),
+      iconCompliance:  iconBtn('compliance',  '#569cd6'),
+      iconPrReview:    iconBtn('prReview',    '#a78bfa'),
+      iconScheduled:   iconBtn('scheduled',   '#a78bfa'),
+      iconMonitoring:  iconBtn('monitoring',  '#a78bfa'),
+      iconReports:     iconBtn('reports',     '#34d399'),
+      iconRegulatory:  iconBtn('regulatory',  '#34d399'),
+      hoverSecretScan:  () => this.setState({ hoveredIcon: 'secretScan' }),
+      hoverSbom:        () => this.setState({ hoveredIcon: 'sbom' }),
+      hoverCompliance:  () => this.setState({ hoveredIcon: 'compliance' }),
+      hoverPrReview:    () => this.setState({ hoveredIcon: 'prReview' }),
+      hoverScheduled:   () => this.setState({ hoveredIcon: 'scheduled' }),
+      hoverMonitoring:  () => this.setState({ hoveredIcon: 'monitoring' }),
+      hoverReports:     () => this.setState({ hoveredIcon: 'reports' }),
+      hoverRegulatory:  () => this.setState({ hoveredIcon: 'regulatory' }),
+      hoverLeave:       () => this.setState({ hoveredIcon: null }),
+      // ── drag-to-split ────────────────────────────────────────
+      hasSplit: !!split,
+      noSplit: !split,
+      isDragging: !!draggingTab && !split,
+      dragZone,
+      splitFileLabel: ({ userauth:'UserAuth.java', order:'OrderService.java', payment:'PaymentSvc.java', file:'FileUpload.java' })[splitFile] || '',
+      splitContainerSt: { flex:1, overflow:'hidden', display:'flex', flexDirection: split==='v' ? 'column' : 'row', position:'relative' },
+      primaryPaneSt: { flex:1, minWidth:0, minHeight:0, overflowY:'auto', background:'#080809', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', lineHeight:'1.75', padding:'8px 0' },
+      secondaryPaneSt: { flex:1, minWidth:0, minHeight:0, display:'flex', flexDirection:'column', background:'#080809', overflow:'hidden' },
+      splitDivSt: split==='v' ? { height:'3px', flexShrink:0, background:'#1f1f24', position:'relative' } : { width:'3px', flexShrink:0, background:'#1f1f24', position:'relative' },
+      zoneLeftSt:   { position:'absolute', zIndex:10, pointerEvents:'none', left:0,   top:0,    width:'35%',  height:'100%', borderRadius:'4px', transition:'all .12s', background: dragZone==='left'   ? 'rgba(249,115,22,0.15)' : 'transparent', border: dragZone==='left'   ? '2px solid rgba(249,115,22,0.7)' : '2px solid transparent' },
+      zoneRightSt:  { position:'absolute', zIndex:10, pointerEvents:'none', right:0,  top:0,    width:'35%',  height:'100%', borderRadius:'4px', transition:'all .12s', background: dragZone==='right'  ? 'rgba(249,115,22,0.15)' : 'transparent', border: dragZone==='right'  ? '2px solid rgba(249,115,22,0.7)' : '2px solid transparent' },
+      zoneTopSt:    { position:'absolute', zIndex:10, pointerEvents:'none', left:0,   top:0,    width:'100%', height:'35%',  borderRadius:'4px', transition:'all .12s', background: dragZone==='top'    ? 'rgba(249,115,22,0.15)' : 'transparent', border: dragZone==='top'    ? '2px solid rgba(249,115,22,0.7)' : '2px solid transparent' },
+      zoneBottomSt: { position:'absolute', zIndex:10, pointerEvents:'none', left:0,   bottom:0, width:'100%', height:'35%',  borderRadius:'4px', transition:'all .12s', background: dragZone==='bottom' ? 'rgba(249,115,22,0.15)' : 'transparent', border: dragZone==='bottom' ? '2px solid rgba(249,115,22,0.7)' : '2px solid transparent' },
+      closeSplit:       () => this.setState({ split: null, splitFile: null }),
+      dragStartUserauth:(e) => { e.dataTransfer.effectAllowed = 'move'; this.setState({ draggingTab:'userauth' }); },
+      dragStartOrder:   (e) => { e.dataTransfer.effectAllowed = 'move'; this.setState({ draggingTab:'order' }); },
+      dragEndTab:       () => this.setState({ draggingTab:null, dragZone:null }),
+      editorDragOver: (e) => {
+        e.preventDefault();
+        if (this.state.split) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width;
+        const y = (e.clientY - r.top) / r.height;
+        let zone = null;
+        if (x < 0.35) zone = 'left'; else if (x > 0.65) zone = 'right';
+        else if (y < 0.35) zone = 'top'; else if (y > 0.65) zone = 'bottom';
+        if (this.state.dragZone !== zone) this.setState({ dragZone: zone });
+      },
+      editorDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) this.setState({ dragZone:null }); },
+      editorDrop: (e) => {
+        e.preventDefault();
+        const { dragZone:zone, draggingTab:file } = this.state;
+        if (!zone || !file) { this.setState({ draggingTab:null, dragZone:null }); return; }
+        this.setState({ split: (zone==='left'||zone==='right') ? 'h' : 'v', splitFile:file, draggingTab:null, dragZone:null });
+      },
+      showSecurityTip:   ['secretScan','sbom','compliance'].includes(hoveredIcon),
+      showAutomationTip: ['prReview','scheduled','monitoring'].includes(hoveredIcon),
+      showReportsTip:    ['reports','regulatory'].includes(hoveredIcon),
+      currentTipText: ({
+        secretScan:  '시크릿 스캔 — 커밋에서 AWS Key·JWT 탐지 (3건 발견)',
+        sbom:        'SBOM & CVE — 의존성 취약점 매핑 (12건 발견)',
+        compliance:  '컴플라이언스 — ISO 27001·NIST CSF·ISMS-P',
+        prReview:    'PR 자동 리뷰 — PR 오픈 시 SAST 자동 실행',
+        scheduled:   '예약 자동 스캔 — 매일 02:00 KST 자동 분석',
+        monitoring:  '도메인 모니터링 — SSL 만료 감시 (경고: 18일)',
+        reports:     '보고서 생성 — PDF·DOCX·JSON 4종 템플릿',
+        regulatory:  '규제 문서 — ISMS-P·ISO 27001·HANAFOS',
+      })[hoveredIcon] || '',
+      toggleSidebar: () => this.setState({ sidebarOpen: !this.state.sidebarOpen }),
+      toggleFileTree: () => this.setState({ fileTreeOpen: !this.state.fileTreeOpen }),
+      toggleDast: () => this.setState({ dastOpen: !this.state.dastOpen }),
+      goEditor: () => this.setState({ nav: 'editor' }),
+      goDast: () => this.setState({ nav: 'dast' }),
+      goPatch: () => this.setState({ nav: 'patch' }),
+      goSecretScan: () => this.setState({ nav: 'secretScan' }),
+      goSbom: () => this.setState({ nav: 'sbom' }),
+      goCompliance: () => this.setState({ nav: 'compliance' }),
+      goPrReview: () => this.setState({ nav: 'prReview' }),
+      goScheduled: () => this.setState({ nav: 'scheduled' }),
+      goMonitoring: () => this.setState({ nav: 'monitoring' }),
+      goReports: () => this.setState({ nav: 'reports' }),
+      goRegulatory: () => this.setState({ nav: 'regulatory' }),
+      goSettings: () => this.setState({ nav: 'settings' }),
+
+      isEditor:     nav === 'editor',
+      isSecretScan: nav === 'secretScan',
+      isSbom:       nav === 'sbom',
+      isCompliance: nav === 'compliance',
+      isPrReview:   nav === 'prReview',
+      isScheduled:  nav === 'scheduled',
+      isMonitoring: nav === 'monitoring',
+      isReports:    nav === 'reports',
+      isRegulatory: nav === 'regulatory',
+      isDast:       nav === 'dast',
+      isPatch:      nav === 'patch',
+      isSettings:   nav === 'settings',
+      isGeneric,
+      genericTitle: genericInfo.title || '',
+      genericDesc:  genericInfo.desc || '',
+
+      breadcrumb: breadcrumbMap[nav] || nav,
+
+      fileTreeOpen,
+      fileTreeClosed: !fileTreeOpen,
+      dastOpen,
+      dastClosed: !dastOpen,
+      treeNodes: this.buildTree(),
+      fileStyle,
+      fileColor: (id) => activeFile === id ? '#f97316' : '#9494a0',
+      selectUserAuth: () => this.setState({ activeFile: 'userauth', nav: 'editor' }),
+      selectPayment:  () => this.setState({ activeFile: 'payment',  nav: 'editor' }),
+      selectOrder:    () => this.setState({ activeFile: 'order',    nav: 'editor' }),
+      selectFile:     () => this.setState({ activeFile: 'file',     nav: 'editor' }),
+      tabStyle,
+      tabStyleUserauth: tabStyle('userauth'),
+      tabStyleOrder:    tabStyle('order'),
+      tabNameUserauth:  activeFile === 'userauth' ? '#e8e8ee' : '#555560',
+      tabNameOrder:     activeFile === 'order'    ? '#e8e8ee' : '#555560',
+
+      sev,
+      setSevAll:      () => this.setState({ sev: 'all' }),
+      setSevCritical: () => this.setState({ sev: 'critical' }),
+      setSevHigh:     () => this.setState({ sev: 'high' }),
+      setSevMedium:   () => this.setState({ sev: 'medium' }),
+      sevStyleAll:      mkSevBtn('all'),
+      sevStyleCritical: mkSevBtn('critical'),
+      sevStyleHigh:     mkSevBtn('high'),
+      sevStyleMedium:   mkSevBtn('medium'),
+
+      analyzing,
+      notAnalyzing: !analyzing,
+      analyzeBtnLabel: analyzing ? '분석 중...' : '분석 시작',
+      analyzeBtn: {
+        fontSize: '11px', fontWeight: 800, padding: '5px 14px', borderRadius: '6px',
+        background: analyzing ? 'rgba(234,88,12,0.35)' : '#ea580c',
+        color: '#fff', border: 'none', cursor: analyzing ? 'not-allowed' : 'pointer',
+        display: 'flex', alignItems: 'center', gap: '5px',
+        boxShadow: analyzing ? 'none' : '0 3px 12px rgba(234,88,12,0.4)',
+        transition: 'all 0.15s', fontFamily: "'Space Grotesk',system-ui,sans-serif",
+      },
+      doAnalyze: () => {
+        if (this.state.analyzing) return;
+        this.setState({ analyzing: true });
+        setTimeout(() => this.setState({ analyzing: false }), 2800);
+      },
+
+      rightTab,
+      isRightVulns: rightTab === 'vulns',
+      isRightChat:  rightTab === 'chat',
+      setRightVulns: () => this.setState({ rightTab: 'vulns' }),
+      setRightChat:  () => this.setState({ rightTab: 'chat' }),
+      rightTabStyle,
+      rightTabStyleVulns: rightTabStyle('vulns'),
+      rightTabStyleChat:  rightTabStyle('chat'),
+
+      vulns,
+      selCount: selIds.length,
+      showBulkBar: selIds.length > 0,
+      showBanner,
+      topType:        topType ? topType[0] : '',
+      topTypeCount:   topType ? topType[1] : 0,
+      totalOfTopType,
+      selAllOfType: () => {
+        if (!topType) return;
+        this.setState({ selIds: this.VULNS.filter(v => v.type === topType[0]).map(v => v.id) });
+      },
+      toast,
+      bulkConfirm:  () => doTriage('확인(CONFIRM)'),
+      bulkDismiss:  () => doTriage('기각(DISMISS)'),
+      bulkPatch:    () => doTriage('패치채택'),
+    };
+  }
+}
+</script>
+</body>
+</html>

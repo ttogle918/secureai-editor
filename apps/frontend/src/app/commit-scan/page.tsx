@@ -8,7 +8,7 @@ import {
   ArrowLeft, Download, RefreshCw, ArrowRight,
   Key, Pause, Check, Zap, AlertTriangle,
 } from 'lucide-react';
-import { PagoriLockup } from '@/components/brand/PagoriBrand';
+import { KkebiLockup } from '@/components/brand/KkebiBrand';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,7 +143,7 @@ export default function CommitScanPage() {
           <ArrowLeft size={13} />
         </button>
 
-        <PagoriLockup size={22} />
+        <KkebiLockup size={22} />
 
         <div style={{ width: 1, height: 18, background: 'var(--hairline)' }} />
 

@@ -698,11 +698,11 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           </>
         )}
 
-        {/* ── 크레딧 칩 — 실제 balance 표시, 클릭 시 /settings ── */}
+        {/* ── 크레딧 칩 — 실제 balance 표시, 클릭 시 /billing(충전) ── */}
         {creditsData && (
           <button
-            onClick={() => router.push('/settings')}
-            title={`크레딧 잔액: ${creditsData.balance.toLocaleString()} · 플랜: ${creditsData.plan.displayName ?? creditsData.plan.name}`}
+            onClick={() => router.push('/billing')}
+            title={`크레딧 잔액: ${creditsData.balance.toLocaleString()} · 플랜: ${creditsData.plan.displayName ?? creditsData.plan.name} · 클릭하여 충전`}
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
               padding: '4px 9px', borderRadius: 6,

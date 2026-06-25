@@ -198,8 +198,8 @@ export function PatchManagerPage() {
                       Fix: {patch.vulnType}
                     </span>
                     {/* TASK-1402: 검증 상태 배지 (verificationStatus가 있을 때만 표시) */}
-                    {(patch as { verificationStatus?: VerificationStatus }).verificationStatus && (
-                      <VerificationBadge status={(patch as { verificationStatus: VerificationStatus }).verificationStatus} />
+                    {(patch as any).verificationStatus && (
+                      <VerificationBadge status={(patch as any).verificationStatus} />
                     )}
                     {/* PR 생성 버튼 */}
                     {prResult ? (

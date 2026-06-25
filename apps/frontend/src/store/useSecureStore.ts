@@ -179,6 +179,15 @@ interface SecureStore {
   /** 낙관적 갱신 롤백 — API 실패 시 이전 status로 복원한다 */
   rollbackVulnStatus: (vulnId: string, prevStatus: VulnStatus) => void;
 
+  /**
+   * 벌크 낙관적 갱신: 여러 취약점 status를 한 번에 변경한다.
+   * API 응답의 appliedVulnIds로 skip된 항목은 rollbackManyVulnStatus로 복원한다.
+   * 반환값: 이전 상태 스냅샷 (id→status) — rollback 시 사용
+   */
+  optimisticUpdateManyVulnStatus: (vulnIds: string[], newStatus: VulnStatus) => Record<string, VulnStatus>;
+  /** 벌크 낙관적 갱신 롤백 — skip된 항목만 이전 status로 복원 */
+  rollbackManyVulnStatus: (prevSnapshot: Record<string, VulnStatus>) => void;
+
   // ── SSE 세션 ─────────────────────────────────────────────
   sseSessionId: string | null;
   setSseSessionId: (id: string | null) => void;
@@ -224,6 +233,14 @@ interface SecureStore {
   clearDastLogs: () => void;
   addDastLog: (log: DastLog) => void;
   setDastExploitResult: (vulnId: string, result: DastExploitResult) => void;
+
+  // ── 배치 DAST ────────────────────────────────────────────
+  /** 배치 DAST SSE 세션 id — null이면 미실행 */
+  dastBatchSessionId: string | null;
+  /** 배치 DAST 완료 집계 */
+  dastBatchSummary: { total: number; succeeded: number; skipped: number } | null;
+  setDastBatchSessionId: (id: string | null) => void;
+  setDastBatchSummary: (summary: { total: number; succeeded: number; skipped: number } | null) => void;
 
   // ── 진행률 ──────────────────────────────────────────────
   progressSteps: ProgressStep[];
@@ -406,6 +423,30 @@ export const useSecureStore = create<SecureStore>()(
       ),
     })),
 
+  // 벌크 낙관적 갱신 — id 집합 전체를 newStatus로 갱신하고 이전 스냅샷 반환
+  optimisticUpdateManyVulnStatus: (vulnIds, newStatus) => {
+    const idSet = new Set(vulnIds);
+    // 이전 상태 스냅샷: rollback 대상이 되는 id만 저장
+    const prev: Record<string, VulnStatus> = {};
+    const s = get();
+    for (const v of s.vulns) {
+      if (idSet.has(v.id)) prev[v.id] = v.status;
+    }
+    set((st) => ({
+      vulns: st.vulns.map((v) =>
+        idSet.has(v.id) ? { ...v, status: newStatus } : v
+      ),
+    }));
+    return prev;
+  },
+  // 이전 스냅샷의 id만 복원 (skip된 항목 롤백에 사용)
+  rollbackManyVulnStatus: (prevSnapshot) =>
+    set((s) => ({
+      vulns: s.vulns.map((v) =>
+        v.id in prevSnapshot ? { ...v, status: prevSnapshot[v.id] } : v
+      ),
+    })),
+
   // ── SSE 세션
   sseSessionId: null,
   setSseSessionId: (id) => set({ sseSessionId: id }),
@@ -468,6 +509,12 @@ export const useSecureStore = create<SecureStore>()(
   addDastLog: (log) => set((s) => ({ dastLogs: [...s.dastLogs, log] })),
   setDastExploitResult: (vulnId, result) =>
     set((s) => ({ dastExploitResults: { ...s.dastExploitResults, [vulnId]: result } })),
+
+  // ── 배치 DAST
+  dastBatchSessionId: null,
+  dastBatchSummary: null,
+  setDastBatchSessionId: (id) => set({ dastBatchSessionId: id }),
+  setDastBatchSummary: (summary) => set({ dastBatchSummary: summary }),
 
   // ── 진행률
   progressSteps: [],

@@ -1,6 +1,7 @@
 /**
  * 취약점 API 클라이언트 함수
  * STAGE-1: stage 완료 시 파일 단위 점진 조회
+ * BULK-TRIAGE: 다건 취약점 일괄 트리아지
  */
 import { apiClient } from './client';
 
@@ -34,6 +35,44 @@ interface PagedResponse<T> {
 }
 
 const MAX_PAGE_SIZE = 200;
+
+// ── 벌크 트리아지 ────────────────────────────────────────────────────────────
+
+export type BulkTriageAction = 'CONFIRM' | 'DISMISS' | 'ACCEPT_PATCH';
+
+export interface BulkTriageRequest {
+  vulnIds: string[];
+  action: BulkTriageAction;
+  /** DISMISS 액션 시 기각 사유 (최대 1000자) */
+  reason?: string;
+}
+
+export interface BulkTriageResult {
+  requested: number;
+  applied: number;
+  skipped: number;
+  newStatus: string;
+  appliedVulnIds: string[];
+}
+
+interface ApiResponse<T> {
+  data: T;
+}
+
+/**
+ * PATCH /api/v1/vulnerabilities/bulk-triage
+ * 다건 취약점을 일괄 트리아지한다.
+ * 응답 data.appliedVulnIds에 없는 id는 skip(권한 없음/미존재) 처리됨.
+ */
+export async function bulkTriageVulns(
+  req: BulkTriageRequest,
+): Promise<BulkTriageResult> {
+  const response = await apiClient.patch<ApiResponse<BulkTriageResult>>(
+    '/vulnerabilities/bulk-triage',
+    req,
+  );
+  return response.data;
+}
 
 /**
  * POST /api/v1/vulnerabilities/query

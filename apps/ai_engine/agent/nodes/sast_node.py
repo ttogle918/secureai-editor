@@ -337,11 +337,19 @@ async def sast_node(state: AgentState) -> dict:
                 else:
                     preferred_provider = settings.pipeline_provider
 
-            # AUDIT fallback: gemini 라우팅인데 키 없으면 anthropic haiku로 폴백
+            # BYOK 키는 폴백 판단보다 먼저 읽는다 — 사용자가 자기 gemini 키를 넣었으면
+            # 서버 GEMINI_API_KEY가 없어도 폴백하지 말고 그 키로 호출해야 한다.
+            user_api_key = state.get("user_api_key")
+
+            # AUDIT fallback: gemini 라우팅인데 서버 키도 BYOK 키도 없을 때만 anthropic 폴백
             resolved_provider = preferred_provider
-            if resolved_provider == PROVIDER_GEMINI and not settings.gemini_api_key:
+            if (
+                resolved_provider == PROVIDER_GEMINI
+                and not settings.gemini_api_key
+                and not user_api_key
+            ):
                 logger.warning(
-                    "[sast] session=%s AUDIT→gemini requested but GEMINI_API_KEY not set; "
+                    "[sast] session=%s gemini requested but no GEMINI_API_KEY and no BYOK key; "
                     "falling back to anthropic audit_model=%s",
                     session_id, settings.audit_model,
                 )
@@ -364,7 +372,6 @@ async def sast_node(state: AgentState) -> dict:
                 else:
                     preferred_model = settings.pipeline_model
 
-            user_api_key = state.get("user_api_key")
             raw_vulns, file_usage = await _analyze_chunks(
                 file_path, content, guidelines, preferred_model, user_api_key, resolved_provider
             )

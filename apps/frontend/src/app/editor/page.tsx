@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -25,6 +25,17 @@ function AnalysisProgressStrip() {
   const progressSteps = useSecureStore((s) => s.progressSteps);
   const lastTokenUsage = useSecureStore((s) => s.lastTokenUsage);
   const vulns          = useSecureStore((s) => s.vulns);
+
+  // ── 분석 경과 타이머 (FEAT-FE: 분석 중 0:00부터 1초씩 카운트업) ──
+  // FE 표시 전용. 서버 기준 정확한 duration 측정은 백로그(FEAT-ANALYSIS-TIMING).
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!isAnalyzing) { setElapsed(0); return; }
+    setElapsed(0);
+    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [isAnalyzing]);
+  const elapsedStr = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
 
   // SSE 연결 여부: progressSteps가 있으면 SSE 활성, 없으면 백그라운드(새로고침 후)
   const hasSseProgress = progressSteps.length > 0;
@@ -108,6 +119,11 @@ function AnalysisProgressStrip() {
           )}
 
           <div style={{ flex: 1 }} />
+
+          {/* 경과 시간 — 분석 중 카운트업 */}
+          <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+            ⏱ {elapsedStr}
+          </span>
 
           {/* 토큰 사용량 */}
           {tokenStr && (

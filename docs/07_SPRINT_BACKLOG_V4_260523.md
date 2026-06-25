@@ -61,8 +61,13 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
     - **신규 FE 백로그(데모 후, /sprint 편성 대상)**: `FEAT-FE-SAVE`(에디터 Ctrl+S 저장·삭제 — Tauri fs / 웹 워크스페이스 폴백, 환경 분기) · `FEAT-FE-GIT`(Git 소스컨트롤 패널 — GitHub API(웹)/shell(데스크톱)) · `VAL-18 UI`(taintedParam/attackScenario/proven 슬롯 — VAL-18 백엔드 의존) · `FEAT-FE-AUTOMATION`(PR자동리뷰·예약스캔·도메인모니터링 FE 페이지 — 현재 사이드바 "준비 중" 비활성) · `proven_exploit 프로덕션 UI`(Scene4 갭, VAL-18 일부) · `useCredits` Context/SWR 통합(헤더+대시보드 이중 페치).
     - **EPIC-BILLING (과금 모델 2종 — BYOK vs 플랫폼 크레딧 대납)**: 현재 BYOK(모드1, 차감 없음·무제한)와 플랫폼 키 대납+크레딧 차감(모드2, `deductForScan` BYOK제외 + `TOKEN_LIMIT_EXCEEDED` 한도가드)은 **핵심 구현됨**. 갭을 태스크화:
       - `FEAT-BILLING-1` 🔴 **결제 연동 + 크레딧 충전(구매) 플로우** — PG(Stripe 등) 연동·`/billing` 충전 엔드포인트·구매 확정→크레딧 적립. *현재 결제 게이트웨이·충전 API 전무(크레딧은 가입보너스/플랜/관리자 지급만).* **데모용 구매 페이지(UI only, PG 없이)는 본 세션에서 선구현.**
-      - `FEAT-BILLING-2` 🟠 **모드 1/2 명시적 선택 토글** — 사용자 설정 `keyMode`(BYOK/플랫폼) 추가 → `resolveKeyForAnalysis`가 존중(현재는 BYOK 키 보유 여부로 자동결정). PG·외부키 불필요, 중간 규모 — 지금 구현 가능.
+      - `FEAT-BILLING-2` ✅ **모드 1/2 명시적 선택 토글 — 구현 완료(2026-06-26)**. `StartAnalysisRequest.keyMode`(BYOK/PLATFORM/null) + `AnalysisService`가 PLATFORM 모드 시 BYOK 키 무시하고 플랫폼 키+크레딧 사용(isByok=false). FE: `/billing` 토글(localStorage) → `useStartAnalysis`가 전달. (서버 영속 설정·UI 위치 고도화는 후속.)
       - `FEAT-BILLING-3` 🟢 **프로그래매틱 프로젝트 API 키 발급** — 자체 키 생성·해시저장·검증 인증필터·스코프·레이트리밋. 외부키 불필요하나 새 인증 경로라 대형. 웹앱 데모엔 불필요(계정+크레딧이 기능 동치) — 외부/CI 연동 필요 시점에.
+    - **데모용 FE-only 추가(2026-06-26)** — 실 백엔드 구조는 백로그만:
+      - ✅ `/billing` 요금제 3단 카드 + 이번 주 사용량 막대그래프(더미) + Enterprise 문의 모달.
+      - ✅ 분석 진행 스트립에 **경과 타이머(0:00↑)** 추가(FE 카운트업) + 토큰/비용은 기존 SSE 실데이터.
+      - `FEAT-ANALYSIS-TIMING` 🟢 (백로그) 서버 기준 정확한 분석 duration 측정·영속(세션 started_at/finished_at, DB 컬럼) + 대시보드 평균 분석시간. 현재 타이머는 FE 표시 전용.
+      - `FEAT-DASH-USAGE` 🟢 (백로그) 대시보드/빌링 사용량 그래프를 `token_usage`(V054) 실데이터로 연결(현재 더미).
 
 - **📹 시연/배포 2트랙 (2026-06-21 확정 — 데모는 빠르게, 배포는 안정적으로)**
 

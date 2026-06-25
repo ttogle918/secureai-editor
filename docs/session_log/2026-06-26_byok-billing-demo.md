@@ -131,4 +131,15 @@
 
 ---
 
-**관련 스프린트 문서**: `docs/sprints/sprint-14.md` "2026-06-26 세션" 섹션 추가 예정
+## 후속: 데모 전제조건 완료 + 시연 시나리오 (코드 변경 없음 — ops/advisory)
+
+- **patch-verify 이미지 빌드 완료**: `secureai-patch-verify:latest`(140MB, pytest 9.1.1 선설치). TASK-1402 패치 자가검증이 `dast-isolated-net`(인터넷 차단)에서 pytest를 돌리려면 사전 빌드 필수였음 — 이게 마지막 미충족 전제조건이었고 이제 해결.
+  - 빌드: `docker build -f apps/ai_engine/agent/sandbox/Dockerfile.patch-verify -t secureai-patch-verify:latest apps/ai_engine/agent/sandbox` / 환경변수 `PATCH_VERIFY_IMAGE` 기본값과 일치.
+- **데모 6항목 구현·도달성 코드 확인(전부 ✅)**: ①proven 클라이맥스=DAST 워크스페이스 타깃URL 입력→배치 실행→SSE 라이브 터미널→EXPLOITED 배지(scorecard.md 팝업만 CLI) ②원가 투명성=경과 타이머+토큰$+사용량그래프(더미)+BYOK/크레딧 토글 ③탐지→증명→교정→PR 풀루프 ④벌크/배치 ⑤규제 증적=REPORTS 모달(ISMS-P/CISO) ⑥플랫폼 폭=사이드바 그룹.
+- **전제조건 전부 충족 확인**(사용자): Anthropic 키 · WebGoat:8081 · `dast-isolated-net` · `EMAIL_PROVIDER=log` · **patch-verify 이미지(본 세션 빌드)** · GitHub App `contents/PR` 권한.
+- **권장 7씬 시나리오**(~4:30): 로그인·스캔→실시간(타이머·토큰)→트리아지(벌크)→**증명(DAST 라이브, 클라이맥스)**→교정·PR→규제문서→**사업모델(/billing: 요금제·BYOK/크레딧)** 마무리. 엔딩: "증명된 취약점만, 고쳐서 PR로, 원가까지 투명하게."
+- **촬영 주의**: 패치검증은 자동(수동 버튼 없음, VERIFIED 배지 도착) · 사용량 그래프는 더미 · proven은 scorecard 팝업 대신 DAST 워크스페이스 라이브 사용.
+
+---
+
+**관련 스프린트 문서**: `docs/sprints/sprint-14.md` "2026-06-26 세션" 섹션

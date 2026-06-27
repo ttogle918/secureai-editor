@@ -133,7 +133,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | ID | 제목 | DoD 요약 | 사이즈 |
 |----|------|---------|--------|
 | **VAL-1** 🔴 ✅ | OWASP Benchmark 평가 하니스 | 2,740 케이스 → TPR/FPR/score, `make eval` 한 방. README에 FP율/탐지율 첫 숫자 | M |
-| **VAL-3** 🔴 ✅ | 결정론적 검증 레이어(AST 할루시네이션 가드) | 모델 보고 file:line·source→sink를 AST로 실재 검증, 불일치 findings 자동 폐기 | L |
+| **VAL-3** 🔴 ✅ | 결정론적 검증 레이어(AST 할루시네이션 가드) | 모델 보고 file:line을 AST로 파싱해 가짜 인용(주석, 빈 줄) 실재 검증 및 자동 폐기 | L |
 | **VAL-4** 🔴 | SAST→DAST `proven_exploitable` 연결 | SAST 의심 → DAST 샌드박스 익스플로잇 성공 시 라벨. "증명" 데모 영상 1편. (인접: ZAP 스캔 하니스 **TASK-1203b** — 단, VAL-4는 AI 라벨링이고 1203b는 회귀 스캔 게이트로 별개 트랙. 묶지 않음) | L |
 | **ECON-1** 🔴 | 프롬프트 캐싱 | 가이드라인 컨텍스트 Anthropic prompt caching. 캐시 적중률+토큰 절감률 계측 (claude-api 스킬) | S |
 | **MOAT-1** 🟠 ✅ | 트리아지 피드백 UI(확인/기각/채택) | findings 라벨 저장 → 독점 학습 데이터. FEAT-AI-003 리랭커 입력 | M |
@@ -141,6 +141,9 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | **WEDGE-4** 🟢 | 피치/문서 재포지셔닝(문서) | README·랜딩·피치덱 "컴플라이언스 증적 자동화" 중심 | S |
 | **WEDGE-5** 🟠 | 파일럿 고객 PoC(GTM) | ISMS-P 준비 기업과 "3주→3일" 사례 1건 | L |
 | **MOAT-4** 🟢 | 모델 비종속 아키텍처 명문화(문서) | BYOK·모델선택을 "무기"로 서사화 | S |
+| **VAL-19** 🔴 | Multi-Pass (투트랙) Triage Agent (SAST) | 수색대(고효율/Recall) → 감사관(고정밀/Precision) 투트랙 검증으로 오탐률(FPR) 극적 제거 | L |
+| **VAL-20** 🔴 | LLM 응답 안전 파싱 및 구조화 | API 단위 JSON Schema 강제, 프론트엔드 Sanitization, 그리고 파싱 실패 방지용 ETC/Fallback 비고란 처리 | M |
+| **WEDGE-6** 🟠 | RAG 기반 컴플라이언스 문서 연동 | KISA 가이드 등 공식 문서를 자체 DB에 청킹/임베딩하여 SAST/DAST 분석 시 검색 및 참고 기능 | L |
 
 ### 채택된 로드맵 (V5.6 재우선순위)
 - **Sprint 12** (보안 코어) + **ECON-1(프롬프트 캐싱)** 끼움 — 즉시 토큰 절감.
@@ -227,7 +230,7 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 #### VAL-3 🔴 — 결정론적 검증 레이어(AST 할루시네이션 가드) *(메모 범위 밖 — 기존 한 줄 유지)*
 > ✅ **완료 2026-06-18 (커밋 `15cd49a`, Sprint13 Stage 1)**. MVP = file:line 라인 실재(비주석/비공백) 검증(source→sink 심층은 Sprint 14 이월). sast_node save 이관→`validate_findings_node`. python(ast)/java(javalang)/ts(regex), 미지원·불확실 시 통과(recall 보호). 🧪 단위 44 통과. 상세: `docs/sprints/sprint-13.md`.
-- 모델이 보고한 file:line·source→sink를 AST로 실재 검증해 불일치 findings를 자동 폐기. **두 메모(BENCHMARK_GUIDE/VALIDATION_ROADMAP)의 직접 대상이 아니므로** 본 상세화에서는 기존 요약표 한 줄을 그대로 유지한다(별도 설계 필요 시 `/sprint 13`에서 다룬다). 단 VAL-10(결정성)이 이 가드의 *효과를 측정하는 숫자*라는 관계만 명시(BENCHMARK_GUIDE §8.2).
+- 파이썬의 `ast`나 `tree-sitter` 라이브러리를 사용해서, LLM이 뱉은 라인 넘버가 **'실제 실행되는 코드(Statement)'**인지 검증하는 로직을 추가한다. LLM이 가끔 취약점이라고 지목한 곳이 단순 주석(`// TODO: SQL`)이거나 엉뚱한 빈 줄일 경우 가차 없이 버려 오탐을 줄인다.
 - 사이즈·배치: L · S13.
 
 ---

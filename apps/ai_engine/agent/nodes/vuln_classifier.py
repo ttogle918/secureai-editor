@@ -28,6 +28,7 @@ _CWE_OWASP_MAP: dict[str, tuple[str, str]] = {
     "WEAK_CRYPTOGRAPHY":        ("CWE-327", "A02:2021"),
     "INSECURE_RANDOM":          ("CWE-338", "A02:2021"),
     "SENSITIVE_DATA_EXPOSURE":  ("CWE-200", "A02:2021"),
+    "SENSITIVE_DATA_IN_URL":    ("CWE-200", "A02:2021"),
     "CSRF":                     ("CWE-352", "A01:2021"),
     "LOG_INJECTION":            ("CWE-117", "A09:2021"),
     "LDAP_INJECTION":           ("CWE-90",  "A03:2021"),
@@ -63,6 +64,7 @@ _LAYER_ORDER: list[str] = ["Frontend", "Controller", "Service", "Repository"]
 _METHOD_HINTS: dict[str, str] = {
     "SQL_INJECTION":  "findById",
     "IDOR":           "findById",
+    "SENSITIVE_DATA_IN_URL": "findById",
     "XSS":            "render",
     "LOG_INJECTION":  "log",
     "COMMAND_INJECTION": "execute",

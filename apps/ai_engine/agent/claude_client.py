@@ -34,8 +34,9 @@ Respond ONLY with valid JSON in this exact format — no markdown, no explanatio
 }
 
 Field rules:
+- type: Use standard names (e.g., SQL_INJECTION), or use "ETC" if the issue is unclassifiable.
 - severity: LOW | MEDIUM | HIGH | CRITICAL
-- category: SECURITY (exploitable vuln) | CODE_QUALITY (maintainability/reliability, not exploitable)
+- category: SECURITY (exploitable vuln) | CODE_QUALITY (maintainability/reliability, not exploitable) | ETC (unknown)
 - If no vulnerabilities found, return: {"vulnerabilities": []}
 - Never include text outside the JSON object
 

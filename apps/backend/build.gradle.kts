@@ -101,6 +101,9 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
 	implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.37")
 
+	// DOCX 템플릿 변환 — poi-tl
+	implementation("com.deepoove:poi-tl:1.12.1")
+
 	// Firebase Admin SDK — FCM Push 알림 (선택적 활성화)
 	implementation("com.google.firebase:firebase-admin:9.2.0")
 

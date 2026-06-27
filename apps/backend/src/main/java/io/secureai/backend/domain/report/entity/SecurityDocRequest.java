@@ -38,6 +38,9 @@ public class SecurityDocRequest {
     @Column(name = "doc_type", nullable = false, length = 20)
     private DocType docType;
 
+    @Column(name = "framework_version", length = 20)
+    private String frameworkVersion;
+
     @Column(nullable = false, length = 20)
     @Builder.Default
     private String status = "PENDING";

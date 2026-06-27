@@ -29,10 +29,11 @@ public class SecurityDocController {
     public ResponseEntity<ApiResponse<SecurityDocResponse>> createSecurityDoc(
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID projectId,
-            @RequestParam String type) {
+            @RequestParam String type,
+            @RequestParam(required = false) String version) {
 
         DocType docType = parseDocType(type);
-        SecurityDocResponse response = securityDocService.createRequest(projectId, userId, docType);
+        SecurityDocResponse response = securityDocService.createRequest(projectId, userId, docType, version);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(response));
     }
 

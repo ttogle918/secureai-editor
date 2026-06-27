@@ -58,8 +58,16 @@ def parse_sast_response(raw: str, file_path: str = "") -> list[dict]:
         except json.JSONDecodeError:
             pass
 
-    logger.warning("[parser] parse failed for %s — returning empty", file_path)
-    return []
+    logger.warning("[parser] parse failed for %s — returning fallback ETC", file_path)
+    # 파싱에 완전 실패한 경우 (망가진 JSON 등) 데이터 유실을 막기 위해 원시 텍스트를 포함한 ETC 항목을 반환한다.
+    return [{
+        "vuln_name": "Unparsed / Format Error",
+        "type": "ETC",
+        "category": "SECURITY",
+        "severity": "LOW",
+        "line": 1,
+        "description": f"AI가 취약점을 감지했으나 응답 형식이 올바르지 않아 파싱에 실패했습니다.\n\n### Raw AI Output:\n```\n{text}\n```"
+    }]
 
 
 def _extract_list(data: dict, file_path: str) -> list[dict]:

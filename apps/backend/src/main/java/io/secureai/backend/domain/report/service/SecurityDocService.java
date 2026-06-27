@@ -46,7 +46,7 @@ public class SecurityDocService {
      * 프로젝트 소유권 검증: 팀 멤버인지 확인.
      */
     @Transactional
-    public SecurityDocResponse createRequest(UUID projectId, UUID userId, DocType docType) {
+    public SecurityDocResponse createRequest(UUID projectId, UUID userId, DocType docType, String version) {
         Project project = projectService.findOrThrow(projectId);
         verifyProjectMembership(projectId, userId);
         User user = userService.findOrThrow(userId);
@@ -55,6 +55,7 @@ public class SecurityDocService {
                 .project(project)
                 .requestedBy(user)
                 .docType(docType)
+                .frameworkVersion(version)
                 .build();
         SecurityDocRequest saved = securityDocRequestRepository.save(req);
 

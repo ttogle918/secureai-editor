@@ -142,6 +142,31 @@ async def _publish_scanning(
         logger.warning("[sast] scanning publish failed session=%s file=%s: %s", session_id, file_path, exc)
 
 
+async def _publish_done(
+    session_id: str,
+    file_path: str,
+    idx: int,
+    total_files: int,
+    vuln_count: int,
+) -> None:
+    """SAST 분석 완료 시점에 Redis 채널에 done 이벤트를 발행한다."""
+    try:
+        channel = f"secureai:progress:{session_id}"
+        payload = json.dumps({
+            "session_id": session_id,
+            "type": "progress",
+            "node": "sast",
+            "phase": "done",
+            "file": file_path,
+            "current": idx + 1,
+            "total": total_files,
+            "vuln_count": vuln_count,
+        })
+        await _get_redis().publish(channel, payload)
+    except Exception as exc:
+        logger.warning("[sast] done publish failed session=%s file=%s: %s", session_id, file_path, exc)
+
+
 def _dedup_vulns(vulns: list[dict]) -> list[dict]:
     """같은 (line, type) 조합의 중복 취약점을 제거한다.
 
@@ -403,6 +428,8 @@ async def sast_node(state: AgentState) -> dict:
             session_id, file_path, len(vulns), progress_percent,
             file_usage["input_tokens"], file_usage["output_tokens"],
         )
+        
+        await _publish_done(session_id, file_path, idx, total_files, len(vulns))
 
       except Exception as exc:
           logger.error("[sast] session=%s file=%s error=%s", session_id, file_path, exc)

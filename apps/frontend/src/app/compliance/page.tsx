@@ -2,8 +2,9 @@
 import React from 'react';
 import {
   ShieldAlert, BookOpen, FileText, ExternalLink, Download,
-  CheckCircle2, Circle, Landmark, Newspaper, AlertTriangle,
+  CheckCircle2, Circle, Landmark, Newspaper, AlertTriangle, Paperclip,
 } from 'lucide-react';
+import complianceFeed from '@/data/compliance-feed.json';
 
 // ──────────────────────────────────────────────────────────────
 // ⚠️ 임시 mock 데이터 (데모용). 추후 백엔드 연동 시 교체.
@@ -133,6 +134,53 @@ export default function ComplianceGuidelinePage() {
                 <span style={{ fontSize: 13, color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
                 <span style={{ fontSize: 11, color: 'var(--text-tertiary)', flexShrink: 0 }}>{n.source}</span>
               </a>
+            ))}
+          </div>
+        </section>
+
+        {/* ── 기관 보안 게시물 (자동 수집 — KISA 등) ── */}
+        <section style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Landmark size={18} color="var(--orange)" /> 기관 보안 게시물
+            </h2>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>수집 {complianceFeed.generatedAt}</span>
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>
+            KISA 등 기관 보안 게시판에서 자동 수집·요약한 자료입니다. 첨부파일은 원문에서 다운로드하세요.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {complianceFeed.items.map((item, i) => (
+              <div key={i} style={{ padding: 16, background: 'var(--bg-2)', border: '1px solid var(--border-2)', borderRadius: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', background: 'var(--orange-dim)', borderRadius: 4, padding: '2px 7px' }}>{item.agency}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', border: '1px solid var(--border-2)', borderRadius: 4, padding: '2px 7px' }}>{item.category}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>{item.date}</span>
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 6px' }}>{item.title}</h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 12px' }}>{item.summary}</p>
+
+                {item.files && item.files.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Paperclip size={12} /> 첨부파일 {item.files.length}건
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {item.files.map((f, fi) => (
+                        <div key={fi} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 10px', background: 'var(--bg-1)', border: '1px solid var(--hairline)', borderRadius: 6 }}>
+                          <FileText size={13} color="var(--orange)" />
+                          <span style={{ flex: 1, color: 'var(--text-primary)' }}>{f.name}</span>
+                          <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{f.type} · {f.size}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <a href={item.sourceUrl} target="_blank" rel="noreferrer" style={{ ...linkBtn, fontSize: 12, padding: '6px 12px' }}>
+                  <Download size={13} /> 원문에서 파일 다운로드
+                </a>
+              </div>
             ))}
           </div>
         </section>

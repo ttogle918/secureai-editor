@@ -95,7 +95,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  // 202 Accepted 등 빈 본문 2xx 응답은 res.json()이 빈 문자열에서 throw 하므로
+  // 본문이 있을 때만 파싱한다. (예: POST /dast/batch 는 202 + 빈 본문)
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export const apiClient = {

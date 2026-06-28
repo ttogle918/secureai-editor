@@ -58,10 +58,14 @@ export default function CodeEditor({
 
     try {
       const model = ed.getModel()!;
+      // 취약점 라인이 파일 줄 수를 벗어나면 Monaco가 "Illegal value for lineNumber"를
+      // 던지므로 [1, lineCount] 범위로 클램프한다.
+      const lineCount = model.getLineCount();
+      const clampLine = (n: number) => Math.min(Math.max(1, n || 1), lineCount);
 
       // 라인 배경 + glyph 점 + overview ruler
       const newDecorations = vulnerabilities.map((v) => ({
-        range: new monaco.Range(v.lineStart, 1, v.lineEnd, 1),
+        range: new monaco.Range(clampLine(v.lineStart), 1, Math.max(clampLine(v.lineStart), clampLine(v.lineEnd)), 1),
         options: {
           isWholeLine: true,
           className: `vuln-${v.severity}-line`,
@@ -81,14 +85,18 @@ export default function CodeEditor({
       monaco.editor.setModelMarkers(
         model,
         'secureai-vulns',
-        vulnerabilities.map((v) => ({
-          startLineNumber: v.lineStart,
-          startColumn: 1,
-          endLineNumber: v.lineEnd,
-          endColumn: model.getLineMaxColumn(v.lineEnd),
-          message: `[${v.severity.toUpperCase()}] ${v.type}: ${v.description}`,
-          severity: MARKER_SEVERITY[v.severity] ?? 2,
-        })),
+        vulnerabilities.map((v) => {
+          const ls = clampLine(v.lineStart);
+          const le = Math.max(ls, clampLine(v.lineEnd));
+          return {
+            startLineNumber: ls,
+            startColumn: 1,
+            endLineNumber: le,
+            endColumn: model.getLineMaxColumn(le),
+            message: `[${v.severity.toUpperCase()}] ${v.type}: ${v.description}`,
+            severity: MARKER_SEVERITY[v.severity] ?? 2,
+          };
+        }),
       );
     } catch (err) {
       console.warn('Monaco decorations update failed (likely disposed):', err);

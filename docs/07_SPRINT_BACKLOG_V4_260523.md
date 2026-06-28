@@ -665,6 +665,13 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | 12B | 1208 | 감사 로그 페이지 | ⬜ | M |
 | 12B | 1208b | 2FA 프론트엔드 | ⬜ | M |
 | 12B | 1209 | 보안 정책 관리 | ⬜ | M |
+| 12C | 1220 | DAST executor 확장(SQLi·SSRF·CmdI·IDOR/BAC) | ⬜ | L |
+| 12C | 1221 | apiGroups 영속화(리로드 내성) | ⬜ | M |
+| 12C | 1222 | DAST 런타임 자동화(이미지+네트워크 compose) | ⬜ | M |
+| 12C | 1223 | 요금제/크레딧 DB↔UI 정합(USD 4티어) | ⬜ | M |
+| 12C | 1224 | ai_engine RAG 임베딩 모델 누락 | ⬜ | S |
+| 12C | 1225 | SSE 결과 캐시 레이스(세션 재실행 stale) | ⬜ | S |
+| 12C | 1226 | 인앱 뷰 전환 플레이키 원인추적 | ⬜ | M |
 | 13~18 | — | AI Advanced·Ecosystem·시각화·결제·Hardening | 📋 계획 | 각 섹션 참조 |
 
 ---
@@ -1168,6 +1175,90 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [ ] 🛡️ Master 외 접근 시 403 + 감사 로그
   - [ ] 🔬 `mfa_required` 활성 → 미설정 사용자 로그인 시 강제 설정 플로우
   - [ ] ✅ 영향받는 사용자 수 카운트 정확성
+
+---
+
+## Sprint 12C — 데모 드라이런 후속 (Demo Hardening · 2026-06-29)
+> 출처: 2026-06-28~29 VC 데모 녹화 준비 드라이런. 녹화는 **현재 상태로 완주**했으나(XSS EXPLOITED·패치·PR·규제문서·billing 검증), 아래는 데모 중 드러난 **제약/기술부채**로 후속 구현 대상. 데모 당일 회피책은 `docs/portfolio/깨비_데모대본_v1.md` v2 메모 참조.
+
+### TASK-1220 🔴 DAST executor 확장 — XSS 외 유형 실탐지 (SQLi·SSRF·CmdI·IDOR/BAC)
+- **중요도**: 🔴 Critical | **순서**: 1번째 | **사이즈**: L | **출처**: 데모 드라이런 — 배치 6종 중 XSS만 EXPLOITED, 나머지 "안전"
+- **배경**: 격리망 배치에서 **CROSS_SITE_SCRIPTING(`/greet`)만 EXPLOITED**로 검증됨. 나머지는 탐지 로직/환경 한계로 "안전"으로 표기 → 데모는 "1종 완주" 정직성 원칙으로 XSS만 시연. 제품 신뢰도엔 다종 증명이 필요.
+- **하위 할일**
+  - [ ] **SQLi executor**: 에러기반 외 **boolean/시간기반** 탐지 추가(현재 에러 미발생 시 미탐). `/users/{id}`·`/users/search`
+  - [ ] **SSRF executor**: 격리망에 **내부 타깃 부재** → 메타데이터(169.254.169.254)/내부 서비스 **모킹 타깃**을 `dast-isolated-net`에 배치하거나 모의 응답 주입
+  - [ ] **CommandInjection executor 신규**: `_EXECUTOR_MAP`에 `COMMAND_INJECTION` 미존재(현재 unsupported) → `/ping`·proxy 대상 OOB/시간지연 기반 추가
+  - [ ] **IDOR/BAC 실탐지**: `BROKEN_ACCESS_CONTROL`→`execute_idor` 별칭은 매핑됐으나 idor_executor가 샘플(`/users/{id}`) 미탐 → 권한 없는 ID 접근 성공 판정 로직 보강
+  - [ ] (공통) executor별 evidence·responseSnippet 표준화 + 실패 사유 분류
+- **테스트 체크리스트**
+  - [ ] 🔬 격리망에서 SQLi·CmdI 각 1건 이상 EXPLOITED 재현
+  - [ ] 🔬 SSRF 모킹 타깃으로 EXPLOITED 재현
+  - [ ] 🧪 각 executor 단위 테스트(성공/안전/에러 분기)
+- **선행/전제**: dast-runner 이미지(TASK-1222), `dast-isolated-net`. 관련 커밋: `6251f4b`(별칭 매핑), `96959de`(URL·XSS param 수정).
+
+### TASK-1221 🟠 apiGroups(api_discovery) 영속화 — 리로드 내성
+- **중요도**: 🟠 High | **순서**: 2번째 | **사이즈**: M | **출처**: 데모 드라이런 — 리로드 시 DAST 타깃/진행률 유실
+- **배경**: api_discovery 결과(`apiGroups`)가 **store-only/transient**라 화면 리로드 시 사라짐 → DAST 워크스페이스 타깃·`apiEndpoint` 매칭 유실(데모 "리로드 금지" 회피책 사용 중).
+- **하위 할일**
+  - [ ] api_discovery 결과를 세션에 영속(엔드포인트·파일·라인 매핑) — 신규 컬럼/테이블 + Flyway
+  - [ ] `GET .../sessions/{id}/api-groups` 로드 + 프론트 store 복원
+  - [ ] DAST `apiEndpoint` 해석을 영속 데이터 기반으로 전환(현재 store 매칭 `resolveEndpoint`)
+- **테스트 체크리스트**
+  - [ ] 🔬 분석 후 리로드 → DAST 타깃·엔드포인트 그대로 복원
+- **선행/전제**: 관련 커밋 `855ee1b`(엔드포인트 와이어링).
+
+### TASK-1222 🟠 DAST 런타임 자동화 — dast-runner 이미지 + fastapi-vuln 네트워크 compose 편입
+- **중요도**: 🟠 High | **순서**: 3번째 | **사이즈**: M | **출처**: 데모 드라이런 — 수동 셋업 의존
+- **배경**: 데모 환경 재현 시 **수동 단계 필요** — ① `secureai/dast-runner:latest` 이미지 빌드 ② `docker network connect dast-isolated-net fastapi-vuln`. 환경 재시작마다 깨짐.
+- **하위 할일**
+  - [ ] `dast-runner` 이미지 빌드를 compose/Make 타깃으로 편입(또는 CI 산출물)
+  - [ ] 데모 타깃 컨테이너(`fastapi-vuln`)의 `dast-isolated-net` 연결을 compose에 선언
+  - [ ] `make demo-up` 류 단일 명령으로 DAST 데모 전제 충족
+- **테스트 체크리스트**
+  - [ ] 🔬 클린 환경에서 단일 명령 → XSS EXPLOITED까지 무수동
+- **선행/전제**: 관련 커밋 `6fa590d`(ai_engine host 8000 publish), `a05dec0`(demo-domains allowlist).
+
+### TASK-1223 🟠 요금제/크레딧 DB ↔ UI 정합 (USD 4티어 마이그레이션)
+- **중요도**: 🟠 High | **순서**: 4번째 | **사이즈**: M | **출처**: 데모 드라이런 — billing UI(USD 4티어)와 DB plans 정합 미확인
+- **배경**: billing 화면은 **4티어 USD**(Free $0·Pro $29·Team $39/인·Enterprise) + 크레딧팩 정합 완료(`a4af00d`, `c290e1d`). 그러나 **DB `plans`(KRW·credits·max_members)**와의 정합은 미확정 → 결제/한도 로직과 표시가 어긋날 수 있음.
+- **하위 할일**
+  - [ ] Flyway: plans 가격 통화/금액·월 크레딧·시트(max_members) USD 4티어로 정합
+  - [ ] Team 인당 과금(시트) 모델 스키마 반영
+  - [ ] 표시단가↔실제 차감 단가(`COST_PER_1K`) 일관성 점검
+- **테스트 체크리스트**
+  - [ ] 🔬 각 플랜 가입→크레딧/시트 한도 표시·차감 일치
+- **선행/전제**: PG 연동(미연동 — "결제 준비 중" 정직성 유지).
+
+### TASK-1224 🟡 ai_engine 가이드라인 RAG 임베딩 모델 누락
+- **중요도**: 🟡 Medium | **순서**: 5번째 | **사이즈**: S | **출처**: 데모 드라이런 로그 — `[guidelines] vector search failed … model_optimized.onnx … File doesn't exist`
+- **배경**: 가이드라인 RAG의 임베딩 모델(`qdrant/bge-small-en-v1.5-onnx-q/model_optimized.onnx`)이 컨테이너에 **없어 vector search 실패 → `load_guidelines` 폴백**. 규제 문서 생성은 결정론적이라 영향 없지만, **가이드라인 검색 품질 저하**.
+- **하위 할일**
+  - [ ] 임베딩 모델 컨테이너 번들 또는 빌드시 다운로드/캐시 워밍(`/tmp/fastembed_cache`)
+  - [ ] 모델 부재 시 명확 경고 1회 + 폴백 품질 로깅
+- **테스트 체크리스트**
+  - [ ] 🔬 vector search 성공(폴백 경고 미출력) + 가이드라인 적중 확인
+- **선행/전제**: 없음.
+
+### TASK-1225 🟡 DAST/리포트 SSE 결과 캐시 레이스 — 세션 재실행 stale
+- **중요도**: 🟡 Medium | **순서**: 6번째 | **사이즈**: S | **출처**: 데모 드라이런 — 같은 세션 배치 2회 시 이전 결과 표시
+- **배경**: SSE 종단상태 캐시(`secureai:dast:result:{session}`)가 **재구독 조기종료 방어**용인데, **동일 세션 배치 재실행** 시 이전 `dast_batch_complete`(이전 결과)를 즉시 반환 → 컨테이너는 새로 돌아 DB엔 새 결과가 저장되지만 **화면 배지가 stale**(데모 "세션당 1회" 회피책 사용).
+- **하위 할일**
+  - [ ] 배치 시작 시 해당 세션 `result_key` 무효화(또는 배치 실행ID 기반 캐시 키)
+  - [ ] 재실행 시 라이브 per-vuln 이벤트가 배지에 반영되도록 보장
+- **테스트 체크리스트**
+  - [ ] 🔬 같은 세션 배치 2회 → 두 번째도 라이브 결과·배지 정상
+- **선행/전제**: 관련 파일 `api/routes/dast.py`(result_key), `useDastBatchStream.ts`.
+
+### TASK-1226 🟡 인앱 뷰 전환 플레이키 (렌더러 멈춤) 원인 추적
+- **중요도**: 🟡 Medium | **순서**: 7번째 | **사이즈**: M | **출처**: 데모 드라이런 — 자동화/실사용에서 사이드바 뷰 전환이 자주 멈춤
+- **배경**: DAST 워크스페이스·규제 문서·대시보드 등 **에디터 내 뷰 전환**이 전환 중 dim 상태로 멈추거나(브라우저 자동화에서 `document_idle` 미도달) 첫 클릭에 안 바뀌는 현상 반복. 폴링 setInterval 잔존/리렌더 경합 의심.
+- **하위 할일**
+  - [ ] 뷰 전환 시 이전 뷰의 폴링/스트림 정리(cleanup) 누락 점검
+  - [ ] 전환 트리거 상태머신/로딩 오버레이 해제 경로 점검
+  - [ ] (조사) document_idle 미도달 원인(상시 연결/타이머) 식별
+- **테스트 체크리스트**
+  - [ ] 🔬 분석→DAST→에디터→규제문서 연속 전환 10회 무멈춤
+- **선행/전제**: 없음(UX 안정화).
 
 ---
 

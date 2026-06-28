@@ -323,6 +323,23 @@ export function PatchManagerPage() {
               </label>
             </div>
 
+            {modal.owner.trim() && modal.repo.trim() && (
+              <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, fontFamily: 'var(--font-mono)', wordBreak: 'break-all', color: 'var(--text-secondary)' }}>
+                <div>
+                  ↗ 대상:{' '}
+                  <a href={`https://github.com/${modal.owner.trim()}/${modal.repo.trim()}`} target="_blank" rel="noreferrer" style={{ color: '#818cf8' }}>
+                    github.com/{modal.owner.trim()}/{modal.repo.trim()}
+                  </a>
+                </div>
+                {modal.patchIdx !== null && patches[modal.patchIdx] && (
+                  <div style={{ marginTop: 4 }}>
+                    📄 커밋 경로: <span style={{ color: 'var(--text-primary)' }}>{patches[modal.patchIdx].filePath}</span>
+                    <span style={{ color: 'var(--text-tertiary)' }}> — 대상 레포의 이 경로 파일을 수정합니다(없으면 실패)</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {error && (
               <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, fontSize: 12, color: '#fca5a5' }}>
                 {error}

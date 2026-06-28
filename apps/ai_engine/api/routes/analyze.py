@@ -146,7 +146,10 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
                         return
 
                     node_name, update = next(iter(event.items()))
-                    full_state.update(update)
+                    # 노드가 상태 변경 없이 None을 반환할 수 있다(patch 실패 등).
+                    # dict.update(None)은 TypeError를 던지므로 None 업데이트는 건너뛴다.
+                    if update is not None:
+                        full_state.update(update)
                     state = full_state
 
                     await _handle_node_event(publish, node_name, state, last_stage_no,
@@ -159,6 +162,12 @@ async def _run_analysis(req: AnalyzeRequest) -> None:
                     logger.info("[analyze] session=%s GraphInterrupt (detected via state.next=%s) — awaiting confirmation", session_id, graph_state.next)
                     await _publish_confirmation_events(publish, full_state)
                     return
+
+                # 그래프가 중단 없이 끝까지 정상 완료됨
+                total_vuln_count = sum(len(res.get("vulnerabilities", [])) for res in full_state.get("sast_results", []))
+                logger.info("[analyze] session=%s graph completed natively, total_vulns=%d", session_id, total_vuln_count)
+                await publish("scan_complete", vuln_count=total_vuln_count)
+                await publish("completed", vuln_count=total_vuln_count)
 
             except GraphInterrupt:
                 logger.info("[analyze] session=%s GraphInterrupt — awaiting confirmation", session_id)
@@ -231,7 +240,10 @@ async def _run_resume(session_id: str) -> None:
                         return
 
                     node_name, update = next(iter(event.items()))
-                    full_state.update(update)
+                    # 노드가 상태 변경 없이 None을 반환할 수 있다(patch 실패 등).
+                    # dict.update(None)은 TypeError를 던지므로 None 업데이트는 건너뛴다.
+                    if update is not None:
+                        full_state.update(update)
                     state = full_state
 
                     await _handle_node_event(publish, node_name, state, last_stage_no,
@@ -244,6 +256,12 @@ async def _run_resume(session_id: str) -> None:
                     logger.info("[resume] session=%s GraphInterrupt (detected via state.next=%s) — awaiting confirmation", session_id, graph_state.next)
                     await _publish_confirmation_events(publish, full_state)
                     return
+
+                # 그래프가 중단 없이 끝까지 정상 완료됨
+                total_vuln_count = sum(len(res.get("vulnerabilities", [])) for res in full_state.get("sast_results", []))
+                logger.info("[resume] session=%s graph completed natively, total_vulns=%d", session_id, total_vuln_count)
+                await publish("scan_complete", vuln_count=total_vuln_count)
+                await publish("completed", vuln_count=total_vuln_count)
 
             except GraphInterrupt:
                 # STAGE-2 Dev 보완 #1: GraphInterrupt는 정상 종료(error 아님)

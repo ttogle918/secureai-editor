@@ -3,6 +3,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { Network, Play, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSecureStore } from '@/store/useSecureStore';
+import type { ApiGroup } from '@/store/useSecureStore';
 import { useDastBatchStream } from '@/hooks/useDastBatchStream';
 import { useToastStore } from '@/hooks/useToast';
 import { apiClient } from '@/lib/api/client';
@@ -35,6 +36,36 @@ function buildBatchTarget(v: Vulnerability, baseUrl: string): BatchDastTarget {
     endpoint:  v.apiEndpoint ?? '',
     params:    {},
   };
+}
+
+/** 경로 비교 — 백슬래시 정규화 후 정확 일치, 실패 시 basename 일치로 폴백 */
+function samePath(a: string, b: string): boolean {
+  const na = a.replace(/\\/g, '/');
+  const nb = b.replace(/\\/g, '/');
+  if (na === nb) return true;
+  return na.split('/').pop() === nb.split('/').pop();
+}
+
+/**
+ * 취약점을 api_discovery가 발견한 apiGroups와 매칭해 엔드포인트(url)를 찾는다 (OPTION-2).
+ * 백엔드 DB에 apiEndpoint 컬럼이 없으므로, 분석 시 발견된 엔드포인트-파일 매핑(store.apiGroups)을
+ * 취약점 위치(filePath+lineStart)와 대조해 연결한다.
+ * 같은 파일에 여러 엔드포인트가 있으면 취약점 라인 바로 위(가장 가까운 line ≤ lineStart)에서
+ * 선언된 엔드포인트를 고르고, 라인 위 선언이 없으면 가장 가까운(최소 line) 것을 쓴다.
+ */
+function resolveEndpoint(v: Vulnerability, apiGroups: ApiGroup[]): string | undefined {
+  let above: { url: string; line: number } | undefined;
+  let fallback: { url: string; line: number } | undefined;
+  for (const g of apiGroups) {
+    for (const f of g.files) {
+      if (!samePath(f.path, v.filePath)) continue;
+      if (fallback === undefined || f.line < fallback.line) fallback = { url: g.url, line: f.line };
+      if (f.line <= v.lineStart && (above === undefined || f.line > above.line)) {
+        above = { url: g.url, line: f.line };
+      }
+    }
+  }
+  return (above ?? fallback)?.url;
 }
 
 /** URL에서 hostname을 추출한다. 파싱 실패 시 'localhost' 폴백 */
@@ -135,6 +166,7 @@ function BatchDastTerminal() {
 export function DastWorkspacePage() {
   const { t } = useTranslation();
   const vulns            = useSecureStore((s) => s.vulns);
+  const apiGroups        = useSecureStore((s) => s.apiGroups);
   const dastBaseUrl      = useSecureStore((s) => s.dastBaseUrl);
   const sseSessionId     = useSecureStore((s) => s.sseSessionId);
   const setDastBatchSessionId = useSecureStore((s) => s.setDastBatchSessionId);
@@ -153,10 +185,16 @@ export function DastWorkspacePage() {
 
   const isBatchRunning = dastBatchSessionId !== null;
 
-  // apiEndpoint를 가진 취약점만 DAST 대상으로 표시
+  // 엔드포인트가 연결되는 취약점만 DAST 대상으로 표시.
+  // 우선순위: 이미 세팅된 v.apiEndpoint > api_discovery(apiGroups) 매칭 (OPTION-2)
   const dastableVulns = useMemo(() => {
-    return vulns.filter((v) => !!v.apiEndpoint);
-  }, [vulns]);
+    return vulns
+      .map((v) => {
+        const endpoint = v.apiEndpoint ?? resolveEndpoint(v, apiGroups);
+        return endpoint ? { ...v, apiEndpoint: endpoint } : null;
+      })
+      .filter((v): v is Vulnerability => v !== null);
+  }, [vulns, apiGroups]);
 
   const toggleVuln = useCallback((id: string) => {
     setSelectedVulnIds((prev) => {
@@ -177,8 +215,9 @@ export function DastWorkspacePage() {
   const handleBatchRun = useCallback(async () => {
     if (selectedVulnIds.size === 0 || !sseSessionId) return;
 
+    // dastableVulns를 사용해야 매칭된 apiEndpoint가 배치 요청에 포함된다 (OPTION-2)
     const selectedVulns = Array.from(selectedVulnIds)
-      .map((id) => vulns.find((v) => v.id === id))
+      .map((id) => dastableVulns.find((v) => v.id === id))
       .filter((v): v is Vulnerability => v !== undefined);
 
     const req = buildBatchRequest(selectedVulns, targetBaseUrl, sseSessionId);
@@ -198,7 +237,7 @@ export function DastWorkspacePage() {
       setIsLaunching(false);
     }
   }, [
-    selectedVulnIds, sseSessionId, vulns, targetBaseUrl,
+    selectedVulnIds, sseSessionId, dastableVulns, targetBaseUrl,
     clearDastLogs, setDastBatchSummary, setDastBatchSessionId,
     clearSelection, addToast,
   ]);

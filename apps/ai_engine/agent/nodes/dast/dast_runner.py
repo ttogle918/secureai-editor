@@ -31,7 +31,11 @@ _ExecutorFn = Callable[[str, str, dict], Coroutine[None, None, ExploitOutcome]]
 _EXECUTOR_MAP: dict[str, _ExecutorFn] = {
     "SQL_INJECTION": execute_sqli,
     "XSS": execute_xss,
+    # 분류기/LLM이 같은 취약점을 다른 표준명으로 라벨할 수 있어 별칭을 함께 매핑한다.
+    # (vuln_classifier: XSS·CROSS_SITE_SCRIPTING=CWE-79, IDOR·BROKEN_ACCESS_CONTROL=CWE-284)
+    "CROSS_SITE_SCRIPTING": execute_xss,
     "IDOR": execute_idor,
+    "BROKEN_ACCESS_CONTROL": execute_idor,
     "SSRF": execute_ssrf,
     "AUTH_BYPASS": execute_auth_bypass,
 }

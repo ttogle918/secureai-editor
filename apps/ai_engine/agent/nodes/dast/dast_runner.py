@@ -39,11 +39,15 @@ _EXECUTOR_MAP: dict[str, _ExecutorFn] = {
 
 async def run_dast(
     vuln_type: str,
-    target_url: str,
     endpoint: str,
+    target_url: str,
     params: dict,
 ) -> ExploitOutcome:
     """취약점 유형에 맞는 executor를 선택하여 실행한다.
+
+    인자 순서는 호출부(backend DastExecutionService 의 샌드박스 스크립트)가
+    run_dast(VULN_TYPE, DAST_ENDPOINT, DAST_TARGET_URL, PARAMS) 로 넘기는 것과 일치한다.
+    (이전 시그니처는 endpoint/target_url 순서가 뒤바뀌어 executor가 잘못된 URL을 만들었다.)
 
     지원하지 않는 유형은 executor를 호출하지 않고 즉시 실패 결과를 반환한다.
     executor 내부에서 발생한 예외는 여기서 포착하여 전체 파이프라인이 중단되지 않도록 한다.

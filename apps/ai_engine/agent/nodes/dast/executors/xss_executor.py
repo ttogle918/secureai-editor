@@ -4,6 +4,8 @@ from typing import TypedDict
 
 import httpx
 
+from agent.nodes.dast.executors.param_targets import candidate_param_sets
+
 logger = logging.getLogger(__name__)
 
 _XSS_PAYLOADS: tuple[str, ...] = (
@@ -34,24 +36,26 @@ async def execute(target_url: str, endpoint: str, params: dict) -> ExploitOutcom
 
     async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS, follow_redirects=True) as client:
         for payload in _XSS_PAYLOADS:
-            # 각 파라미터 키에 페이로드를 주입한다
-            injected_params = {k: payload for k in params} if params else {"q": payload}
-            try:
-                response = await client.get(url, params=injected_params)
-                snippet = response.text[:500]
+            # params가 비면 흔한 파라미터 후보를 순회해 올바른 키에 주입한다
+            for injected_params in candidate_param_sets(params, payload):
+                try:
+                    response = await client.get(url, params=injected_params)
 
-                if payload in response.text:
-                    return ExploitOutcome(
-                        success=True,
-                        payload=payload,
-                        response_snippet=snippet,
-                        evidence="Payload reflected verbatim in response body",
-                        error=None,
-                    )
+                    if payload in response.text:
+                        return ExploitOutcome(
+                            success=True,
+                            payload=payload,
+                            response_snippet=response.text[:500],
+                            evidence=(
+                                "Payload reflected verbatim in response body "
+                                f"(param '{next(iter(injected_params), '')}')"
+                            ),
+                            error=None,
+                        )
 
-            except httpx.HTTPError as exc:
-                last_error = str(exc)
-                logger.warning("[xss] request failed endpoint=%s: %s", endpoint, exc)
+                except httpx.HTTPError as exc:
+                    last_error = str(exc)
+                    logger.warning("[xss] request failed endpoint=%s: %s", endpoint, exc)
 
     return ExploitOutcome(
         success=False,

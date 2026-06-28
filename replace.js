@@ -10,7 +10,7 @@ function processDirectory(dir) {
         } else if (/\.(ts|tsx|css)$/.test(file)) {
             let content = fs.readFileSync(fullPath, 'utf8');
             let originalContent = content;
-            
+
             content = content.replace(/SecureAI/g, 'Kkebi');
             content = content.replace(/Pagori/g, 'Kkebi');
             content = content.replace(/pagori/g, 'kkebi');
@@ -18,11 +18,11 @@ function processDirectory(dir) {
             if (fullPath.includes('billing') && fullPath.includes('page.tsx')) {
                 content = content.replace(/priceKrw/g, 'priceUsd');
                 content = content.replace(/₩9,900/g, '$9');
-                content = content.replace(/₩49,000/g, '$49');
-                content = content.replace(/₩149,000/g, '$149');
+                content = content.replace(/₩49,000/g, '$39');
+                content = content.replace(/₩149,000/g, '$99');
                 content = content.replace(/₩\{pack\.priceUsd\.toLocaleString\(\)\}/g, '${pack.priceUsd}');
             }
-            
+
             if (content !== originalContent) {
                 fs.writeFileSync(fullPath, content, 'utf8');
                 console.log(`Updated ${fullPath}`);

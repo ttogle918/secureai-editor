@@ -14,20 +14,26 @@ const ACCENT = '#f97316';
 // ── 크레딧 패키지 (예시 단가 — PG 연동 시 확정) ──
 interface CreditPack { id: string; name: string; credits: number; priceUsd: number; popular?: boolean; }
 const CREDIT_PACKS: CreditPack[] = [
-  { id: 'starter', name: '스타터', credits: 5_000,   priceUsd: 9 },
-  { id: 'pro',     name: '프로',   credits: 30_000,  priceUsd: 49, popular: true },
-  { id: 'team',    name: '팀',     credits: 120_000, priceUsd: 149 },
+  { id: 'starter', name: '스타터', credits: 5_000, priceUsd: 9 },
+  { id: 'pro', name: '프로', credits: 30_000, priceUsd: 39, popular: true },
+  { id: 'team', name: '팀', credits: 120_000, priceUsd: 99 },
 ];
 
 // ── 요금제 티어 ──
 interface Tier { id: string; name: string; price: string; period?: string; features: string[]; cta: string; highlight?: boolean; }
 const TIERS: Tier[] = [
-  { id: 'free', name: 'Free', price: '$0', period: '/mo',
-    features: ['월 100 크레딧', 'SAST 분석', 'BYOK 지원', '커뮤니티 지원'], cta: '현재 플랜' },
-  { id: 'pro', name: 'Pro', price: '$49', period: '/mo', highlight: true,
-    features: ['월 30,000 크레딧', 'SAST + DAST 증명', '자동 패치 PR', '컴플라이언스 리포트', '우선 지원'], cta: '업그레이드' },
-  { id: 'enterprise', name: 'Enterprise', price: 'Custom',
-    features: ['무제한 크레딧/시트', 'SSO·감사로그', '온프레미스 배포', 'SLA·전담 지원'], cta: '영업팀 문의' },
+  {
+    id: 'free', name: 'Free', price: '$0', period: '/mo',
+    features: ['월 100 크레딧', 'SAST 분석', 'BYOK 지원', '커뮤니티 지원'], cta: '현재 플랜'
+  },
+  {
+    id: 'pro', name: 'Pro', price: '$39', period: '/mo', highlight: true,
+    features: ['월 30,000 크레딧', 'SAST + DAST 증명', '자동 패치 PR', '컴플라이언스 리포트', '우선 지원'], cta: '업그레이드'
+  },
+  {
+    id: 'enterprise', name: 'Enterprise', price: 'Custom',
+    features: ['무제한 크레딧/시트', 'SSO·감사로그', '온프레미스 배포', 'SLA·전담 지원'], cta: '영업팀 문의'
+  },
 ];
 
 // ── 사용량 더미 데이터 (이번 주) ──
@@ -193,8 +199,10 @@ export default function BillingPage() {
               const on = keyMode === m.id;
               return (
                 <button key={m.id} role="radio" aria-checked={on} onClick={() => changeKeyMode(m.id)}
-                  style={{ fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, cursor: 'pointer', border: 'none',
-                    background: on ? ACCENT : 'transparent', color: on ? '#fff' : 'var(--text-secondary)' }}>
+                  style={{
+                    fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, cursor: 'pointer', border: 'none',
+                    background: on ? ACCENT : 'transparent', color: on ? '#fff' : 'var(--text-secondary)'
+                  }}>
                   {m.label}
                 </button>
               );
@@ -210,8 +218,10 @@ export default function BillingPage() {
             return (
               <div key={pack.id} onClick={() => setSelected(pack.id)} role="button" tabIndex={0} aria-pressed={isSel}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(pack.id); } }}
-                style={{ position: 'relative', padding: 18, borderRadius: 12, cursor: 'pointer',
-                  background: isSel ? 'var(--orange-dim)' : 'var(--bg-2)', border: `1px solid ${isSel ? ACCENT : 'var(--border)'}` }}>
+                style={{
+                  position: 'relative', padding: 18, borderRadius: 12, cursor: 'pointer',
+                  background: isSel ? 'var(--orange-dim)' : 'var(--bg-2)', border: `1px solid ${isSel ? ACCENT : 'var(--border)'}`
+                }}>
                 {pack.popular && <span style={{ position: 'absolute', top: -9, right: 14, fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: ACCENT, color: '#fff' }}>인기</span>}
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{pack.name}</div>
                 <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', color: ACCENT }}>

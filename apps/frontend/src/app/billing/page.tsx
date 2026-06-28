@@ -12,11 +12,13 @@ import { useToastStore } from '@/hooks/useToast';
 const ACCENT = '#f97316';
 
 // ── 크레딧 패키지 (예시 단가 — PG 연동 시 확정) ──
+// 프로/팀 팩은 요금제 티어(Pro $29·3,000cr / Team $39·4,500cr)와 가격·크레딧을 일치시킨다.
+// (동일 명칭이 서로 다른 값을 갖던 불일치 수정)
 interface CreditPack { id: string; name: string; credits: number; priceUsd: number; popular?: boolean; }
 const CREDIT_PACKS: CreditPack[] = [
-  { id: 'starter', name: '스타터', credits: 5_000, priceUsd: 9 },
-  { id: 'pro', name: '프로', credits: 30_000, priceUsd: 39, popular: true },
-  { id: 'team', name: '팀', credits: 120_000, priceUsd: 99 },
+  { id: 'starter', name: '스타터', credits: 1_000, priceUsd: 9 },
+  { id: 'pro', name: '프로', credits: 3_000, priceUsd: 29, popular: true },
+  { id: 'team', name: '팀', credits: 4_500, priceUsd: 39 },
 ];
 
 // ── 요금제 티어 ──

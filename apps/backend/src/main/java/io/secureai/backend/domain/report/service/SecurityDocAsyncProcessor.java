@@ -59,7 +59,7 @@ public class SecurityDocAsyncProcessor {
 
     @Async("secDocExecutor")
     public void process(UUID requestId) {
-        SecurityDocRequest req = securityDocRequestRepository.findById(requestId)
+        SecurityDocRequest req = securityDocRequestRepository.findWithProjectById(requestId)
                 .orElse(null);
         if (req == null) {
             log.warn("[SecDocProcessor] 요청을 찾을 수 없음 requestId={}", requestId);

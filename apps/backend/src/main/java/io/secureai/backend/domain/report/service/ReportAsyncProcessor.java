@@ -1,6 +1,8 @@
 package io.secureai.backend.domain.report.service;
 
+import io.secureai.backend.domain.analysis.entity.AnalysisSession;
 import io.secureai.backend.domain.analysis.entity.Vulnerability;
+import io.secureai.backend.domain.analysis.repository.AnalysisSessionRepository;
 import io.secureai.backend.domain.analysis.repository.VulnerabilityRepository;
 import io.secureai.backend.domain.report.entity.Report;
 import io.secureai.backend.domain.report.repository.ReportRepository;
@@ -35,6 +37,7 @@ public class ReportAsyncProcessor {
 
     private final ReportRepository reportRepository;
     private final VulnerabilityRepository vulnerabilityRepository;
+    private final AnalysisSessionRepository sessionRepository;
     private final PdfReportGenerator pdfReportGenerator;
     private final JsonReportGenerator jsonReportGenerator;
     private final HtmlReportGenerator htmlReportGenerator;
@@ -74,8 +77,13 @@ public class ReportAsyncProcessor {
             return vulnerabilityRepository.findBySessionId(
                     report.getSession().getId(), Pageable.unpaged()).getContent();
         }
-        return vulnerabilityRepository.findByProjectId(
-                report.getProject().getId(), Pageable.unpaged()).getContent();
+        // 세션이 지정되지 않은 경우(프론트 세션 컨텍스트 유실 등) 프로젝트 전체를 합치면
+        // 과거 모든 분석이 누적·중복되어 개수가 폭증한다. 최신 세션으로 폴백해 단일 분석만 담는다.
+        UUID projectId = report.getProject().getId();
+        return sessionRepository.findTopByProjectIdOrderByCreatedAtDesc(projectId)
+                .map(AnalysisSession::getId)
+                .map(sid -> vulnerabilityRepository.findBySessionId(sid, Pageable.unpaged()).getContent())
+                .orElseGet(() -> vulnerabilityRepository.findByProjectId(projectId, Pageable.unpaged()).getContent());
     }
 
     private String buildAndSave(Report report, List<Vulnerability> vulns) throws IOException {

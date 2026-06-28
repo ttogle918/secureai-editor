@@ -249,6 +249,11 @@ interface SecureStore {
   updateProgressStep: (stepOrder: number, update: Partial<ProgressStep>) => void;
   clearProgressSteps: () => void;
 
+  // ── AI 로그 (하단 패널 — 활동/추론 로그) ──
+  aiLog: string[];
+  appendAiLog: (line: string) => void;
+  clearAiLog: () => void;
+
   // ── API 중심 분석 (TASK-1106) ──────────────────────────────
   apiGroups: ApiGroup[];
   fileStatuses: Record<string, FileAnalysisStatus>;
@@ -533,6 +538,10 @@ export const useSecureStore = create<SecureStore>()(
       ),
     })),
   clearProgressSteps: () => set({ progressSteps: [] }),
+
+  aiLog: [],
+  appendAiLog: (line) => set((s) => ({ aiLog: [...s.aiLog, line].slice(-500) })),
+  clearAiLog: () => set({ aiLog: [] }),
 
   // ── API 중심 분석 (TASK-1106)
   apiGroups: [],

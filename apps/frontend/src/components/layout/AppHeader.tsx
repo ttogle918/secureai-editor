@@ -68,6 +68,8 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
   const setLastTokenUsage    = useSecureStore((s) => s.setLastTokenUsage);
   const setRightTab          = useSecureStore((s) => s.setRightTab);
   const addProgressStep      = useSecureStore((s) => s.addProgressStep);
+  const appendAiLog          = useSecureStore((s) => s.appendAiLog);
+  const clearAiLog           = useSecureStore((s) => s.clearAiLog);
   const setApiGroups         = useSecureStore((s) => s.setApiGroups);
   const setFileStatus        = useSecureStore((s) => s.setFileStatus);
   const clearApiAnalysis     = useSecureStore((s) => s.clearApiAnalysis);
@@ -131,6 +133,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           .then((res) => {
             const items = res.data?.content ?? [];
             clearVulns();
+            if (items.length > 0) appendAiLog(`\n── 분석 결과 (취약점 ${items.length}건) ──`);
             for (const v of items) {
               const rawSev = (v.severity ?? 'low').toLowerCase() as Severity;
               const severity: Severity = VALID_SEVERITIES.includes(rawSev) ? rawSev : 'low';
@@ -144,6 +147,11 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
                 apiGroup: deriveApiGroup(v.filePath),
               };
               addVuln(vuln);
+              const fileName = v.filePath.split('/').pop() ?? v.filePath;
+              appendAiLog(
+                `⚠️ [${severity.toUpperCase()}] ${v.vulnType} · ${fileName}:${v.lineNumber ?? 0}`
+                + (v.description ? `\n   ${v.description}` : ''),
+              );
             }
           })
           .catch(() => {});
@@ -202,6 +210,8 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         clearApiAnalysis();
         clearStageProgress();
         clearAwaitingConfirmation();
+        clearAiLog();
+        appendAiLog('▶ SAST 분석을 시작합니다…');
         addProgressStep({ stepName: '분석 시작', stepOrder: Date.now(), target: '초기화 중...', status: 'completed' });
       } else if (event.type === 'api_plan') {
         // TASK-1106 — API 그룹 계획 수신 → 파일 전부 pending 초기화
@@ -252,10 +262,19 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
                 total: event.total ?? 0,
               });
               setFileStatus(event.file, 'analyzing');
+              appendAiLog(`🔍 [${event.current ?? '?'}/${event.total ?? '?'}] ${event.file} 코드 맥락 분석 중…`);
             } else if (event.phase === 'done') {
               // 파일 완료
               setFileStatus(event.file, 'done');
               setScanningFile(null);
+              // vuln_count가 있는 done 이벤트에서만 로그(파일당 1회) — 중복 방지
+              if (event.vuln_count !== undefined) {
+                appendAiLog(
+                  event.vuln_count > 0
+                    ? `   └ ${event.file}: 취약점 ${event.vuln_count}개 발견`
+                    : `   └ ${event.file}: 이상 없음`,
+                );
+              }
             } else {
               // phase 없는 기존 progress — 완료로 처리
               setFileStatus(event.file, 'done');
@@ -276,6 +295,11 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
         }
       } else if (event.type === 'scan_complete') {
         setScanningFile(null);
+        // scan_complete는 초기(파일목록, vuln_count 없음)·후기(실제 카운트) 두 번 온다.
+        // 실제 카운트가 있을 때만 완료 로그를 남겨 "0개" 노이즈를 막는다.
+        if (event.vuln_count !== undefined) {
+          appendAiLog(`✓ SAST 스캔 완료 — 총 취약점 ${event.vuln_count}개`);
+        }
         addProgressStep({
           stepName: '스캔 완료', stepOrder: Date.now(),
           target: `취약점 ${event.vuln_count ?? 0}개 발견`, status: 'completed',

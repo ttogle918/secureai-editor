@@ -18,8 +18,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -45,6 +47,24 @@ public class DastController {
     private final DastExecutionService dastExecutionService;
     private final DastResultQueryService dastResultQueryService;
     private final DomainVerificationService domainVerificationService;
+
+    /** 데모/개발용 도메인 소유권 검증 생략 목록(쉼표구분, secureai.dast.demo-domains). 운영 기본값은 비어 있음. */
+    @Value("${secureai.dast.demo-domains:}")
+    private String demoDomainsCsv;
+
+    /** localhost 계열 또는 데모 허용 도메인이면 도메인 소유권 검증을 생략한다. */
+    private boolean isVerificationExempt(String domain) {
+        if (LOCALHOST_DOMAINS.contains(domain)) {
+            return true;
+        }
+        if (demoDomainsCsv == null || demoDomainsCsv.isBlank()) {
+            return false;
+        }
+        return Arrays.stream(demoDomainsCsv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .anyMatch(d -> d.equalsIgnoreCase(domain));
+    }
 
     // ── 내부 엔드포인트 (AI Engine → Backend) ────────────────────────────────
 
@@ -83,7 +103,7 @@ public class DastController {
         }
 
         String clientIp = resolveClientIp(httpReq);
-        boolean isLocalhost = LOCALHOST_DOMAINS.contains(req.domain());
+        boolean isLocalhost = isVerificationExempt(req.domain());
 
         log.info("DAST batch start requested: sessionId={} domain={} targetCount={}",
                 req.sessionId(), req.domain(), req.targets().size());
@@ -118,7 +138,7 @@ public class DastController {
         }
 
         String clientIp = resolveClientIp(httpReq);
-        boolean isLocalhost = LOCALHOST_DOMAINS.contains(req.domain());
+        boolean isLocalhost = isVerificationExempt(req.domain());
 
         log.info("DAST start requested: sessionId={} vulnId={} domain={}",
                 req.sessionId(), req.vulnId(), req.domain());

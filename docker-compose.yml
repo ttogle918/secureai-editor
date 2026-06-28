@@ -105,6 +105,8 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
       # Sentry 에러 추적 (TASK-1804) — 미설정 시 비활성화 (env-gated)
       SENTRY_DSN: ${BACKEND_SENTRY_DSN:-}
+      # DAST 데모 타깃 도메인 소유권 검증 생략 (dev/데모 전용 — prod compose에는 없음)
+      SECUREAI_DAST_DEMO_DOMAINS: ${SECUREAI_DAST_DEMO_DOMAINS:-fastapi-vuln}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - reports_data:/app/reports

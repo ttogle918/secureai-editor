@@ -185,6 +185,7 @@ export function AppHeader({ onExportJSON }: AppHeaderProps) {
           .then((res) => {
             const items = res.data ?? [];
             const patches: PatchSuggestion[] = items.map((p) => ({
+              patchId: p.id,
               vulnId: p.vulnId ?? undefined,
               filePath: p.filePath,
               vulnType: p.vulnType,

@@ -59,6 +59,8 @@ export interface Vulnerability {
 }
 
 export interface PatchSuggestion {
+  /** 백엔드 patch_suggestion UUID — PR 생성(/patches/{patchId}/pull-request)에 사용 */
+  patchId?: string;
   vulnId?: string;
   filePath: string;
   vulnType: string;

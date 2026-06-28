@@ -97,11 +97,11 @@ export function PatchManagerPage() {
 
   function openModal(idx: number) {
     const patch = patches[idx];
-    // patch.vulnId를 patchId로 사용. 실제 백엔드 patchId(UUID)가 FE 타입에 추가되면 교체 필요.
+    // 백엔드 patch_suggestion UUID(patchId)를 PR 생성에 사용.
     setModal({
       open: true,
       patchIdx: idx,
-      patchId: patch.vulnId ?? null,
+      patchId: patch.patchId ?? null,
       owner: '',
       repo: '',
       baseBranch: '',
@@ -228,14 +228,14 @@ export function PatchManagerPage() {
                     ) : (
                       <button
                         onClick={() => openModal(idx)}
-                        disabled={loadingIdx === idx || !patch.vulnId}
-                        title={!patch.vulnId ? '패치 ID가 없습니다.' : undefined}
+                        disabled={loadingIdx === idx || !patch.patchId}
+                        title={!patch.patchId ? '패치 ID가 없습니다.' : undefined}
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 4,
                           padding: '4px 10px',
-                          background: (loadingIdx === idx || !patch.vulnId) ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.15)',
+                          background: (loadingIdx === idx || !patch.patchId) ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.15)',
                           color: '#818cf8',
                           border: '1px solid rgba(99,102,241,0.3)',
                           borderRadius: 6,

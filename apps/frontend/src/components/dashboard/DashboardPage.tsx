@@ -1,8 +1,7 @@
 // components/dashboard/DashboardPage.tsx
 'use client';
 import { useMemo, useState } from 'react';
-import { BarChart2, PieChart, FileText, RefreshCw, Key, Package, Github, Clock3, CreditCard, ClipboardList, Activity, ChevronRight, AlertCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { BarChart2, PieChart, FileText, RefreshCw } from 'lucide-react';
 import { PdfReportModal }         from '@/components/analysis/PdfReportModal';
 import { useSecureStore }         from '@/store/useSecureStore';
 import { useDashboard }           from '@/hooks/useDashboard';
@@ -15,17 +14,10 @@ import { TrendLineChart }         from '@/components/dashboard/TrendLineChart';
 import { FileHeatmap }            from '@/components/dashboard/FileHeatmap';
 import { OwaspCoverageMatrix }    from '@/components/dashboard/OwaspCoverageMatrix';
 import { EmptyState }             from '@/components/ui/EmptyState';
+import { TokenUsageCard }         from '@/components/dashboard/TokenUsageCard';
+import { AutomationQuickActions } from '@/components/dashboard/AutomationQuickActions';
+import { DashboardInfoCards }     from '@/components/dashboard/DashboardInfoCards';
 import { isVulnResolved }         from '@/lib/mockData';
-
-// ── 대시보드 색상 상수 ────────────────────────────────────────────
-const DASH_COLORS = {
-  credits:      '#f97316',   // 오렌지 — 크레딧
-  compliance:   '#569cd6',   // 블루 — 컴플라이언스
-  monitoring:   '#a78bfa',   // 퍼플 — 도메인 모니터링
-  secretScan:   '#34d399',   // 그린 — 시크릿 스캔
-  sbom:         '#818cf8',   // 인디고 — SBOM
-  disabled:     'rgba(255,255,255,0.2)',
-} as const;
 
 type DateRange    = '24h' | '7d' | '30d' | '90d' | 'all';
 type DashViewMode = 'executive' | 'analyst';
@@ -178,7 +170,6 @@ function ApiStatusChip({ isLoading, isLive, error, onRefetch }: {
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [dateRange,    setDateRange]    = useState<DateRange>('7d');
   const [dashView,     setDashView]     = useState<DashViewMode>('executive');
   const [showPdfModal, setShowPdfModal] = useState(false);
@@ -361,200 +352,21 @@ export default function DashboardPage() {
           <KpiCard value={high}          label="High"       color="var(--high)" />
           <KpiCard value={medium}        label="Medium"     color="var(--medium)" />
           <KpiCard
-            value={totalVulns > 0 ? `${Math.round((patched / localTotal) * 100)}%` : '—'}
+            value={localTotal > 0 ? `${Math.round((patched / localTotal) * 100)}%` : '—'}
             label="패치 완료율"
             color="var(--low)"
           />
         </div>
 
-        {/* ── 추가 정보 카드 행 (크레딧 · 컴플라이언스 · 도메인 모니터링) ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        {/* ── 정보 카드 3열 (크레딧 · 컴플라이언스 · 도메인 모니터링) ── */}
+        <DashboardInfoCards
+          creditsData={creditsData}
+          creditsLoading={creditsLoading}
+          projectId={projectId}
+        />
 
-          {/* 크레딧 현황 카드 — 실제 balance */}
-          <div style={{
-            background: 'var(--bg-2)', border: '1px solid var(--border)',
-            borderRadius: 8, padding: '16px 20px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>크레딧 잔액</span>
-              <CreditCard size={14} color={DASH_COLORS.credits} aria-hidden="true" />
-            </div>
-            {creditsLoading ? (
-              <div style={{ fontSize: 12, color: 'var(--text-disabled)', fontFamily: 'var(--font-mono)' }}>불러오는 중...</div>
-            ) : creditsData ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
-                  <span style={{ fontSize: 28, fontWeight: 700, color: DASH_COLORS.credits, fontFamily: 'var(--font-mono)', lineHeight: 1 }}>
-                    {creditsData.balance.toLocaleString()}
-                  </span>
-                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>크레딧</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{
-                    fontSize: 9, padding: '1px 6px', borderRadius: 3,
-                    background: 'rgba(249,115,22,0.12)', color: DASH_COLORS.credits,
-                    fontFamily: 'var(--font-mono)', fontWeight: 700,
-                  }}>
-                    {creditsData.plan.displayName || creditsData.plan.name}
-                  </span>
-                  {creditsData.hasByok && (
-                    <span style={{
-                      fontSize: 9, padding: '1px 6px', borderRadius: 3,
-                      background: 'rgba(129,140,248,0.12)', color: DASH_COLORS.sbom,
-                      fontFamily: 'var(--font-mono)', fontWeight: 700,
-                    }}>
-                      BYOK
-                    </span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: 12, color: 'var(--text-disabled)', fontFamily: 'var(--font-mono)' }}>데이터 없음</div>
-            )}
-          </div>
-
-          {/* 컴플라이언스 카드 — nav 카드 (요약 API 없음, projectId 게이트) */}
-          <button
-            onClick={() => { if (projectId) router.push(`/projects/${projectId}/compliance`); }}
-            disabled={!projectId}
-            aria-disabled={!projectId}
-            title={projectId ? '컴플라이언스 페이지로 이동' : '프로젝트를 선택하면 활성화됩니다'}
-            style={{
-              background: 'var(--bg-2)', border: `1px solid ${projectId ? 'rgba(86,156,214,0.3)' : 'var(--border)'}`,
-              borderRadius: 8, padding: '16px 20px', cursor: projectId ? 'pointer' : 'default',
-              opacity: projectId ? 1 : 0.5, textAlign: 'left',
-              transition: 'border-color 0.15s, background 0.15s',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>컴플라이언스</span>
-              <ClipboardList size={14} color={projectId ? DASH_COLORS.compliance : DASH_COLORS.disabled} aria-hidden="true" />
-            </div>
-            <div style={{ fontSize: 13, color: projectId ? DASH_COLORS.compliance : 'var(--text-disabled)', fontWeight: 600, marginBottom: 4 }}>
-              {projectId ? '규정 준수 현황 보기' : '프로젝트 선택 필요'}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-tertiary)' }}>
-              {projectId
-                ? <><span>OWASP · ISMS-P · 행안부</span><ChevronRight size={11} /></>
-                : <><AlertCircle size={11} /><span>사이드바에서 프로젝트를 선택하세요</span></>}
-            </div>
-          </button>
-
-          {/* 도메인 모니터링 카드 — 비활성 (FE 없음, 데이터 없음) */}
-          <div
-            aria-disabled="true"
-            style={{
-              background: 'var(--bg-2)', border: '1px solid var(--border)',
-              borderRadius: 8, padding: '16px 20px', opacity: 0.45,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>도메인 모니터링</span>
-              <Activity size={14} color={DASH_COLORS.disabled} aria-hidden="true" />
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-disabled)', fontWeight: 600, marginBottom: 4 }}>준비 중</div>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center',
-              fontSize: 9, padding: '1px 6px', borderRadius: 3,
-              background: 'rgba(167,139,250,0.08)', color: DASH_COLORS.monitoring,
-              fontFamily: 'var(--font-mono)', fontWeight: 700,
-            }}>
-              COMING SOON
-            </div>
-          </div>
-        </div>
-
-        {/* ── 자동화 빠른액션 4-grid ── */}
-        <div style={{
-          background: 'var(--bg-2)', border: '1px solid var(--border)',
-          borderRadius: 8, padding: '16px 20px',
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12 }}>
-            자동화 빠른 액션
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-
-            {/* 시크릿 스캔 — /commit-scan 연결 */}
-            <button
-              onClick={() => router.push('/commit-scan')}
-              style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
-                padding: '12px 14px', borderRadius: 7,
-                background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)',
-                cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s',
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(52,211,153,0.12)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(52,211,153,0.06)'; }}
-            >
-              <Key size={16} color={DASH_COLORS.secretScan} aria-hidden="true" />
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>시크릿 스캔</div>
-                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>커밋·코드 내 시크릿</div>
-              </div>
-            </button>
-
-            {/* SBOM & CVE — projectId 있으면 페이지, 없으면 에디터 내 탭 */}
-            <button
-              onClick={() => {
-                if (projectId) router.push(`/projects/${projectId}/sbom`);
-              }}
-              disabled={!projectId}
-              aria-disabled={!projectId}
-              aria-label={projectId ? 'SBOM & CVE 페이지로 이동' : 'SBOM & CVE — 프로젝트 선택 필요'}
-              style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
-                padding: '12px 14px', borderRadius: 7,
-                background: 'rgba(129,140,248,0.06)', border: '1px solid rgba(129,140,248,0.2)',
-                cursor: projectId ? 'pointer' : 'default', opacity: projectId ? 1 : 0.5,
-                textAlign: 'left', transition: 'background 0.12s',
-              }}
-              onMouseEnter={(e) => { if (projectId) (e.currentTarget as HTMLElement).style.background = 'rgba(129,140,248,0.12)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(129,140,248,0.06)'; }}
-            >
-              <Package size={16} color={DASH_COLORS.sbom} aria-hidden="true" />
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>SBOM & CVE</div>
-                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>
-                  {projectId ? '컴포넌트 의존성 분석' : '프로젝트 선택 필요'}
-                </div>
-              </div>
-            </button>
-
-            {/* PR 자동 리뷰 — 비활성 */}
-            <div
-              aria-disabled="true"
-              style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
-                padding: '12px 14px', borderRadius: 7,
-                background: 'rgba(167,139,250,0.04)', border: '1px solid rgba(167,139,250,0.12)',
-                opacity: 0.45, cursor: 'default',
-              }}
-            >
-              <Github size={16} color={DASH_COLORS.monitoring} aria-hidden="true" />
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>PR 자동 리뷰</div>
-                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>준비 중</div>
-              </div>
-            </div>
-
-            {/* 예약 스캔 — 비활성 */}
-            <div
-              aria-disabled="true"
-              style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
-                padding: '12px 14px', borderRadius: 7,
-                background: 'rgba(167,139,250,0.04)', border: '1px solid rgba(167,139,250,0.12)',
-                opacity: 0.45, cursor: 'default',
-              }}
-            >
-              <Clock3 size={16} color={DASH_COLORS.monitoring} aria-hidden="true" />
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>예약 자동 스캔</div>
-                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>준비 중</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* ── 자동화 빠른 액션 ── */}
+        <AutomationQuickActions projectId={projectId} />
 
         {/* ── 차트 2열 ── */}
         <div className="chart-grid dashboard-chart-grid">
@@ -586,54 +398,7 @@ export default function DashboardPage() {
         )}
 
         {/* ── 토큰 사용량 ── */}
-        {lastTokenUsage && (
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>토큰 사용량</span>
-                <span style={{
-                  fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3,
-                  background: 'rgba(99,102,241,0.12)', color: 'var(--tag-1)',
-                  border: '0.5px solid rgba(99,102,241,0.25)',
-                }}>
-                  {lastTokenUsage.modelId}
-                </span>
-              </div>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                ${lastTokenUsage.estimatedCostUsd.toFixed(4)}
-                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', marginLeft: 6 }}>
-                  (≈ ₩{Math.round(lastTokenUsage.estimatedCostUsd * 1380).toLocaleString()})
-                </span>
-              </span>
-            </div>
-            <div style={{
-              marginTop: 12, display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)', gap: 8,
-            }}>
-              {([
-                { label: '입력',      value: lastTokenUsage.inputTokens,      color: 'var(--tag-5)' },
-                { label: '출력',      value: lastTokenUsage.outputTokens,     color: 'var(--tag-3)' },
-                { label: '캐시 쓰기', value: lastTokenUsage.cacheWriteTokens, color: 'var(--high)' },
-                { label: '캐시 읽기', value: lastTokenUsage.cacheReadTokens,  color: 'var(--tag-6)' },
-              ] as const).map(({ label, value, color }) => (
-                <div key={label} style={{
-                  background: 'var(--bg-1)', borderRadius: 6, padding: '8px 12px',
-                  border: '1px solid var(--border)',
-                }}>
-                  <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>
-                    {value.toLocaleString()}
-                  </div>
-                  <div style={{ fontSize: 9, color: 'var(--text-disabled)', marginTop: 2 }}>tokens</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ marginTop: 8, fontSize: 10, color: 'var(--text-disabled)' }}>
-              총 {(lastTokenUsage.inputTokens + lastTokenUsage.outputTokens + lastTokenUsage.cacheWriteTokens + lastTokenUsage.cacheReadTokens).toLocaleString()} 토큰
-              · 가격 기준: 입력 $0.80 / 출력 $4.00 / 캐시쓰기 $1.00 / 캐시읽기 $0.08 (per MTok)
-            </div>
-          </Card>
-        )}
+        {lastTokenUsage && <TokenUsageCard usage={lastTokenUsage} />}
 
         {/* ── 취약점 없을 때 첫 프로젝트 안내 ── */}
         {!hasVulns && !isLoading && (

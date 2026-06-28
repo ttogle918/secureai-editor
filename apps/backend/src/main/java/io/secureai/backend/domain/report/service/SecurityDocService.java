@@ -16,6 +16,8 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -59,7 +61,20 @@ public class SecurityDocService {
                 .build();
         SecurityDocRequest saved = securityDocRequestRepository.save(req);
 
-        asyncProcessor.process(saved.getId());
+        // 커밋 완료 후 async 트리거 — 커밋 전 실행 시 @Async 스레드의 findById가 아직
+        // 커밋되지 않은 행을 못 찾아("요청을 찾을 수 없음") 상태가 PENDING에 갇힌다.
+        // 트랜잭션 동기화가 없는 경우(트랜잭션 밖 호출·단위 테스트)에는 즉시 실행한다.
+        UUID requestId = saved.getId();
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    asyncProcessor.process(requestId);
+                }
+            });
+        } else {
+            asyncProcessor.process(requestId);
+        }
         log.info("[SecurityDocService] 보안 문서 생성 요청 requestId={} docType={} projectId={}",
                 saved.getId(), docType, projectId);
         return SecurityDocResponse.from(saved);

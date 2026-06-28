@@ -11,10 +11,10 @@ import os
 
 import redis.asyncio as aioredis
 from opentelemetry import trace
-from anthropic import AsyncAnthropic
 from jinja2 import Environment, FileSystemLoader
 
 from agent.agent_state import AgentState
+from agent.llm.factory import get_provider, PROVIDER_GEMINI, PROVIDER_OPENAI
 from agent.nodes.diff_generator import parse_patch_response
 from config.settings import settings
 from infrastructure.backend_api_client import get_patch_examples, report_token_usage, save_patch_results
@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
 
 _redis: aioredis.Redis | None = None
-_client: AsyncAnthropic | None = None
 
 _CACHE_PREFIX = "secureai:patch:"
 _CACHE_TTL = 60 * 60 * 24  # 24h
@@ -58,13 +57,6 @@ def _get_redis() -> aioredis.Redis:
     return _redis
 
 
-def _get_client() -> AsyncAnthropic:
-    global _client
-    if _client is None:
-        _client = AsyncAnthropic(api_key=settings.claude_api_key)
-    return _client
-
-
 def _detect_language(file_path: str) -> str:
     ext = os.path.splitext(file_path)[1].lower()
     return _LANG_EXTENSIONS.get(ext, "plaintext")
@@ -75,21 +67,23 @@ def _build_cache_key(vuln_type: str, file_path: str) -> str:
     return f"{_CACHE_PREFIX}{vuln_type}:{ext}"
 
 
-async def _call_claude(prompt: str, api_key: str | None = None, model: str | None = None) -> str:
-    client = AsyncAnthropic(api_key=api_key or settings.claude_api_key) if api_key else _get_client()
-    response = await client.messages.create(
-        model=model or settings.claude_model,
-        max_tokens=2048,
-        system=[
-            {
-                "type": "text",
-                "text": "You are a security expert specializing in secure code remediation. Respond only with valid JSON.",
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
-        messages=[{"role": "user", "content": prompt}],
+async def _call_llm(
+    prompt: str, provider: str, api_key: str | None = None, model: str | None = None
+) -> str:
+    """선택된 provider(anthropic/gemini/openai)로 패치 생성을 요청한다.
+
+    sast_node와 동일하게 get_provider 추상화를 사용한다. preferred_provider를
+    무시하고 Anthropic으로 직행하던 버그(gemini 모델 → Anthropic 404)를 방지한다.
+    """
+    llm = get_provider(provider, api_key=api_key)
+    system_text = (
+        "You are a security expert specializing in secure code remediation. "
+        "Respond only with valid JSON."
     )
-    return response.content[0].text
+    raw, _usage = await llm.analyze(
+        system_text, prompt, model or settings.claude_model, max_tokens=2048
+    )
+    return raw
 
 
 async def _fetch_prev_patch_example(vuln_type: str, language: str) -> str:
@@ -118,7 +112,7 @@ async def _fetch_prev_patch_example(vuln_type: str, language: str) -> str:
 
 
 async def _generate_patch_for_vuln(
-    vuln: dict, file_path: str, api_key: str | None = None, model: str | None = None
+    vuln: dict, file_path: str, provider: str, api_key: str | None = None, model: str | None = None
 ) -> dict | None:
     """취약점 하나에 대한 패치를 생성한다. 실패 시 None을 반환한다."""
     vuln_type = vuln.get("type", "UNKNOWN")
@@ -148,7 +142,7 @@ async def _generate_patch_for_vuln(
         prev_patch_example=prev_patch_example,
     )
 
-    raw = await _call_claude(prompt, api_key=api_key, model=model)
+    raw = await _call_llm(prompt, provider, api_key=api_key, model=model)
     patch_result = parse_patch_response(raw, vuln, file_path)
     if patch_result is None:
         return None
@@ -172,6 +166,24 @@ async def patch_node(state: AgentState) -> dict:
     user_api_key: str | None = state.get("user_api_key")
     preferred_model: str | None = state.get("preferred_model")
 
+    # provider/model 해석 (sast_node와 동일 규칙) — preferred_provider를 존중해
+    # gemini/openai 패치도 올바른 엔드포인트로 보낸다. (이전: Anthropic 직행 → 404)
+    provider = state.get("preferred_provider")
+    if provider is None:
+        scan_mode = state.get("scan_mode", "PIPELINE")
+        provider = settings.audit_provider if scan_mode == "AUDIT" else settings.pipeline_provider
+    # gemini 라우팅인데 서버 키도 BYOK 키도 없을 때만 anthropic 폴백 (세션 중단 금지)
+    if provider == PROVIDER_GEMINI and not settings.gemini_api_key and not user_api_key:
+        provider = "anthropic"
+        preferred_model = None
+    if preferred_model is None:
+        if provider == PROVIDER_GEMINI:
+            preferred_model = settings.gemini_model
+        elif provider == PROVIDER_OPENAI:
+            preferred_model = settings.openai_model
+        else:
+            preferred_model = settings.claude_model
+
     with tracer.start_as_current_span("patch_node") as span:
         span.set_attribute("session_id", session_id)
         span.set_attribute("project_id", str(project_id))
@@ -183,7 +195,7 @@ async def patch_node(state: AgentState) -> dict:
             vulns = file_result.get("vulnerabilities", [])
             for vuln in vulns:
                 try:
-                    result = await _generate_patch_for_vuln(vuln, file_path, api_key=user_api_key, model=preferred_model)
+                    result = await _generate_patch_for_vuln(vuln, file_path, provider, api_key=user_api_key, model=preferred_model)
                     if result is not None:
                         patch_results.append(result)
                 except Exception as exc:

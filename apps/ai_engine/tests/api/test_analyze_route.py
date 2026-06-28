@@ -59,6 +59,8 @@ async def test_run_analysis_no_files_publishes_started_and_completed():
 
     mock_graph = MagicMock()
     mock_graph.astream = _fake_astream
+    # 네이티브 완료 경로: aget_state로 interrupt 여부 확인(.next=None → 정상 완료)
+    mock_graph.aget_state = AsyncMock(return_value=MagicMock(next=None))
 
     _cancel_flags["sess-no-files"] = False
     try:
@@ -92,6 +94,8 @@ async def test_run_analysis_cancel_flag_emits_cancelled():
 
     mock_graph = MagicMock()
     mock_graph.astream = _fake_astream
+    # 네이티브 완료 경로: aget_state로 interrupt 여부 확인(.next=None → 정상 완료)
+    mock_graph.aget_state = AsyncMock(return_value=MagicMock(next=None))
 
     _cancel_flags["sess-cancel"] = True  # 이미 취소 요청
     try:
@@ -155,6 +159,8 @@ async def test_run_analysis_cleanup_cancel_flag():
 
     mock_graph = MagicMock()
     mock_graph.astream = _fake_astream
+    # 네이티브 완료 경로: aget_state로 interrupt 여부 확인(.next=None → 정상 완료)
+    mock_graph.aget_state = AsyncMock(return_value=MagicMock(next=None))
 
     _cancel_flags["sess-cleanup"] = False
     with (
@@ -185,6 +191,8 @@ async def test_run_analysis_progress_event_contains_file_info():
 
     mock_graph = MagicMock()
     mock_graph.astream = _fake_astream
+    # 네이티브 완료 경로: aget_state로 interrupt 여부 확인(.next=None → 정상 완료)
+    mock_graph.aget_state = AsyncMock(return_value=MagicMock(next=None))
 
     _cancel_flags["sess-progress"] = False
     try:
@@ -246,6 +254,8 @@ async def test_run_resume_with_checkpointer_emits_completed():
 
     mock_graph = MagicMock()
     mock_graph.astream = _fake_astream
+    # 네이티브 완료 경로: aget_state로 interrupt 여부 확인(.next=None → 정상 완료)
+    mock_graph.aget_state = AsyncMock(return_value=MagicMock(next=None))
 
     with (
         patch("api.routes.analyze.get_redis", AsyncMock(return_value=mock_redis)),
@@ -279,6 +289,8 @@ async def test_run_resume_cancel_flag_emits_cancelled():
 
     mock_graph = MagicMock()
     mock_graph.astream = _fake_astream
+    # 네이티브 완료 경로: aget_state로 interrupt 여부 확인(.next=None → 정상 완료)
+    mock_graph.aget_state = AsyncMock(return_value=MagicMock(next=None))
 
     _cancel_flags["sess-resume-cancel"] = True
     try:
@@ -333,6 +345,8 @@ async def test_run_resume_non_confirm_gate_uses_non_interrupt_graph():
 
     mock_graph = MagicMock()
     mock_graph.astream = _fake_astream
+    # 네이티브 완료 경로: aget_state로 interrupt 여부 확인(.next=None → 정상 완료)
+    mock_graph.aget_state = AsyncMock(return_value=MagicMock(next=None))
 
     get_graph_calls: list[dict] = []
 

@@ -72,6 +72,16 @@ async def save_vulnerabilities(
         return 0
 
 
+def _snake_to_camel(s: str) -> str:
+    """snake_case 키를 camelCase로 변환한다."""
+    head, *tail = s.split("_")
+    return head + "".join(p.capitalize() for p in tail)
+
+
+def _camelize_keys(d: dict) -> dict:
+    return {_snake_to_camel(k): v for k, v in d.items()}
+
+
 async def save_patch_results(
     session_id: str,
     project_id: str,
@@ -81,10 +91,13 @@ async def save_patch_results(
     if not patch_results:
         return 0
 
+    # PatchResult.to_dict()는 snake_case 키를 주지만 Backend PatchItem DTO는
+    # camelCase(filePath/vulnType/…)를 기대한다. 변환 없이 보내면 explanation만
+    # 매핑되고 file_path 등은 null → patch_suggestions NOT NULL 제약 위반(500).
     payload = {
         "sessionId": session_id,
         "projectId": project_id,
-        "patches": patch_results,
+        "patches": [_camelize_keys(p) for p in patch_results],
     }
 
     try:

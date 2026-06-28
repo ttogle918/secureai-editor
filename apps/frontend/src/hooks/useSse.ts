@@ -259,8 +259,11 @@ function parseAndDispatch(
   let dataPayload: string | null = null;
 
   for (const line of lines) {
-    if (line.startsWith('data: ')) {
-      dataPayload = line.slice('data: '.length).trim();
+    // SSE 스펙: "data:" 뒤 공백 1개는 선택적. Spring SseEmitter는 공백 없이
+    // "data:{...}"로 보내므로 'data: '(공백 포함) 고정 매칭은 전 이벤트를 누락시킨다.
+    // trim()으로 두 형식("data:{...}"·"data: {...}") 모두 안전하게 처리.
+    if (line.startsWith('data:')) {
+      dataPayload = line.slice('data:'.length).trim();
     }
     // event: 이름 라인은 현재 'progress' 단일이므로 추가 분기 불필요
   }

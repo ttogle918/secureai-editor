@@ -24,15 +24,19 @@ interface Tier { id: string; name: string; price: string; period?: string; featu
 const TIERS: Tier[] = [
   {
     id: 'free', name: 'Free', price: '$0', period: '/mo',
-    features: ['월 100 크레딧', 'SAST 분석', 'BYOK 지원', '커뮤니티 지원'], cta: '현재 플랜'
+    features: ['월 100 크레딧', 'SAST 분석', 'GitHub 스캔', 'BYOK 지원'], cta: '현재 플랜'
   },
   {
-    id: 'pro', name: 'Pro', price: '$39', period: '/mo', highlight: true,
-    features: ['월 30,000 크레딧', 'SAST + DAST 증명', '자동 패치 PR', '컴플라이언스 리포트', '우선 지원'], cta: '업그레이드'
+    id: 'pro', name: 'Pro', price: '$29', period: '/mo', highlight: true,
+    features: ['월 3,000 크레딧', 'SAST + DAST 증명', '자동 패치 PR', '컴플라이언스 리포트·SBOM', '우선 지원'], cta: '업그레이드'
+  },
+  {
+    id: 'team', name: 'Team', price: '$39', period: '/인·월',
+    features: ['인당 월 4,500 크레딧', '시트 무제한 · 인당 과금', '팀 멤버·역할 관리', '팀 대시보드 · 트리아지 공유', '야간 자동 모니터링'], cta: '업그레이드'
   },
   {
     id: 'enterprise', name: 'Enterprise', price: 'Custom',
-    features: ['무제한 크레딧/시트', 'SSO·감사로그', '온프레미스 배포', 'SLA·전담 지원'], cta: '영업팀 문의'
+    features: ['무제한 크레딧/시트', 'SSO·감사로그·IP 허용목록', '온프레미스/폐쇄망 배포', 'SLA·전담 지원', '원화 결제·세금계산서'], cta: '영업팀 문의'
   },
 ];
 
@@ -103,9 +107,9 @@ export default function BillingPage() {
           )}
         </div>
 
-        {/* ── 요금제 카드 (3단) ── */}
+        {/* ── 요금제 카드 (4단) ── */}
         <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>요금제</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 32 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 32 }}>
           {TIERS.map((t) => (
             <div key={t.id} style={{
               position: 'relative', padding: 20, borderRadius: 12,

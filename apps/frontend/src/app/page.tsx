@@ -166,41 +166,54 @@ const PLANS = [
   {
     name: 'Free',
     displayName: '무료',
-    price: '₩0',
+    price: '$0',
     period: '/월',
     credits: 100,
     highlight: false,
     badge: null as string | null,
     models: ['Haiku (1 cr/파일)'],
-    features: ['월 100 크레딧', '로컬 SAST 분석', 'GitHub 저장소 스캔', 'OWASP Top 10 자동 분류'],
+    features: ['월 100 크레딧', '로컬 SAST 분석', 'GitHub 저장소 스캔', 'OWASP Top 10 자동 분류', 'BYOK 지원'],
     cta: '무료 시작',
     ctaHref: '/register',
   },
   {
     name: 'Pro',
     displayName: '프로',
-    price: '₩15,000',
+    price: '$29',
     period: '/월',
-    credits: 2000,
+    credits: 3000,
     highlight: true,
     badge: '가장 인기',
     models: ['Haiku (1 cr/파일)', 'Sonnet (5 cr/파일)'],
-    features: ['월 2,000 크레딧', 'BYOK 지원 (자기 키로 무제한)', '이메일 우선 지원', '패치 추천 무제한'],
+    features: ['월 3,000 크레딧', 'DAST 동적 증명', '자동 패치 PR', '컴플라이언스 리포트·SBOM', 'BYOK 지원 (자기 키로 무제한)'],
     cta: '프로 시작',
     ctaHref: '/register?plan=pro',
   },
   {
     name: 'Team',
     displayName: '팀',
-    price: '₩49,000',
-    period: '/월',
-    credits: 10000,
+    price: '$39',
+    period: '/인·월',
+    credits: 4500,
     highlight: false,
     badge: null,
     models: ['Haiku (1 cr/파일)', 'Sonnet (5 cr/파일)', 'Opus (20 cr/파일)'],
-    features: ['월 10,000 크레딧', '팀 멤버 무제한', 'DAST 동적 분석', '전용 슬랙 채널 지원'],
+    features: ['인당 월 4,500 크레딧', '시트 무제한 · 인당 과금', '팀 멤버·역할 관리', '팀 대시보드 · 트리아지 공유', '야간 자동 모니터링', '전용 슬랙 채널 지원'],
     cta: '팀으로 시작',
     ctaHref: '/register?plan=team',
+  },
+  {
+    name: 'Enterprise',
+    displayName: '엔터프라이즈',
+    price: 'Custom',
+    period: '',
+    credits: 0,
+    highlight: false,
+    badge: null,
+    models: ['전 모델 + 온프레미스'],
+    features: ['무제한 크레딧/시트', 'SSO·감사로그·IP 허용목록', '온프레미스/폐쇄망 배포', 'SLA·전담 지원', '원화 결제·세금계산서'],
+    cta: '영업팀 문의',
+    ctaHref: '/register?plan=enterprise',
   },
 ] as const;
 
@@ -254,7 +267,7 @@ function PricingSection() {
                   <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>{plan.period}</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 6 }}>
-                  월 {plan.credits.toLocaleString()} 크레딧 포함
+                  {plan.price === 'Custom' ? '맞춤 견적 · 무제한' : `월 ${plan.credits.toLocaleString()} 크레딧 포함`}
                 </div>
               </div>
 

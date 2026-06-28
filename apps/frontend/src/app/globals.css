@@ -496,8 +496,8 @@ textarea.field { height: auto; padding: 8px 10px; font: 12px/1.5 var(--font-mono
 /* ── Landing Pricing ─────────────────────────────────────── */
 .landing-pricing__grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px; align-items: start;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px; align-items: start;
 }
 
 /* ── Landing Stats ───────────────────────────────────────── */

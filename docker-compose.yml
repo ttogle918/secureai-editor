@@ -156,6 +156,10 @@ services:
     volumes:
       - ${WORKSPACE_PATH:-/workspace}:/workspace:ro
       - ./apps/mcp_server:/app/mcp_server:ro
+    # 개발: 프론트(localhost:3000)가 DAST 배치 로그 SSE(/agent/dast/logs)를 ai_engine에
+    # 직접 구독하므로 host 8000에 publish (CORS·InternalKeyAuth 예외는 이미 설정됨).
+    ports:
+      - "8000:8000"
     expose:
       - "8000"
     networks:

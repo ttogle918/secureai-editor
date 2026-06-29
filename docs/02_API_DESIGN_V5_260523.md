@@ -38,6 +38,89 @@
 
 ---
 
+## 0. ⚠️ 현재 API 정합 (2026-06-29 정정 — 컨트롤러 소스 기준, 본 섹션 우선)
+
+> 본문 §1~§15는 **V5(Sprint 10)** 기준. 실제 컨트롤러 **33종**과 대조해 V5에 **미수록되거나 Sprint 11~14에서 추가된** 엔드포인트를 아래에 정리한다. 충돌 시 본 §0이 정본. (Swagger `/v3/api-docs`는 백엔드 기동 시 실시간 정본 — 본 표는 소스에서 추출.) 🔒=JWT · 🔑=X-Internal-Key(Backend↔AI Engine 전용) · 🌐=공개.
+
+### 0.1 인증·계정 보안 (신규/보강)
+| Method | Path | 인증 | 비고 |
+|--------|------|------|------|
+| GET | `/api/v1/auth/exchange/{code}` | 🌐 | OAuth 콜백 code→토큰 교환 |
+| POST | `/api/v1/auth/2fa/setup` · `/verify` · DELETE `/api/v1/auth/2fa` | 🔒 | 2FA(TOTP), Sprint 8 |
+| POST/GET | `/api/v1/users/me/provider-keys` · DELETE `/{provider}` · POST `/{provider}/validate` | 🔒 | **BYOK 멀티프로바이더 키**(anthropic/gemini/openai), Sprint 12 |
+| GET/DELETE | `/api/v1/users/me/sessions` · `/sessions/{sessionId}` | 🔒 | **세션 이력·강제 로그아웃**, Sprint 12 |
+| GET | `/api/v1/users/me/credits` | 🔒 | 크레딧 잔액 |
+| PUT | `/api/v1/users/me/settings` · `/me/api-key` · DELETE `/me/api-key` · PUT `/me/github-settings` | 🔒 | 사용자 설정/단일 API키/GitHub 설정 |
+
+### 0.2 GDPR
+| Method | Path | 인증 |
+|--------|------|------|
+| POST | `/api/v1/users/me/gdpr/export` · `/me/gdpr/delete` | 🔒 |
+| GET | `/api/v1/admin/gdpr/pending-deletions` | 🔒 admin |
+
+### 0.3 Admin
+| Method | Path | 비고 |
+|--------|------|------|
+| GET | `/api/v1/admin/users` · `/users/{userId}` | 사용자 관리 |
+| PATCH | `/api/v1/admin/users/{userId}/plan` · `/status` · POST `/credits` | 플랜·상태·크레딧 지급 |
+| GET | `/api/v1/admin/audit-logs/verify` | **감사로그 해시체인 무결성 검증**, Sprint 12 |
+| PUT | `/api/v1/admin/teams/{teamId}/ip-allowlist` | IP 허용목록 |
+
+### 0.4 Organizations (Enterprise) · Invitations — **신규 그룹**
+| Method | Path |
+|--------|------|
+| GET/POST | `/api/v1/organizations` · GET/PATCH/DELETE `/{slug}` |
+| GET/POST | `/{slug}/members` · PATCH `/{slug}/members/{userId}/role` · DELETE `/{slug}/members/{userId}` |
+| POST | `/{slug}/invite` · GET `/{slug}/usage` |
+| GET/POST | `/api/v1/invitations/{token}` · `/{token}/accept` |
+
+### 0.5 분석·취약점 (신규)
+| Method | Path | 비고 |
+|--------|------|------|
+| POST | `/api/v1/vulnerabilities/query` | 파일단위 페이징 조회(12C STAGE-1) |
+| PATCH | `/api/v1/vulnerabilities/{vulnId}/triage` · `/bulk-triage` | **트리아지 피드백**(MOAT-1, Sprint 13) |
+| POST | `/api/v1/analysis/sessions/{id}/confirm` | 계획 컨펌 게이트(12C STAGE-2) |
+| POST | `/api/v1/analysis/sessions/{id}/scan-commits` · GET `/commit-secrets` | 커밋 시크릿 스캔 |
+
+### 0.6 DAST (신규)
+| Method | Path | 비고 |
+|--------|------|------|
+| POST | `/api/v1/dast/batch` | **배치 DAST**(vuln_type 그룹핑·동시성4·단일 SSE), Sprint 14 |
+| GET | `/api/v1/dast/results/{sessionId}` · `/results/vuln/{vulnId}` · POST `/results/by-vuln-ids` | 결과 조회 |
+| POST | `/api/v1/internal/dast/execute` | 🔑 단건 executor 직접 호출 |
+
+### 0.7 패치 (신규)
+| Method | Path | 비고 |
+|--------|------|------|
+| POST | `/api/v1/patches/{patchId}/pull-request` | **패치 자동 PR**(PR-only, TASK-1401) |
+| POST | `/api/v1/patches/{patchId}/apply` | 패치 적용 |
+| POST | `/api/v1/internal/patches/{patchId}/verification` | 🔑 **패치 검증 결과 보고**(VERIFIED/FAILED, TASK-1402) |
+
+### 0.8 리포트·보안문서·컴플라이언스
+| Method | Path | 비고 |
+|--------|------|------|
+| POST/GET | `/api/v1/projects/{id}/reports/security` · GET `/{requestId}` · GET `/api/v1/reports/security/download` | **보안문서 생성**(CISO/행안부/ISMS-P) |
+| POST | `/api/v1/reports/{reportId}/send-email` | 리포트 이메일 발송, Sprint 12 |
+| GET | `/api/v1/reports/projects/{id}/sessions/{sid}/roi` · `/roi/pdf` | ROI 리포트 |
+| GET | `/api/v1/projects/{id}/sessions/{sid}/compliance` | 세션별 컴플라이언스 매핑 |
+| GET | `/api/v1/compliance/frameworks` | 프레임워크 카탈로그(V062) |
+
+### 0.9 알림·기타
+| Method | Path | 비고 |
+|--------|------|------|
+| POST/DELETE | `/api/v1/fcm/device-tokens` | FCM 디바이스 토큰 |
+| POST | `/api/v1/webhooks/email/bounce` | **이메일 반송/불만 처리**, Sprint 12 |
+| GET | `/api/v1/webhooks/github/history` | GitHub 웹훅 수신 이력 |
+| POST | `/api/v1/translate` | 취약점 설명 번역(i18n) |
+| GET | `/api/v1/projects/{id}/dashboard` · `/api/v1/teams/{teamId}/dashboard` | 대시보드 집계 |
+| GET | `/api/v1/cve/search` | CVE 검색 |
+| POST | `/api/v1/internal/sessions/{sid}/token-usage`(🔑) · GET `/api/v1/users/me/token-usage`(🔒) | 토큰 사용량 |
+| GET/PUT | `/api/v1/projects/{id}/schedule` | 야간 스캔 스케줄(TASK-1001) |
+
+> ℹ️ 위 외 §2~15 본문 엔드포인트(Auth 기본·Users §3·Projects §4·Analysis §5·SSE §6·Chat §7·Patches §8 기본·Workspace §9·Progress §10·AI Engine 내부 §11·DAST §12 기본·토큰/대시보드 §13·스케줄 §14)는 유효. 본 §0은 **그 위에 추가/누락된 것만** 보강.
+
+---
+
 ## 1. 공통 사항
 
 ### 1.1 Base URL

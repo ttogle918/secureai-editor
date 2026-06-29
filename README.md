@@ -26,8 +26,10 @@ Combines static analysis, dynamic testing, and AI-powered patch generation into 
 | frontend | Next.js 15, Monaco Editor, Tailwind, Zustand | 3000 |
 | ai_engine | Python 3.12, FastAPI, LangGraph, Claude API | 8000 |
 | mcp_server | Node.js 20, TypeScript, MCP SDK | stdio (subprocess) |
-| postgres | PostgreSQL 15 | 5432 |
+| postgres | PostgreSQL 15 (pgvector) | 5434→5432 |
 | redis | Redis 7 | 6379 |
+
+> 추가 클라이언트/워커: `apps/android`(Kotlin Compose), `apps/vscode_ext`(VSCode 확장), `apps/dast_runner`(DAST 격리 러너 이미지). 관측성 스택(Jaeger·Prometheus·Grafana·Loki)·Nginx 게이트웨이는 `docker-compose.yml` 참고.
 
 ---
 
@@ -104,11 +106,17 @@ make redis-cli     # open redis-cli inside redis container
 | Sprint 7 — Reports & Multi-client | ✅ 완료 | PDF 리포트, 대시보드 집계 API, Android MVP, FCM Push + SSE 이중 전략 |
 | Sprint 8 — Stabilization & Security | ✅ 완료 | OpenTelemetry 분산추적, ShedLock, Circuit Breaker, GDPR Export/Delete, 2FA TOTP, IP Allowlist, 보안 헤더(CSP·HSTS), Nginx 게이트웨이 |
 | Sprint 9 — Observability & Monitoring | ✅ 완료 | Prometheus + Grafana, 지속 모니터링(SSL·헬스체크), 보안문서 자동생성(CISO·행안부·ISMS-P), VSCode 확장, Android 고도화 |
-| Sprint 10+ — Reports & Production Prep | 🚧 진행 중 | 멀티 형식 리포트(HTML·Markdown), 이메일 인프라, 프로덕션 준비 |
+| Sprint 10 — Enterprise B2B + GitHub | ✅ 완료 | 야간 자동스캔, 팀 대시보드(MTTR·Gamification), 리포트 ROI Export, 스캔모드(AUDIT/PIPELINE 모델 분기), GitHub Integration |
+| Sprint 11 — QA 통합 + Persona UX | ✅ 완료 | 브랜치 통합, 페르소나 온보딩/사이드바, 법적 페이지 3종+동의, API 중심 분석 패널 |
+| Sprint 12 / 12C / 12D — 보안코어·관측성·점진분석·프로바이더 | ✅ 완료 | GitHub App 인증, 감사로그 해시체이닝, 세션관리, 토큰비용 추적, Loki+Sentry, 트랜잭션 이메일, 점진분석 UX(컨펌게이트), Gemini 멀티프로바이더 |
+| Sprint 13 — EPIC-VAL(검증 우선) | ✅ 완료 | OWASP Benchmark 하니스(`make eval`), AST 할루시네이션 가드, 트리아지 피드백(MOAT-1), 평가 CI 게이트 |
+| Sprint 14 — 검증된 AI(탐지→교정→증명) | ✅ 코드완료 | SAST→DAST proven_exploitable, 패치 자동 PR(PR-only), 패치 검증 자동화(Docker), 배치 DAST |
+| 데모/VC 트랙 | ✅ 드라이런 완주 | 탐지→트리아지→proven→자동PR→검증→규제증적→billing 1바퀴. BYOK/크레딧 2모드 |
+| 다음 — IR/투자유치 수치 트랙 | 🚧 예정 | VAL-1 대표런(탐지율·오탐률) → 단위원가·CWE/언어 커버리지 → 실CVE·도구비교(Semgrep/CodeQL) |
 
 > 스프린트별 상세 진행 상황·백로그는 [`docs/07_SPRINT_BACKLOG_V4_260523.md`](docs/07_SPRINT_BACKLOG_V4_260523.md)를 참고하세요.
 
-> **DB 마이그레이션**: Flyway 단독 관리 — `V001`~`V047` 마이그레이션 적용, `spring.jpa.hibernate.ddl-auto: none`. (초기 Spring Boot 4.0.x bean 초기화 이슈로 잠시 `ddl-auto`를 병행했으나, 현재는 Flyway로 일원화되어 있습니다.)
+> **DB 마이그레이션**: Flyway 단독 관리 — `V001`~`V064` 마이그레이션 적용, `spring.jpa.hibernate.ddl-auto: none`. (초기 Spring Boot 4.0.x bean 초기화 이슈로 잠시 `ddl-auto`를 병행했으나, 현재는 Flyway로 일원화되어 있습니다.)
 
 ---
 
@@ -133,7 +141,8 @@ Key documents:
 - GitHub tokens are encrypted at rest (AES-256-GCM) in the database
 - Refresh tokens are stored as SHA-256 hashes; reuse triggers full session revocation
 - Rate limiting per user via Redis
-- DAST sandbox is network-isolated (`dast-isolated-net`, internal only)
+- Audit logs are tamper-evident via SHA-256 hash chaining (`prev_hash`/`current_hash`)
+- ZAP regression scans run in an isolated network (`dast-isolated-net`); product DAST executor isolation is being hardened (see backlog TASK-1227)
 - Never commit `.env`, `*.keystore`, or any credential files
 
 To report a security vulnerability, use the [security vulnerability template](.github/ISSUE_TEMPLATE/security_vulnerability.md) (private disclosure).
@@ -146,9 +155,10 @@ To report a security vulnerability, use the [security vulnerability template](.g
 |-------|-----------|
 | Backend | Spring Boot 4.0.5, Java 21, Spring Security 7, JPA/Hibernate 7 |
 | Auth | JWT (JJWT 0.12), BCrypt(12), AES-256-GCM, Refresh Token Rotation |
-| Database | PostgreSQL 15, Flyway V001~V047 (단독 관리, ddl-auto: none), Redis 7, pgvector |
-| AI Agent | Python 3.12, FastAPI, LangGraph, Anthropic Claude API, LangSmith, psycopg3 |
+| Database | PostgreSQL 15, Flyway V001~V064 (단독 관리, ddl-auto: none), Redis 7, pgvector |
+| AI Agent | Python 3.12, FastAPI, LangGraph, Claude / Gemini / OpenAI (멀티프로바이더 BYOK), LangSmith, psycopg3 |
 | Checkpointer | LangGraph AsyncPostgresSaver — PostgreSQL 기반 세션 체크포인트 |
 | MCP | Node.js 20, TypeScript, MCP SDK (@modelcontextprotocol/sdk) — stdio subprocess |
 | Frontend | Next.js 15, TypeScript, Tailwind CSS, Monaco Editor, Zustand |
+| Observability | OpenTelemetry + Jaeger(트레이싱), Prometheus + Grafana(메트릭), Loki + Promtail(로그), Sentry(에러, env-gated) |
 | Infra | Docker, Docker Compose, GitHub Actions CI |

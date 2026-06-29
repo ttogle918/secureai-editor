@@ -10,7 +10,86 @@
 |------|--------|--------|---------|
 | V1 | `16_ARCHITECTURE_CURRENT.md` | Sprint 6 완료 | 초기 아키텍처 스냅샷 — SAST+DAST+SSE 파이프라인, Sprint 1~6 기준, pgvector 임베딩, Redis 키 구조, 인증 흐름 |
 | V2 | `17_ARCHITECTURE_CURRENT_V2.md` | 2026-05-22 | Sprint 8 완료 기준 전면 개편: Nginx API Gateway, Jaeger 분산 트레이싱, 2FA/IP Allowlist/GDPR 보안 강화, VC 피드백 3항목(AI 환각 제어·DAST 자원 통제·API 토큰 Hard Limit) 대응 |
-| **V3 (현재)** | `17_ARCHITECTURE_CURRENT_V2_260523.md` | 2026-05-23 | Sprint 9 완료 기준 업데이트: PostgreSQL MCP + Docker DAST MCP 전환, Prometheus+Grafana 관측성 추가, GDPR 소프트→하드 삭제 분리, 지속 모니터링 서비스(MonitoringJob), VSCode Extension MVP, Android 고도화 |
+| V3 | `17_ARCHITECTURE_CURRENT_V2_260523.md` | 2026-05-23 | Sprint 9 완료 기준 업데이트: PostgreSQL MCP + Docker DAST MCP 전환, Prometheus+Grafana 관측성 추가, GDPR 소프트→하드 삭제 분리, 지속 모니터링 서비스(MonitoringJob), VSCode Extension MVP, Android 고도화 |
+| **V4 정정 (현재)** | (본 파일 §0 정합 섹션) | 2026-06-29 | **코드 정합 정정** — 본문 §1(Sprint9 스냅샷)이 5스프린트 stale라 아래 §0에 현재 구현 기준 정정을 추가. 네트워크 3종(trace-net 미존재)·AI엔진 host 노출·제품 DAST 비격리·Loki/Sentry 추가 반영 |
+
+---
+
+## 0. ⚠️ 현재 구현 정합 (2026-06-29 정정 — 본 섹션이 우선)
+
+> 아래 §1~§12 본문은 **Sprint 9 스냅샷**이며 다음 항목이 현재 코드(`docker-compose.yml`, Flyway V064)와 다르다. **충돌 시 본 §0이 정본.**
+
+### 0.1 네트워크 — 실제 3종 (trace-net·frontend-net 미존재)
+
+| 네트워크 | 실제 구성원 | 비고 |
+|---------|-----------|------|
+| `app-net` (bridge) | nginx, backend, ai_engine, jaeger, prometheus, grafana, loki, promtail | FE는 dev에서 **로컬 npm**(컨테이너 아님) |
+| `data-net` (bridge) | backend, ai_engine, postgres, redis, jaeger | backend·ai_engine·jaeger는 **app-net+data-net 멀티홈** |
+| `dast-isolated-net` (**external:true**) | nginx, zap(profile:zap) | 호스트에서 `docker network create` 선행. backend는 docker.sock(DooD)로 호스트 네트워크 직접 참조 |
+
+> ❌ `trace-net`은 **존재하지 않는다**(Jaeger는 app-net+data-net). 본문 §1.2 표는 무효.
+
+### 0.2 정정 핵심 (본문 §1 대비)
+
+| 항목 | 본문(§1, Sprint9) | **현재 코드** |
+|------|------------------|--------------|
+| AI 엔진 노출 | `expose:8000` 외부 차단·data-net 전용 | **`ports: 8000:8000` host publish + app-net+data-net** — FE가 DAST 배치 SSE를 ai_engine에 직접 구독. *"외부차단" 더 이상 사실 아님* |
+| 제품 DAST 격리 | dast-net 격리 샌드박스 | **ai_engine 프로세스 內 httpx**가 app-net에서 타깃 직접 공격(비격리). dast-isolated-net 격리는 **ZAP 회귀스캔(profile:zap) 한정** → 격리화 백로그 **TASK-1227** |
+| 로그 집계 | 없음 | **Loki + Promtail + Grafana(Loki DS)** (TASK-1603) |
+| 에러 추적 | 없음 | **Sentry** env-gated (backend·ai_engine·frontend, TASK-1804) |
+| Frontend | app-net 컨테이너 :3000 | dev는 **로컬 실행**(compose 주석). backend/ai_engine 직접 호출(CORS) |
+| GitHub App | 없음 | backend가 `github-app.pem` 마운트 + APP_ID/WEBHOOK_SECRET (TASK-1201/1211) |
+| 포트 | pg 5432 / grafana 3000 | pg **5434→5432** / grafana **3001→3000** / jaeger **+4318(OTLP HTTP)** |
+| Flyway | V001~V043 | **V064까지**(§6.1 ERD 정정 참조) |
+
+### 0.3 현재 시스템 구성도 (실제)
+
+```mermaid
+graph TB
+    subgraph HOST["호스트 / 외부 (비컨테이너)"]
+        FE["Frontend — 로컬 npm :3000"]
+        VULN["fastapi-vuln(데모타깃)<br/>docker run · app-net"]
+        EXT["Anthropic/Gemini/OpenAI · GitHub API"]
+    end
+    subgraph APPNET["app-net"]
+        NGINX["nginx :80/443"]
+        BE["backend :8080 (app+data 멀티홈)"]
+        AE["ai_engine :8000 host publish (app+data 멀티홈)"]
+        JAEGER["jaeger :16686/4317/4318 (app+data)"]
+        PROM["prometheus :9090"]
+        GRAF["grafana :3001→3000"]
+        LOKI["loki :3100"]
+        PT["promtail (docker.sock)"]
+    end
+    subgraph DATANET["data-net"]
+        PG["postgres :5434→5432 pgvector"]
+        RD["redis :6379 db1"]
+    end
+    subgraph DASTNET["dast-isolated-net (external)"]
+        ZAP["zap (profile:zap)"]
+    end
+    FE -->|REST/SSE| BE
+    FE -->|DAST 배치 SSE 직접| AE
+    BE -->|X-Internal-Key| AE
+    AE -->|내부 API| BE
+    BE --- PG
+    BE --- RD
+    AE --- PG
+    AE --- RD
+    AE -->|httpx in-process 익스플로잇| VULN
+    AE --> EXT
+    BE --> EXT
+    BE -.docker.sock DooD.-> DASTNET
+    BE -.OTLP 4318.-> JAEGER
+    AE -.OTLP 4317.-> JAEGER
+    PROM -.scrape.-> BE
+    PROM -.scrape.-> AE
+    GRAF --> PROM
+    GRAF --> LOKI
+    PT --> LOKI
+    NGINX --> BE
+    ZAP -.scan.-> NGINX
+```
 
 ---
 

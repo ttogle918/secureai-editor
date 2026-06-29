@@ -139,6 +139,11 @@ Sprint 8(TASK-801)에서 ShedLock Redis Provider를 도입하여 모든 Job에 `
 7. Redis 락 해제
 ```
 
+> ⚠️ **정정 (2026-06-29) — 제품 DAST는 이 설계와 다르게 동작 중.**
+> 위 socket-mount + 단명 격리 컨테이너 + `dast-isolated-net` 설계는 **Sprint 6 원본 DAST·ZAP 회귀스캔(profile:zap) 한정**으로만 유효하다.
+> **데모/제품 DAST executor**(SQLi/XSS/IDOR/SSRF)는 **ai_engine 프로세스 內 httpx async**로 **app-net**에서 타깃을 직접 공격한다(별도 컨테이너·격리망 없음). ai_engine이 app-net+data-net 멀티홈이라 **SSRF 측면이동(postgres/redis 도달) 표면이 존재**한다.
+> → 격리 복원은 백로그 **TASK-1227(제품 DAST 격리화)**: dast-runner 별도 컨테이너를 dast-isolated-net 전용 연결(data-net 제거) + executor 사설IP/메타데이터 차단. CLAUDE.md "DAST 샌드박스는 반드시 dast-isolated-net 격리" 규칙은 현재 ZAP에만 충족됨.
+
 ---
 
 ## ADR-006 — API 인증: JWT + Refresh Token Rotation
@@ -179,6 +184,8 @@ Sprint 8(TASK-801)에서 ShedLock Redis Provider를 도입하여 모든 Job에 `
 ```
 secureai:sast:{sha256_hash}:{language}
 ```
+
+> ⚠️ **정정 (2026-06-29) — 실제 구현과 상이.** 실제 SAST 캐시 키는 `sast:cache:{sha256}`(language 미포함), **TTL은 24h가 아니라 7일**이다(`17_ARCHITECTURE_CURRENT` §2.1·코드 기준). 패치 캐시는 `patch:cache:{vuln_type}:{ext}` TTL 24h로 별도.
 
 ---
 

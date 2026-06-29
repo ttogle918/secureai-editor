@@ -9,7 +9,48 @@
 |------|--------|---------|
 | V1 | 2026-04-19 | 초기 구성 — postgres, redis, backend, ai_engine, frontend, mcp_server 6개 서비스, app-net/data-net/dast-net 3개 네트워크 |
 | V2 | 2026-04 (Sprint 6) | pgvector/pgvector:pg15 이미지 변경, dast-isolated-net 격리 네트워크 분리, DAST 샌드박스 Docker Socket 마운트 구성 |
-| **V3 (현재)** | 2026-05-22 | Sprint 8: Nginx API Gateway(`:80/443`), Jaeger(OpenTelemetry, `:16686/4317`) 추가, k6 성능 테스트 서비스 추가. Sprint 9: Prometheus(`:9090`), Grafana(`:3000`) 추가, AI Engine `ports→expose` 변환(외부 차단) |
+| V3 | 2026-05-22 | Sprint 8: Nginx API Gateway(`:80/443`), Jaeger(OpenTelemetry, `:16686/4317`) 추가, k6 성능 테스트 서비스 추가. Sprint 9: Prometheus(`:9090`), Grafana(`:3000`) 추가, AI Engine `ports→expose` 변환(외부 차단) |
+| **V4 정정 (현재)** | 2026-06-29 | **코드 정합 정정**(아래 §0). Sprint 12 Loki/Promtail 추가, AI엔진 host 8000 재노출, 네트워크 3종(trace-net 없음), DAST 비격리 실태, 포트 정정 |
+
+---
+
+## 0. ⚠️ 현재 구현 정합 (2026-06-29 — `docker-compose.yml` 기준, 본 섹션 우선)
+
+> 본문 §1~§8은 Sprint 8 기준. 아래가 현재 실제 구성. **충돌 시 §0이 정본.**
+
+### 0.1 실제 서비스 (12종 + 주석 2종)
+
+| 컨테이너 | 이미지 | 포트(host→cont) | 네트워크 | 비고 |
+|---------|--------|-----------------|---------|------|
+| postgres | pgvector/pgvector:pg15 | 5434→5432 | data-net | |
+| redis | redis:7-alpine | 6379 | data-net | db1 사용 |
+| backend | build | 8080 | **app-net+data-net** | docker.sock 마운트(DooD), github-app.pem 마운트 |
+| ai_engine | build (hostname ai-engine) | **8000 publish + expose** | **app-net+data-net** | FE가 DAST SSE 직접 구독차 host 노출 |
+| jaeger | jaegertracing/all-in-one:1.56 | 16686/4317/**4318** | app-net+data-net | |
+| nginx | nginx:1.25-alpine | 80/443 | app-net+**dast-isolated-net** | |
+| prometheus | prom/prometheus | 9090 | app-net | |
+| **loki** | grafana/loki:3.0.0 | 3100 | app-net | **신규(TASK-1603)** |
+| **promtail** | grafana/promtail:3.0.0 | — | app-net | docker.sock tail **신규** |
+| grafana | grafana/grafana | **3001→3000** | app-net | Loki+Prometheus DS |
+| k6 | grafana/k6 | — | app-net | profile:perf |
+| zap | ghcr.io/zaproxy/zaproxy:stable | — | **dast-isolated-net** | profile:zap |
+| ~~frontend~~ | (주석) | 3000 | — | dev는 **로컬 npm** |
+| ~~mcp_server~~ | (주석) | — | — | ai_engine **stdio subprocess** |
+
+### 0.2 네트워크 — 실제 3종
+
+```
+app-net           (bridge)        : nginx·backend·ai_engine·jaeger·prometheus·grafana·loki·promtail
+data-net          (bridge)        : backend·ai_engine·postgres·redis·jaeger
+dast-isolated-net (external:true) : nginx·zap(profile). backend는 docker.sock(DooD)로 호스트망 직접 참조
+```
+> ❌ 본문 §2의 `frontend-net`·`trace-net`은 **존재하지 않는다**.
+
+### 0.3 Sentry (env-gated, TASK-1804)
+`BACKEND_SENTRY_DSN`/`AI_ENGINE_SENTRY_DSN` 미설정 시 비활성. backend·ai_engine·frontend 3곳.
+
+### 0.4 DAST 격리 실태
+제품 DAST executor는 **ai_engine 프로세스 內 httpx**로 app-net에서 실행(비격리) → ai_engine이 data-net 멀티홈이라 SSRF 측면이동 표면 존재. 격리화 = 백로그 **TASK-1227**. dast-isolated-net 격리는 **ZAP 한정**.
 
 ---
 

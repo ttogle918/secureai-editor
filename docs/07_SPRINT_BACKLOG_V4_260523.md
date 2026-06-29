@@ -638,6 +638,53 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 
 ---
 
+## ★ IR 트랙 재배치 (2026-06-29 확정 — 데모 완주 후 우선순위)
+
+> 데모 트랙(①)이 사실상 완성(탐지→트리아지→proven→자동PR→검증→규제증적→billing). 중기 목표 = **IR/투자유치 수치 강화**(사용자 확정). 번호순(13→18)을 **가치/리스크 순으로 재배치**. 모든 IR 숫자는 **VAL-1 대표 런 선행**(현 `eval/baseline.json` LIMIT=5 시드).
+
+**Phase 0 — 데모 신뢰도 마감 (먼저, 짧게)**
+- 🔴 `TASK-1220` DAST 다종 실탐지(SQLi·SSRF·CmdI·IDOR) — 제품 신뢰도 + VAL-16 proven 라벨 공급
+- 🟠 `TASK-1227`(신규) 제품 DAST 격리화 · `FIX-PATCH-001` 패치 들여쓰기 · `TASK-1226` 뷰전환 · `TASK-1225` SSE 캐시 레이스
+
+**Phase 1 — 첫 숫자 (IR 1장 핵심)**
+1. **VAL-1 대표 런**(LIMIT≥100, API키, BenchmarkJava fetch) → 탐지율·오탐률·Youden + VAL-2 baseline 갱신 ← *모든 후속 선행*
+2. **VAL-15**(단위원가) + **TASK-1334/ECON**(세션원가) → "$/취약점·스캔당 $"(token_usage 재사용, S)
+3. **VAL-11**(CWE커버리지) + **VAL-17**(언어커버리지) → 매트릭스 아티팩트(VAL-1 결과 자동집계, S)
+4. **VAL-10**(결정성) → Jaccard 안정성(하니스 재사용, S)
+
+**Phase 2 — 실세계·경쟁 비교**
+5. **VAL-7**(실CVE 재현, M) → real-world recall
+6. **VAL-13**(SARIF) → **VAL-8**(Semgrep/CodeQL 비교) → "단독 탐지 N건"
+7. **VAL-16**(트리아지 품질) — 1220 proven 라벨 의존 → precision@10
+
+**Phase 3 — 숫자의 가시화**
+8. **TASK-1303/VAL-6**(신뢰지표 대시보드) → Phase1~2 숫자 제품/IR 노출
+9. **VAL-9**(패치검증 측정) — 1402 Docker 검증 선행 → "탐지→교정" 소거율
+
+> Sprint 14B(AI엔진V2)·15(Ecosystem)·17(결제)·18(Hardening)·12B(Admin UI) = IR 트랙 뒤로, GA 결정 시점 재논의. 제품 기능 심화(FEAT-FE-SAVE/GIT/AUTOMATION·VAL-18)는 "GA/기능 트랙"으로 분리 보관.
+
+### 신규 태스크 상세
+
+#### VAL-4R 🟠 — proven_exploitable 제품 DAST 일원화 (WebGoat 벤치 폐기)
+- **결정(2026-06-29)**: (b) 채택 — WebGoat가 unhealthy/격리난이로 **폐기**, 제품 DAST 워크스페이스(자체 `fastapi-vuln` 타깃)를 proven 근거로 일원화.
+- **배경**: `benchmarks/proven_exploit/runner.py`+`docker-compose.webgoat.yml`이 아직 죽은 WebGoat 타깃 → 데모 현실(제품 DAST in-process)과 괴리(line 60 Scene4 갭 정체).
+- **하위 할일**
+  - [ ] WebGoat compose·문서 의존 제거 또는 `--target-url`을 fastapi-vuln(자체 타깃)으로 기본화
+  - [ ] 제품 DAST 배치 결과(`dast_batch_complete` per-vuln)에서 `proven_scorecard.md` 산출(또는 CLI 벤치를 제품 executor 경로 재사용으로 통합)
+  - [ ] 백로그/대본의 "WebGoat" 잔재 정리, proven 근거 = 제품 DAST로 명문화
+- **선행/연계**: TASK-1220(다종 실탐지)·TASK-1222(런타임 자동화)·TASK-1227(격리). **사이즈 M.**
+
+#### TASK-1227 🔴 — 제품 DAST 격리화 (보안 — (b) 일원화의 필수 짝)
+- **배경**: 제품 DAST executor가 **ai_engine 프로세스 內 httpx**로 app-net에서 실행 → ai_engine이 app-net+data-net 멀티홈이라 **SSRF 측면이동(postgres/redis 도달) 표면**. ADR-005 격리 설계와 불일치(00_ADR 정정 참조). proven을 정식 기능으로 격상하면 격리 미비는 보안구멍.
+- **하위 할일**
+  - [ ] (최소) `dast-runner` 별도 컨테이너 → `dast-isolated-net` 전용 연결, **data-net 제거**(SSRF 측면이동 차단). TASK-1222 이미지 재사용
+  - [ ] executor 사설IP/메타데이터 대역 차단(`ipaddress.is_private`, 169.254.169.254 등 — VAL-4 Reviewer 권고)
+  - [ ] (완전·옵션) ADR-005대로 공격당 단명 컨테이너 + `--network none`/격리망 + mem/timeout cap
+  - [ ] CLAUDE.md "DAST 샌드박스 dast-isolated-net 격리" 규칙 충족 검증
+- **테스트**: 🛡️ DAST 실행 중 postgres/redis 도달 0 확인 · SSRF 내부대역 차단 단위테스트. **사이즈 M.** 선행 TASK-1222.
+
+---
+
 ## 태스크 인덱스 (활성 스프린트)
 > 사이즈: **S**(작음·단일 파일/컴포넌트) · **M**(중간·1~2 레이어) · **L**(큼·다중 서비스/다수 파일). 기간은 표기하지 않고 상대 규모만 표시.
 > 스프린트 용량 점검: 한 스프린트의 L 합계가 과다하면(대략 L 2개 초과) 분할 검토.
@@ -672,7 +719,28 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | 12C | 1224 | ai_engine RAG 임베딩 모델 누락 | ⬜ | S |
 | 12C | 1225 | SSE 결과 캐시 레이스(세션 재실행 stale) | ⬜ | S |
 | 12C | 1226 | 인앱 뷰 전환 플레이키 원인추적 | ⬜ | M |
-| 13~18 | — | AI Advanced·Ecosystem·시각화·결제·Hardening | 📋 계획 | 각 섹션 참조 |
+| 12C | 1227 | 제품 DAST 격리화(SSRF 측면이동 차단) 🆕 | ⬜ | M |
+| 12C | VAL-4R | proven 제품 DAST 일원화(WebGoat 폐기) 🆕 | ⬜ | M |
+| 12C-STAGE | STAGE-1/2/3 | 점진 분석 UX(점진노출·컨펌게이트·허브우선) | ✅ | L |
+| 12D | COST-1/2/3 | 프로바이더 추상화·Gemini 라우팅·토큰비용 | ✅ | L |
+| 13 | VAL-1 | OWASP Benchmark 평가 하니스(`make eval`) | ✅ | M |
+| 13 | VAL-3 | 결정론적 검증 레이어(AST 가드) | ✅ | L |
+| 13 | MOAT-1 | 트리아지 피드백 API+UI | ✅ | M |
+| 13 | VAL-2 | 평가 CI 게이트 | ✅ | M |
+| 13 | 1301 | 멀티파일 컨텍스트(MVP만 1106으로) | 🟡 부분 | L |
+| 13 | 1302 | 오탐 학습 & 도메인 커스텀 | ⬜ | M |
+| 13 | 1303 | AI 모델 벤치마크 대시보드(=VAL-6 재정의) | ⬜ | M |
+| 14 | VAL-4 | SAST→DAST proven_exploitable | ✅ 코드 | L |
+| 14 | 1401 | 패치 자동 PR 생성(PR-only) | ✅ 코드 | M |
+| 14 | 1402 | 패치 검증 자동화(Python+pytest) | ✅ 코드 | M |
+| 14 | 1403 | 패치 자동 롤백(안전장치) | ⬜ 이월 | M |
+| 14B | 1411~1414 | AI Engine V2(페르소나·비용예측·교차검증·State) | ⬜ | M |
+| 15 | 1501~1504 | Ecosystem & MCP 확장 | ⬜ | M |
+| 16 | 1601·1602·1604 | 라이브 시뮬레이터·메트릭·모바일3state | ⬜ | M |
+| 16 | 1603·1804 | Loki·Sentry 관측성 | ✅ | M |
+| 17 | 1701~1706 | 결제·빌링·Enterprise 랜딩 | ⬜ | L |
+| 18 | 1801~1807 | Hardening(E2E·a11y·시크릿·Swagger·Status) | ⬜ | L |
+| ECON | 1331~1334 | 캐싱·증분·캐스케이드·세션원가 | 🟡 부분 | M |
 
 ---
 
@@ -691,6 +759,10 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 | Sprint 12 | (관측성) Sentry PII 마스킹 라이브 도달(3런타임), Loki LogQL 조회+TraceID 릴레이, Grafana Slack Webhook | 🟡 부분완료·대기 | **일부 백엔드/스크립트 레벨에서 검증완료**(curl로 Sentry catch 확인됨). 실 환경의 DSN / Slack 연동은 사용자 환경 의존. |
 | Sprint 12 | (백업) TASK-1205: S3 Block Public Access, S3 실 업로드, DB 복구 후 Row 카운트 | 🟡 부분완료·대기 | **`backup-postgres.sh` pg_dump 로직 확인 완료**. LocalStack 경로 이슈로 AWS CLI S3 업로드 부분은 사용자 실 AWS 계정 환경검증으로 이관. |
 | Sprint 13 | Stage 1 (VAL-1 벤치마크 하니스, VAL-3 AST 가드, MOAT-1 트리아지 피드백) | 🟢 완료 | 수동 및 E2E 시나리오 100% 검증 통과 ([sprint-13-verification.md](file:///c:/Users/ttogl/workspace/secureai-editor/docs/sprints/sprint-13-verification.md)) |
+| Sprint 14 | TASK-1401 실PR 등록(패치코드 PR 반영) | ✅ 검증완료 | 데모(2026-06-28~29) 실 PR + 패치 diff PR 반영 직접 확인 |
+| Sprint 14 | VAL-4 proven (WebGoat 경로) | ⚠️ 폐기·대체 | WebGoat unhealthy/격리난이 → **자체 FastAPI 타깃(fastapi-vuln)+제품 DAST 워크스페이스**로 대체·검증(XSS EXPLOITED). CLI 벤치(`benchmarks/proven_exploit`)는 아직 WebGoat 타깃 → **VAL-4R 재정합 필요**(아래 신규) |
+| Sprint 14 | TASK-1402 Docker 패치검증 (Verified/Failed) | 🟡 대기 | `pytest -m integration` Docker 실증 미수행 |
+| Sprint 14 | VAL-1 대표 런 (탐지율/오탐률 첫 숫자) | 🟡 대기 | `eval/owasp_benchmark` LIMIT=5 시드만 → LIMIT≥100/풀런 + BenchmarkJava fetch + API키 필요(VAL-2 baseline 갱신 동반) |
 
 ---
 

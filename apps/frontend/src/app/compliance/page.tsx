@@ -4,12 +4,12 @@ import {
   ShieldAlert, BookOpen, FileText, ExternalLink, Download,
   CheckCircle2, Circle, Landmark, Newspaper, AlertTriangle, Paperclip,
 } from 'lucide-react';
-import complianceFeed from '@/data/compliance-feed.json';
+import { useComplianceFeed } from '@/hooks/useComplianceFeed';
+import type { FeedItem } from '@/hooks/useComplianceFeed';
 
 // ──────────────────────────────────────────────────────────────
-// ⚠️ 임시 mock 데이터 (데모용). 추후 백엔드 연동 시 교체.
-//   - 체크리스트: GET /compliance/checklist (예정)
-//   - 정부 권장사항/뉴스: 큐레이션 피드 또는 RSS 수집 (예정)
+// 보안 점검 체크리스트 — 정적 유지 (후속: 스캔결과 연동 예정)
+// 외부 피드 3개 섹션은 GET /api/v1/compliance/feed (실데이터)로 전환.
 // ──────────────────────────────────────────────────────────────
 
 type Severity = 'critical' | 'high' | 'medium' | 'low';
@@ -33,27 +33,54 @@ const CHECKLIST: ChecklistItem[] = [
   { id: 'c8', label: '정기 백업·복구 시나리오 점검',      severity: 'low',      done: true,  hint: '백업 무결성 + 복구 리허설 분기 1회' },
 ];
 
-interface GovRec { agency: string; date: string; title: string; summary: string; link: string; }
-const GOV_RECOMMENDATIONS: GovRec[] = [
-  { agency: 'KISA', date: '2026-06', title: '생성형 AI 서비스 보안 가이드', summary: 'LLM 연동 서비스의 프롬프트 인젝션·민감정보 유출 대응 권고. API 키 분리 보관 및 출력 필터링 강조.', link: 'https://www.kisa.or.kr/' },
-  { agency: '행정안전부', date: '2026-05', title: 'SW 개발보안 가이드 개정(47개 항목)', summary: '공공 정보화 사업 의무 적용 보안약점 진단 항목. 입력 검증·인증·에러처리 영역 보강.', link: 'https://www.kisa.or.kr/2060204/form?postSeq=5&page=1' },
-  { agency: '개인정보보호위원회', date: '2026-04', title: '개인정보 안전성 확보조치 기준', summary: '암호화·접근권한·접속기록 보관(최소 1년) 등 기술적·관리적 보호조치 의무 사항.', link: 'https://www.pipc.go.kr/' },
-];
-
-interface NewsItem { date: string; source: string; title: string; tag: string; link: string; }
-const SECURITY_NEWS: NewsItem[] = [
-  { date: '2026-06-27', source: '보안뉴스', tag: '취약점', title: '오픈소스 인기 라이브러리서 원격코드실행(RCE) 취약점 발견 — 즉시 패치 권고', link: 'https://www.boannews.com/' },
-  { date: '2026-06-25', source: 'KISA',     tag: '권고문', title: 'Apache 계열 서버 대상 대규모 스캐닝 탐지 — 최신 버전 업데이트 및 접근통제 점검', link: 'https://www.boho.or.kr/' },
-  { date: '2026-06-23', source: '데일리시큐', tag: '랜섬웨어', title: '국내 제조업 대상 피싱 경유 랜섬웨어 다수 — 첨부파일 매크로 차단 강화 필요', link: 'https://www.dailysecu.com/' },
-  { date: '2026-06-20', source: 'CVE',      tag: 'CVE', title: 'CVE-2026-XXXXX: 널리 쓰이는 JSON 파서 역직렬화 취약점(CVSS 9.1)', link: 'https://nvd.nist.gov/' },
-];
-
 const cardStyle: React.CSSProperties = { border: '1px solid var(--border-2)', borderRadius: 12, padding: 24, background: 'var(--bg-1)' };
 const linkBtn: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', background: 'var(--bg-2)', border: '1px solid var(--border-2)', padding: '8px 16px', borderRadius: 6, textDecoration: 'none' };
+
+/** publishedDate("YYYY-MM-DD") 를 "YYYY-MM" 형태로 단축한다. */
+function toYearMonth(dateStr: string | null): string {
+  if (!dateStr) return '';
+  return dateStr.slice(0, 7);
+}
+
+/** 피드 섹션 로딩/빈/에러 상태를 통합 렌더하는 헬퍼 */
+function FeedSectionContent({
+  isLoading, error, items, emptyMessage, children,
+}: {
+  isLoading: boolean;
+  error: string | null;
+  items: FeedItem[] | undefined;
+  emptyMessage: string;
+  children: (items: FeedItem[]) => React.ReactNode;
+}) {
+  if (isLoading) {
+    return (
+      <div style={{ padding: '16px 4px', color: 'var(--text-tertiary)', fontSize: 13 }}>
+        불러오는 중...
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div style={{ padding: '16px 4px', color: '#f97316', fontSize: 12 }}>
+        피드를 불러오지 못했습니다. ({error})
+      </div>
+    );
+  }
+  if (!items || items.length === 0) {
+    return (
+      <div style={{ padding: '16px 4px', color: 'var(--text-tertiary)', fontSize: 13 }}>
+        {emptyMessage}
+      </div>
+    );
+  }
+  return <>{children(items)}</>;
+}
 
 export default function ComplianceGuidelinePage() {
   const doneCount = CHECKLIST.filter((c) => c.done).length;
   const pct = Math.round((doneCount / CHECKLIST.length) * 100);
+
+  const { data: feedData, isLoading: feedLoading, error: feedError } = useComplianceFeed();
 
   return (
     <div style={{ padding: '32px 40px', maxWidth: 900, margin: '0 auto', color: 'var(--text-primary)' }}>
@@ -65,12 +92,12 @@ export default function ComplianceGuidelinePage() {
         보안 점검 체크리스트, 정부 권장 사항, 최신 보안 동향과 규제/인증 레퍼런스를 한곳에서 확인하세요.
       </p>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 28 }}>
-        <AlertTriangle size={12} /> 일부 항목은 데모용 예시 데이터입니다 (백엔드 연동 예정).
+        <AlertTriangle size={12} /> 피드(정부 권장사항·보안 뉴스·기관 게시물)는 실데이터, 체크리스트는 정적 데이터입니다.
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-        {/* ── 보안 점검 체크리스트 ── */}
+        {/* ── 보안 점검 체크리스트 (정적 — 후속: 스캔결과 연동 예정) ── */}
         <section style={cardStyle}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -102,90 +129,129 @@ export default function ComplianceGuidelinePage() {
           </div>
         </section>
 
-        {/* ── 정부 권장 사항 ── */}
+        {/* ── 정부 권장 사항 (실데이터: GET /api/v1/compliance/feed) ── */}
         <section style={cardStyle}>
           <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Landmark size={18} color="var(--orange)" /> 정부 권장 사항
           </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {GOV_RECOMMENDATIONS.map((r, i) => (
-              <a key={i} href={r.link} target="_blank" rel="noreferrer" style={{ display: 'block', padding: 14, background: 'var(--bg-2)', border: '1px solid var(--border-2)', borderRadius: 8, textDecoration: 'none', color: 'inherit' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', background: 'var(--orange-dim)', borderRadius: 4, padding: '2px 7px' }}>{r.agency}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{r.date}</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>{r.title} <ExternalLink size={12} color="var(--text-tertiary)" /></span>
-                </div>
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>{r.summary}</p>
-              </a>
-            ))}
-          </div>
+          <FeedSectionContent
+            isLoading={feedLoading}
+            error={feedError}
+            items={feedData?.govRecommendations}
+            emptyMessage="등록된 정부 권장사항이 없습니다."
+          >
+            {(items) => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {items.map((r) => (
+                  <a key={r.id} href={r.sourceUrl ?? '#'} target="_blank" rel="noreferrer" style={{ display: 'block', padding: 14, background: 'var(--bg-2)', border: '1px solid var(--border-2)', borderRadius: 8, textDecoration: 'none', color: 'inherit' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', background: 'var(--orange-dim)', borderRadius: 4, padding: '2px 7px' }}>{r.agency}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{toYearMonth(r.publishedDate)}</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>{r.title} <ExternalLink size={12} color="var(--text-tertiary)" /></span>
+                    </div>
+                    {r.summary && (
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>{r.summary}</p>
+                    )}
+                  </a>
+                ))}
+              </div>
+            )}
+          </FeedSectionContent>
         </section>
 
-        {/* ── 최신 보안 뉴스 ── */}
+        {/* ── 최신 보안 뉴스 (실데이터: GET /api/v1/compliance/feed) ── */}
         <section style={cardStyle}>
           <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Newspaper size={18} color="var(--orange)" /> 최신 보안 뉴스
           </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {SECURITY_NEWS.map((n, i) => (
-              <a key={i} href={n.link} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 4px', borderBottom: '1px solid var(--hairline)', textDecoration: 'none', color: 'inherit' }}>
-                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', flexShrink: 0, width: 78 }}>{n.date}</span>
-                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--orange)', border: '1px solid rgba(249,115,22,0.3)', borderRadius: 4, padding: '1px 6px', flexShrink: 0 }}>{n.tag}</span>
-                <span style={{ fontSize: 13, color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
-                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', flexShrink: 0 }}>{n.source}</span>
-              </a>
-            ))}
-          </div>
+          <FeedSectionContent
+            isLoading={feedLoading}
+            error={feedError}
+            items={feedData?.securityNews}
+            emptyMessage="등록된 보안 뉴스가 없습니다."
+          >
+            {(items) => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {items.map((n) => (
+                  <a key={n.id} href={n.sourceUrl ?? '#'} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 4px', borderBottom: '1px solid var(--hairline)', textDecoration: 'none', color: 'inherit' }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', flexShrink: 0, width: 78 }}>{n.publishedDate}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--orange)', border: '1px solid rgba(249,115,22,0.3)', borderRadius: 4, padding: '1px 6px', flexShrink: 0 }}>{n.category}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)', flexShrink: 0 }}>{n.agency}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </FeedSectionContent>
         </section>
 
-        {/* ── 기관 보안 게시물 (자동 수집 — KISA 등) ── */}
+        {/* ── 기관 보안 게시물 (실데이터: GET /api/v1/compliance/feed) ── */}
         <section style={cardStyle}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Landmark size={18} color="var(--orange)" /> 기관 보안 게시물
             </h2>
-            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>수집 {complianceFeed.generatedAt}</span>
+            {feedData?.agencyPosts[0]?.publishedDate && (
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                최신 {feedData.agencyPosts[0].publishedDate}
+              </span>
+            )}
           </div>
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>
             KISA 등 기관 보안 게시판에서 자동 수집·요약한 자료입니다. 첨부파일은 원문에서 다운로드하세요.
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {complianceFeed.items.map((item, i) => (
-              <div key={i} style={{ padding: 16, background: 'var(--bg-2)', border: '1px solid var(--border-2)', borderRadius: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', background: 'var(--orange-dim)', borderRadius: 4, padding: '2px 7px' }}>{item.agency}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', border: '1px solid var(--border-2)', borderRadius: 4, padding: '2px 7px' }}>{item.category}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>{item.date}</span>
-                </div>
-                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 6px' }}>{item.title}</h3>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 12px' }}>{item.summary}</p>
-
-                {item.files && item.files.length > 0 && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Paperclip size={12} /> 첨부파일 {item.files.length}건
+          <FeedSectionContent
+            isLoading={feedLoading}
+            error={feedError}
+            items={feedData?.agencyPosts}
+            emptyMessage="등록된 기관 게시물이 없습니다."
+          >
+            {(items) => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {items.map((item) => (
+                  <div key={item.id} style={{ padding: 16, background: 'var(--bg-2)', border: '1px solid var(--border-2)', borderRadius: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', background: 'var(--orange-dim)', borderRadius: 4, padding: '2px 7px' }}>{item.agency}</span>
+                      {item.category && (
+                        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', border: '1px solid var(--border-2)', borderRadius: 4, padding: '2px 7px' }}>{item.category}</span>
+                      )}
+                      <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>{item.publishedDate}</span>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {item.files.map((f, fi) => (
-                        <div key={fi} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 10px', background: 'var(--bg-1)', border: '1px solid var(--hairline)', borderRadius: 6 }}>
-                          <FileText size={13} color="var(--orange)" />
-                          <span style={{ flex: 1, color: 'var(--text-primary)' }}>{f.name}</span>
-                          <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{f.type} · {f.size}</span>
+                    <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 6px' }}>{item.title}</h3>
+                    {item.summary && (
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 12px' }}>{item.summary}</p>
+                    )}
+
+                    {item.files && item.files.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Paperclip size={12} /> 첨부파일 {item.files.length}건
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {item.files.map((f) => (
+                            <div key={f.name} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 10px', background: 'var(--bg-1)', border: '1px solid var(--hairline)', borderRadius: 6 }}>
+                              <FileText size={13} color="var(--orange)" />
+                              <span style={{ flex: 1, color: 'var(--text-primary)' }}>{f.name}</span>
+                              <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{f.type} · {f.size}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                <a href={item.sourceUrl} target="_blank" rel="noreferrer" style={{ ...linkBtn, fontSize: 12, padding: '6px 12px' }}>
-                  <Download size={13} /> 원문에서 파일 다운로드
-                </a>
+                    {item.sourceUrl && (
+                      <a href={item.sourceUrl} target="_blank" rel="noreferrer" style={{ ...linkBtn, fontSize: 12, padding: '6px 12px' }}>
+                        <Download size={13} /> 원문에서 파일 다운로드
+                      </a>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </FeedSectionContent>
         </section>
 
-        {/* ── 규제/인증 프레임워크 레퍼런스 (기존 KISA 링크) ── */}
+        {/* ── 규제/인증 프레임워크 레퍼런스 (기존 KISA 링크 — 정적 유지) ── */}
         <section style={cardStyle}>
           <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <FileText size={18} color="var(--orange)" /> 규제/인증 프레임워크

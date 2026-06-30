@@ -683,6 +683,13 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
   - [ ] CLAUDE.md "DAST 샌드박스 dast-isolated-net 격리" 규칙 충족 검증
 - **테스트**: 🛡️ DAST 실행 중 postgres/redis 도달 0 확인 · SSRF 내부대역 차단 단위테스트. **사이즈 M.** 선행 TASK-1222.
 
+#### FEAT-COMP-005 🟠 — 컴플라이언스 피드 실데이터화 (KISA RAG 트랙의 토대)
+> 사용자 비전: KISA 공식자료를 근거로 분석/평가하는 RAG(= **WEDGE-6**). 단계: DB+API → 크롤러 → RAG. "크롤링이 RAG보다 선행".
+- **Stage A ✅ 완료(2026-06-30)**: `compliance_feed_items` 테이블(V065, RAG-ready: `content`·`content_hash` 컬럼) + `GET /api/v1/compliance/feed`(JWT) + FE `/compliance` 페이지 mock→API 실데이터화. 3섹션(정부권장·뉴스·기관게시물) DB 서빙. 크롤러는 `POST /admin/compliance/feed/refresh` 501 스텁(삽입점만). *부수: SecurityDoc 테스트 빌드깨짐 복구.*
+  - 이월(비차단): 체크리스트 섹션 스캔결과 연동 / 프레임워크 레퍼런스 섹션은 V062 `compliance_frameworks` 재사용 가능.
+- **Stage B ⬜ (신규 등재)** KISA 크롤러 — 보호나라/가이드 게시물·첨부 PDF 수집 → `compliance_feed_items` 적재(`@Scheduled` 1일1회 + `content`/`content_hash` 채움·중복방지). 외부 HTML 의존 = 깨지기 쉬움, 사이트별 파서 + 실패 skip&log. **사이즈 L.** 선행 Stage A.
+- **Stage C ⬜ (= WEDGE-6)** RAG 임베딩·평가근거 — 수집 본문/PDF 청킹·pgvector 임베딩(기존 `security_guidelines` 임베딩 인프라 재사용) → SAST/DAST 분석 시 KISA 가이드 검색·인용. **사이즈 L.** 선행 Stage B.
+
 ---
 
 ## 태스크 인덱스 (활성 스프린트)

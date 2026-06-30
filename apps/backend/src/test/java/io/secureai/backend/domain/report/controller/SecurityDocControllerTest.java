@@ -35,9 +35,9 @@ class SecurityDocControllerTest {
     @DisplayName("createSecurityDoc — 유효한 type(대소문자 무시)을 DocType 으로 파싱해 202 로 응답한다")
     void createSecurityDoc_validType_returns202() {
         SecurityDocResponse pending = mock(SecurityDocResponse.class);
-        when(securityDocService.createRequest(projectId, userId, DocType.CISO)).thenReturn(pending);
+        when(securityDocService.createRequest(projectId, userId, DocType.CISO, null)).thenReturn(pending);
 
-        var response = controller.createSecurityDoc(userId, projectId, "ciso");
+        var response = controller.createSecurityDoc(userId, projectId, "ciso", null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(202);
         assertThat(response.getBody().getData()).isSameAs(pending);
@@ -46,7 +46,7 @@ class SecurityDocControllerTest {
     @Test
     @DisplayName("createSecurityDoc — 지원하지 않는 type 은 INVALID_INPUT 으로 거부한다")
     void createSecurityDoc_invalidType_throws() {
-        assertThatThrownBy(() -> controller.createSecurityDoc(userId, projectId, "BOGUS"))
+        assertThatThrownBy(() -> controller.createSecurityDoc(userId, projectId, "BOGUS", null))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.INVALID_INPUT));

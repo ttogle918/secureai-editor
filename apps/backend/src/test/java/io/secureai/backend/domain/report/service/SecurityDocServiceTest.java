@@ -81,7 +81,7 @@ class SecurityDocServiceTest {
         when(projectService.findOrThrow(projectId)).thenReturn(project);
         when(projectService.isMember(projectId, userId)).thenReturn(false);
 
-        assertThatThrownBy(() -> securityDocService.createRequest(projectId, userId, DocType.CISO))
+        assertThatThrownBy(() -> securityDocService.createRequest(projectId, userId, DocType.CISO, null))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
                         .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED));
@@ -102,7 +102,7 @@ class SecurityDocServiceTest {
         when(securityDocRequestRepository.save(any(SecurityDocRequest.class))).thenReturn(saved);
         doNothing().when(asyncProcessor).process(any(UUID.class));
 
-        SecurityDocResponse response = securityDocService.createRequest(projectId, userId, DocType.CISO);
+        SecurityDocResponse response = securityDocService.createRequest(projectId, userId, DocType.CISO, null);
 
         assertThat(response).isNotNull();
         assertThat(response.status()).isEqualTo("PENDING");
@@ -157,7 +157,7 @@ class SecurityDocServiceTest {
         when(securityDocRequestRepository.save(any(SecurityDocRequest.class))).thenReturn(saved);
         doNothing().when(asyncProcessor).process(any(UUID.class));
 
-        SecurityDocResponse response = securityDocService.createRequest(projectId, userId, DocType.HANAFOS);
+        SecurityDocResponse response = securityDocService.createRequest(projectId, userId, DocType.HANAFOS, null);
 
         assertThat(response.docType()).isEqualTo(DocType.HANAFOS);
     }
@@ -175,7 +175,7 @@ class SecurityDocServiceTest {
         when(securityDocRequestRepository.save(any(SecurityDocRequest.class))).thenReturn(saved);
         doNothing().when(asyncProcessor).process(any(UUID.class));
 
-        SecurityDocResponse response = securityDocService.createRequest(projectId, userId, DocType.ISMS);
+        SecurityDocResponse response = securityDocService.createRequest(projectId, userId, DocType.ISMS, null);
 
         assertThat(response.docType()).isEqualTo(DocType.ISMS);
     }

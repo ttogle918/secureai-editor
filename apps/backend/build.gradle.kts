@@ -114,6 +114,10 @@ dependencies {
 	implementation("net.javacrumbs.shedlock:shedlock-spring:6.3.0")
 	implementation("net.javacrumbs.shedlock:shedlock-provider-redis-spring:6.3.0")
 
+	// Jsoup — HTML 파싱 (컴플라이언스 피드 크롤러, Stage B)
+	// mavenCentral 배포 패키지 — spring.io 사설 리포 불필요
+	implementation("org.jsoup:jsoup:1.18.3")
+
 	// TOTP (2FA) — HMAC-based One-Time Password (RFC 6238)
 	implementation("dev.samstevens.totp:totp-spring-boot-starter:1.7.1")
 

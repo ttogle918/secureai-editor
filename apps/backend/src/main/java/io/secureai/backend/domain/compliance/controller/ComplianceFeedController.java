@@ -1,10 +1,11 @@
 package io.secureai.backend.domain.compliance.controller;
 
+import io.secureai.backend.domain.compliance.crawler.dto.FeedRefreshResult;
 import io.secureai.backend.domain.compliance.dto.ComplianceFeedResponse;
+import io.secureai.backend.domain.compliance.service.ComplianceFeedCrawler;
 import io.secureai.backend.domain.compliance.service.ComplianceFeedService;
 import io.secureai.backend.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,7 +22,7 @@ import java.util.UUID;
  *
  * <ul>
  *   <li>GET  /api/v1/compliance/feed — 정부 권장사항·보안 뉴스·기관 게시물 피드 조회
- *   <li>POST /api/v1/admin/compliance/feed/refresh — [Stage B 크롤러 연결 지점] 현재 501 스텁
+ *   <li>POST /api/v1/admin/compliance/feed/refresh — KISA 등 기관 게시판 크롤링 수동 트리거 (Stage B)
  * </ul>
  *
  * <p>입력 파라미터가 없으므로 Controller 레이어 추가 검증이 불필요하다.
@@ -33,6 +34,7 @@ import java.util.UUID;
 public class ComplianceFeedController {
 
     private final ComplianceFeedService complianceFeedService;
+    private final ComplianceFeedCrawler complianceFeedCrawler;
 
     /**
      * 컴플라이언스 피드 조회.
@@ -51,18 +53,18 @@ public class ComplianceFeedController {
     }
 
     /**
-     * [Stage B 크롤러 연결 지점] 컴플라이언스 피드 수동 갱신.
+     * 컴플라이언스 피드 수동 갱신 (Stage B 크롤러 연결).
      *
-     * <p>현재 501 Not Implemented 를 반환한다.
-     * Stage B 에서 KISA 등 기관 사이트 크롤러를 연동하고
-     * compliance_feed_items 테이블에 적재하는 실제 로직으로 교체한다.
+     * <p>KISA 등 기관 보안 게시판을 크롤링해 신규 아이템을 AGENCY_POST 섹션에 적재한다.
+     * 입력 파라미터가 없으므로 Controller 레이어 추가 검증이 불필요하다.
+     * 어드민 전용 — {@code @adminGuard.check} 가 관리자 여부를 확인한다.
      *
-     * <p>TODO: Stage B — 실제 KISA 크롤러(보안공지 게시판) 연동 후 구현 예정.
+     * @return 저장/스킵/실패 건수를 포함한 200 응답
      */
     @PostMapping("/api/v1/admin/compliance/feed/refresh")
     @PreAuthorize("@adminGuard.check(authentication)")
-    public ResponseEntity<Void> refreshFeed() {
-        // Stage B 크롤러 연결 지점 — 라이브 스크래핑 미구현
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    public ResponseEntity<ApiResponse<FeedRefreshResult>> refreshFeed() {
+        FeedRefreshResult result = complianceFeedCrawler.refresh();
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

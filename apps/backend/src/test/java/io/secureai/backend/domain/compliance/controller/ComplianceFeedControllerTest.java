@@ -1,6 +1,8 @@
 package io.secureai.backend.domain.compliance.controller;
 
+import io.secureai.backend.domain.compliance.crawler.dto.FeedRefreshResult;
 import io.secureai.backend.domain.compliance.dto.ComplianceFeedResponse;
+import io.secureai.backend.domain.compliance.service.ComplianceFeedCrawler;
 import io.secureai.backend.domain.compliance.service.ComplianceFeedService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,13 +29,14 @@ import static org.mockito.BDDMockito.given;
 class ComplianceFeedControllerTest {
 
     @Mock ComplianceFeedService complianceFeedService;
+    @Mock ComplianceFeedCrawler complianceFeedCrawler;
 
     private ComplianceFeedController controller;
     private final UUID userId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        controller = new ComplianceFeedController(complianceFeedService);
+        controller = new ComplianceFeedController(complianceFeedService, complianceFeedCrawler);
     }
 
     @Test
@@ -87,10 +90,37 @@ class ComplianceFeedControllerTest {
     }
 
     @Test
-    @DisplayName("refreshFeed — 501 Not Implemented 를 반환한다 (Stage B 스텁)")
-    void refreshFeed_returnsNotImplemented() {
+    @DisplayName("refreshFeed — 크롤러에 위임하고 200 과 저장/스킵 건수를 반환한다 (Stage B 연결)")
+    void refreshFeed_delegatesToCrawlerAndReturns200WithCounts() {
+        FeedRefreshResult crawlerResult = new FeedRefreshResult(3, 1, 0);
+        given(complianceFeedCrawler.refresh()).willReturn(crawlerResult);
+
         var response = controller.refreshFeed();
 
-        assertThat(response.getStatusCode().value()).isEqualTo(501);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody().getData().saved()).isEqualTo(3);
+        assertThat(response.getBody().getData().skipped()).isEqualTo(1);
+        assertThat(response.getBody().getData().failed()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("refreshFeed — 더 이상 501 을 반환하지 않는다 (Stage B 구현 완료)")
+    void refreshFeed_notNotImplemented() {
+        given(complianceFeedCrawler.refresh()).willReturn(new FeedRefreshResult(0, 0, 0));
+
+        var response = controller.refreshFeed();
+
+        assertThat(response.getStatusCode().value()).isNotEqualTo(501);
+    }
+
+    @Test
+    @DisplayName("refreshFeed — 크롤러 결과가 모두 0 이면 빈 성공 응답을 반환한다")
+    void refreshFeed_zeroResult_returnsSuccess() {
+        given(complianceFeedCrawler.refresh()).willReturn(new FeedRefreshResult(0, 0, 0));
+
+        var response = controller.refreshFeed();
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody().isSuccess()).isTrue();
     }
 }

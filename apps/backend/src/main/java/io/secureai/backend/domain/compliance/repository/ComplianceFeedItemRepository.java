@@ -31,4 +31,16 @@ public interface ComplianceFeedItemRepository extends JpaRepository<ComplianceFe
              ORDER BY i.publishedDate DESC, i.sortOrder ASC
             """)
     List<ComplianceFeedItem> findBySection(@Param("section") FeedSection section);
+
+    /**
+     * 주어진 contentHash 를 가진 아이템이 이미 존재하는지 확인한다.
+     *
+     * <p>Stage B 크롤러 중복 적재 방지 — dedup 체크에 사용한다.
+     * SQL 인젝션 방지: :contentHash 파라미터 바인딩 사용.
+     * V066 partial unique 인덱스가 DB 수준 동시성 안전망을 제공한다.
+     *
+     * @param contentHash SHA-256(sourceUrl + content_preview)
+     * @return 이미 존재하면 true
+     */
+    boolean existsByContentHash(@Param("contentHash") String contentHash);
 }

@@ -57,8 +57,9 @@ export function useComplianceFeed() {
       } catch (e) {
         if (!cancelled) {
           // 피드 로딩 실패는 페이지 크래시 금지 — 에러 상태만 설정 (skip & log)
-          console.warn('[useComplianceFeed] 피드 로드 실패:', e);
+          // 에러 객체 전체(Axios config의 Authorization=JWT 포함 가능) 대신 message만 로깅
           const message = e instanceof Error ? e.message : '피드를 불러오지 못했습니다.';
+          console.warn('[useComplianceFeed] 피드 로드 실패:', message);
           setError(message);
         }
       } finally {

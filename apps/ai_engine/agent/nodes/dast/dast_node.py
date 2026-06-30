@@ -26,6 +26,12 @@ try:
 except ImportError:
     search_guidelines_by_vuln_type = None
 
+# search_compliance_feed_by_topic — best-effort, 임포트 실패 시 통합 비활성화
+try:
+    from infrastructure.guidelines_client import search_compliance_feed_by_topic as _search_compliance
+except ImportError:
+    _search_compliance = None  # type: ignore[assignment]
+
 # MCP 클라이언트는 선택적 의존성 — DAST 단독 실행 시 없을 수 있다
 try:
     from agent.mcp_client import get_tool as _get_mcp_tool
@@ -109,9 +115,23 @@ async def _execute_dast(state: DastState) -> dict:
 async def _load_dast_guidelines(vuln_type: str) -> str:
     """vuln_type 에 맞는 DAST 지침을 로드한다.
 
-    search_guidelines_by_vuln_type 가 사용 가능하면 벡터 검색을 사용하고,
-    없으면 common 지침으로 폴백한다.
+    1. search_guidelines_by_vuln_type 벡터 검색 (사용 가능 시)
+    2. 없으면 common 지침으로 폴백
+    3. KISA 컴플라이언스 피드 검색 결과를 best-effort 로 병합
     """
+    guidelines = await _load_base_guidelines(vuln_type)
+    compliance_context = await _fetch_dast_compliance_context(vuln_type)
+    if compliance_context:
+        guidelines = (
+            guidelines
+            + "\n\n### 관련 KISA 컴플라이언스 가이드\n"
+            + compliance_context
+        )
+    return guidelines
+
+
+async def _load_base_guidelines(vuln_type: str) -> str:
+    """security_guidelines 에서 DAST 지침을 로드한다."""
     if search_guidelines_by_vuln_type is not None:
         try:
             return await search_guidelines_by_vuln_type(vuln_type, top_k=5)
@@ -126,4 +146,22 @@ async def _load_dast_guidelines(vuln_type: str) -> str:
         return await load_guidelines("common")
     except Exception as exc:
         logger.warning("[dast_node] load_guidelines failed: %s", exc)
+        return ""
+
+
+async def _fetch_dast_compliance_context(vuln_type: str) -> str:
+    """KISA 컴플라이언스 피드에서 vuln_type 관련 항목을 검색한다.
+
+    best-effort: 실패/0건 시 빈 문자열 반환, 기존 DAST 분석 계속 진행.
+    """
+    if _search_compliance is None:
+        return ""
+    try:
+        topic = f"{vuln_type.replace('_', ' ').lower()} 취약점 보안"
+        return await _search_compliance(topic)
+    except Exception as exc:
+        logger.warning(
+            "[dast_node] compliance_feed search failed vuln_type=%s error=%s (skip)",
+            vuln_type, exc,
+        )
         return ""

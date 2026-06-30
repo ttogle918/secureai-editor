@@ -20,6 +20,12 @@ from agent.tools.mcp_github_tools import get_github_file_content
 from config.settings import settings
 from agent.validation.ast_pre_filter import should_skip_llm
 from infrastructure.guidelines_client import load_guidelines
+
+# search_compliance_feed_by_topic 은 선택적 의존성 — 미설치 시 통합 비활성화
+try:
+    from infrastructure.guidelines_client import search_compliance_feed_by_topic as _search_compliance
+except ImportError:
+    _search_compliance = None  # type: ignore[assignment]
 from infrastructure.progress_log_client import log_completed, log_failed, log_started
 
 logger = logging.getLogger(__name__)
@@ -264,6 +270,22 @@ async def _fetch_prev_vuln_context(project_id) -> str:
         return ""
 
 
+async def _fetch_compliance_context(stacks: list[str]) -> str:
+    """KISA 컴플라이언스 피드를 벡터 검색해 관련 항목을 반환한다.
+
+    best-effort: 실패/0건 시 빈 문자열 반환, 기존 분석 계속 진행.
+    _search_compliance 가 None(미설치)이면 즉시 빈 문자열 반환.
+    """
+    if _search_compliance is None:
+        return ""
+    try:
+        topic = " ".join(stacks) + " 보안 취약점"
+        return await _search_compliance(topic)
+    except Exception as exc:
+        logger.warning("[sast] compliance_feed search failed stacks=%s error=%s (skip)", stacks, exc)
+        return ""
+
+
 async def sast_node(state: AgentState) -> dict:
     """
     Claude + MCP 로 현재 파일을 SAST 분석한다.
@@ -347,6 +369,15 @@ async def sast_node(state: AgentState) -> dict:
                     guidelines
                     + "\n\n### Previous Vulnerabilities in This Project (last 30 days)\n"
                     + prev_vuln_context
+                )
+
+            # KISA 컴플라이언스 피드 검색 (best-effort — 실패해도 분석 계속)
+            compliance_context = await _fetch_compliance_context(stacks)
+            if compliance_context:
+                guidelines = (
+                    guidelines
+                    + "\n\n### 관련 KISA 컴플라이언스 가이드\n"
+                    + compliance_context
                 )
 
             # ── Provider/Model 결정 블록 ──────────────────────────────────────────

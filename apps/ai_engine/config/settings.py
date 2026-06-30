@@ -69,9 +69,16 @@ class Settings(BaseSettings):
         description="MCP Read-Only PostgreSQL URL (없으면 MCP DB 조회 비활성화)",
     )
 
-    # 임베딩 설정 (fastembed BAAI/bge-small-en-v1.5)
+    # 임베딩 설정 (fastembed BAAI/bge-small-en-v1.5, 영어 전용, 384차원)
     embedding_model: str = Field("BAAI/bge-small-en-v1.5", alias="EMBEDDING_MODEL")
     embedding_top_k: int = Field(5, alias="EMBEDDING_TOP_K")
+
+    # 다국어 임베딩 설정 (KISA 컴플라이언스 피드, 한국어/영어 등 100개 이상 언어 지원)
+    # BAAI/bge-m3: fastembed >= 0.3.0 지원, 1024차원, 최고 수준 다국어 검색 품질
+    embedding_multilingual_model: str = Field(
+        "BAAI/bge-m3", alias="EMBEDDING_MULTILINGUAL_MODEL"
+    )
+    embedding_multilingual_top_k: int = Field(5, alias="EMBEDDING_MULTILINGUAL_TOP_K")
 
     # OpenTelemetry — 분산 트레이싱 (기본 비활성화, 프로덕션에서만 활성화)
     otel_enabled: bool = Field(False, alias="OTEL_ENABLED")

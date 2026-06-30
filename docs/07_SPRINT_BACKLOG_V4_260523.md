@@ -690,7 +690,11 @@ EPIC-MISC:              독립 기능 (스프린트 비종속)
 - **Stage B ✅ 완료(2026-06-30)** KISA 크롤러 — `crawler/` 패키지(fetcher↔parser 분리, jsoup): KISA 보안취약점 게시판 목록 파싱 → `compliance_feed_items`(AGENCY_POST) 적재. `@Scheduled`(cron 04시)+`@SchedulerLock`(ShedLock) 1일1회, `existsByContentHash` dedup + V066 partial unique index(`content_hash`), `POST /admin/compliance/feed/refresh` 501→크롤러 트리거(어드민 가드). 실패 skip&log. 테스트는 픽스처 HTML 기반(라이브 호출 없음) 40개 그린. Reviewer PASS.
   - 이월(비차단): 개별 게시물 본문(`content`=null, 목록만 수집 — 원문복제 금지 원칙과 일관) → Stage C에서 필요 시 방문 수집. 소스 다종 확장 시 refreshFeed `@Async` 전환 검토.
   - **Stage B 원안 ⬜**: 보호나라/가이드 첨부 PDF 수집·`content` 채움은 Stage C(RAG) 단계로 이월. 외부 HTML 의존 = 깨지기 쉬움 → 사이트별 파서 + 실패 skip&log 원칙 유지. **사이즈 L.** 선행 Stage A.
-- **Stage C ⬜ (= WEDGE-6)** RAG 임베딩·평가근거 — 수집 본문/PDF 청킹·pgvector 임베딩(기존 `security_guidelines` 임베딩 인프라 재사용) → SAST/DAST 분석 시 KISA 가이드 검색·인용. **사이즈 L.** 선행 Stage B.
+- **Stage C ✅ 완료(2026-06-30) (= WEDGE-6)** RAG 임베딩·평가근거 — 품질 우선 경로 채택(사용자 확정: 본문수집 full + 다국어 모델).
+  - **C-1(백엔드/Java)**: 크롤러 확장 — 개별 게시물 본문 + 첨부 PDF(PDFBox 3.x, 전이의존 재사용) 텍스트 추출 → `content` 채움(최대 50,000자) + `content_hash` 재계산. 상세파서/PDF추출기 인터페이스 분리(DIP, 픽스처/mock 테스트). 상세fetch·PDF 실패는 best-effort skip&log(목록정보 유지). **SSRF 방어**: `ALLOWED_FETCH_HOSTS`(www.kisa.or.kr) host allowlist + `isPdfLink` href-only(메타데이터 169.254.169.254 차단).
+  - **C-2(AI엔진/Python)**: 다국어 임베딩 **BAAI/bge-m3 1024차원**(fastembed, 한국어 지원, 기존 영어 384차원 모델과 공존·회귀 없음) + V067(`embedding vector(1024)` + ivfflat cosine) + `sync_compliance_embeddings.py`(배치) + `search_compliance_feed_by_topic()`(출력은 title+summary+source_url, 원문 미포함) + **SAST/DAST best-effort 인용 통합**(검색 실패가 분석을 죽이지 않음). 신규 테스트 16개(mock·실모델/실DB 미호출).
+  - 운영: V067 적용 후 `cd apps/ai_engine && python scripts/sync_compliance_embeddings.py`로 임베딩 적재(content 있는 행). bge-m3 첫 기동 시 ~1.2GB 다운로드 → Docker 빌드타임 사전 다운로드 권장.
+  - 이월(비차단): HIGH+ 하드 게이팅(`pip-audit -f json` OSV severity), pip-audit report-only 승격, response_parser ETC fallback 테스트 기대값 갱신(사전버그·무관).
 
 ---
 

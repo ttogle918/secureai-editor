@@ -65,9 +65,9 @@ public class ComplianceFeedItem extends BaseTimeEntity {
     private String summary;
 
     /**
-     * 본문 전체 텍스트. Stage A 에서는 NULL.
-     * Stage B 크롤러가 원문 수집 후 RAG 임베딩 원천으로 활용 예정.
-     * (외부 콘텐츠 원문 복제 금지 — 요약만 저장, 원문은 source_url 링크)
+     * RAG 임베딩용 본문 전체 텍스트(최대 ComplianceFeedCrawler.CONTENT_MAX_LEN 자) 저장.
+     * 프론트엔드 미노출 — 표시는 summary + source_url 링크.
+     * Stage A 시드 데이터는 NULL.
      */
     @Column(columnDefinition = "TEXT")
     private String content;

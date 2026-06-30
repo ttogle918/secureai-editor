@@ -120,6 +120,106 @@ async def load_guidelines(stacks: "str | list[str]") -> str:
     return text
 
 
+def _build_compliance_sql(
+    section: str | None,
+    vector_str: str,
+    top_k: int,
+) -> tuple[str, tuple]:
+    """section 유무에 따라 compliance_feed_items 벡터 검색 SQL 과 파라미터를 반환한다.
+
+    SQL 파라미터 바인딩만 담당 — 실행은 호출자가 수행한다.
+    """
+    if section is not None:
+        sql = """
+            SELECT title, summary, source_url, published_date
+            FROM compliance_feed_items
+            WHERE embedding IS NOT NULL
+              AND section = %s
+            ORDER BY embedding <=> %s::vector
+            LIMIT %s
+        """
+        return sql, (section, vector_str, top_k)
+
+    sql = """
+        SELECT title, summary, source_url, published_date
+        FROM compliance_feed_items
+        WHERE embedding IS NOT NULL
+        ORDER BY embedding <=> %s::vector
+        LIMIT %s
+    """
+    return sql, (vector_str, top_k)
+
+
+def _format_compliance_results(rows: list[tuple]) -> str:
+    """검색 결과 행을 인용 문자열로 변환한다.
+
+    content 원문은 포함하지 않는다 (원문 복제금지 규칙).
+    각 행은 "title / 요약 / 출처 / 게시일" 형식으로 포맷하며,
+    None 필드는 해당 줄을 생략한다.
+    """
+    parts = []
+    for title, summary, source_url, published_date in rows:
+        lines = [f"- {title}"]
+        if summary:
+            lines.append(f"  요약: {summary}")
+        if source_url:
+            lines.append(f"  출처: {source_url}")
+        if published_date:
+            lines.append(f"  게시일: {published_date}")
+        parts.append("\n".join(lines))
+    return "\n\n".join(parts)
+
+
+async def search_compliance_feed_by_topic(
+    topic: str,
+    section: str | None = None,
+    top_k: int | None = None,
+) -> str:
+    """컴플라이언스 피드를 다국어 벡터 검색으로 조회한다.
+
+    결과 0건 또는 실패 시 빈 문자열 반환(예외 전파 금지).
+    반환 형식: title + summary + source_url + published_date (content 원문 제외).
+    """
+    from infrastructure.embedding_service import embed_text_multilingual  # 지연 임포트
+
+    effective_top_k = top_k if top_k is not None else settings.embedding_multilingual_top_k
+
+    try:
+        loop = asyncio.get_running_loop()  # get_event_loop() deprecated — get_running_loop() 사용
+        embedding: list[float] = await loop.run_in_executor(
+            None, embed_text_multilingual, topic
+        )
+        vector_str = f"[{','.join(str(v) for v in embedding)}]"
+        sql, params = _build_compliance_sql(section, vector_str, effective_top_k)
+
+        pool = await get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, params)
+                rows = await cur.fetchall()
+
+        if not rows:
+            logger.warning(
+                "[compliance_feed] vector search 0 results topic=%s section=%s",
+                topic, section,
+            )
+            return ""
+
+        result = _format_compliance_results(rows)
+        logger.info(
+            "[compliance_feed] vector search topic=%s section=%s rows=%d chars=%d",
+            topic, section, len(rows), len(result),
+        )
+        return result
+
+    except Exception as exc:
+        logger.warning(
+            "[compliance_feed] search failed topic=%s error=%s (skip)",
+            topic, exc,
+        )
+        return ""
+
+
 async def search_guidelines_by_vuln_type(vuln_type: str, top_k: int = 5) -> str:
     """
     취약점 유형에 맞는 지침을 pgvector 코사인 유사도로 검색한다.

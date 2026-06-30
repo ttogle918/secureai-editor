@@ -47,4 +47,18 @@ public class WebClientFeedHtmlFetcher implements FeedHtmlFetcher {
             return null;
         }
     }
+
+    @Override
+    public byte[] fetchBytes(String url) {
+        try {
+            return restClient.get()
+                    .uri(url)
+                    .retrieve()
+                    .body(byte[].class);
+        } catch (Exception e) {
+            // PDF 다운로드 실패 — URL 만 기록, 바이너리 내용은 로그에 출력하지 않는다
+            log.warn("[compliance-crawler] 바이너리 fetch 실패 url={} cause={}", url, e.getMessage());
+            return null;
+        }
+    }
 }

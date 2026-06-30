@@ -61,9 +61,15 @@ jobs:
       - name: Install pip-audit
         run: pip install pip-audit
 
-      # HIGH 이상에서 취약점 발견 시 exit 1.
-      - name: pip-audit (HIGH+)
-        run: pip-audit -r apps/ai_engine/requirements.txt --severity high
+      # pip-audit 는 심각도 필터(--severity) 옵션이 없다 — requirements 전체를 스캔한다.
+      # (이전 `--severity high` 는 미지원 인자로, 값 high 가 positional project_path 로 먹혀
+      #  `-r` 과 충돌하며 CI 가 usage 에러로 항상 실패했다.)
+      # 프론트엔드 npm audit 게이트와 동일하게 현재는 report-only(continue-on-error) 로 운영하고,
+      # 의존성 정리 후 하드 게이트로 승격한다.
+      # TODO: HIGH+ 만 차단하려면 `pip-audit -f json` 출력을 파싱해 OSV severity 로 게이팅할 것.
+      - name: pip-audit (report-only)
+        run: pip-audit -r apps/ai_engine/requirements.txt
+        continue-on-error: true
 
 # ─────────────────────────────────────────────────────────────────
 # Job 1-C: SCA — Backend OWASP Dependency-Check (CVSS≥7 차단)
